@@ -121,8 +121,9 @@ interface NewsCardProps {
 export function NewsCard({ item }: NewsCardProps) {
   const [expanded, setExpanded] = useState(false);
   const pred = item.prediction;
-  const impactMap = new Map(item.ticker_impacts.map((t) => [t.symbol, t]));
-  const withReasoning = item.ticker_impacts.filter((t) => t.llm_reasoning);
+  const impacts = item.ticker_impacts ?? [];
+  const impactMap = new Map(impacts.map((t) => [t.symbol, t]));
+  const withReasoning = impacts.filter((t) => t.llm_reasoning);
 
   return (
     <article className="rounded-xl border border-[#2a2d3a] bg-[#1a1d27] p-4 transition-all hover:border-gray-600 animate-[fadeIn_0.3s_ease-in-out]">
