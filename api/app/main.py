@@ -4,10 +4,12 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from app.config import settings
 from app.db.base import Base
 from app.db.engine import engine
+from app.db.session import session_context
 from app.jobs.scheduler import start_scheduler, stop_scheduler
 from app.routers import (
     tickers_router,
@@ -36,6 +38,18 @@ async def lifespan(app: FastAPI):
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    # Auto-seed: pokud je DB prázdná (žádné tickery), spusť seed automaticky
+    async with engine.connect() as conn:
+        result = await conn.execute(text("SELECT COUNT(*) FROM tickers"))
+        ticker_count = result.scalar()
+
+    if ticker_count == 0:
+        log.info("DB is empty, running auto-seed")
+        from app.db.seed import seed
+        async with session_context() as session:
+            await seed(session)
+        log.info("Auto-seed complete")
 
     # APScheduler nefunguje na Vercel serverless (stateless funkce bez persistent procesu).
     # Na Vercelu použij Cron Jobs: POST /api/refresh každých N minut.
