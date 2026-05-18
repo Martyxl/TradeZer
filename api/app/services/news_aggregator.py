@@ -187,3 +187,61 @@ class NewsAggregator:
         await self.session.commit()
         log.info("News aggregator refresh complete", **stats)
         return stats
+
+    async def predict_pending(self, max_predictions: int = 8) -> dict[str, int]:
+        """Spustí LLM predikce jen pro položky bez predikcí — bez RSS fetche."""
+        log.info("Predict pending start", max_predictions=max_predictions)
+        tickers = await self.ticker_repo.get_all_enabled()
+        items = await self.repo.get_unpredicted_items(limit=max_predictions + 5)
+
+        stats = {"pending": len(items), "predicted": 0, "errors": 0}
+        engine = PredictionEngine(self.repo)
+
+        for item in items:
+            if stats["predicted"] >= max_predictions:
+                break
+            source_weight = item.source.source_weight if item.source else 0.5
+            instruments_hint: list[str] = item.raw_payload.get("instruments_hint", []) if item.raw_payload else []
+            relevant_tickers = await self._get_relevant_tickers(
+                instruments_hint, tickers, item.title, item.body
+            )
+            for ticker in relevant_tickers:
+                try:
+                    result = await engine.predict(
+                        news_id=item.id,
+                        ticker_id=ticker.id,
+                        ticker_symbol=ticker.symbol,
+                        title=item.title,
+                        body=item.body,
+                        source_weight=source_weight,
+                    )
+                    await self.repo.upsert_ticker_relevance(
+                        news_id=item.id,
+                        ticker_id=ticker.id,
+                        relevance_score=result.relevance_score,
+                        importance_weight=result.importance_weight,
+                        llm_rationale=result.llm_reasoning,
+                    )
+                    await self.repo.create_prediction(
+                        news_id=item.id,
+                        ticker_id=ticker.id,
+                        prob_down=result.prob_down,
+                        prob_neutral=result.prob_neutral,
+                        prob_up=result.prob_up,
+                        confidence=result.confidence,
+                        llm_reasoning=result.llm_reasoning,
+                        model_version=result.model_version,
+                    )
+                    await self.repo.save_item_categories(
+                        item.id, [(cat, 1.0) for cat in result.categories]
+                    )
+                    stats["predicted"] += 1
+                except Exception as e:
+                    stats["errors"] += 1
+                    log.error("Predict pending error", news_id=item.id, ticker=ticker.symbol, error=str(e))
+            await self.session.commit()
+
+        remaining = await self.repo.get_unpredicted_items(limit=1)
+        stats["remaining"] = len(remaining)
+        log.info("Predict pending complete", **stats)
+        return stats

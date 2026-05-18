@@ -2,7 +2,7 @@
 from datetime import datetime, date
 from typing import Sequence
 
-from sqlalchemy import select, and_, func
+from sqlalchemy import select, and_, func, not_, exists
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -29,6 +29,24 @@ class NewsRepository:
             select(NewsPrediction).where(NewsPrediction.news_id == news_id).limit(1)
         )
         return result is not None
+
+    async def get_unpredicted_items(self, limit: int = 20) -> Sequence[NewsItem]:
+        """Vrátí news_items bez jakékoli predikce — pro dávkové zpracování."""
+        stmt = (
+            select(NewsItem)
+            .where(
+                not_(exists(
+                    select(NewsPrediction.news_id)
+                    .where(NewsPrediction.news_id == NewsItem.id)
+                    .correlate(NewsItem)
+                ))
+            )
+            .options(selectinload(NewsItem.source))
+            .order_by(NewsItem.published_at.desc())
+            .limit(limit)
+        )
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
 
     async def get_news_item_by_external(self, source_id: int, external_id: str) -> NewsItem | None:
         return await self.session.scalar(

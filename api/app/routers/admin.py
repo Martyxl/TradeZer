@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, Depends, HTTPException, Header, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -15,10 +15,24 @@ def _verify_token(x_internal_token: str = Header(default="")):
 
 
 @router.post("/refresh", response_model=RefreshResponse, dependencies=[Depends(_verify_token)])
-async def manual_refresh(session: AsyncSession = Depends(get_session)):
+async def manual_refresh(
+    session: AsyncSession = Depends(get_session),
+    max_predictions: int = Query(default=8, ge=1, le=50),
+):
     aggregator = NewsAggregator(session)
-    stats = await aggregator.refresh()
+    stats = await aggregator.refresh(max_predictions=max_predictions)
     return RefreshResponse(status="ok", stats=stats)
+
+
+@router.post("/predict", dependencies=[Depends(_verify_token)])
+async def predict_pending(
+    session: AsyncSession = Depends(get_session),
+    max_predictions: int = Query(default=8, ge=1, le=30),
+):
+    """Spustí LLM predikce pro položky bez predikcí (bez RSS fetche — rychlejší)."""
+    aggregator = NewsAggregator(session)
+    stats = await aggregator.predict_pending(max_predictions=max_predictions)
+    return {"status": "ok", "stats": stats}
 
 
 @router.get("/health")
