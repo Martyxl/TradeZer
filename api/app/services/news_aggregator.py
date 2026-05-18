@@ -95,8 +95,8 @@ class NewsAggregator:
             return [t for t in all_tickers if t.symbol in instruments_hint]
         return _detect_tickers_by_keywords(title, body, list(all_tickers))
 
-    async def refresh(self) -> dict[str, int]:
-        log.info("News aggregator refresh start")
+    async def refresh(self, max_predictions: int = 15) -> dict[str, int]:
+        log.info("News aggregator refresh start", max_predictions=max_predictions)
         tickers = await self.ticker_repo.get_all_enabled()
         source_results = await self._fetch_all_sources()
 
@@ -176,6 +176,13 @@ class NewsAggregator:
                             ticker=ticker.symbol,
                             error=str(e),
                         )
+
+                # Commit po každé položce a zkontroluj limit
+                await self.session.commit()
+                if stats["predicted"] >= max_predictions:
+                    log.info("Prediction batch limit reached", limit=max_predictions)
+                    stats["fetched"] = -1  # signál že jsou ještě další
+                    return stats
 
         await self.session.commit()
         log.info("News aggregator refresh complete", **stats)
