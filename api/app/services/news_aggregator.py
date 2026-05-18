@@ -113,19 +113,23 @@ class NewsAggregator:
                     db_source.id, raw.external_id
                 )
                 if existing:
-                    stats["skipped"] += 1
-                    continue
-
-                news_item = await self.repo.create_news_item(
-                    source_id=db_source.id,
-                    external_id=raw.external_id,
-                    title=raw.title,
-                    body=raw.body,
-                    url=raw.url,
-                    published_at=raw.published_at,
-                    raw_payload=raw.raw_payload,
-                )
-                stats["new"] += 1
+                    # Pokud položka existuje ale nemá predikce, přepočítej ji
+                    has_pred = await self.repo.has_any_prediction(existing.id)
+                    if has_pred:
+                        stats["skipped"] += 1
+                        continue
+                    news_item = existing
+                else:
+                    news_item = await self.repo.create_news_item(
+                        source_id=db_source.id,
+                        external_id=raw.external_id,
+                        title=raw.title,
+                        body=raw.body,
+                        url=raw.url,
+                        published_at=raw.published_at,
+                        raw_payload=raw.raw_payload,
+                    )
+                    stats["new"] += 1
 
                 relevant_tickers = await self._get_relevant_tickers(
                     raw.instruments_hint, tickers, raw.title, raw.body

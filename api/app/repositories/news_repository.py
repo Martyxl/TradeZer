@@ -24,6 +24,12 @@ class NewsRepository:
             await self.session.flush()
         return src
 
+    async def has_any_prediction(self, news_id: int) -> bool:
+        result = await self.session.scalar(
+            select(NewsPrediction).where(NewsPrediction.news_id == news_id).limit(1)
+        )
+        return result is not None
+
     async def get_news_item_by_external(self, source_id: int, external_id: str) -> NewsItem | None:
         return await self.session.scalar(
             select(NewsItem).where(
