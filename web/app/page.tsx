@@ -54,11 +54,15 @@ export default function DashboardPage() {
   useEffect(() => {
     const es = new EventSource(`/api/stream?ticker=${selectedTicker}`);
     es.onmessage = (e) => {
-      const item = JSON.parse(e.data) as NewsItem;
-      setNews((prev) => {
-        if (prev.find((n) => n.id === item.id)) return prev;
-        return [item, ...prev.slice(0, 24)];
-      });
+      try {
+        const item = JSON.parse(e.data) as NewsItem;
+        setNews((prev) => {
+          if (prev.find((n) => n.id === item.id)) return prev;
+          return [item, ...prev.slice(0, 24)];
+        });
+      } catch {
+        // ignore malformed SSE frames
+      }
     };
     es.onerror = () => es.close();
     return () => es.close();
