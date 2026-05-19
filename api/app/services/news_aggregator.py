@@ -101,11 +101,11 @@ class NewsAggregator:
         source_results = await self._fetch_all_sources()
 
         stats = {"fetched": 0, "new": 0, "skipped": 0, "predicted": 0}
+        prediction_limit_reached = False
 
         for source, raw_items in source_results:
             stats["fetched"] += len(raw_items)
             db_source = await self.repo.get_or_create_source(source.name)
-            # Sync source weight to DB
             db_source.source_weight = source.source_weight
 
             for raw in raw_items:
@@ -113,7 +113,6 @@ class NewsAggregator:
                     db_source.id, raw.external_id
                 )
                 if existing:
-                    # Pokud položka existuje ale nemá predikce, přepočítej ji
                     has_pred = await self.repo.has_any_prediction(existing.id)
                     if has_pred:
                         stats["skipped"] += 1
@@ -130,6 +129,12 @@ class NewsAggregator:
                         raw_payload=raw.raw_payload,
                     )
                     stats["new"] += 1
+
+                # Po dosažení limitu přeskočíme predikci ale položku jsme už uložili —
+                # predict_pending ji zpracuje v dalším volání.
+                if prediction_limit_reached:
+                    await self.session.commit()
+                    continue
 
                 relevant_tickers = await self._get_relevant_tickers(
                     raw.instruments_hint, tickers, raw.title, raw.body
@@ -177,12 +182,10 @@ class NewsAggregator:
                             error=str(e),
                         )
 
-                # Commit po každé položce a zkontroluj limit
                 await self.session.commit()
                 if stats["predicted"] >= max_predictions:
                     log.info("Prediction batch limit reached", limit=max_predictions)
-                    stats["fetched"] = -1  # signál že jsou ještě další
-                    return stats
+                    prediction_limit_reached = True
 
         await self.session.commit()
         log.info("News aggregator refresh complete", **stats)
