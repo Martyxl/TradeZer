@@ -1,3 +1,5 @@
+import os
+
 from fastapi import APIRouter, Depends, HTTPException, Header, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,8 +11,19 @@ from app.services.news_aggregator import NewsAggregator
 router = APIRouter(prefix="/api", tags=["admin"])
 
 
-def _verify_token(x_internal_token: str = Header(default="")):
-    if settings.internal_api_token and x_internal_token != settings.internal_api_token:
+def _verify_token(
+    x_internal_token: str = Header(default=""),
+    authorization: str = Header(default=""),
+):
+    # Accept X-Internal-Token (manual calls, cron-job.org)
+    if settings.internal_api_token and x_internal_token == settings.internal_api_token:
+        return
+    # Accept Vercel cron: Authorization: Bearer <CRON_SECRET>
+    cron_secret = os.environ.get("CRON_SECRET", "")
+    if cron_secret and authorization == f"Bearer {cron_secret}":
+        return
+    # Reject if token is configured but nothing matched
+    if settings.internal_api_token:
         raise HTTPException(status_code=401, detail="Neplatný token")
 
 
