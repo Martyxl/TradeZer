@@ -18,6 +18,7 @@ from app.routers import (
     admin_router,
     history_router,
     stream_router,
+    stats_router,
 )
 
 structlog.configure(
@@ -87,6 +88,7 @@ app.include_router(summary_router)
 app.include_router(admin_router)
 app.include_router(history_router)
 app.include_router(stream_router)
+app.include_router(stats_router)
 
 
 @app.get("/")

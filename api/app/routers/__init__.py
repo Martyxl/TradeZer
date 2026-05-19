@@ -4,6 +4,7 @@ from app.routers.summary import router as summary_router
 from app.routers.admin import router as admin_router
 from app.routers.history import router as history_router
 from app.routers.stream import router as stream_router
+from app.routers.stats import router as stats_router
 
 __all__ = [
     "tickers_router",
@@ -12,4 +13,5 @@ __all__ = [
     "admin_router",
     "history_router",
     "stream_router",
+    "stats_router",
 ]

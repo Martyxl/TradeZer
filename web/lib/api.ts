@@ -69,6 +69,24 @@ export interface HistoryPoint {
   accuracy: boolean;
 }
 
+export interface CategoryStat {
+  total: number;
+  correct: number;
+  accuracy: number | null;
+  up: number;
+  neutral: number;
+  down: number;
+}
+
+export interface AccuracyStats {
+  ticker: string;
+  days: number;
+  total: number;
+  correct: number;
+  accuracy: number | null;
+  by_category: Record<string, CategoryStat>;
+}
+
 async function fetchJson<T>(path: string): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, { cache: "no-store" });
   if (!res.ok) throw new Error(`API error ${res.status}: ${path}`);
@@ -94,4 +112,7 @@ export const api = {
 
   getHistory: (ticker: string, days = 90) =>
     fetchJson<HistoryPoint[]>(`/api/history?ticker=${ticker}&days=${days}`),
+
+  getStats: (ticker: string, days = 90) =>
+    fetchJson<AccuracyStats>(`/api/stats?ticker=${ticker}&days=${days}`),
 };

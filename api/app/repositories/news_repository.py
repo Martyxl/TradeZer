@@ -335,3 +335,106 @@ class NewsRepository:
                 DailySummary.date == for_date,
             )
         )
+
+    async def get_accuracy_stats(
+        self, ticker_id: int, days: int = 90
+    ) -> dict:
+        """Celková přesnost + per-kategorie za posledních N dní."""
+        from datetime import timedelta
+        cutoff = datetime.utcnow() - timedelta(days=days)
+
+        # Celkové počty: kolik predikcí má realizovanou reakci
+        total_stmt = (
+            select(func.count(MarketReaction.id))
+            .join(NewsPrediction, and_(
+                NewsPrediction.news_id == MarketReaction.news_id,
+                NewsPrediction.ticker_id == MarketReaction.ticker_id,
+            ))
+            .where(
+                MarketReaction.ticker_id == ticker_id,
+                MarketReaction.realized_direction.isnot(None),
+                MarketReaction.recorded_at >= cutoff,
+            )
+        )
+        total = (await self.session.scalar(total_stmt)) or 0
+
+        # Přesné: predikovaný směr == realizovaný
+        # Predikovaný směr = argmax(prob_down, prob_neutral, prob_up)
+        # Počítáme v Pythonu — stáhneme řádky
+        rows_stmt = (
+            select(
+                NewsPrediction.prob_down,
+                NewsPrediction.prob_neutral,
+                NewsPrediction.prob_up,
+                MarketReaction.realized_direction,
+            )
+            .join(NewsPrediction, and_(
+                NewsPrediction.news_id == MarketReaction.news_id,
+                NewsPrediction.ticker_id == MarketReaction.ticker_id,
+            ))
+            .where(
+                MarketReaction.ticker_id == ticker_id,
+                MarketReaction.realized_direction.isnot(None),
+                MarketReaction.recorded_at >= cutoff,
+            )
+        )
+        rows = (await self.session.execute(rows_stmt)).all()
+
+        correct = sum(
+            1 for r in rows
+            if max(
+                ("down", r.prob_down), ("neutral", r.prob_neutral), ("up", r.prob_up),
+                key=lambda x: x[1]
+            )[0] == (r.realized_direction if isinstance(r.realized_direction, str) else r.realized_direction.value)
+        )
+
+        # Per-kategorie
+        cat_stmt = (
+            select(
+                NewsCategory.name,
+                MarketReaction.realized_direction,
+                NewsPrediction.prob_down,
+                NewsPrediction.prob_neutral,
+                NewsPrediction.prob_up,
+            )
+            .join(NewsPrediction, and_(
+                NewsPrediction.news_id == MarketReaction.news_id,
+                NewsPrediction.ticker_id == MarketReaction.ticker_id,
+            ))
+            .join(NewsItemCategory, NewsItemCategory.news_id == MarketReaction.news_id)
+            .join(NewsCategory, NewsCategory.id == NewsItemCategory.category_id)
+            .where(
+                MarketReaction.ticker_id == ticker_id,
+                MarketReaction.realized_direction.isnot(None),
+                MarketReaction.recorded_at >= cutoff,
+            )
+        )
+        cat_rows = (await self.session.execute(cat_stmt)).all()
+
+        by_cat: dict[str, dict] = {}
+        for r in cat_rows:
+            cat = r.name
+            realized = r.realized_direction if isinstance(r.realized_direction, str) else r.realized_direction.value
+            predicted = max(
+                ("down", r.prob_down), ("neutral", r.prob_neutral), ("up", r.prob_up),
+                key=lambda x: x[1]
+            )[0]
+            if cat not in by_cat:
+                by_cat[cat] = {"total": 0, "correct": 0, "up": 0, "neutral": 0, "down": 0}
+            by_cat[cat]["total"] += 1
+            by_cat[cat][realized] += 1
+            if predicted == realized:
+                by_cat[cat]["correct"] += 1
+
+        return {
+            "total": total,
+            "correct": correct,
+            "accuracy": round(correct / total, 4) if total > 0 else None,
+            "by_category": {
+                cat: {
+                    **v,
+                    "accuracy": round(v["correct"] / v["total"], 4) if v["total"] > 0 else None,
+                }
+                for cat, v in sorted(by_cat.items(), key=lambda x: -x[1]["total"])
+            },
+        }

@@ -35,6 +35,17 @@ async def predict_pending(
     return {"status": "ok", "stats": stats}
 
 
+@router.post("/calibrate", dependencies=[Depends(_verify_token)])
+async def calibrate(
+    session: AsyncSession = Depends(get_session),
+):
+    """Stáhne tržní ceny a zaznamená market reactions pro predikce starší 15 min."""
+    from app.services.calibration_service import CalibrationService
+    service = CalibrationService(session)
+    stats = await service.run()
+    return {"status": "ok", "stats": stats}
+
+
 @router.get("/health")
 async def health():
     return {"status": "ok", "version": "1.0.0"}
