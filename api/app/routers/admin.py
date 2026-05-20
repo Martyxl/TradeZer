@@ -69,14 +69,14 @@ async def reactions_analysis(
     from sqlalchemy import select, func as sqlfunc
     from app.models import MarketReaction, NewsItem
     from app.repositories import TickerRepository
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timedelta
 
     ticker_repo = TickerRepository(session)
     ticker_obj = await ticker_repo.get_by_symbol(ticker)
     if not ticker_obj:
         return {"error": "ticker not found"}
 
-    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    cutoff = datetime.utcnow() - timedelta(days=days)
     stmt = (
         select(MarketReaction.pct_change_15m, MarketReaction.realized_direction)
         .join(NewsItem, NewsItem.id == MarketReaction.news_id)
