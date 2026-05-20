@@ -1,8 +1,8 @@
 """Yahoo Finance adaptér pro historická tržní data."""
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, date
 
+import httpx
 import structlog
-import yfinance as yf
 
 log = structlog.get_logger(__name__)
 
@@ -16,84 +16,105 @@ SYMBOL_MAP = {
     "NQ": "NQ=F",
 }
 
+# Yahoo Finance chart API (same endpoint yfinance uses internally)
+YF_CHART_URL = "https://query2.finance.yahoo.com/v8/finance/chart/{symbol}"
+
 
 def _to_utc(dt: datetime) -> datetime:
-    """Převede naive datetime na UTC-aware (předpokládáme UTC)."""
     if dt.tzinfo is None:
         return dt.replace(tzinfo=timezone.utc)
     return dt.astimezone(timezone.utc)
 
 
-def _get_close_at(ticker_obj: "yf.Ticker", target_utc: datetime, window_before: int = 10, window_after: int = 10) -> float | None:
-    """Stáhne 5min historii kolem target_utc a vrátí nejbližší Close."""
-    start = target_utc - timedelta(minutes=window_before)
-    end = target_utc + timedelta(minutes=window_after + 5)
+def _fetch_chart(symbol: str, period1: int, period2: int, interval: str = "5m") -> list[dict]:
+    """
+    Stáhne OHLCV data přímo z Yahoo Finance chart API.
+    Vrátí seznam {"t": epoch_seconds, "close": float}.
+    """
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Accept": "application/json",
+    }
+    params = {
+        "symbol": symbol,
+        "period1": period1,
+        "period2": period2,
+        "interval": interval,
+        "includePrePost": "true",
+        "events": "div|split",
+    }
     try:
-        df = ticker_obj.history(
-            start=start.strftime("%Y-%m-%d %H:%M:%S"),
-            end=end.strftime("%Y-%m-%d %H:%M:%S"),
-            interval="5m",
-            auto_adjust=True,
-            prepost=True,
-        )
-        if df is None or df.empty:
-            return None
+        with httpx.Client(timeout=15.0, headers=headers, follow_redirects=True) as client:
+            resp = client.get(YF_CHART_URL.format(symbol=symbol), params=params)
+            resp.raise_for_status()
+            data = resp.json()
 
-        # Normalize columns (MultiIndex safety)
-        if hasattr(df.columns, "levels"):
-            df.columns = df.columns.get_level_values(0)
+        result_data = data.get("chart", {}).get("result")
+        if not result_data:
+            error = data.get("chart", {}).get("error")
+            log.warning("Yahoo Finance chart API error", symbol=symbol, error=error)
+            return []
 
-        # Ensure tz-aware UTC index
-        if df.index.tzinfo is None:
-            df.index = df.index.tz_localize("UTC")
-        else:
-            df.index = df.index.tz_convert("UTC")
+        timestamps = result_data[0].get("timestamp", [])
+        closes = result_data[0].get("indicators", {}).get("quote", [{}])[0].get("close", [])
 
-        idx = df.index.searchsorted(target_utc)
-        idx = min(max(idx, 0), len(df) - 1)
-        val = df.iloc[idx]["Close"]
-        result = float(val.iloc[0] if hasattr(val, "iloc") else val)
-        return result
+        bars = [
+            {"t": t, "close": c}
+            for t, c in zip(timestamps, closes)
+            if t is not None and c is not None
+        ]
+        log.debug("Yahoo Finance chart fetched", symbol=symbol, bars=len(bars))
+        return bars
+
     except Exception as e:
-        log.debug("_get_close_at failed", target=str(target_utc), error=str(e))
+        log.warning("Yahoo Finance chart fetch failed", symbol=symbol, error=str(e))
+        return []
+
+
+def _find_close_at(bars: list[dict], target_utc: datetime, tolerance_minutes: int = 30) -> float | None:
+    """Z načteného seznamu barů najde Close nejblíže target_utc."""
+    if not bars:
         return None
+    target_epoch = target_utc.timestamp()
+    tolerance_sec = tolerance_minutes * 60
+    best = None
+    best_diff = float("inf")
+    for bar in bars:
+        diff = abs(bar["t"] - target_epoch)
+        if diff < best_diff and diff <= tolerance_sec:
+            best_diff = diff
+            best = bar["close"]
+    return best
 
 
 class YahooFinanceAdapter:
     """Stahuje OHLCV data pro kalibraci market reactions."""
 
+    def fetch_day_bars(self, ticker_symbol: str, for_date: date) -> list[dict]:
+        """
+        Stáhne celý den 5min barů pro daný ticker a datum.
+        Vhodné pro hromadné vyhledávání — stáhni jednou, použij mnohokrát.
+        """
+        yahoo_sym = SYMBOL_MAP.get(ticker_symbol, ticker_symbol)
+        day_start = datetime(for_date.year, for_date.month, for_date.day, tzinfo=timezone.utc)
+        # +2 dny pro 1d reakci a pro futures s non-standard seancemi
+        day_end = day_start + timedelta(days=2)
+        period1 = int(day_start.timestamp())
+        period2 = int(day_end.timestamp())
+        return _fetch_chart(yahoo_sym, period1, period2, interval="5m")
+
     def get_prices_for_reaction(
         self, ticker_symbol: str, news_time: datetime
     ) -> dict[str, float | None]:
         """
-        Vrátí ceny v čase zprávy, +15min, +1h a +1d.
-        Každý časový bod se stahuje samostatně (menší požadavky = vyšší spolehlivost).
+        Stáhne data pro daný den a vyhledá ceny v čase zprávy, +15min, +1h, +1d.
         """
-        yahoo_sym = SYMBOL_MAP.get(ticker_symbol, ticker_symbol)
         news_utc = _to_utc(news_time)
-
-        try:
-            t = yf.Ticker(yahoo_sym)
-        except Exception as e:
-            log.warning("yfinance Ticker init failed", symbol=yahoo_sym, error=str(e))
-            return {"at_news": None, "15m": None, "1h": None, "1d": None}
-
-        at_news = _get_close_at(t, news_utc, window_before=5, window_after=10)
-        price_15m = _get_close_at(t, news_utc + timedelta(minutes=15))
-        price_1h = _get_close_at(t, news_utc + timedelta(hours=1))
-        price_1d = _get_close_at(t, news_utc + timedelta(days=1))
-
-        log.debug(
-            "yfinance prices",
-            symbol=yahoo_sym,
-            news_time=str(news_utc),
-            at_news=at_news,
-            price_15m=price_15m,
-        )
+        bars = self.fetch_day_bars(ticker_symbol, news_utc.date())
 
         return {
-            "at_news": at_news,
-            "15m": price_15m,
-            "1h": price_1h,
-            "1d": price_1d,
+            "at_news": _find_close_at(bars, news_utc),
+            "15m": _find_close_at(bars, news_utc + timedelta(minutes=15)),
+            "1h": _find_close_at(bars, news_utc + timedelta(hours=1)),
+            "1d": _find_close_at(bars, news_utc + timedelta(days=1), tolerance_minutes=60),
         }
