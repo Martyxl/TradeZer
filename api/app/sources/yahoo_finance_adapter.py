@@ -24,6 +24,41 @@ def _to_utc(dt: datetime) -> datetime:
     return dt.astimezone(timezone.utc)
 
 
+def _get_close_at(ticker_obj: "yf.Ticker", target_utc: datetime, window_before: int = 10, window_after: int = 10) -> float | None:
+    """Stáhne 5min historii kolem target_utc a vrátí nejbližší Close."""
+    start = target_utc - timedelta(minutes=window_before)
+    end = target_utc + timedelta(minutes=window_after + 5)
+    try:
+        df = ticker_obj.history(
+            start=start.strftime("%Y-%m-%d %H:%M:%S"),
+            end=end.strftime("%Y-%m-%d %H:%M:%S"),
+            interval="5m",
+            auto_adjust=True,
+            prepost=True,
+        )
+        if df is None or df.empty:
+            return None
+
+        # Normalize columns (MultiIndex safety)
+        if hasattr(df.columns, "levels"):
+            df.columns = df.columns.get_level_values(0)
+
+        # Ensure tz-aware UTC index
+        if df.index.tzinfo is None:
+            df.index = df.index.tz_localize("UTC")
+        else:
+            df.index = df.index.tz_convert("UTC")
+
+        idx = df.index.searchsorted(target_utc)
+        idx = min(max(idx, 0), len(df) - 1)
+        val = df.iloc[idx]["Close"]
+        result = float(val.iloc[0] if hasattr(val, "iloc") else val)
+        return result
+    except Exception as e:
+        log.debug("_get_close_at failed", target=str(target_utc), error=str(e))
+        return None
+
+
 class YahooFinanceAdapter:
     """Stahuje OHLCV data pro kalibraci market reactions."""
 
@@ -32,59 +67,33 @@ class YahooFinanceAdapter:
     ) -> dict[str, float | None]:
         """
         Vrátí ceny v čase zprávy, +15min, +1h a +1d.
-        Používá 5min interval pro krátkodobé reakce.
-        Vždy stáhne jedno volání — rozsah news_time-10min až news_time+2dny.
+        Každý časový bod se stahuje samostatně (menší požadavky = vyšší spolehlivost).
         """
         yahoo_sym = SYMBOL_MAP.get(ticker_symbol, ticker_symbol)
         news_utc = _to_utc(news_time)
-        start = news_utc - timedelta(minutes=10)
-        end = news_utc + timedelta(days=2)
 
         try:
-            df = yf.download(
-                yahoo_sym,
-                start=start,
-                end=end,
-                interval="5m",
-                progress=False,
-                auto_adjust=True,
-            )
+            t = yf.Ticker(yahoo_sym)
         except Exception as e:
-            log.warning("yfinance download failed", symbol=yahoo_sym, error=str(e))
+            log.warning("yfinance Ticker init failed", symbol=yahoo_sym, error=str(e))
             return {"at_news": None, "15m": None, "1h": None, "1d": None}
 
-        if df.empty:
-            log.debug("yfinance empty result", symbol=yahoo_sym, start=start, end=end)
-            return {"at_news": None, "15m": None, "1h": None, "1d": None}
+        at_news = _get_close_at(t, news_utc, window_before=5, window_after=10)
+        price_15m = _get_close_at(t, news_utc + timedelta(minutes=15))
+        price_1h = _get_close_at(t, news_utc + timedelta(hours=1))
+        price_1d = _get_close_at(t, news_utc + timedelta(days=1))
 
-        # Flatten multi-level columns pokud yfinance vrátí MultiIndex
-        if hasattr(df.columns, "levels"):
-            df.columns = df.columns.get_level_values(0)
-
-        # Zajistíme timezone-aware index pro srovnání
-        if df.index.tzinfo is None:
-            df.index = df.index.tz_localize("UTC")
-        else:
-            df.index = df.index.tz_convert("UTC")
-
-        def _price_near(target: datetime) -> float | None:
-            target_utc = _to_utc(target)
-            try:
-                # Najdi nejbližší bar PŘED nebo v čase target
-                idx = df.index.searchsorted(target_utc)
-                if idx >= len(df):
-                    idx = len(df) - 1
-                if idx < 0:
-                    return None
-                val = df.iloc[idx]["Close"]
-                return float(val)
-            except Exception as e:
-                log.debug("Price lookup failed", target=target_utc, error=str(e))
-                return None
+        log.debug(
+            "yfinance prices",
+            symbol=yahoo_sym,
+            news_time=str(news_utc),
+            at_news=at_news,
+            price_15m=price_15m,
+        )
 
         return {
-            "at_news": _price_near(news_utc),
-            "15m": _price_near(news_utc + timedelta(minutes=15)),
-            "1h": _price_near(news_utc + timedelta(hours=1)),
-            "1d": _price_near(news_utc + timedelta(days=1)),
+            "at_news": at_news,
+            "15m": price_15m,
+            "1h": price_1h,
+            "1d": price_1d,
         }
