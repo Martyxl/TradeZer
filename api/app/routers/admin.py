@@ -135,6 +135,34 @@ async def reactions_analysis(
     }
 
 
+@router.patch("/tickers/{symbol}/threshold", dependencies=[Depends(_verify_token)])
+async def update_threshold(
+    symbol: str,
+    threshold: float = Query(description="Nový neutral_threshold jako frakce (0.0005 = 0.05%)"),
+    session: AsyncSession = Depends(get_session),
+):
+    """Aktualizuje neutral_threshold pro ticker. Po změně spusť /api/calibrate znovu."""
+    from app.repositories import TickerRepository
+
+    repo = TickerRepository(session)
+    ticker = await repo.get_by_symbol(symbol.upper())
+    if not ticker:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail=f"Ticker {symbol} not found")
+
+    old = ticker.neutral_threshold
+    ticker.neutral_threshold = threshold
+    await session.commit()
+    return {
+        "symbol": symbol.upper(),
+        "old_threshold": old,
+        "new_threshold": threshold,
+        "old_pct": round(old * 100, 4),
+        "new_pct": round(threshold * 100, 4),
+        "message": "OK — spusť /api/calibrate pro přepočet realized_direction",
+    }
+
+
 @router.get("/health")
 async def health():
     return {"status": "ok", "version": "1.1.0"}
