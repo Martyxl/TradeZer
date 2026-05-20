@@ -150,16 +150,30 @@ async def update_threshold(
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail=f"Ticker {symbol} not found")
 
+    from sqlalchemy import update
+    from app.models import MarketReaction
+
     old = ticker.neutral_threshold
     ticker.neutral_threshold = threshold
+
+    # Reset realized_direction na NULL → calibrate je přepočítá s novým prahem
+    reset_stmt = (
+        update(MarketReaction)
+        .where(MarketReaction.ticker_id == ticker.id)
+        .values(realized_direction=None)
+    )
+    result = await session.execute(reset_stmt)
+    reset_count = result.rowcount
     await session.commit()
+
     return {
         "symbol": symbol.upper(),
         "old_threshold": old,
         "new_threshold": threshold,
         "old_pct": round(old * 100, 4),
         "new_pct": round(threshold * 100, 4),
-        "message": "OK — spusť /api/calibrate pro přepočet realized_direction",
+        "reactions_reset": reset_count,
+        "message": "Threshold aktualizován, realized_direction resetován — zavolej /api/calibrate",
     }
 
 
