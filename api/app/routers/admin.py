@@ -153,27 +153,41 @@ async def update_threshold(
     from sqlalchemy import update
     from app.models import MarketReaction
 
+    from sqlalchemy import select as sa_select
+    from app.models import MarketReaction, DirectionEnum
+
     old = ticker.neutral_threshold
     ticker.neutral_threshold = threshold
 
-    # Reset realized_direction na NULL → calibrate je přepočítá s novým prahem
-    reset_stmt = (
-        update(MarketReaction)
-        .where(MarketReaction.ticker_id == ticker.id)
-        .values(realized_direction=None)
+    # Přepočítej realized_direction přímo ze stored pct_change_15m
+    mr_stmt = sa_select(MarketReaction).where(
+        MarketReaction.ticker_id == ticker.id,
+        MarketReaction.pct_change_15m.isnot(None),
     )
-    result = await session.execute(reset_stmt)
-    reset_count = result.rowcount
-    await session.commit()
+    mr_result = await session.execute(mr_stmt)
+    reactions = mr_result.scalars().all()
 
+    updated = skipped = 0
+    for r in reactions:
+        p = r.pct_change_15m
+        if p > threshold:
+            new_dir = DirectionEnum.UP
+        elif p < -threshold:
+            new_dir = DirectionEnum.DOWN
+        else:
+            new_dir = DirectionEnum.NEUTRAL
+        r.realized_direction = new_dir
+        updated += 1
+
+    await session.commit()
     return {
         "symbol": symbol.upper(),
         "old_threshold": old,
         "new_threshold": threshold,
         "old_pct": round(old * 100, 4),
         "new_pct": round(threshold * 100, 4),
-        "reactions_reset": reset_count,
-        "message": "Threshold aktualizován, realized_direction resetován — zavolej /api/calibrate",
+        "reactions_updated": updated,
+        "message": "Threshold + realized_direction přepočítány ze stored pct_change_15m",
     }
 
 
