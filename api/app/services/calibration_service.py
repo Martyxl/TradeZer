@@ -32,7 +32,7 @@ class CalibrationService:
         log.info("Calibration job start")
         stats = {"checked": 0, "recorded": 0, "failed": 0, "skipped": 0}
 
-        predictions = await self.repo.get_predictions_without_reactions(older_than_minutes=15)
+        predictions = await self.repo.get_predictions_without_reactions(older_than_minutes=1)
 
         for pred in predictions:
             stats["checked"] += 1
