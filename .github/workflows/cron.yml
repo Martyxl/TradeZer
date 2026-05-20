@@ -1,0 +1,82 @@
+name: Tradezer Cron Jobs
+
+on:
+  schedule:
+    # Refresh news — každých 30 minut
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+    inputs:
+      job:
+        description: "Which job to run (refresh / predict / calibrate / all)"
+        required: false
+        default: "all"
+
+env:
+  API_URL: https://trade-zer.vercel.app
+  TOKEN: ${{ secrets.INTERNAL_API_TOKEN }}
+
+jobs:
+  refresh:
+    name: Refresh news feed
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'refresh' || github.event.inputs.job == 'all') || github.event_name == 'schedule'
+    steps:
+      - name: POST /api/refresh
+        run: |
+          echo "Running refresh at $(date -u)"
+          STATUS=$(curl -s -o /tmp/refresh.json -w "%{http_code}" \
+            --max-time 55 \
+            -X POST "$API_URL/api/refresh" \
+            -H "X-Internal-Token: $TOKEN" \
+            -H "Content-Type: application/json")
+          echo "HTTP $STATUS"
+          cat /tmp/refresh.json
+          if [ "$STATUS" != "200" ]; then
+            echo "::warning::Refresh returned HTTP $STATUS"
+          fi
+
+  predict:
+    name: Process predictions
+    runs-on: ubuntu-latest
+    needs: refresh
+    if: always() && (github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'predict' || github.event.inputs.job == 'all') || github.event_name == 'schedule')
+    steps:
+      - name: POST /api/predict (run until remaining=0)
+        run: |
+          echo "Running predict at $(date -u)"
+          for i in 1 2 3; do
+            STATUS=$(curl -s -o /tmp/predict.json -w "%{http_code}" \
+              --max-time 55 \
+              -X POST "$API_URL/api/predict" \
+              -H "X-Internal-Token: $TOKEN" \
+              -H "Content-Type: application/json")
+            echo "HTTP $STATUS (attempt $i)"
+            cat /tmp/predict.json
+            REMAINING=$(cat /tmp/predict.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('remaining', 0))" 2>/dev/null || echo 0)
+            echo "Remaining: $REMAINING"
+            if [ "$REMAINING" = "0" ]; then
+              echo "All predictions done."
+              break
+            fi
+            sleep 5
+          done
+
+  calibrate:
+    name: Calibrate market reactions
+    runs-on: ubuntu-latest
+    needs: predict
+    if: always() && (github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'calibrate' || github.event.inputs.job == 'all') || github.event_name == 'schedule')
+    steps:
+      - name: POST /api/calibrate
+        run: |
+          echo "Running calibrate at $(date -u)"
+          STATUS=$(curl -s -o /tmp/calibrate.json -w "%{http_code}" \
+            --max-time 55 \
+            -X POST "$API_URL/api/calibrate" \
+            -H "X-Internal-Token: $TOKEN" \
+            -H "Content-Type: application/json")
+          echo "HTTP $STATUS"
+          cat /tmp/calibrate.json
+          if [ "$STATUS" != "200" ]; then
+            echo "::warning::Calibrate returned HTTP $STATUS"
+          fi
