@@ -2,7 +2,7 @@
 from datetime import datetime, date
 from typing import Sequence
 
-from sqlalchemy import select, and_, func, not_, exists
+from sqlalchemy import select, and_, or_, func, not_, exists
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -173,7 +173,9 @@ class NewsRepository:
     async def get_predictions_without_reactions(
         self, older_than_minutes: int = 15
     ) -> Sequence[NewsPrediction]:
-        cutoff = datetime.utcnow() - __import__("datetime").timedelta(minutes=older_than_minutes)
+        """Predikce bez záznamu MarketReaction NEBO s reakcí ale null realized_direction."""
+        import datetime as dt
+        cutoff = datetime.utcnow() - dt.timedelta(minutes=older_than_minutes)
         stmt = (
             select(NewsPrediction)
             .outerjoin(
@@ -184,7 +186,10 @@ class NewsRepository:
                 ),
             )
             .where(
-                MarketReaction.id.is_(None),
+                or_(
+                    MarketReaction.id.is_(None),
+                    MarketReaction.realized_direction.is_(None),
+                ),
                 NewsPrediction.created_at <= cutoff,
             )
             .options(selectinload(NewsPrediction.news_item), selectinload(NewsPrediction.ticker))
@@ -205,6 +210,24 @@ class NewsRepository:
         pct_change_1d: float | None,
         realized_direction: str | None,
     ) -> MarketReaction:
+        # Upsert — aktualizuj existující reakci nebo vytvoř novou
+        existing = await self.session.scalar(
+            select(MarketReaction).where(
+                MarketReaction.news_id == news_id,
+                MarketReaction.ticker_id == ticker_id,
+            )
+        )
+        if existing:
+            existing.price_at_news = price_at_news
+            existing.price_15m = price_15m
+            existing.price_1h = price_1h
+            existing.price_1d = price_1d
+            existing.pct_change_15m = pct_change_15m
+            existing.pct_change_1h = pct_change_1h
+            existing.pct_change_1d = pct_change_1d
+            existing.realized_direction = realized_direction
+            await self.session.flush()
+            return existing
         reaction = MarketReaction(
             news_id=news_id,
             ticker_id=ticker_id,
