@@ -61,4 +61,4 @@ async def calibrate(
 
 @router.get("/health")
 async def health():
-    return {"status": "ok", "version": "1.0.0"}
+    return {"status": "ok", "version": "1.1.0"}
