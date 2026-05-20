@@ -1,4 +1,5 @@
 """Kalibrační servis — stahuje tržní data a ukládá market reactions."""
+import asyncio
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -29,7 +30,7 @@ class CalibrationService:
 
     async def run(self) -> dict[str, int]:
         log.info("Calibration job start")
-        stats = {"checked": 0, "recorded": 0, "failed": 0}
+        stats = {"checked": 0, "recorded": 0, "failed": 0, "skipped": 0}
 
         predictions = await self.repo.get_predictions_without_reactions(older_than_minutes=15)
 
@@ -37,13 +38,17 @@ class CalibrationService:
             stats["checked"] += 1
             ticker = await self.ticker_repo.get_by_id(pred.ticker_id)
             if not ticker:
+                stats["skipped"] += 1
                 continue
 
             news_time = pred.news_item.published_at
             try:
-                prices = self.yahoo.get_prices_for_reaction(ticker.symbol, news_time)
+                # yfinance je synchronní — spustíme v thread poolu aby neblokoval
+                prices = await asyncio.to_thread(
+                    self.yahoo.get_prices_for_reaction, ticker.symbol, news_time
+                )
             except Exception as e:
-                log.warning("Yahoo Finance failed", news_id=pred.news_id, error=str(e))
+                log.warning("Yahoo Finance failed", news_id=pred.news_id, ticker=ticker.symbol, error=str(e))
                 stats["failed"] += 1
                 continue
 
@@ -52,15 +57,22 @@ class CalibrationService:
             price_1h = prices.get("1h")
             price_1d = prices.get("1d")
 
-            def _pct(p_now: float | None, p_base: float | None) -> float | None:
-                if p_now and p_base and p_base != 0:
-                    return (p_now - p_base) / p_base
+            # Bez ceny v čase zprávy nemůžeme spočítat % změnu
+            if at_news is None:
+                log.debug("No price at news time", news_id=pred.news_id, ticker=ticker.symbol)
+                stats["skipped"] += 1
+                continue
+
+            def _pct(p: float | None) -> float | None:
+                if p and at_news and at_news != 0:
+                    return round((p - at_news) / at_news, 6)
                 return None
 
-            pct_15m = _pct(price_15m, at_news)
-            pct_1h = _pct(price_1h, at_news)
-            pct_1d = _pct(price_1d, at_news)
+            pct_15m = _pct(price_15m)
+            pct_1h = _pct(price_1h)
+            pct_1d = _pct(price_1d)
 
+            # Realizovaný směr = pohyb za 15 minut (nejrychlejší reakce trhu)
             realized = self._determine_direction(pct_15m, ticker.neutral_threshold)
 
             await self.repo.save_market_reaction(
@@ -76,6 +88,13 @@ class CalibrationService:
                 realized_direction=realized,
             )
             stats["recorded"] += 1
+            log.info(
+                "Reaction recorded",
+                news_id=pred.news_id,
+                ticker=ticker.symbol,
+                pct_15m=pct_15m,
+                realized=realized,
+            )
 
         await self.session.commit()
         log.info("Calibration job complete", **stats)
