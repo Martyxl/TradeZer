@@ -59,6 +59,82 @@ async def calibrate(
     return {"status": "ok", "stats": stats}
 
 
+@router.get("/reactions/analysis", dependencies=[Depends(_verify_token)])
+async def reactions_analysis(
+    ticker: str = Query(default="EURUSD"),
+    days: int = Query(default=90),
+    session: AsyncSession = Depends(get_session),
+):
+    """Vrátí distribuci pct_change_15m pro daný ticker — pro kalibraci neutral_threshold."""
+    from sqlalchemy import select, func as sqlfunc
+    from app.models import MarketReaction, NewsItem
+    from app.repositories import TickerRepository
+    from datetime import datetime, timedelta, timezone
+
+    ticker_repo = TickerRepository(session)
+    ticker_obj = await ticker_repo.get_by_symbol(ticker)
+    if not ticker_obj:
+        return {"error": "ticker not found"}
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    stmt = (
+        select(MarketReaction.pct_change_15m, MarketReaction.realized_direction)
+        .join(NewsItem, NewsItem.id == MarketReaction.news_id)
+        .where(
+            MarketReaction.ticker_id == ticker_obj.id,
+            MarketReaction.pct_change_15m.isnot(None),
+            NewsItem.published_at >= cutoff,
+        )
+        .order_by(MarketReaction.pct_change_15m)
+    )
+    result = await session.execute(stmt)
+    rows = result.all()
+
+    if not rows:
+        return {"ticker": ticker, "count": 0, "message": "no data"}
+
+    pcts = [abs(r.pct_change_15m) * 100 for r in rows]  # abs, v procentech
+    raw_pcts = [round(r.pct_change_15m * 100, 4) for r in rows]
+
+    pcts.sort()
+    n = len(pcts)
+    percentiles = {
+        "p10": round(pcts[int(n * 0.10)], 4),
+        "p25": round(pcts[int(n * 0.25)], 4),
+        "p50": round(pcts[n // 2], 4),
+        "p75": round(pcts[int(n * 0.75)], 4),
+        "p90": round(pcts[int(n * 0.90)], 4),
+        "p95": round(pcts[int(n * 0.95)], 4),
+        "p99": round(pcts[min(int(n * 0.99), n - 1)], 4),
+    }
+    avg = round(sum(pcts) / n, 4)
+    current_threshold = round(ticker_obj.neutral_threshold * 100, 4)
+
+    # Kolik vzorků by bylo classified jako non-neutral při různých thresholdech
+    thresholds_test = [0.01, 0.02, 0.03, 0.04, 0.05, 0.07, 0.10, 0.15, 0.20]
+    threshold_sim = {
+        f"{t*100:.0f}bp": {
+            "non_neutral_count": sum(1 for p in pcts if p > t * 100),
+            "non_neutral_pct": round(sum(1 for p in pcts if p > t * 100) / n * 100, 1),
+        }
+        for t in thresholds_test
+    }
+
+    return {
+        "ticker": ticker,
+        "current_threshold_pct": current_threshold,
+        "count": n,
+        "abs_pct_change_15m": {
+            "avg": avg,
+            "min": round(pcts[0], 4),
+            "max": round(pcts[-1], 4),
+            **percentiles,
+        },
+        "raw_sample_20": raw_pcts[:20],
+        "threshold_simulation": threshold_sim,
+    }
+
+
 @router.get("/health")
 async def health():
     return {"status": "ok", "version": "1.1.0"}
