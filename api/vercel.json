@@ -15,19 +15,5 @@
       "src": "/(.*)",
       "dest": "app/main.py"
     }
-  ],
-  "crons": [
-    {
-      "path": "/api/refresh",
-      "schedule": "*/30 * * * *"
-    },
-    {
-      "path": "/api/predict",
-      "schedule": "*/20 * * * *"
-    },
-    {
-      "path": "/api/calibrate",
-      "schedule": "*/15 * * * *"
-    }
   ]
 }
