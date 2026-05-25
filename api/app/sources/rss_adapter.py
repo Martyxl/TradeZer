@@ -95,12 +95,11 @@ class RSSAdapter(NewsSource):
     source_weight: float
 
     def __init__(self, name: str, url: str, source_weight: float = 0.5,
-                 instruments_hint: list[str] | None = None, max_items: int = 15):
+                 instruments_hint: list[str] | None = None):
         self.name = name
         self.url = url
         self.source_weight = source_weight
         self._instruments_hint = instruments_hint or []
-        self._max_items = max_items
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
     async def _fetch_feed(self) -> Any:
@@ -151,7 +150,6 @@ class RSSAdapter(NewsSource):
                 instruments_hint=self._instruments_hint,
             ))
 
-        items = items[: self._max_items]
         log.info("RSS fetch complete", source=self.name, count=len(items))
         return items
 
