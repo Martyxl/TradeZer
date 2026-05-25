@@ -108,6 +108,7 @@ class NewsAggregator:
 
         Predikce jsou záměrně odděleny do predict_pending(), aby se refresh
         vešel do 60s Vercel limitu. Cron volá: refresh → predict → calibrate.
+        Používá batch DB lookups místo N+1 dotazů.
         """
         log.info("News aggregator refresh start (fetch-only)")
         source_results = await self._fetch_all_sources()
@@ -115,35 +116,45 @@ class NewsAggregator:
         stats = {"fetched": 0, "new": 0, "skipped": 0, "predicted": 0}
 
         for source, raw_items in source_results:
+            if not raw_items:
+                continue
             stats["fetched"] += len(raw_items)
             db_source = await self.repo.get_or_create_source(source.name)
             db_source.source_weight = source.source_weight
 
+            # Batch lookup: jeden SQL dotaz pro všechny external_ids najednou
+            ext_ids = [r.external_id for r in raw_items]
+            known = await self.repo.get_known_external_ids(db_source.id, ext_ids)
+
+            # Batch lookup: které known news_ids už mají predikci
+            known_ids = list(known.values())
+            predicted_ids = await self.repo.get_predicted_news_ids(known_ids)
+
+            new_items = []
             for raw in raw_items:
-                existing = await self.repo.get_news_item_by_external(
-                    db_source.id, raw.external_id
-                )
-                if existing:
-                    has_pred = await self.repo.has_any_prediction(existing.id)
-                    if has_pred:
+                if raw.external_id in known:
+                    news_id = known[raw.external_id]
+                    if news_id in predicted_ids:
                         stats["skipped"] += 1
-                        continue
-                    # Položka existuje ale nemá predikci — predict_pending ji zpracuje
+                    # else: existuje bez predikce → predict_pending zpracuje
                 else:
-                    await self.repo.create_news_item(
-                        source_id=db_source.id,
-                        external_id=raw.external_id,
-                        title=raw.title,
-                        body=raw.body,
-                        url=raw.url,
-                        published_at=raw.published_at,
-                        raw_payload=raw.raw_payload,
-                    )
-                    stats["new"] += 1
+                    new_items.append(raw)
+
+            # Uložení nových položek
+            for raw in new_items:
+                await self.repo.create_news_item(
+                    source_id=db_source.id,
+                    external_id=raw.external_id,
+                    title=raw.title,
+                    body=raw.body,
+                    url=raw.url,
+                    published_at=raw.published_at,
+                    raw_payload=raw.raw_payload,
+                )
+                stats["new"] += 1
 
             await self.session.commit()
 
-        await self.session.commit()
         log.info("News aggregator refresh complete", **stats)
         return stats
 
