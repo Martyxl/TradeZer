@@ -104,7 +104,7 @@ class RSSAdapter(NewsSource):
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
     async def _fetch_feed(self) -> Any:
         headers = {"User-Agent": "Mozilla/5.0 (compatible; Tradezer/1.0; RSS reader)"}
-        async with httpx.AsyncClient(timeout=20.0, headers=headers, follow_redirects=True) as client:
+        async with httpx.AsyncClient(timeout=12.0, headers=headers, follow_redirects=True) as client:
             resp = await client.get(self.url)
             resp.raise_for_status()
             return feedparser.parse(resp.text)
