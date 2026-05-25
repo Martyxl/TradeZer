@@ -75,22 +75,16 @@ class NewsAggregator:
 
     async def _fetch_all_sources(self) -> list[tuple[NewsSource, list[RawNewsItem]]]:
         sources = _build_sources()
-
-        async def _safe_fetch(source: NewsSource) -> tuple[NewsSource, list[RawNewsItem]]:
+        tasks = [(source, source.fetch()) for source in sources]
+        results = []
+        for source, coro in tasks:
             try:
-                items = await asyncio.wait_for(source.fetch(), timeout=18.0)
-                log.info("Source fetch OK", source=source.name, count=len(items))
-                return source, items
-            except asyncio.TimeoutError:
-                log.warning("Source fetch timeout", source=source.name)
-                return source, []
+                items = await coro
+                results.append((source, items))
             except Exception as e:
                 log.error("Source fetch error", source=source.name, error=str(e))
-                return source, []
-
-        # Paralelní fetch všech zdrojů najednou
-        results = await asyncio.gather(*[_safe_fetch(s) for s in sources])
-        return list(results)
+                results.append((source, []))
+        return results
 
     async def _get_relevant_tickers(
         self,
