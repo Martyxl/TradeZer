@@ -14,6 +14,7 @@ from app.sources import (
     NewsAPIAdapter,
     FinnhubAdapter,
     AlphaVantageAdapter,
+    FastBullAdapter,
     RawNewsItem,
 )
 from app.sources.base import NewsSource
@@ -57,6 +58,7 @@ def _detect_tickers_by_keywords(
 def _build_sources() -> list[NewsSource]:
     sources: list[NewsSource] = [
         ForexFactoryAdapter(),
+        FastBullAdapter(),
         NewsAPIAdapter(),
         FinnhubAdapter(),
         AlphaVantageAdapter(),

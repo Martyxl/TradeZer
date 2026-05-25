@@ -14,6 +14,7 @@ from app.sources.base import NewsSource, RawNewsItem
 log = structlog.get_logger(__name__)
 
 DEFAULT_FEEDS = [
+    # ── Původní zdroje ──────────────────────────────────────────────────────
     {
         "name": "rss_reuters",
         "url": "https://feeds.reuters.com/reuters/businessNews",
@@ -49,6 +50,42 @@ DEFAULT_FEEDS = [
         "url": "https://www.cnbc.com/id/19854910/device/rss/rss.html",
         "source_weight": 0.70,
         "instruments_hint": ["NQ"],
+    },
+    # ── Nové zdroje ──────────────────────────────────────────────────────────
+    # Investinglive (dříve ForexLive) — rychlé breaking forex news
+    {
+        "name": "rss_investinglive",
+        "url": "https://investinglive.com/feed/news",
+        "source_weight": 0.85,
+        "instruments_hint": [],  # pokrývá vše — auto-detect
+    },
+    # FXStreet — obecné FX zprávy (jiný feed než gold analysis)
+    {
+        "name": "rss_fxstreet_news",
+        "url": "https://www.fxstreet.com/rss/news",
+        "source_weight": 0.80,
+        "instruments_hint": [],
+    },
+    # CoinDesk — crypto/Bitcoin
+    {
+        "name": "rss_coindesk",
+        "url": "https://www.coindesk.com/arc/outboundfeeds/rss/",
+        "source_weight": 0.80,
+        "instruments_hint": ["BTCUSD"],
+    },
+    # MarketPulse (OANDA) — forex, gold, akcie — 10 kvalitních článků
+    {
+        "name": "rss_marketpulse",
+        "url": "https://www.marketpulse.com/feed/",
+        "source_weight": 0.80,
+        "instruments_hint": [],
+    },
+    # ActionForex — forex analýza EUR/USD, GBP/USD, USD/JPY
+    {
+        "name": "rss_actionforex",
+        "url": "https://www.actionforex.com/feed/",
+        "source_weight": 0.70,
+        "instruments_hint": [],
     },
 ]
 
