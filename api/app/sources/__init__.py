@@ -5,7 +5,6 @@ from app.sources.newsapi_adapter import NewsAPIAdapter
 from app.sources.finnhub_adapter import FinnhubAdapter
 from app.sources.alphavantage_adapter import AlphaVantageAdapter
 from app.sources.yahoo_finance_adapter import YahooFinanceAdapter
-from app.sources.fastbull_adapter import FastBullAdapter
 
 __all__ = [
     "NewsSource",
@@ -17,5 +16,4 @@ __all__ = [
     "FinnhubAdapter",
     "AlphaVantageAdapter",
     "YahooFinanceAdapter",
-    "FastBullAdapter",
 ]

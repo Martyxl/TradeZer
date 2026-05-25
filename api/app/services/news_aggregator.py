@@ -14,7 +14,6 @@ from app.sources import (
     NewsAPIAdapter,
     FinnhubAdapter,
     AlphaVantageAdapter,
-    FastBullAdapter,
     RawNewsItem,
 )
 from app.sources.base import NewsSource
@@ -58,7 +57,6 @@ def _detect_tickers_by_keywords(
 def _build_sources() -> list[NewsSource]:
     sources: list[NewsSource] = [
         ForexFactoryAdapter(),
-        FastBullAdapter(),
         NewsAPIAdapter(),
         FinnhubAdapter(),
         AlphaVantageAdapter(),
@@ -75,16 +73,21 @@ class NewsAggregator:
 
     async def _fetch_all_sources(self) -> list[tuple[NewsSource, list[RawNewsItem]]]:
         sources = _build_sources()
-        tasks = [(source, source.fetch()) for source in sources]
-        results = []
-        for source, coro in tasks:
+
+        async def _safe_fetch(source: NewsSource) -> tuple[NewsSource, list[RawNewsItem]]:
             try:
-                items = await coro
-                results.append((source, items))
+                items = await asyncio.wait_for(source.fetch(), timeout=18.0)
+                log.info("Source fetch OK", source=source.name, count=len(items))
+                return source, items
+            except asyncio.TimeoutError:
+                log.warning("Source fetch timeout", source=source.name)
+                return source, []
             except Exception as e:
                 log.error("Source fetch error", source=source.name, error=str(e))
-                results.append((source, []))
-        return results
+                return source, []
+
+        results = await asyncio.gather(*[_safe_fetch(s) for s in sources])
+        return list(results)
 
     async def _get_relevant_tickers(
         self,
@@ -109,20 +112,21 @@ class NewsAggregator:
         stats = {"fetched": 0, "new": 0, "skipped": 0, "predicted": 0}
 
         for source, raw_items in source_results:
+            if not raw_items:
+                continue
             stats["fetched"] += len(raw_items)
             db_source = await self.repo.get_or_create_source(source.name)
             db_source.source_weight = source.source_weight
 
+            # Batch lookup: 2 SQL dotazy místo N+1
+            ext_ids = [r.external_id for r in raw_items]
+            known = await self.repo.get_known_external_ids(db_source.id, ext_ids)
+            predicted_ids = await self.repo.get_predicted_news_ids(list(known.values()))
+
             for raw in raw_items:
-                existing = await self.repo.get_news_item_by_external(
-                    db_source.id, raw.external_id
-                )
-                if existing:
-                    has_pred = await self.repo.has_any_prediction(existing.id)
-                    if has_pred:
+                if raw.external_id in known:
+                    if known[raw.external_id] in predicted_ids:
                         stats["skipped"] += 1
-                        continue
-                    # Položka existuje ale nemá predikci — predict_pending ji zpracuje
                 else:
                     await self.repo.create_news_item(
                         source_id=db_source.id,
@@ -137,7 +141,6 @@ class NewsAggregator:
 
             await self.session.commit()
 
-        await self.session.commit()
         log.info("News aggregator refresh complete", **stats)
         return stats
 

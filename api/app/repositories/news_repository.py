@@ -56,6 +56,27 @@ class NewsRepository:
             )
         )
 
+    async def get_known_external_ids(self, source_id: int, external_ids: list[str]) -> dict[str, int]:
+        """Batch lookup: {external_id → news_id} v jednom SQL dotazu."""
+        if not external_ids:
+            return {}
+        rows = await self.session.execute(
+            select(NewsItem.external_id, NewsItem.id).where(
+                NewsItem.source_id == source_id,
+                NewsItem.external_id.in_(external_ids),
+            )
+        )
+        return {ext_id: news_id for ext_id, news_id in rows.all()}
+
+    async def get_predicted_news_ids(self, news_ids: list[int]) -> set[int]:
+        """Batch lookup: set news_id s aspoň 1 predikcí."""
+        if not news_ids:
+            return set()
+        rows = await self.session.execute(
+            select(NewsPrediction.news_id).where(NewsPrediction.news_id.in_(news_ids)).distinct()
+        )
+        return {row[0] for row in rows.all()}
+
     async def create_news_item(
         self,
         source_id: int,
