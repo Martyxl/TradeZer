@@ -30,10 +30,10 @@ def _verify_token(
 @router.post("/refresh", response_model=RefreshResponse, dependencies=[Depends(_verify_token)])
 async def manual_refresh(
     session: AsyncSession = Depends(get_session),
-    max_predictions: int = Query(default=8, ge=1, le=50),
 ):
+    """Stáhne RSS a uloží nové zprávy. Predikce jsou v /api/predict."""
     aggregator = NewsAggregator(session)
-    stats = await aggregator.refresh(max_predictions=max_predictions)
+    stats = await aggregator.refresh()
     return RefreshResponse(status="ok", stats=stats)
 
 

@@ -95,13 +95,16 @@ class NewsAggregator:
             return [t for t in all_tickers if t.symbol in instruments_hint]
         return _detect_tickers_by_keywords(title, body, list(all_tickers))
 
-    async def refresh(self, max_predictions: int = 15) -> dict[str, int]:
-        log.info("News aggregator refresh start", max_predictions=max_predictions)
-        tickers = await self.ticker_repo.get_all_enabled()
+    async def refresh(self, max_predictions: int = 0) -> dict[str, int]:
+        """Stáhne RSS a uloží nové položky do DB — BEZ LLM predikcí.
+
+        Predikce jsou záměrně odděleny do predict_pending(), aby se refresh
+        vešel do 60s Vercel limitu. Cron volá: refresh → predict → calibrate.
+        """
+        log.info("News aggregator refresh start (fetch-only)")
         source_results = await self._fetch_all_sources()
 
         stats = {"fetched": 0, "new": 0, "skipped": 0, "predicted": 0}
-        prediction_limit_reached = False
 
         for source, raw_items in source_results:
             stats["fetched"] += len(raw_items)
@@ -117,9 +120,9 @@ class NewsAggregator:
                     if has_pred:
                         stats["skipped"] += 1
                         continue
-                    news_item = existing
+                    # Položka existuje ale nemá predikci — predict_pending ji zpracuje
                 else:
-                    news_item = await self.repo.create_news_item(
+                    await self.repo.create_news_item(
                         source_id=db_source.id,
                         external_id=raw.external_id,
                         title=raw.title,
@@ -130,62 +133,7 @@ class NewsAggregator:
                     )
                     stats["new"] += 1
 
-                # Po dosažení limitu přeskočíme predikci ale položku jsme už uložili —
-                # predict_pending ji zpracuje v dalším volání.
-                if prediction_limit_reached:
-                    await self.session.commit()
-                    continue
-
-                relevant_tickers = await self._get_relevant_tickers(
-                    raw.instruments_hint, tickers, raw.title, raw.body
-                )
-
-                engine = PredictionEngine(self.repo)
-                for ticker in relevant_tickers:
-                    try:
-                        result = await engine.predict(
-                            news_id=news_item.id,
-                            ticker_id=ticker.id,
-                            ticker_symbol=ticker.symbol,
-                            title=raw.title,
-                            body=raw.body,
-                            source_weight=source.source_weight,
-                        )
-
-                        await self.repo.upsert_ticker_relevance(
-                            news_id=news_item.id,
-                            ticker_id=ticker.id,
-                            relevance_score=result.relevance_score,
-                            importance_weight=result.importance_weight,
-                            llm_rationale=result.llm_reasoning,
-                        )
-                        await self.repo.create_prediction(
-                            news_id=news_item.id,
-                            ticker_id=ticker.id,
-                            prob_down=result.prob_down,
-                            prob_neutral=result.prob_neutral,
-                            prob_up=result.prob_up,
-                            confidence=result.confidence,
-                            llm_reasoning=result.llm_reasoning,
-                            model_version=result.model_version,
-                        )
-                        await self.repo.save_item_categories(
-                            news_item.id,
-                            [(cat, 1.0) for cat in result.categories],
-                        )
-                        stats["predicted"] += 1
-                    except Exception as e:
-                        log.error(
-                            "Prediction error",
-                            news_id=news_item.id,
-                            ticker=ticker.symbol,
-                            error=str(e),
-                        )
-
-                await self.session.commit()
-                if stats["predicted"] >= max_predictions:
-                    log.info("Prediction batch limit reached", limit=max_predictions)
-                    prediction_limit_reached = True
+            await self.session.commit()
 
         await self.session.commit()
         log.info("News aggregator refresh complete", **stats)
