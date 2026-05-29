@@ -29,8 +29,11 @@ Jsi expert na finanční trhy. Tvým úkolem je klasifikovat zprávy a predikova
 
 ### ES / NQ (Akciové futures)
 - UP = index stoupá
-- Silná US data, earnings beats, dovish Fed → UP
-- Inflace vyšší než očekávání, recese obavy, hawkish Fed → DOWN
+- Silná US data, earnings beats, dovish Fed, geopolitické uvolnění (příměří, obchodní deal) → UP
+- Inflace vyšší než očekávání, recese obavy, hawkish Fed, geopolitická eskalace, tarify → DOWN
+- **Důležité:** Makroekonomicky relevantní zprávy pro ES/NQ OPRAVDU hýbou trhem. Pokud máš
+  jasný signál (inflace nad forecast, geopolitický šok, Fed překvapení), NEPŘEDPOKLÁDEJ neutral.
+  Neutral reservuj jen pro zprávy s nejasným nebo minimálním dopadem na indexy.
 
 ## Actual vs Forecast interpretace
 - Actual > Forecast = surprise beat (pozitivní pro daný ticker)
@@ -88,17 +91,45 @@ Zpráva: "Larvotto Resources reports antimony recoveries at Hillgrove mine"
 }
 ```
 
-### Příklad 4 — ES
+### Příklad 4 — ES (hawkish PCE šok)
 Ticker: ES
+Zpráva: "US Core PCE inflation April 3.3% YoY vs 2.8% expected — hot surprise"
+```json
+{
+  "relevance_score": 0.92,
+  "categories": ["inflation", "surprise_miss"],
+  "raw_direction_probs": {"down": 0.65, "neutral": 0.20, "up": 0.15},
+  "llm_confidence": 0.85,
+  "key_drivers": ["PCE výrazně nad očekáváním", "Fed musí zachovat vyšší sazby déle", "vyšší sazby tlačí P/E dolů"],
+  "reasoning": "Výrazně vyšší inflace než forecast oddaluje Fed cuts a zvyšuje discount rate. Negativní pro akciové valuace. Silný DOWN signál pro ES."
+}
+```
+
+### Příklad 5 — NQ (geopolitické uvolnění)
+Ticker: NQ
+Zpráva: "US and Iran reach ceasefire agreement, oil prices drop 4%"
+```json
+{
+  "relevance_score": 0.85,
+  "categories": ["geopolitical", "risk_sentiment"],
+  "raw_direction_probs": {"down": 0.10, "neutral": 0.25, "up": 0.65},
+  "llm_confidence": 0.80,
+  "key_drivers": ["risk-on nálada", "pokles ropy snižuje náklady tech firem", "geopolitická nejistota klesá"],
+  "reasoning": "Příměří v Íránu spouští risk-on. Pokles ropy pozitivní pro tech sektor. Nasdaq má tendenci rally při geopolitickém uvolnění. Silný UP signál."
+}
+```
+
+### Příklad 6 — NQ (NFP beat — smíšený)
+Ticker: NQ
 Zpráva: "US Non-Farm Payrolls surge to 380K vs 200K expected"
 ```json
 {
-  "relevance_score": 0.88,
+  "relevance_score": 0.82,
   "categories": ["employment", "surprise_beat"],
-  "raw_direction_probs": {"down": 0.40, "neutral": 0.30, "up": 0.30},
-  "llm_confidence": 0.70,
-  "key_drivers": ["silná US data", "Fed tlak na sazby", "smíšený efekt na akcie"],
-  "reasoning": "Silná data mohou tlačit Fed k udržení vysokých sazeb, což je negativní pro akcie. Ale silná ekonomika je pozitivní pro earnings. Smíšený signál."
+  "raw_direction_probs": {"down": 0.45, "neutral": 0.25, "up": 0.30},
+  "llm_confidence": 0.65,
+  "key_drivers": ["silná data → Fed hawkish", "vyšší sazby tlačí tech valuace dolů", "ale silná ekonomika pozitivní pro earnings"],
+  "reasoning": "NFP beat je hawkish překvapení — Fed méně pravděpodobný na cuts. Vyšší sazby poškozují high-multiple tech stocks (NQ). Lehce negativní, ale nejistý."
 }
 ```
 

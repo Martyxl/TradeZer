@@ -30,8 +30,10 @@ class PredictionEngine:
         self.repo = repo
 
     def _compute_alpha(self, n_historical: int) -> float:
-        """Alpha klesá jak přibývají historická data. Min 0.3."""
-        return max(0.3, 0.7 - 0.02 * min(n_historical, 20))
+        """Alpha = váha LLM vs. historická data.
+        Drží se vysoko (min 0.6) — historická data jsou zatím příliš neutral-biased
+        kvůli prahovému efektu. Alpha klesá max na 0.6 i s velkým počtem vzorků."""
+        return max(0.6, 0.85 - 0.01 * min(n_historical, 25))
 
     def _blend_probs(
         self,
@@ -43,10 +45,21 @@ class PredictionEngine:
             return llm.prob_down, llm.prob_neutral, llm.prob_up
 
         alpha = self._compute_alpha(n_hist)
+
+        # Korekce neutral bias: pokud historická neutral > 0.65, zkrátíme ji
+        # k rovnoměrnějšímu rozdělení, aby neovládla výsledek
+        hist_neutral = hist.get("neutral", 0.334)
+        if hist_neutral > 0.65:
+            excess = (hist_neutral - 0.65) / 2
+            hist = {
+                "down":    hist.get("down", 0.333) + excess,
+                "neutral": 0.65,
+                "up":      hist.get("up", 0.333) + excess,
+            }
+
         down = alpha * llm.prob_down + (1 - alpha) * hist.get("down", 0.333)
         neutral = alpha * llm.prob_neutral + (1 - alpha) * hist.get("neutral", 0.334)
         up = alpha * llm.prob_up + (1 - alpha) * hist.get("up", 0.333)
-        # Normalize
         total = down + neutral + up or 1.0
         return down / total, neutral / total, up / total
 
