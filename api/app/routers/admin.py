@@ -191,6 +191,22 @@ async def update_threshold(
     }
 
 
+@router.post("/backfill/price_series", dependencies=[Depends(_verify_token)])
+async def backfill_price_series(
+    days: int = Query(default=7, ge=1, le=7, description="Max. 7 dní (limit Yahoo Finance 5min dat)"),
+    session: AsyncSession = Depends(get_session),
+):
+    """Doplní price_series (5m/10m/liquidity_grab) do starých MarketReaction bez těchto dat.
+
+    Volej jednorázově po nasazení pattern memory feature.
+    Yahoo Finance 5min bary jsou dostupné max. 7 dní zpět.
+    """
+    from app.services.calibration_service import CalibrationService
+    service = CalibrationService(session)
+    stats = await service.backfill_price_series(days=days)
+    return {"status": "ok", "stats": stats}
+
+
 @router.get("/patterns/{ticker}", dependencies=[Depends(_verify_token)])
 async def get_ticker_patterns(
     ticker: str,

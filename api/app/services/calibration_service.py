@@ -164,3 +164,102 @@ class CalibrationService:
         await self.session.commit()
         log.info("Calibration job complete", **stats)
         return stats
+
+    async def backfill_price_series(self, days: int = 7) -> dict[str, int]:
+        """Doplní price_series (5m/10m/liquidity_grab) do starých MarketReaction záznamů.
+
+        Yahoo Finance 5min data jsou dostupná max. 7 dní zpět, takže backfill
+        má smysl jen pro poslední týden.
+        """
+        log.info("Backfill price_series start", days=days)
+        stats = {"checked": 0, "updated": 0, "skipped": 0, "failed": 0}
+
+        reactions = await self.repo.get_reactions_missing_price_series(days=days)
+        if not reactions:
+            log.info("No reactions to backfill")
+            return stats
+
+        # Seskupit podle ticker × datum pro minimální počet HTTP requestů
+        groups: dict[tuple, list] = {}
+        ticker_threshold: dict[str, float] = {}
+
+        for reaction in reactions:
+            stats["checked"] += 1
+            if not reaction.news_item or not reaction.ticker:
+                stats["skipped"] += 1
+                continue
+            news_utc = self._to_utc(reaction.news_item.published_at)
+            ticker = reaction.ticker
+            key = (ticker.symbol, news_utc.date())
+            ticker_threshold[ticker.symbol] = ticker.neutral_threshold
+            if key not in groups:
+                groups[key] = []
+            groups[key].append((reaction, news_utc, ticker))
+
+        # Stažení barů — jedna volba Yahoo Finance per ticker × den
+        bar_cache: dict[tuple, list] = {}
+        for (symbol, for_date) in groups:
+            log.info("Backfill fetching bars", symbol=symbol, date=str(for_date))
+            try:
+                bars = await asyncio.to_thread(self.yahoo.fetch_day_bars, symbol, for_date)
+                bar_cache[(symbol, for_date)] = bars
+                log.info("Backfill bars OK", symbol=symbol, date=str(for_date), count=len(bars))
+            except Exception as e:
+                log.warning("Backfill bar fetch failed", symbol=symbol, date=str(for_date), error=str(e))
+                bar_cache[(symbol, for_date)] = []
+
+        # Aktualizace price_series
+        for (symbol, for_date), items in groups.items():
+            bars = bar_cache.get((symbol, for_date), [])
+            if not bars:
+                stats["skipped"] += len(items)
+                continue
+
+            for reaction, news_utc, ticker in items:
+                at_news = reaction.price_at_news
+                if at_news is None or at_news == 0:
+                    stats["skipped"] += 1
+                    continue
+
+                def _pct(p: float | None) -> float | None:
+                    if p is not None and at_news:
+                        return round((p - at_news) / at_news, 6)
+                    return None
+
+                try:
+                    price_5m  = _find_close_at(bars, news_utc + timedelta(minutes=5), tolerance_minutes=6)
+                    price_10m = _find_close_at(bars, news_utc + timedelta(minutes=10), tolerance_minutes=6)
+
+                    pct_5m  = _pct(price_5m)
+                    pct_10m = _pct(price_10m)
+                    # pct_30m je už uložen v pct_change_15m sloupci (30min okno)
+                    pct_30m = reaction.pct_change_15m
+
+                    def _dir(p: float | None, thr: float) -> int:
+                        if p is None or abs(p) < thr * 0.4:
+                            return 0
+                        return 1 if p > 0 else -1
+
+                    thr = ticker.neutral_threshold
+                    dir_5m  = _dir(pct_5m, thr)
+                    dir_30m = _dir(pct_30m, thr)
+                    liquidity_grab = dir_5m != 0 and dir_30m != 0 and dir_5m != dir_30m
+
+                    reaction.price_series = {
+                        "pct_5m":  round(pct_5m * 100, 5) if pct_5m is not None else None,
+                        "pct_10m": round(pct_10m * 100, 5) if pct_10m is not None else None,
+                        "pct_30m": round(pct_30m * 100, 5) if pct_30m is not None else None,
+                        "pct_1h":  round(reaction.pct_change_1h * 100, 5) if reaction.pct_change_1h is not None else None,
+                        "liquidity_grab": liquidity_grab,
+                        "initial_dir": "up" if dir_5m > 0 else ("down" if dir_5m < 0 else "flat"),
+                        "backfilled": True,
+                    }
+                    stats["updated"] += 1
+                    log.debug("Backfill updated", reaction_id=reaction.id, ticker=symbol, grab=liquidity_grab)
+                except Exception as e:
+                    log.error("Backfill reaction failed", reaction_id=reaction.id, error=str(e))
+                    stats["failed"] += 1
+
+        await self.session.commit()
+        log.info("Backfill price_series complete", **stats)
+        return stats

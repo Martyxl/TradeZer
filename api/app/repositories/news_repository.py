@@ -268,6 +268,28 @@ class NewsRepository:
         await self.session.flush()
         return reaction
 
+    async def get_reactions_missing_price_series(self, days: int = 7) -> list["MarketReaction"]:
+        """Vrátí MarketReaction záznamy bez price_series dat (max. poslední `days` dní)."""
+        from datetime import timedelta
+        from sqlalchemy.orm import selectinload
+        cutoff = datetime.utcnow() - timedelta(days=days)
+        stmt = (
+            select(MarketReaction)
+            .join(NewsItem, NewsItem.id == MarketReaction.news_id)
+            .where(
+                MarketReaction.price_series.is_(None),
+                MarketReaction.price_at_news.isnot(None),
+                NewsItem.published_at >= cutoff,
+            )
+            .options(
+                selectinload(MarketReaction.news_item),
+                selectinload(MarketReaction.ticker),
+            )
+            .order_by(NewsItem.published_at.desc())
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
     async def get_category_patterns(
         self,
         ticker_id: int,
