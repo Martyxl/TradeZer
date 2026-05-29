@@ -191,6 +191,72 @@ async def update_threshold(
     }
 
 
+@router.get("/debug/bars", dependencies=[Depends(_verify_token)])
+async def debug_bars(
+    ticker: str = Query(default="ES", description="Ticker symbol (ES, NQ, EURUSD, XAUUSD...)"),
+    date_str: str = Query(default="", description="YYYY-MM-DD (default: yesterday UTC)"),
+):
+    """Vrátí 5min bary pro daný ticker a den — pro kalibraci 30min reakce (NY open = 13:30-20:00 UTC)."""
+    import asyncio
+    import datetime as dt
+    from app.sources.yahoo_finance_adapter import YahooFinanceAdapter, _find_close_at
+
+    yahoo = YahooFinanceAdapter()
+
+    if date_str:
+        for_date = dt.date.fromisoformat(date_str)
+    else:
+        for_date = (dt.datetime.utcnow() - dt.timedelta(days=1)).date()
+
+    bars = await asyncio.to_thread(yahoo.fetch_day_bars, ticker.upper(), for_date)
+    if not bars:
+        return {"ticker": ticker, "date": str(for_date), "error": "No bars returned from Yahoo Finance"}
+
+    # Referenční cena: první bar dne
+    open_price = bars[0]["close"]
+
+    # NY open session window: 13:30–20:00 UTC (zahrnuje NY open + afternoon session)
+    ny_open_ts = dt.datetime(for_date.year, for_date.month, for_date.day, 13, 30, tzinfo=dt.timezone.utc).timestamp()
+    ny_close_ts = dt.datetime(for_date.year, for_date.month, for_date.day, 20, 0, tzinfo=dt.timezone.utc).timestamp()
+
+    ny_bars = []
+    for b in bars:
+        if ny_open_ts <= b["t"] <= ny_close_ts:
+            t = dt.datetime.fromtimestamp(b["t"], tz=dt.timezone.utc)
+            pct = round((b["close"] - open_price) / open_price * 100, 4) if open_price else None
+            ny_bars.append({
+                "time_utc": t.strftime("%H:%M"),
+                "close": round(b["close"], 4),
+                "pct_from_open": pct,
+            })
+
+    # Checkpointy: +15, +30, +60 min od NY open
+    ny_open_dt = dt.datetime(for_date.year, for_date.month, for_date.day, 13, 30, tzinfo=dt.timezone.utc)
+    price_at_open = _find_close_at(bars, ny_open_dt)
+    price_15m = _find_close_at(bars, ny_open_dt + dt.timedelta(minutes=15))
+    price_30m = _find_close_at(bars, ny_open_dt + dt.timedelta(minutes=30))
+    price_60m = _find_close_at(bars, ny_open_dt + dt.timedelta(hours=1))
+
+    def pct(p):
+        if p and price_at_open:
+            return round((p - price_at_open) / price_at_open * 100, 4)
+        return None
+
+    return {
+        "ticker": ticker.upper(),
+        "date": str(for_date),
+        "total_bars": len(bars),
+        "ny_session_bars": len(ny_bars),
+        "from_ny_open": {
+            "price_at_open": price_at_open,
+            "+15min": {"price": price_15m, "pct": pct(price_15m)},
+            "+30min": {"price": price_30m, "pct": pct(price_30m)},
+            "+60min": {"price": price_60m, "pct": pct(price_60m)},
+        },
+        "bars": ny_bars,
+    }
+
+
 @router.get("/health")
 async def health():
     return {"status": "ok", "version": "1.1.0"}

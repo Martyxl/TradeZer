@@ -39,7 +39,7 @@ class CalibrationService:
         log.info("Calibration job start")
         stats = {"checked": 0, "recorded": 0, "failed": 0, "skipped": 0}
 
-        predictions = await self.repo.get_predictions_without_reactions(older_than_minutes=15)
+        predictions = await self.repo.get_predictions_without_reactions(older_than_minutes=30)
         if not predictions:
             log.info("No predictions to calibrate")
             return stats
@@ -99,24 +99,25 @@ class CalibrationService:
                             return round((p - at_news) / at_news, 6)
                         return None
 
-                    price_15m = _find_close_at(bars, news_utc + timedelta(minutes=15))
+                    # Primární okno: 30 min (uloženo do sloupce price_15m / pct_change_15m)
+                    price_30m = _find_close_at(bars, news_utc + timedelta(minutes=30))
                     price_1h  = _find_close_at(bars, news_utc + timedelta(hours=1))
                     price_1d  = _find_close_at(bars, news_utc + timedelta(days=1), tolerance_minutes=60)
 
-                    pct_15m = _pct(price_15m)
+                    pct_30m = _pct(price_30m)
                     pct_1h  = _pct(price_1h)
                     pct_1d  = _pct(price_1d)
-                    realized = self._determine_direction(pct_15m, ticker.neutral_threshold)
+                    realized = self._determine_direction(pct_30m, ticker.neutral_threshold)
 
                     try:
                         await self.repo.save_market_reaction(
                             news_id=pred.news_id,
                             ticker_id=pred.ticker_id,
                             price_at_news=at_news,
-                            price_15m=price_15m,
+                            price_15m=price_30m,   # sloupec price_15m = 30min okno
                             price_1h=price_1h,
                             price_1d=price_1d,
-                            pct_change_15m=pct_15m,
+                            pct_change_15m=pct_30m,  # sloupec pct_change_15m = 30min pct
                             pct_change_1h=pct_1h,
                             pct_change_1d=pct_1d,
                             realized_direction=realized,
