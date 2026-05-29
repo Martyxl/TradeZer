@@ -6,6 +6,7 @@ import { TickerFilter } from "@/components/TickerFilter";
 import { DailySummaryCard } from "@/components/DailySummaryCard";
 import { NewsCard } from "@/components/NewsCard";
 import { MarketHoursBar } from "@/components/MarketHoursBar";
+import { PatternPanel } from "@/components/PatternPanel";
 import { api, type Ticker, type NewsItem, type DailySummary } from "@/lib/api";
 
 export default function DashboardPage() {
@@ -109,6 +110,9 @@ export default function DashboardPage() {
 
       {/* Daily Summary */}
       <DailySummaryCard summary={summary} ticker={selectedTicker} />
+
+      {/* Pattern Memory */}
+      <PatternPanel ticker={selectedTicker} />
 
       {/* News feed */}
       <div>

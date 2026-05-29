@@ -87,6 +87,27 @@ export interface AccuracyStats {
   by_category: Record<string, CategoryStat>;
 }
 
+export interface CategoryPattern {
+  category: string;
+  sample_count: number;
+  dominant_direction: "up" | "neutral" | "down";
+  dominant_pct: number;
+  avg_abs_move_30m_pct: number;
+  p75_abs_move_30m_pct: number;
+  avg_pct_1h: number;
+  liquidity_grab_rate: number;
+  liquidity_grab_samples: number;
+  avg_initial_spike_5m_pct: number | null;
+  direction_distribution: { up: number; neutral: number; down: number };
+}
+
+export interface PatternsResponse {
+  ticker: string;
+  days: number;
+  pattern_count: number;
+  patterns: CategoryPattern[];
+}
+
 async function fetchJson<T>(path: string): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, { cache: "no-store" });
   if (!res.ok) throw new Error(`API error ${res.status}: ${path}`);
@@ -115,4 +136,7 @@ export const api = {
 
   getStats: (ticker: string, days = 90) =>
     fetchJson<AccuracyStats>(`/api/stats?ticker=${ticker}&days=${days}`),
+
+  getPatterns: (ticker: string, days = 180) =>
+    fetchJson<PatternsResponse>(`/api/stats/patterns?ticker=${ticker}&days=${days}`),
 };
