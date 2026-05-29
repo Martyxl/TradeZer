@@ -191,6 +191,53 @@ async def update_threshold(
     }
 
 
+@router.get("/patterns/{ticker}", dependencies=[Depends(_verify_token)])
+async def get_ticker_patterns(
+    ticker: str,
+    days: int = Query(default=180, description="Kolik dní historie"),
+    category: str | None = Query(default=None, description="Filtr na konkrétní kategorii"),
+    min_samples: int = Query(default=3, description="Minimální počet vzorků pro kategorii"),
+    session: AsyncSession = Depends(get_session),
+):
+    """Historické vzory pohybu trhu po zprávách daného tickeru — pattern memory.
+
+    Výstup slouží k přípravě na nadcházející zprávy: typický pohyb, reversal rate,
+    liquidity grab frekvence.
+    """
+    from app.repositories import TickerRepository, NewsRepository
+
+    ticker_repo = TickerRepository(session)
+    ticker_obj = await ticker_repo.get_by_symbol(ticker.upper())
+    if not ticker_obj:
+        raise HTTPException(status_code=404, detail=f"Ticker {ticker} not found")
+
+    repo = NewsRepository(session)
+
+    ALL_CATEGORIES = [
+        "monetary_policy", "inflation", "employment", "gdp", "pmi",
+        "fed_speech", "ecb_speech", "geopolitical", "trade_balance",
+        "central_bank_minutes", "retail_sales", "housing", "consumer_confidence",
+        "energy", "earnings", "risk_sentiment", "fiscal_policy",
+        "surprise_beat", "surprise_miss", "safe_haven", "equity_index", "tech_sector",
+    ]
+    categories = [category] if category else ALL_CATEGORIES
+
+    patterns = await repo.get_category_patterns(
+        ticker_obj.id, categories, days=days, min_samples=min_samples
+    )
+
+    return {
+        "ticker": ticker.upper(),
+        "days": days,
+        "pattern_count": len(patterns),
+        "patterns": patterns,
+        "note": (
+            "liquidity_grab_rate = podíl událostí kde cena nejdříve šla opačně než finální směr. "
+            "p75_abs_move_30m_pct = 75th percentil absolutního pohybu za 30min (v %)."
+        ),
+    }
+
+
 @router.get("/debug/bars", dependencies=[Depends(_verify_token)])
 async def debug_bars(
     ticker: str = Query(default="ES", description="Ticker symbol (ES, NQ, EURUSD, XAUUSD...)"),

@@ -12,6 +12,17 @@ class TickerOut(BaseModel):
     enabled: bool
 
 
+class PatternHintOut(BaseModel):
+    category: str
+    sample_count: int
+    dominant_direction: str
+    dominant_pct: int
+    avg_abs_move_30m_pct: float
+    p75_abs_move_30m_pct: float
+    liquidity_grab_rate: float
+    avg_initial_spike_5m_pct: float | None = None
+
+
 class PredictionOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int

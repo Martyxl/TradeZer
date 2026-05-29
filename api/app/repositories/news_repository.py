@@ -230,6 +230,7 @@ class NewsRepository:
         pct_change_1h: float | None,
         pct_change_1d: float | None,
         realized_direction: str | None,
+        price_series: dict | None = None,
     ) -> MarketReaction:
         # Upsert — aktualizuj existující reakci nebo vytvoř novou
         existing = await self.session.scalar(
@@ -246,6 +247,7 @@ class NewsRepository:
             existing.pct_change_15m = pct_change_15m
             existing.pct_change_1h = pct_change_1h
             existing.pct_change_1d = pct_change_1d
+            existing.price_series = price_series
             existing.realized_direction = realized_direction
             await self.session.flush()
             return existing
@@ -259,11 +261,88 @@ class NewsRepository:
             pct_change_15m=pct_change_15m,
             pct_change_1h=pct_change_1h,
             pct_change_1d=pct_change_1d,
+            price_series=price_series,
             realized_direction=realized_direction,
         )
         self.session.add(reaction)
         await self.session.flush()
         return reaction
+
+    async def get_category_patterns(
+        self,
+        ticker_id: int,
+        categories: list[str],
+        days: int = 180,
+        min_samples: int = 3,
+    ) -> list[dict]:
+        """Pro každou kategorii vrátí statistiky historického pohybu ceny (pattern memory)."""
+        from datetime import timedelta
+        cutoff = datetime.utcnow() - timedelta(days=days)
+
+        results = []
+        for cat_name in categories:
+            stmt = (
+                select(
+                    MarketReaction.pct_change_15m,   # = 30min okno
+                    MarketReaction.pct_change_1h,
+                    MarketReaction.realized_direction,
+                    MarketReaction.price_series,
+                )
+                .join(NewsItem, NewsItem.id == MarketReaction.news_id)
+                .join(NewsItemCategory, NewsItemCategory.news_id == NewsItem.id)
+                .join(NewsCategory, NewsCategory.id == NewsItemCategory.category_id)
+                .where(
+                    MarketReaction.ticker_id == ticker_id,
+                    NewsCategory.name == cat_name,
+                    MarketReaction.realized_direction.isnot(None),
+                    MarketReaction.pct_change_15m.isnot(None),
+                    NewsItem.published_at >= cutoff,
+                )
+            )
+            rows = (await self.session.execute(stmt)).all()
+            if len(rows) < min_samples:
+                continue
+
+            n = len(rows)
+            pct30 = [r.pct_change_15m for r in rows]
+            abs30 = sorted(abs(p) for p in pct30)
+
+            dir_dist: dict[str, int] = {"up": 0, "neutral": 0, "down": 0}
+            for r in rows:
+                d = r.realized_direction if isinstance(r.realized_direction, str) else r.realized_direction.value
+                dir_dist[d] = dir_dist.get(d, 0) + 1
+
+            # price_series stats (dostupné až u novějších dat)
+            ps_rows = [r.price_series for r in rows if r.price_series]
+            grabs = [ps.get("liquidity_grab", False) for ps in ps_rows]
+            grab_rate = sum(grabs) / len(grabs) if grabs else 0.0
+
+            spikes_5m = [abs(ps.get("pct_5m") or 0) for ps in ps_rows if ps.get("pct_5m") is not None]
+
+            # Typický scénář: popis vzoru
+            dominant_dir = max(dir_dist, key=lambda k: dir_dist[k])
+            dominant_pct = round(dir_dist[dominant_dir] / n * 100)
+
+            results.append({
+                "category": cat_name,
+                "sample_count": n,
+                "direction_distribution": dir_dist,
+                "dominant_direction": dominant_dir,
+                "dominant_pct": dominant_pct,
+                "avg_abs_move_30m_pct": round(sum(abs30) / n * 100, 4),
+                "p50_abs_move_30m_pct": round(abs30[n // 2] * 100, 4),
+                "p75_abs_move_30m_pct": round(abs30[int(n * 0.75)] * 100, 4),
+                "avg_pct_1h": round(
+                    sum(r.pct_change_1h or 0 for r in rows) / n * 100, 4
+                ),
+                "liquidity_grab_rate": round(grab_rate, 3),
+                "liquidity_grab_samples": len(grabs),
+                "avg_initial_spike_5m_pct": (
+                    round(sum(spikes_5m) / len(spikes_5m) * 100, 4) if spikes_5m else None
+                ),
+            })
+
+        return sorted(results, key=lambda x: -x["sample_count"])
 
     async def get_historical_direction_by_category(
         self, category_name: str, ticker_id: int

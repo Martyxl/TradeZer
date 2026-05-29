@@ -94,12 +94,14 @@ class MarketReaction(Base):
     news_id: Mapped[int] = mapped_column(ForeignKey("news_items.id"), nullable=False, index=True)
     ticker_id: Mapped[int] = mapped_column(ForeignKey("tickers.id"), nullable=False)
     price_at_news: Mapped[float | None] = mapped_column(Float)
-    price_15m: Mapped[float | None] = mapped_column(Float)
+    price_15m: Mapped[float | None] = mapped_column(Float)   # uloženo 30min okno
     price_1h: Mapped[float | None] = mapped_column(Float)
     price_1d: Mapped[float | None] = mapped_column(Float)
-    pct_change_15m: Mapped[float | None] = mapped_column(Float)
+    pct_change_15m: Mapped[float | None] = mapped_column(Float)  # = 30min pct
     pct_change_1h: Mapped[float | None] = mapped_column(Float)
     pct_change_1d: Mapped[float | None] = mapped_column(Float)
+    # price_series: vývoj ceny v klíčových okamžicích (5m, 10m, 30m, 60m) + liquidity_grab detekce
+    price_series: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     realized_direction: Mapped[str | None] = mapped_column(
         Enum(DirectionEnum), nullable=True
     )

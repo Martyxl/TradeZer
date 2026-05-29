@@ -39,6 +39,16 @@ async def lifespan(app: FastAPI):
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # Schema migration: přidej price_series pokud neexistuje (Postgres only)
+        if not settings.is_sqlite:
+            try:
+                await conn.execute(text(
+                    "ALTER TABLE market_reactions "
+                    "ADD COLUMN IF NOT EXISTS price_series JSONB"
+                ))
+                log.info("Migration: price_series column ensured")
+            except Exception as e:
+                log.warning("Migration price_series skipped", error=str(e))
 
     # Auto-seed: pokud je DB prázdná (žádné tickery), spusť seed automaticky
     async with engine.connect() as conn:

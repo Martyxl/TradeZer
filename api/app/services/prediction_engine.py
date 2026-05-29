@@ -1,5 +1,5 @@
-"""Hybridní predikční model: LLM + historická korelace."""
-from dataclasses import dataclass
+"""Hybridní predikční model: LLM + historická korelace + pattern memory."""
+from dataclasses import dataclass, field
 
 import structlog
 
@@ -13,6 +13,19 @@ MIN_HISTORICAL_FOR_BLEND = 5
 
 
 @dataclass
+class PatternHint:
+    """Historický vzor chování trhu pro danou kategorii zprávy."""
+    category: str
+    sample_count: int
+    dominant_direction: str      # "up" / "down" / "neutral"
+    dominant_pct: int            # % případů s dominant_direction
+    avg_abs_move_30m_pct: float  # průměrný absolutní pohyb za 30min (v %)
+    p75_abs_move_30m_pct: float  # 75. percentil absolutního pohybu
+    liquidity_grab_rate: float   # podíl událostí s initial fake-out (0–1)
+    avg_initial_spike_5m_pct: float | None  # průměrný spike v prvních 5min
+
+
+@dataclass
 class PredictionResult:
     prob_down: float
     prob_neutral: float
@@ -23,6 +36,7 @@ class PredictionResult:
     categories: list[str]
     llm_reasoning: str
     model_version: str
+    pattern_hints: list[PatternHint] = field(default_factory=list)
 
 
 class PredictionEngine:
@@ -82,6 +96,33 @@ class PredictionEngine:
         hist_probs = {d: c / total for d, c in direction_counts.items()}
         return hist_probs, total
 
+    async def _get_pattern_hints(
+        self, categories: list[str], ticker_id: int
+    ) -> list[PatternHint]:
+        """Načte historické vzory chování trhu pro dané kategorie."""
+        if not categories:
+            return []
+        try:
+            raw = await self.repo.get_category_patterns(
+                ticker_id, categories, days=180, min_samples=3
+            )
+            return [
+                PatternHint(
+                    category=p["category"],
+                    sample_count=p["sample_count"],
+                    dominant_direction=p["dominant_direction"],
+                    dominant_pct=p["dominant_pct"],
+                    avg_abs_move_30m_pct=p["avg_abs_move_30m_pct"],
+                    p75_abs_move_30m_pct=p["p75_abs_move_30m_pct"],
+                    liquidity_grab_rate=p["liquidity_grab_rate"],
+                    avg_initial_spike_5m_pct=p.get("avg_initial_spike_5m_pct"),
+                )
+                for p in raw
+            ]
+        except Exception as e:
+            log.warning("Pattern hints fetch failed", error=str(e))
+            return []
+
     async def predict(
         self,
         news_id: int,
@@ -101,6 +142,9 @@ class PredictionEngine:
 
         importance = llm_result.relevance_score * llm_result.llm_confidence * source_weight
 
+        # Pattern hints — historické vzory pro tyto kategorie
+        pattern_hints = await self._get_pattern_hints(llm_result.categories, ticker_id)
+
         log.info(
             "Prediction complete",
             news_id=news_id,
@@ -109,6 +153,7 @@ class PredictionEngine:
             neutral=f"{prob_neutral:.2f}",
             up=f"{prob_up:.2f}",
             n_hist=n_hist,
+            patterns=len(pattern_hints),
         )
 
         return PredictionResult(
@@ -121,4 +166,5 @@ class PredictionEngine:
             categories=llm_result.categories,
             llm_reasoning=llm_result.reasoning,
             model_version=settings.claude_model,
+            pattern_hints=pattern_hints,
         )

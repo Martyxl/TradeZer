@@ -100,14 +100,40 @@ class CalibrationService:
                         return None
 
                     # Primární okno: 30 min (uloženo do sloupce price_15m / pct_change_15m)
+                    price_5m  = _find_close_at(bars, news_utc + timedelta(minutes=5), tolerance_minutes=6)
+                    price_10m = _find_close_at(bars, news_utc + timedelta(minutes=10), tolerance_minutes=6)
                     price_30m = _find_close_at(bars, news_utc + timedelta(minutes=30))
                     price_1h  = _find_close_at(bars, news_utc + timedelta(hours=1))
                     price_1d  = _find_close_at(bars, news_utc + timedelta(days=1), tolerance_minutes=60)
 
+                    pct_5m  = _pct(price_5m)
+                    pct_10m = _pct(price_10m)
                     pct_30m = _pct(price_30m)
                     pct_1h  = _pct(price_1h)
                     pct_1d  = _pct(price_1d)
                     realized = self._determine_direction(pct_30m, ticker.neutral_threshold)
+
+                    # Liquidity grab detekce: price nejdřív jde opačným směrem,
+                    # pak se obrátí na finální směr (klasický stop-hunt před pohybem)
+                    def _dir(p: float | None, thr: float) -> int:
+                        if p is None or abs(p) < thr * 0.4:
+                            return 0
+                        return 1 if p > 0 else -1
+
+                    thr = ticker.neutral_threshold
+                    dir_5m  = _dir(pct_5m, thr)
+                    dir_30m = _dir(pct_30m, thr)
+                    # Grab = jasný pohyb v 5min OPAČNÝM směrem než finální 30min pohyb
+                    liquidity_grab = (dir_5m != 0 and dir_30m != 0 and dir_5m != dir_30m)
+
+                    price_series = {
+                        "pct_5m":  round(pct_5m * 100, 5) if pct_5m is not None else None,
+                        "pct_10m": round(pct_10m * 100, 5) if pct_10m is not None else None,
+                        "pct_30m": round(pct_30m * 100, 5) if pct_30m is not None else None,
+                        "pct_1h":  round(pct_1h * 100, 5) if pct_1h is not None else None,
+                        "liquidity_grab": liquidity_grab,
+                        "initial_dir": ("up" if dir_5m > 0 else ("down" if dir_5m < 0 else "flat")),
+                    }
 
                     try:
                         await self.repo.save_market_reaction(
@@ -120,6 +146,7 @@ class CalibrationService:
                             pct_change_15m=pct_30m,  # sloupec pct_change_15m = 30min pct
                             pct_change_1h=pct_1h,
                             pct_change_1d=pct_1d,
+                            price_series=price_series,
                             realized_direction=realized,
                         )
                         stats["recorded"] += 1
