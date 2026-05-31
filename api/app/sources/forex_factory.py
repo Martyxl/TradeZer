@@ -1,4 +1,12 @@
-"""ForexFactory adaptér — čte XML export ekonomického kalendáře."""
+"""ForexFactory adaptér — čte XML export ekonomického kalendáře.
+
+Strategie external_id:
+  - Před vydáním (actual = ""): id = hash(date+title+currency+"upcoming")
+  - Po vydání (actual ≠ ""):  id = hash(date+title+currency+"actual:<value>")
+
+Tím pádem každé vydání aktuálního čísla vytvoří NOVOU položku v DB
+a okamžitě dostane LLM predikci s reálnými daty (actual vs. forecast).
+"""
 import hashlib
 from datetime import datetime, timezone
 from xml.etree import ElementTree
@@ -14,7 +22,11 @@ log = structlog.get_logger(__name__)
 
 FF_XML_URL = "https://www.forexfactory.com/ff_calendar_thisweek.xml"
 
-EUR_CURRENCIES = {"EUR", "USD", "GBP", "JPY", "CHF"}
+# Měny jejichž eventy zachytáváme
+TRACKED_CURRENCIES = {"EUR", "USD", "GBP", "JPY", "CHF"}
+
+# Filtrujeme pouze medium a high impact (low = příliš šumu)
+HIGH_MEDIUM_IMPACTS = {"high", "medium"}
 
 
 class ForexFactoryAdapter(NewsSource):
@@ -22,7 +34,20 @@ class ForexFactoryAdapter(NewsSource):
     source_weight = 1.0
 
     def _build_external_id(self, event: dict) -> str:
-        key = f"{event.get('date', '')}-{event.get('title', '')}-{event.get('currency', '')}"
+        """
+        Dva různé external_id pro pre-event a post-event:
+        - upcoming (bez actual): stabilní ID — uložíme jednou, neduplikujeme
+        - po vydání (s actual):  nové ID obsahující actual — vytvoří novou položku
+          s reálnými daty pro přesnou LLM predikci
+        """
+        date = event.get("date", "")
+        title = event.get("title", "")
+        currency = event.get("currency", "")
+        actual = event.get("actual", "").strip()
+        if actual:
+            key = f"{date}-{title}-{currency}-actual:{actual}"
+        else:
+            key = f"{date}-{title}-{currency}-upcoming"
         return hashlib.sha256(key.encode()).hexdigest()[:32]
 
     def _parse_impact(self, impact_str: str) -> str:
@@ -36,34 +61,47 @@ class ForexFactoryAdapter(NewsSource):
         impact = self._parse_impact(event.get("impact", ""))
         if impact == "high":
             parts.append("⚡ HIGH IMPACT")
-        actual = event.get("actual", "")
-        forecast = event.get("forecast", "")
-        previous = event.get("previous", "")
-        if actual or forecast:
-            parts.append(f"| Actual: {actual or '?'} | Forecast: {forecast or '?'} | Prev: {previous or '?'}")
+        actual = event.get("actual", "").strip()
+        forecast = event.get("forecast", "").strip()
+        previous = event.get("previous", "").strip()
+        if actual:
+            # Vydáno — klíčová informace: actual vs forecast
+            parts.append(f"| Actual: {actual} | Forecast: {forecast or '?'} | Prev: {previous or '?'}")
+        elif forecast:
+            # Nadcházející — zobraz forecast jako kontext
+            parts.append(f"| Upcoming | Forecast: {forecast} | Prev: {previous or '?'}")
         return " ".join(parts)
 
     def _build_body(self, event: dict) -> str:
+        actual = event.get("actual", "").strip()
+        status = "RELEASED" if actual else "UPCOMING"
         return (
+            f"Status: {status}\n"
             f"Currency: {event.get('currency', 'N/A')}\n"
             f"Impact: {event.get('impact', 'N/A')}\n"
-            f"Actual: {event.get('actual', 'N/A')}\n"
+            f"Actual: {actual or 'N/A'}\n"
             f"Forecast: {event.get('forecast', 'N/A')}\n"
             f"Previous: {event.get('previous', 'N/A')}\n"
             f"Description: {event.get('description', 'N/A')}"
         )
 
     def _instruments_hint(self, currency: str) -> list[str]:
-        hints = []
+        """
+        Mapování měny na relevantní instrumenty.
+        USD data hýbou nejen forexem, ale i US akciovými indexy a zlatem.
+        """
         if currency == "EUR":
-            hints.extend(["EURUSD", "EURGBP", "EURJPY"])
+            return ["EURUSD", "XAUUSD"]
         elif currency == "USD":
-            hints.extend(["EURUSD", "GBPUSD", "USDJPY"])
+            # US makro data silně ovlivňují všechny tyto instrumenty
+            return ["EURUSD", "GBPUSD", "USDJPY", "ES", "NQ", "XAUUSD"]
         elif currency == "GBP":
-            hints.extend(["GBPUSD", "EURGBP"])
+            return ["GBPUSD", "EURUSD"]
         elif currency == "JPY":
-            hints.extend(["USDJPY", "EURJPY"])
-        return hints
+            return ["USDJPY", "EURUSD"]
+        elif currency == "CHF":
+            return ["EURUSD", "XAUUSD"]
+        return ["EURUSD"]
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
     async def _download_xml(self) -> str:
@@ -88,6 +126,7 @@ class ForexFactoryAdapter(NewsSource):
             log.error("ForexFactory XML parse error", error=str(e))
             return []
 
+        skipped_low = 0
         for week in root.findall("week"):
             for event in week.findall("event"):
                 event_dict: dict[str, str] = {}
@@ -95,7 +134,13 @@ class ForexFactoryAdapter(NewsSource):
                     event_dict[child.tag] = (child.text or "").strip()
 
                 currency = event_dict.get("currency", "")
-                if currency not in EUR_CURRENCIES:
+                if currency not in TRACKED_CURRENCIES:
+                    continue
+
+                # Filtruj low-impact eventy — příliš šumu, minimální pohyb trhu
+                impact = self._parse_impact(event_dict.get("impact", ""))
+                if impact not in HIGH_MEDIUM_IMPACTS:
+                    skipped_low += 1
                     continue
 
                 published_str = event_dict.get("date", "")
@@ -107,6 +152,9 @@ class ForexFactoryAdapter(NewsSource):
                     published_at = datetime.now(timezone.utc)
 
                 ext_id = self._build_external_id(event_dict)
+                actual_present = bool(event_dict.get("actual", "").strip())
+                instruments = self._instruments_hint(currency)
+
                 items.append(
                     RawNewsItem(
                         source=self.name,
@@ -115,10 +163,20 @@ class ForexFactoryAdapter(NewsSource):
                         body=self._build_body(event_dict),
                         url=FF_XML_URL,
                         published_at=published_at,
-                        raw_payload=event_dict,
-                        instruments_hint=self._instruments_hint(currency),
+                        # instruments_hint MUSÍ být v raw_payload — pouze ten se ukládá do DB
+                        # a čte se zpět v predict_pending přes item.raw_payload.get("instruments_hint")
+                        raw_payload={
+                            **event_dict,
+                            "actual_present": actual_present,
+                            "instruments_hint": instruments,
+                        },
+                        instruments_hint=instruments,
                     )
                 )
 
-        log.info("ForexFactory fetch complete", count=len(items))
+        log.info(
+            "ForexFactory fetch complete",
+            count=len(items),
+            skipped_low_impact=skipped_low,
+        )
         return items

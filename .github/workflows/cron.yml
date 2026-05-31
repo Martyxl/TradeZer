@@ -1,4 +1,4 @@
-name: Tradezer Cron Jobs
+name: Tradezer Full Pipeline (30 min)
 
 on:
   schedule:
@@ -39,7 +39,6 @@ jobs:
         run: |
           echo "Running predict at $(date -u)"
           for i in 1 2 3 4; do
-            # exit code 28 = curl timeout — Vercel může stále zpracovávat, pokračuj
             curl -s -o /tmp/predict.json -w "\nHTTP %{http_code}\n" \
               --max-time 58 \
               -X POST "$API_URL/api/predict" \

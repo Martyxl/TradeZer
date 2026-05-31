@@ -1,0 +1,30 @@
+name: Tradezer Fast Refresh (5 min)
+
+# Rychlý polling ForexFactory každých 5 minut.
+# Klíčové: ForexFactory actual data se objeví do 1–5 min po vydání zprávy.
+# Tenhle job jen stáhne + uloží nové položky (bez LLM), <10s za run.
+# Predikce zajistí cron.yml (30 min pipeline).
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {}
+
+env:
+  API_URL: https://trade-zer.vercel.app
+  TOKEN: ${{ secrets.INTERNAL_API_TOKEN }}
+
+jobs:
+  fast-refresh:
+    name: Fast refresh
+    runs-on: ubuntu-latest
+    steps:
+      - name: POST /api/refresh
+        run: |
+          curl -s -o /tmp/r.json -w "HTTP %{http_code}\n" \
+            --max-time 30 \
+            -X POST "$API_URL/api/refresh" \
+            -H "X-Internal-Token: $TOKEN"
+          # Zobraz jen stats (ne celý payload)
+          grep -o '"new":[0-9]*\|"skipped":[0-9]*\|"fetched":[0-9]*' /tmp/r.json | tr '\n' ' '
+          echo ""
