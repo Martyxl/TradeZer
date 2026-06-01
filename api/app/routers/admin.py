@@ -191,6 +191,133 @@ async def update_threshold(
     }
 
 
+@router.post("/repredict/reroute", dependencies=[Depends(_verify_token)])
+async def reroute_predictions(
+    days: int = Query(default=3, ge=1, le=14, description="Kolik dní zpět prohledat"),
+    dry_run: bool = Query(default=False, description="True = jen zobraz co by se zpracovalo"),
+    session: AsyncSession = Depends(get_session),
+):
+    """Doplní predikce pro tickery, které chybí u existujících zpráv.
+
+    Problém: zprávy jako 'ISM Manufacturing' šly do EURUSD místo ES/NQ
+    kvůli chybějícím keywords v mapě. Tento endpoint tyto zprávy znovu
+    projde a přidá predikce pro správné tickery.
+
+    Používá updated KEYWORD_TICKER_MAP a instruments_hint z raw_payload.
+    """
+    from datetime import timedelta
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+    from app.models import NewsItem, NewsSource, NewsPrediction, NewsTicker
+    from app.repositories import TickerRepository, NewsRepository
+    from app.services.prediction_engine import PredictionEngine
+    from app.services.news_aggregator import _detect_tickers_by_keywords
+
+    ticker_repo = TickerRepository(session)
+    news_repo = NewsRepository(session)
+    all_tickers = await ticker_repo.get_all_enabled()
+    engine = PredictionEngine(news_repo)
+
+    cutoff = __import__("datetime").datetime.utcnow() - timedelta(days=days)
+
+    # Všechny zprávy z posledních N dní s jejich predikcemi
+    stmt = (
+        select(NewsItem)
+        .where(NewsItem.published_at >= cutoff)
+        .options(
+            selectinload(NewsItem.source),
+            selectinload(NewsItem.predictions),
+            selectinload(NewsItem.ticker_relevances),
+        )
+        .order_by(NewsItem.published_at.desc())
+    )
+    items = (await session.execute(stmt)).scalars().all()
+
+    stats = {"checked": 0, "added": 0, "skipped": 0, "errors": 0}
+    added_details = []
+
+    for item in items:
+        stats["checked"] += 1
+        instruments_hint = item.raw_payload.get("instruments_hint", []) if item.raw_payload else []
+        relevant_tickers = (
+            [t for t in all_tickers if t.symbol in instruments_hint]
+            if instruments_hint
+            else _detect_tickers_by_keywords(item.title, item.body, list(all_tickers))
+        )
+
+        predicted_ticker_ids = {p.ticker_id for p in item.predictions}
+        missing_tickers = [t for t in relevant_tickers if t.id not in predicted_ticker_ids]
+
+        if not missing_tickers:
+            stats["skipped"] += 1
+            continue
+
+        for ticker in missing_tickers:
+            if dry_run:
+                added_details.append({
+                    "news_id": item.id,
+                    "title": item.title[:80],
+                    "ticker": ticker.symbol,
+                    "published_at": str(item.published_at)[:16],
+                })
+                stats["added"] += 1
+                continue
+
+            try:
+                source_weight = item.source.source_weight if item.source else 0.5
+                result = await engine.predict(
+                    news_id=item.id,
+                    ticker_id=ticker.id,
+                    ticker_symbol=ticker.symbol,
+                    title=item.title,
+                    body=item.body,
+                    source_weight=source_weight,
+                )
+                await news_repo.upsert_ticker_relevance(
+                    news_id=item.id,
+                    ticker_id=ticker.id,
+                    relevance_score=result.relevance_score,
+                    importance_weight=result.importance_weight,
+                    llm_rationale=result.llm_reasoning,
+                )
+                await news_repo.create_prediction(
+                    news_id=item.id,
+                    ticker_id=ticker.id,
+                    prob_down=result.prob_down,
+                    prob_neutral=result.prob_neutral,
+                    prob_up=result.prob_up,
+                    confidence=result.confidence,
+                    llm_reasoning=result.llm_reasoning,
+                    model_version=result.model_version,
+                )
+                await news_repo.save_item_categories(
+                    item.id, [(cat, 1.0) for cat in result.categories]
+                )
+                added_details.append({
+                    "news_id": item.id,
+                    "title": item.title[:80],
+                    "ticker": ticker.symbol,
+                    "direction": max(
+                        [("up", result.prob_up), ("neutral", result.prob_neutral), ("down", result.prob_down)],
+                        key=lambda x: x[1]
+                    )[0],
+                    "published_at": str(item.published_at)[:16],
+                })
+                stats["added"] += 1
+            except Exception as e:
+                stats["errors"] += 1
+
+        if not dry_run:
+            await session.commit()
+
+    return {
+        "status": "ok",
+        "dry_run": dry_run,
+        "stats": stats,
+        "added": added_details[:50],  # max 50 details
+    }
+
+
 @router.post("/backfill/price_series", dependencies=[Depends(_verify_token)])
 async def backfill_price_series(
     days: int = Query(default=7, ge=1, le=7, description="Max. 7 dní (limit Yahoo Finance 5min dat)"),
