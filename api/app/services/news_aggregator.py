@@ -20,19 +20,55 @@ from app.sources.base import NewsSource
 
 log = structlog.get_logger(__name__)
 
-# Keywords mapped to ticker symbols — used when a source has no instruments_hint
+# Keywords mapped to ticker symbols — used when a source has no instruments_hint.
+# Pořadí je důležité: specifičtější tickery (NQ/ES) mají přednost před obecnými (EURUSD).
+# US makro data (PMI, NFP, CPI...) hýbou akciemi STEJNĚ SILNĚ jako forexem.
 KEYWORD_TICKER_MAP: dict[str, list[str]] = {
     "XAUUSD": [
         "gold", "xau", "bullion", "precious metal", "precious metals",
         "gold price", "gold futures", "gold market", "gold rally",
-        "silver price", "silver futures", "commodity",
+        "silver price", "silver futures",
     ],
     "BTCUSD": ["bitcoin", "btc", "crypto", "cryptocurrency", "ethereum", "digital asset"],
-    "ES":     ["s&p 500", "s&p500", "wall street", "dow jones", "nyse", "u.s. stocks", "us stocks"],
-    "NQ":     ["nasdaq", "tech sector", "tech stocks", "big tech"],
+
+    # US akciové indexy — US makro data, Fed, firemní výsledky
+    "ES": [
+        "s&p 500", "s&p500", "s&p500", "spx", "wall street", "dow jones", "nyse",
+        "u.s. stocks", "us stocks", "u.s. equities", "stock market",
+        # US makro — silný vliv na indexy
+        "non-farm payroll", "nonfarm payroll", "nfp", "jobs report",
+        "u.s. gdp", "us gdp", "gdp growth",
+        "fed rate", "fomc", "federal reserve", "powell",
+        "u.s. inflation", "us inflation", "core cpi", "core pce",
+        "ism manufacturing", "ism services", "ism pmi",
+        "u.s. retail sales", "us retail sales",
+        "consumer confidence",
+    ],
+    "NQ": [
+        "nasdaq", "tech sector", "tech stocks", "big tech", "faang", "magnificent",
+        "apple", "microsoft", "nvidia", "meta", "alphabet", "amazon", "tesla",
+        # NQ také reaguje na US makro (s větší volatilitou než ES)
+        "non-farm payroll", "nonfarm payroll", "nfp",
+        "fed rate", "fomc", "federal reserve",
+        "u.s. inflation", "us inflation", "core cpi", "core pce",
+        "ism manufacturing", "ism services",
+        "manufacturing pmi", "services pmi",
+    ],
+
+    # Forex
     "EURUSD": [
         "european central bank", "ecb ", "eurozone", "euro area",
         "lagarde", "eur/usd", "euro/dollar",
+        "eurozone pmi", "eurozone manufacturing", "eurozone services",
+        "german", "france gdp", "italy gdp",
+    ],
+    "GBPUSD": [
+        "bank of england", "boe", "gbp/usd", "pound", "sterling",
+        "uk inflation", "uk gdp", "uk pmi", "uk manufacturing",
+    ],
+    "USDJPY": [
+        "bank of japan", "boj", "yen", "usd/jpy", "japan gdp",
+        "japan inflation", "japan pmi",
     ],
 }
 

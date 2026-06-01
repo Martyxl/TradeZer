@@ -20,13 +20,18 @@ from app.sources.base import NewsSource, RawNewsItem
 
 log = structlog.get_logger(__name__)
 
-FF_XML_URL = "https://www.forexfactory.com/ff_calendar_thisweek.xml"
+# Originální ForexFactory URL je za Cloudflare — blokuje přímý přístup.
+# Mirror na faireconomy.media je spolehlivý veřejný zrcadlový server.
+FF_XML_URL = "https://nfs.faireconomy.media/ff_calendar_thisweek.xml"
 
 # Měny jejichž eventy zachytáváme
 TRACKED_CURRENCIES = {"EUR", "USD", "GBP", "JPY", "CHF"}
 
 # Filtrujeme pouze medium a high impact (low = příliš šumu)
 HIGH_MEDIUM_IMPACTS = {"high", "medium"}
+
+# Mirror používá <country> místo <currency> a nemá pole <actual>
+# (actual data přicházejí přes RSS kanály — investingLive, Reuters atd.)
 
 
 class ForexFactoryAdapter(NewsSource):
@@ -127,13 +132,20 @@ class ForexFactoryAdapter(NewsSource):
             return []
 
         skipped_low = 0
-        for week in root.findall("week"):
-            for event in week.findall("event"):
+        # Mirror XML používá <event> přímo pod root (ne přes <week>)
+        # Zkus oba formáty: s <week> obalem (originální FF) i bez (mirror)
+        events = root.findall("event")
+        if not events:
+            for week in root.findall("week"):
+                events.extend(week.findall("event"))
+
+        for event in events:
                 event_dict: dict[str, str] = {}
                 for child in event:
                     event_dict[child.tag] = (child.text or "").strip()
 
-                currency = event_dict.get("currency", "")
+                # Mirror: <country> místo <currency>
+                currency = event_dict.get("currency", "") or event_dict.get("country", "")
                 if currency not in TRACKED_CURRENCIES:
                     continue
 
@@ -143,11 +155,19 @@ class ForexFactoryAdapter(NewsSource):
                     skipped_low += 1
                     continue
 
-                published_str = event_dict.get("date", "")
+                # Mirror má oddělené <date> a <time> (není kombinovaný string)
+                date_str = event_dict.get("date", "")
+                time_str = event_dict.get("time", "")
+                combined = f"{date_str} {time_str}".strip()
                 try:
-                    published_at = datetime.strptime(published_str, "%m-%d-%Y %I:%M%p").replace(
-                        tzinfo=timezone.utc
-                    )
+                    if time_str:
+                        published_at = datetime.strptime(combined, "%m-%d-%Y %I:%M%p").replace(
+                            tzinfo=timezone.utc
+                        )
+                    else:
+                        published_at = datetime.strptime(date_str, "%m-%d-%Y").replace(
+                            tzinfo=timezone.utc
+                        )
                 except ValueError:
                     published_at = datetime.now(timezone.utc)
 
