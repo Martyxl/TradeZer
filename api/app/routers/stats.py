@@ -7,6 +7,36 @@ from app.repositories import NewsRepository, TickerRepository
 router = APIRouter(prefix="/api/stats", tags=["stats"])
 
 
+@router.get("/calendar/active")
+async def calendar_active(
+    window_before_min: int = Query(default=90, description="Minuty před eventem = začátek aktivního okna"),
+    window_after_min: int = Query(default=30, description="Minuty po eventu = konec aktivního okna"),
+):
+    """Zjistí jestli je trh v aktivním okně ekonomického eventu (USD/EUR/CNY, high/medium).
+
+    Vrátí active=true pokud je libovolný event v okně [now-after, now+before].
+    Používá se v GitHub Actions cron pro smart scheduling LLM predikcí —
+    predikce se spouštějí jen když je blízko relevantní ekonomický event.
+    """
+    from app.sources.forex_factory import get_upcoming_events
+
+    events = await get_upcoming_events(
+        window_before_min=window_before_min,
+        window_after_min=window_after_min,
+    )
+    active = len(events) > 0
+    next_event = events[0] if events else None
+
+    return {
+        "active": active,
+        "window_before_min": window_before_min,
+        "window_after_min": window_after_min,
+        "events_in_window": len(events),
+        "next_event": next_event,
+        "upcoming": events,
+    }
+
+
 @router.get("")
 async def get_stats(
     ticker: str = Query(default="EURUSD"),

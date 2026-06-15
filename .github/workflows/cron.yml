@@ -11,7 +11,7 @@ on:
         default: "all"
 
 env:
-  API_URL: https://trade-zer.vercel.app
+  API_URL: https://tradezer.app
   TOKEN: ${{ secrets.INTERNAL_API_TOKEN }}
 
 jobs:

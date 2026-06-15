@@ -8,7 +8,7 @@ Tím pádem každé vydání aktuálního čísla vytvoří NOVOU položku v DB
 a okamžitě dostane LLM predikci s reálnými daty (actual vs. forecast).
 """
 import hashlib
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from xml.etree import ElementTree
 
 import httpx
@@ -24,14 +24,90 @@ log = structlog.get_logger(__name__)
 # Mirror na faireconomy.media je spolehlivý veřejný zrcadlový server.
 FF_XML_URL = "https://nfs.faireconomy.media/ff_calendar_thisweek.xml"
 
-# Měny jejichž eventy zachytáváme
-TRACKED_CURRENCIES = {"EUR", "USD", "GBP", "JPY", "CHF"}
+# Zachycujeme pouze US, EU a China makro data
+# GBP/JPY/CHF mají výrazně menší vliv na naše instrumenty (ES, NQ, XAUUSD)
+TRACKED_CURRENCIES = {"USD", "EUR", "CNY"}
 
 # Filtrujeme pouze medium a high impact (low = příliš šumu)
 HIGH_MEDIUM_IMPACTS = {"high", "medium"}
 
 # Mirror používá <country> místo <currency> a nemá pole <actual>
 # (actual data přicházejí přes RSS kanály — investingLive, Reuters atd.)
+
+
+async def get_upcoming_events(window_before_min: int = 120, window_after_min: int = 60) -> list[dict]:
+    """Vrátí USD/EUR/CNY high/medium impact eventy v časovém okně kolem 'teď'.
+
+    Používá se pro smart cron scheduling — zjistí jestli má cenu spouštět LLM predikce.
+    Vrátí seznam eventů s UTC časem, měnou, dopadem a forecastem.
+    """
+    import httpx
+    from app.config import settings
+
+    try:
+        headers = {"User-Agent": settings.forexfactory_user_agent}
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.get(FF_XML_URL, headers=headers)
+            resp.raise_for_status()
+            xml_text = resp.text
+    except Exception as e:
+        log.warning("get_upcoming_events: FF XML fetch failed", error=str(e))
+        return []
+
+    try:
+        root = ElementTree.fromstring(xml_text)
+    except ElementTree.ParseError:
+        return []
+
+    events_raw = root.findall("event")
+    if not events_raw:
+        for week in root.findall("week"):
+            events_raw.extend(week.findall("event"))
+
+    now = datetime.now(timezone.utc)
+    window_start = now - timedelta(minutes=window_after_min)
+    window_end = now + timedelta(minutes=window_before_min)
+
+    result = []
+    for event in events_raw:
+        ev: dict[str, str] = {}
+        for child in event:
+            ev[child.tag] = (child.text or "").strip()
+
+        currency = ev.get("currency", "") or ev.get("country", "")
+        if currency not in TRACKED_CURRENCIES:
+            continue
+
+        impact = (ev.get("impact", "") or "").lower()
+        if impact not in HIGH_MEDIUM_IMPACTS:
+            continue
+
+        date_str = ev.get("date", "")
+        time_str = ev.get("time", "")
+        combined = f"{date_str} {time_str}".strip()
+        try:
+            if time_str:
+                event_time = datetime.strptime(combined, "%m-%d-%Y %I:%M%p").replace(tzinfo=timezone.utc)
+            else:
+                event_time = datetime.strptime(date_str, "%m-%d-%Y").replace(tzinfo=timezone.utc)
+        except ValueError:
+            continue
+
+        if window_start <= event_time <= window_end:
+            minutes_until = int((event_time - now).total_seconds() / 60)
+            result.append({
+                "title": ev.get("title", ""),
+                "currency": currency,
+                "impact": impact,
+                "time_utc": event_time.strftime("%Y-%m-%dT%H:%M:00Z"),
+                "minutes_until": minutes_until,
+                "forecast": ev.get("forecast", ""),
+                "previous": ev.get("previous", ""),
+                "actual": ev.get("actual", ""),
+            })
+
+    result.sort(key=lambda e: e["minutes_until"])
+    return result
 
 
 class ForexFactoryAdapter(NewsSource):
@@ -94,18 +170,15 @@ class ForexFactoryAdapter(NewsSource):
         """
         Mapování měny na relevantní instrumenty.
         USD data hýbou nejen forexem, ale i US akciovými indexy a zlatem.
+        CNY data (Čína) silně ovlivňují zlato a globální poptávku.
         """
         if currency == "EUR":
             return ["EURUSD", "XAUUSD"]
         elif currency == "USD":
-            # US makro data silně ovlivňují všechny tyto instrumenty
             return ["EURUSD", "GBPUSD", "USDJPY", "ES", "NQ", "XAUUSD"]
-        elif currency == "GBP":
-            return ["GBPUSD", "EURUSD"]
-        elif currency == "JPY":
-            return ["USDJPY", "EURUSD"]
-        elif currency == "CHF":
-            return ["EURUSD", "XAUUSD"]
+        elif currency == "CNY":
+            # Čínská makro data (PMI, GDP, trade balance) ovlivňují zlato a indexy
+            return ["XAUUSD", "ES", "NQ"]
         return ["EURUSD"]
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))

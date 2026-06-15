@@ -1,9 +1,9 @@
 name: Tradezer Fast Refresh (5 min)
 
-# Rychlý polling ForexFactory každých 5 minut.
-# Klíčové: ForexFactory actual data se objeví do 1–5 min po vydání zprávy.
-# Tenhle job jen stáhne + uloží nové položky (bez LLM), <10s za run.
-# Predikce zajistí cron.yml (30 min pipeline).
+# Rychlý polling každých 5 minut.
+# Vždy: fetch + store nové zprávy (rychlé, bez LLM).
+# Pokud je aktivní ekonomický event (±90/30 min): také spustí LLM predikce.
+# Predikce se tak spouštějí jen kolem US/EU/China high-impact eventů.
 
 on:
   schedule:
@@ -11,7 +11,7 @@ on:
   workflow_dispatch: {}
 
 env:
-  API_URL: https://trade-zer.vercel.app
+  API_URL: https://tradezer.app
   TOKEN: ${{ secrets.INTERNAL_API_TOKEN }}
 
 jobs:
@@ -19,12 +19,36 @@ jobs:
     name: Fast refresh
     runs-on: ubuntu-latest
     steps:
-      - name: POST /api/refresh
+      - name: Check economic calendar
+        id: calendar
+        run: |
+          RESP=$(curl -s --max-time 15 "$API_URL/api/stats/calendar/active?window_before_min=90&window_after_min=30" || echo '{"active":false}')
+          ACTIVE=$(echo "$RESP" | grep -o '"active":true' | wc -l | tr -d ' ')
+          NEXT=$(echo "$RESP" | grep -o '"title":"[^"]*"' | head -1 | sed 's/"title":"//;s/"//')
+          echo "active=$ACTIVE" >> $GITHUB_OUTPUT
+          echo "next_event=$NEXT" >> $GITHUB_OUTPUT
+          echo "Calendar active=$ACTIVE, next: $NEXT"
+
+      - name: POST /api/refresh (fetch + store)
         run: |
           curl -s -o /tmp/r.json -w "HTTP %{http_code}\n" \
             --max-time 30 \
             -X POST "$API_URL/api/refresh" \
             -H "X-Internal-Token: $TOKEN"
-          # Zobraz jen stats (ne celý payload)
           grep -o '"new":[0-9]*\|"skipped":[0-9]*\|"fetched":[0-9]*' /tmp/r.json | tr '\n' ' '
           echo ""
+
+      - name: POST /api/predict (jen v aktivním okně eventu)
+        if: steps.calendar.outputs.active == '1'
+        run: |
+          echo "Event window active — running LLM predictions"
+          for i in 1 2; do
+            curl -s -o /tmp/p.json -w "\nHTTP %{http_code}\n" \
+              --max-time 55 \
+              -X POST "$API_URL/api/predict?max_predictions=6" \
+              -H "X-Internal-Token: $TOKEN" || true
+            REMAINING=$(grep -o '"remaining":[0-9]*' /tmp/p.json 2>/dev/null | grep -o '[0-9]*$' || echo "0")
+            echo "Remaining after attempt $i: $REMAINING"
+            if [ "$REMAINING" = "0" ]; then break; fi
+            sleep 2
+          done
