@@ -76,7 +76,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Tradezer — News Impact Trading Agent",
-    version="1.0.0",
+    version="1.2.0",
     lifespan=lifespan,
 )
 
@@ -103,4 +103,4 @@ app.include_router(stats_router)
 
 @app.get("/")
 async def root():
-    return {"app": "Tradezer", "version": "1.0.0", "docs": "/docs"}
+    return {"app": "Tradezer", "version": "1.2.0", "docs": "/docs"}
