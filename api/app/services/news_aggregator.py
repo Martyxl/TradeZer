@@ -33,7 +33,7 @@ KEYWORD_TICKER_MAP: dict[str, list[str]] = {
 
     # US akciové indexy — US makro data, Fed, firemní výsledky
     "ES": [
-        "s&p 500", "s&p500", "s&p500", "spx", "wall street", "dow jones", "nyse",
+        "s&p 500", "s&p500", "spx", "wall street", "dow jones", "nyse",
         "u.s. stocks", "us stocks", "u.s. equities", "stock market",
         # US makro — silný vliv na indexy
         "non-farm payroll", "nonfarm payroll", "nfp", "jobs report",
@@ -42,7 +42,19 @@ KEYWORD_TICKER_MAP: dict[str, list[str]] = {
         "u.s. inflation", "us inflation", "core cpi", "core pce",
         "ism manufacturing", "ism services", "ism pmi",
         "u.s. retail sales", "us retail sales",
-        "consumer confidence",
+        "consumer confidence", "consumer sentiment",
+        # Housing market — silně koreluje se sazbami → akcie
+        "housing starts", "building permits", "existing home sales",
+        "new home sales", "pending home sales",
+        "u.s. housing", "us housing", "housing market",
+        # Průmyslová a pracovní data
+        "industrial production", "capacity utilization",
+        "durable goods", "factory orders",
+        "jobless claims", "unemployment claims", "initial claims",
+        "adp employment", "adp jobs", "jolts", "job openings",
+        # Ostatní klíčová US data
+        "trade deficit", "u.s. trade", "us trade balance",
+        "pce deflator", "personal income", "personal spending",
     ],
     "NQ": [
         "nasdaq", "tech sector", "tech stocks", "big tech", "faang", "magnificent",
@@ -53,6 +65,9 @@ KEYWORD_TICKER_MAP: dict[str, list[str]] = {
         "u.s. inflation", "us inflation", "core cpi", "core pce",
         "ism manufacturing", "ism services",
         "manufacturing pmi", "services pmi",
+        # Housing/claims ovlivňuje NQ přes sazby (mortgage → tech valuace)
+        "housing starts", "building permits",
+        "jobless claims", "initial claims", "adp employment",
     ],
 
     # Forex
