@@ -37,6 +37,43 @@ async def manual_refresh(
     return RefreshResponse(status="ok", stats=stats)
 
 
+# Timestamp posledního veřejného refreshe — základní rate limit (60s)
+_last_public_refresh: float = 0.0
+
+
+@router.post("/public/refresh")
+async def public_refresh(
+    session: AsyncSession = Depends(get_session),
+):
+    """Veřejný endpoint pro manuální refresh z UI — nevyžaduje token.
+
+    Stáhne nové zprávy ze všech zdrojů a spustí LLM predikce.
+    Rate limit: max jednou za 60 sekund.
+    """
+    import time
+    global _last_public_refresh
+    now = time.time()
+    cooldown = 60.0
+    wait = cooldown - (now - _last_public_refresh)
+    if wait > 0:
+        return {
+            "status": "rate_limited",
+            "retry_after_seconds": round(wait),
+            "message": f"Počkej ještě {round(wait)}s před dalším refreshem.",
+        }
+    _last_public_refresh = now
+
+    aggregator = NewsAggregator(session)
+    refresh_stats = await aggregator.refresh()
+    predict_stats = await aggregator.predict_pending(max_predictions=8)
+    return {
+        "status": "ok",
+        "new_items": refresh_stats.get("new", 0),
+        "predicted": predict_stats.get("predicted", 0),
+        "remaining": predict_stats.get("remaining", 0),
+    }
+
+
 @router.post("/predict", dependencies=[Depends(_verify_token)])
 async def predict_pending(
     session: AsyncSession = Depends(get_session),

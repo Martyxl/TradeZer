@@ -108,6 +108,15 @@ export interface PatternsResponse {
   patterns: CategoryPattern[];
 }
 
+export interface RefreshResult {
+  status: "ok" | "rate_limited";
+  new_items?: number;
+  predicted?: number;
+  remaining?: number;
+  retry_after_seconds?: number;
+  message?: string;
+}
+
 async function fetchJson<T>(path: string): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, { cache: "no-store" });
   if (!res.ok) throw new Error(`API error ${res.status}: ${path}`);
@@ -116,6 +125,10 @@ async function fetchJson<T>(path: string): Promise<T> {
 
 export const api = {
   getTickers: () => fetchJson<Ticker[]>("/api/tickers"),
+
+  triggerRefresh: () =>
+    fetch(`${API_BASE}/api/public/refresh`, { method: "POST", cache: "no-store" })
+      .then((r) => r.json() as Promise<RefreshResult>),
 
   getNews: (ticker: string, date?: string, limit = 25, offset = 0) => {
     const params = new URLSearchParams({ ticker, limit: String(limit), offset: String(offset) });

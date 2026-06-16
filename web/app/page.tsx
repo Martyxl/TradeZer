@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { TickerFilter } from "@/components/TickerFilter";
 import { DailySummaryCard } from "@/components/DailySummaryCard";
@@ -15,6 +15,9 @@ export default function DashboardPage() {
   const [news, setNews] = useState<NewsItem[]>([]);
   const [summary, setSummary] = useState<DailySummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshMsg, setRefreshMsg] = useState<string | null>(null);
+  const refreshMsgTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const loadTickers = useCallback(async () => {
@@ -42,6 +45,29 @@ export default function DashboardPage() {
       setLoading(false);
     }
   }, []);
+
+  const handleRefresh = useCallback(async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    setRefreshMsg(null);
+    if (refreshMsgTimer.current) clearTimeout(refreshMsgTimer.current);
+    try {
+      const result = await api.triggerRefresh();
+      if (result.status === "rate_limited") {
+        setRefreshMsg(`Počkej ${result.retry_after_seconds}s`);
+      } else {
+        const n = result.new_items ?? 0;
+        const p = result.predicted ?? 0;
+        setRefreshMsg(n > 0 ? `+${n} zpráv, ${p} predikcí` : "Žádné nové zprávy");
+        await loadData(selectedTicker);
+      }
+    } catch {
+      setRefreshMsg("Chyba refreshe");
+    } finally {
+      setRefreshing(false);
+      refreshMsgTimer.current = setTimeout(() => setRefreshMsg(null), 4000);
+    }
+  }, [refreshing, selectedTicker, loadData]);
 
   useEffect(() => {
     loadTickers();
@@ -91,14 +117,19 @@ export default function DashboardPage() {
           selected={selectedTicker}
           onChange={setSelectedTicker}
         />
-        <button
-          onClick={() => loadData(selectedTicker)}
-          disabled={loading}
-          className="flex items-center gap-2 rounded-lg border border-[#2a2d3a] bg-[#1a1d27] px-3 py-1.5 text-sm text-gray-300 hover:text-white hover:border-gray-500 transition-all disabled:opacity-50"
-        >
-          <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-          Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          {refreshMsg && (
+            <span className="text-xs text-gray-400 animate-fade-in">{refreshMsg}</span>
+          )}
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing || loading}
+            className="flex items-center gap-2 rounded-lg border border-[#2a2d3a] bg-[#1a1d27] px-3 py-1.5 text-sm text-gray-300 hover:text-white hover:border-gray-500 transition-all disabled:opacity-50"
+          >
+            <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />
+            {refreshing ? "Stahuji…" : "Refresh"}
+          </button>
+        </div>
       </div>
 
       {/* Error */}
