@@ -355,6 +355,109 @@ async def reroute_predictions(
     }
 
 
+@router.post("/repredict/fix-defaults", dependencies=[Depends(_verify_token)])
+async def fix_default_predictions(
+    days: int = Query(default=7, ge=1, le=30),
+    max_items: int = Query(default=20, ge=1, le=100),
+    dry_run: bool = Query(default=False),
+    session: AsyncSession = Depends(get_session),
+):
+    """Přepíše predikce s confidence=0.0 (defaultní hodnoty) přes LLM.
+
+    Tyto predikce vznikly když predict job nedoběhl nebo selhal — uložily
+    se rovnoměrné pravděpodobnosti 0.333/0.333/0.333 bez LLM výpočtu.
+    """
+    from datetime import timedelta
+    from sqlalchemy import select, update
+    from sqlalchemy.orm import selectinload
+    from app.models import NewsItem, NewsPrediction
+    from app.repositories import TickerRepository, NewsRepository
+    from app.services.prediction_engine import PredictionEngine
+
+    news_repo = NewsRepository(session)
+    ticker_repo = TickerRepository(session)
+    all_tickers = await ticker_repo.get_all_enabled()
+    engine = PredictionEngine(news_repo)
+
+    cutoff = __import__("datetime").datetime.utcnow() - timedelta(days=days)
+
+    # Najdi predikce s confidence=0 z posledních N dní
+    stmt = (
+        select(NewsPrediction)
+        .join(NewsItem, NewsItem.id == NewsPrediction.news_id)
+        .where(NewsPrediction.confidence == 0.0)
+        .where(NewsItem.published_at >= cutoff)
+        .options(selectinload(NewsPrediction.news_item).selectinload(NewsItem.source))
+        .order_by(NewsItem.published_at.desc())
+        .limit(max_items)
+    )
+    default_preds = (await session.execute(stmt)).scalars().all()
+
+    stats = {"found": len(default_preds), "fixed": 0, "errors": 0}
+    fixed_details = []
+
+    for pred in default_preds:
+        item = pred.news_item
+        ticker = next((t for t in all_tickers if t.id == pred.ticker_id), None)
+        if not ticker:
+            continue
+
+        if dry_run:
+            fixed_details.append({"news_id": item.id, "title": item.title[:80], "ticker": ticker.symbol})
+            stats["fixed"] += 1
+            continue
+
+        try:
+            source_weight = item.source.source_weight if item.source else 0.5
+            result = await engine.predict(
+                news_id=item.id,
+                ticker_id=ticker.id,
+                ticker_symbol=ticker.symbol,
+                title=item.title,
+                body=item.body,
+                source_weight=source_weight,
+            )
+            # Update predikci na místě
+            await session.execute(
+                update(NewsPrediction)
+                .where(NewsPrediction.id == pred.id)
+                .values(
+                    prob_down=result.prob_down,
+                    prob_neutral=result.prob_neutral,
+                    prob_up=result.prob_up,
+                    confidence=result.confidence,
+                    llm_reasoning=result.llm_reasoning,
+                    model_version=result.model_version,
+                )
+            )
+            await news_repo.upsert_ticker_relevance(
+                news_id=item.id,
+                ticker_id=ticker.id,
+                relevance_score=result.relevance_score,
+                importance_weight=result.importance_weight,
+                llm_rationale=result.llm_reasoning,
+            )
+            await news_repo.save_item_categories(item.id, [(cat, 1.0) for cat in result.categories])
+            fixed_details.append({
+                "news_id": item.id,
+                "title": item.title[:80],
+                "ticker": ticker.symbol,
+                "direction": max(
+                    [("up", result.prob_up), ("neutral", result.prob_neutral), ("down", result.prob_down)],
+                    key=lambda x: x[1],
+                )[0],
+                "confidence": round(result.confidence, 2),
+            })
+            stats["fixed"] += 1
+        except Exception as e:
+            stats["errors"] += 1
+
+    if not dry_run:
+        await session.commit()
+
+    return {"status": "ok", "dry_run": dry_run, "stats": stats, "fixed": fixed_details[:50]}
+
+
 @router.post("/backfill/price_series", dependencies=[Depends(_verify_token)])
 async def backfill_price_series(
     days: int = Query(default=7, ge=1, le=7, description="Max. 7 dní (limit Yahoo Finance 5min dat)"),
