@@ -16,10 +16,5 @@
       "dest": "app/main.py"
     }
   ],
-  "crons": [
-    {
-      "path": "/api/refresh",
-      "schedule": "*/5 * * * *"
-    }
-  ]
+  "crons": []
 }
