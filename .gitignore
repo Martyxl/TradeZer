@@ -37,3 +37,7 @@ Thumbs.db
 
 # Vercel
 .vercel/
+
+# Market data (velke CSV - negeneruji se do repa)
+data/raw/
+data/agg/
