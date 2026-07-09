@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Info, X, TrendingUp, Layers, Crosshair, LineChart } from "lucide-react";
+import { Info, X, TrendingUp, Layers, Crosshair, LineChart, type LucideIcon } from "lucide-react";
 
 /* ---------------------------------------------------------------- typy */
 
@@ -118,7 +118,7 @@ function Card({ title, subtitle, children }: {
 }
 
 function Section({ icon: Icon, title, description, children }: {
-  icon: React.ComponentType<{ size?: number; className?: string }>;
+  icon: LucideIcon;
   title: string;
   description: string;
   children: React.ReactNode;
