@@ -6,6 +6,7 @@ import { QRCodeSVG } from "qrcode.react";
 
 const ACCOUNT = "107-8153720267/0100";
 const IBAN = "CZ3701000001078153720267";
+const EUR_IBAN = "LT24 3250 0129 8959 2841"; // Revolut (SEPA)
 // Český standard QR platba (SPD) — banka po naskenování předvyplní převod
 const QR_PAYMENT = `SPD*1.0*ACC:${IBAN}*CC:CZK*MSG:PODPORA TRADEZER`;
 
@@ -88,8 +89,11 @@ export function SupportButton({ variant = "sidebar" }: { variant?: "sidebar" | "
             </p>
 
             <div className="space-y-2">
+              <div className="text-[10px] uppercase tracking-wider text-gray-500 pt-1">CZK — bankovní převod</div>
               <CopyRow label="Číslo účtu" value={ACCOUNT} />
               <CopyRow label="IBAN" value={IBAN} />
+              <div className="text-[10px] uppercase tracking-wider text-gray-500 pt-2">EUR — Revolut (SEPA)</div>
+              <CopyRow label="IBAN" value={EUR_IBAN} />
             </div>
           </div>
         </div>
