@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard, History, BarChart3 } from "lucide-react";
+import { SupportButton } from "@/components/SupportButton";
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -42,6 +43,10 @@ export function Sidebar() {
           );
         })}
       </nav>
+
+      <div className="mt-auto p-3 border-t border-[#2a2d3a]">
+        <SupportButton variant="sidebar" />
+      </div>
     </aside>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Eye } from "lucide-react";
+import { SupportButton } from "@/components/SupportButton";
 
 export function Footer() {
   const [visits, setVisits] = useState<number | null>(null);
@@ -23,12 +24,15 @@ export function Footer() {
     <footer className="mt-12 border-t border-[#2a2d3a] py-5">
       <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-gray-500">
         <span>© {new Date().getFullYear()} BigHead — Tradezer. Všechna práva vyhrazena.</span>
-        {visits !== null && (
-          <span className="flex items-center gap-1.5">
-            <Eye size={13} />
-            {visits.toLocaleString("cs")} návštěv
-          </span>
-        )}
+        <div className="flex items-center gap-4">
+          <SupportButton variant="footer" />
+          {visits !== null && (
+            <span className="flex items-center gap-1.5">
+              <Eye size={13} />
+              {visits.toLocaleString("cs")} návštěv
+            </span>
+          )}
+        </div>
       </div>
     </footer>
   );
