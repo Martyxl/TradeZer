@@ -1,22 +1,24 @@
 #!/usr/bin/env bash
 # Stahuje 5m data z Dukascopy po měsíčních dávkách (roční rozsah v jednom requestu selhává).
-# Použití: ./download.sh <instrument>   (např. xauusd, usatechidxusd)
+# Měsíce se generují dynamicky: posledních N měsíců + aktuální částečný měsíc.
+# Použití: ./download.sh <instrument> [months_back=13]   (např. xauusd, usatechidxusd)
 set -u
 INSTRUMENT="$1"
+MONTHS_BACK="${2:-13}"
 DIR="$(cd "$(dirname "$0")" && pwd)/raw"
 mkdir -p "$DIR"
 
-MONTHS=(
-  "2025-07-01 2025-08-01" "2025-08-01 2025-09-01" "2025-09-01 2025-10-01"
-  "2025-10-01 2025-11-01" "2025-11-01 2025-12-01" "2025-12-01 2026-01-01"
-  "2026-01-01 2026-02-01" "2026-02-01 2026-03-01" "2026-03-01 2026-04-01"
-  "2026-04-01 2026-05-01" "2026-05-01 2026-06-01" "2026-06-01 2026-07-01"
-  "2026-07-01 2026-07-09"
-)
+TODAY=$(date -u +%Y-%m-%d)
+CUR_MONTH=$(date -u +%Y-%m-01)
+
+month_add() {  # month_add YYYY-MM-01 N  -> posune o N měsíců
+  date -u -d "$1 $2 month" +%Y-%m-01 2>/dev/null || date -u -v"$2"m -j -f %Y-%m-%d "$1" +%Y-%m-01
+}
 
 FAIL=0
-for m in "${MONTHS[@]}"; do
-  read -r FROM TO <<< "$m"
+for ((i = MONTHS_BACK; i >= 1; i--)); do
+  FROM=$(month_add "$CUR_MONTH" "-$i")
+  TO=$(month_add "$CUR_MONTH" "-$((i - 1))")
   OUT="$DIR/${INSTRUMENT}-m5-bid-${FROM}-${TO}.csv"
   if [ -s "$OUT" ]; then
     echo "SKIP $FROM (exists)"
@@ -33,8 +35,17 @@ for m in "${MONTHS[@]}"; do
   if [ "$ok" -eq 0 ]; then
     echo "FAILED: $FROM"
     FAIL=1
+    rm -f "$OUT"
   fi
 done
+
+# Aktuální částečný měsíc (vždy znovu — přibývají data)
+if [ "$CUR_MONTH" != "$TODAY" ]; then
+  echo "=== $INSTRUMENT $CUR_MONTH -> $TODAY (partial)"
+  rm -f "$DIR/${INSTRUMENT}-m5-bid-${CUR_MONTH}-${TODAY}.csv"
+  npx -y dukascopy-node -i "$INSTRUMENT" -from "$CUR_MONTH" -to "$TODAY" -t m5 -f csv -v true \
+    --retries 5 --directory "$DIR" >/dev/null 2>&1 || { echo "FAILED: partial month"; FAIL=1; }
+fi
 
 echo "---"
 ls -la "$DIR" | grep "$INSTRUMENT" || true

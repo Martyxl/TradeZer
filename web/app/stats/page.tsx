@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Info, X, ChevronDown, ChevronUp } from "lucide-react";
+import { Info, X, TrendingUp, Layers, Crosshair, LineChart } from "lucide-react";
 
 /* ---------------------------------------------------------------- typy */
 
 interface SessionSize { avg: number; median: number; min: number; max: number }
-interface MarketStats {
+interface StatsBody {
   meta: {
     instrument: string; label: string; unit: string;
     from: string; to: string; bars_m5: number; days: number; weeks: number;
@@ -26,24 +26,44 @@ interface MarketStats {
   globex_both_sides: Record<string, any>;
   by_hour: { volatility: number[]; volume: number[] };
 }
+interface MarketStats extends StatsBody {
+  prev?: StatsBody | null;
+}
 
 /* ------------------------------------------------------------ pomocné */
 
-const SESSION_LABELS: Record<string, string> = {
+type LabelList = [string, string][];
+
+const SESSION_LABELS: LabelList = [
+  ["asia", "Asia"], ["london", "London"], ["ny", "NY"], ["close", "Close"],
+];
+const REVISIT_LABELS: LabelList = [
+  ["same", "Stejný den"], ["1", "Následující den"], ["2", "2 dny"], ["3", "3 dny"], ["never", "Nikdy"],
+];
+const DAY_LABELS: LabelList = [
+  ["1", "Den 1"], ["2", "Den 2"], ["3", "Den 3"], ["never", "Ne do 3 dnů"],
+];
+const SIDES_LABELS: LabelList = [
+  ["both", "Obě strany"], ["high_only", "Pouze high"], ["low_only", "Pouze low"], ["neither", "Ani jedna"],
+];
+const SESSION_NAME: Record<string, string> = {
   asia: "Asia", london: "London", ny: "NY", close: "Close",
 };
-const REVISIT_LABELS: Record<string, string> = {
-  same: "Stejný den", "1": "Následující den", "2": "2 dny", "3": "3 dny", never: "Nikdy",
-};
-const DAY_LABELS: Record<string, string> = {
-  "1": "Den 1", "2": "Den 2", "3": "Den 3", never: "Ne do 3 dnů",
-};
-const SIDES_LABELS: Record<string, string> = {
-  both: "Obě strany", high_only: "Pouze high", low_only: "Pouze low", neither: "Ani jedna",
-};
 
-function Bar({ label, value, accent = "#3b82f6", max = 100 }: {
-  label: string; value: number; accent?: string; max?: number;
+function Delta({ now, prev }: { now: number; prev?: number }) {
+  if (prev === undefined || prev === null) return null;
+  const d = Math.round((now - prev) * 10) / 10;
+  if (Math.abs(d) < 0.1) return null;
+  const color = d > 0 ? "#4ade80" : "#f87171";
+  return (
+    <span className="text-[10px] font-medium ml-1" style={{ color }} title={`Minulý měsíc: ${prev.toFixed(1)} %`}>
+      {d > 0 ? "▲" : "▼"}{Math.abs(d).toFixed(1)}
+    </span>
+  );
+}
+
+function Bar({ label, value, prev, accent = "#3b82f6", max = 100 }: {
+  label: string; value: number; prev?: number; accent?: string; max?: number;
 }) {
   const width = Math.max(2, (value / max) * 100);
   return (
@@ -52,23 +72,30 @@ function Bar({ label, value, accent = "#3b82f6", max = 100 }: {
       <div className="flex-1 h-2 rounded-full bg-[#232735] overflow-hidden">
         <div className="h-full rounded-full" style={{ width: `${width}%`, background: accent }} />
       </div>
-      <span className="w-12 text-right font-medium" style={{ color: value === max || value >= 50 ? accent : "#9ca3af" }}>
-        {value.toFixed(1)} %
+      <span className="w-20 text-right font-medium whitespace-nowrap" style={{ color: value >= 50 ? accent : "#9ca3af" }}>
+        {value.toFixed(1)} %<Delta now={value} prev={prev} />
       </span>
     </div>
   );
 }
 
-function BarGroup({ data, labels, accents }: {
+function BarGroup({ data, prevData, labels, accents }: {
   data: Record<string, number>;
-  labels: Record<string, string>;
+  prevData?: Record<string, number> | null;
+  labels: LabelList;
   accents?: Record<string, string>;
 }) {
-  const entries = Object.entries(data).filter(([k, v]) => typeof v === "number" && labels[k]);
+  const entries = labels.filter(([k]) => typeof data[k] === "number");
   return (
     <div className="space-y-2">
-      {entries.map(([k, v]) => (
-        <Bar key={k} label={labels[k]} value={v as number} accent={accents?.[k] ?? "#3b82f6"} />
+      {entries.map(([k, label]) => (
+        <Bar
+          key={k}
+          label={label}
+          value={data[k]}
+          prev={typeof prevData?.[k] === "number" ? prevData[k] : undefined}
+          accent={accents?.[k] ?? "#3b82f6"}
+        />
       ))}
     </div>
   );
@@ -80,18 +107,39 @@ function Card({ title, subtitle, children }: {
   return (
     <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-4">
       <h3 className="text-sm font-semibold text-white">{title}</h3>
-      {subtitle && (
+      {subtitle ? (
         <p className="text-[10px] uppercase tracking-wider text-gray-500 mt-0.5 mb-3">{subtitle}</p>
+      ) : (
+        <div className="mb-3" />
       )}
-      {!subtitle && <div className="mb-3" />}
       {children}
     </div>
   );
 }
 
-/* --------------------------------------------------------------- modal */
+function Section({ icon: Icon, title, description, children }: {
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section>
+      <div className="flex items-center gap-2.5 mb-1">
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-950/60 border border-blue-900/50">
+          <Icon size={15} className="text-blue-400" />
+        </span>
+        <h2 className="text-base font-bold text-white">{title}</h2>
+      </div>
+      <p className="text-xs text-gray-500 mb-4 ml-[42px]">{description}</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">{children}</div>
+    </section>
+  );
+}
 
-const HELP: [string, string][] = [
+/* --------------------------------------------------------------- legenda */
+
+const LEGEND: [string, string][] = [
   ["Session Sizes", "Průměrný / mediánový / min / max rozsah high–low každé session v bodech."],
   ["Daily HIGH/LOW — Session", "Ve které session se tiskne denní maximum/minimum. „Close“ = zbývající hodiny mimo hlavní sessions."],
   ["Daily Open Revisit", "Po otevření dne — jak brzy se cena vrátí k opening price (stejný den, den 1–3 později, nebo nikdy)."],
@@ -104,9 +152,10 @@ const HELP: [string, string][] = [
   ["Asia — Both Sides", "Během London+NY — je high/low Asia range prolomeno na obě strany, jen jednu, nebo žádnou? Pořadí: která strana padla první."],
   ["Globex — Both Sides", "Totéž pro overnight (Globex) range během NY RTH."],
   ["Volatility by Hour", "Průměrný hodinový rozsah high–low podle hodiny (UTC)."],
+  ["▲▼ změny", "Šipky u hodnot ukazují posun oproti minulé měsíční aktualizaci dat (v procentních bodech)."],
 ];
 
-function HelpModal({ onClose }: { onClose: () => void }) {
+function LegendModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 bg-black/70 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
       <div
@@ -114,13 +163,13 @@ function HelpModal({ onClose }: { onClose: () => void }) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-white">Jak číst tento report</h2>
+          <h2 className="text-xl font-bold text-white">Legenda</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-white"><X size={20} /></button>
         </div>
         <p className="text-sm text-gray-300 mb-4">
-          <span className="text-blue-400 font-medium">Data:</span> Statistiky vycházejí z ~1 roku 5min svíček
-          (Dukascopy). Všechny časy jsou v <span className="text-blue-400">UTC</span>. Obchodní den začíná
-          ve <span className="text-blue-400">22:00 UTC</span>.
+          <span className="text-blue-400 font-medium">Data:</span> ~1 rok 5min svíček (Dukascopy),
+          automaticky aktualizováno jednou měsíčně. Všechny časy v <span className="text-blue-400">UTC</span>,
+          obchodní den začíná ve <span className="text-blue-400">22:00 UTC</span>.
         </p>
         <div className="text-xs text-gray-400 mb-4 rounded-lg border border-[#2a2d3a] overflow-hidden">
           <table className="w-full">
@@ -138,7 +187,7 @@ function HelpModal({ onClose }: { onClose: () => void }) {
           </table>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {HELP.map(([t, d]) => (
+          {LEGEND.map(([t, d]) => (
             <div key={t} className="rounded-lg border border-[#2a2d3a] bg-[#151823] p-3">
               <div className="text-blue-400 text-sm font-medium mb-1">{t}</div>
               <div className="text-xs text-gray-400">{d}</div>
@@ -174,35 +223,101 @@ function HourChart({ title, values, unit }: { title: string; values: number[]; u
   );
 }
 
-/* ---------------------------------------------------- blok instrumentu */
+/* ----------------------------------------------------------------- page */
 
-function InstrumentBlock({ stats }: { stats: MarketStats }) {
-  const [open, setOpen] = useState(true);
-  const m = stats.meta;
+export default function StatsPage() {
+  const [data, setData] = useState<Record<string, MarketStats>>({});
+  const [selected, setSelected] = useState<string>("nq");
+  const [error, setError] = useState<string | null>(null);
+  const [showLegend, setShowLegend] = useState(false);
+
+  useEffect(() => {
+    Promise.allSettled(
+      ["nq", "gold"].map((k) =>
+        fetch(`/stats/${k}.json`, { cache: "no-store" }).then((r) => {
+          if (!r.ok) throw new Error(`${k}: ${r.status}`);
+          return r.json().then((j: MarketStats) => [k, j] as const);
+        })
+      )
+    ).then((results) => {
+      const ok = Object.fromEntries(
+        results
+          .filter((r): r is PromiseFulfilledResult<readonly [string, MarketStats]> => r.status === "fulfilled")
+          .map((r) => r.value)
+      );
+      if (Object.keys(ok).length === 0) setError("Statistiky nejsou k dispozici. Spusť data/compute_stats.py.");
+      setData(ok);
+    });
+  }, []);
+
+  const stats = data[selected];
+  const prev = stats?.prev ?? null;
+  const m = stats?.meta;
   const sessionAccents = { asia: "#a855f7", london: "#3b82f6", ny: "#3b82f6", close: "#64748b" };
+  const dayLabels = (d: Record<string, number>): LabelList =>
+    Object.keys(d).map((k) => [k, k] as [string, string]);
 
   return (
-    <div className="rounded-2xl border border-[#2a2d3a] bg-[#12141c] overflow-hidden">
-      <button
-        onClick={() => setOpen(!open)}
-        className="w-full flex items-center gap-3 px-5 py-4 hover:bg-[#161927] transition-colors"
-      >
-        <div className="h-9 w-9 rounded-full bg-blue-600 flex items-center justify-center text-xs font-bold text-white">
-          {m.instrument === "NQ" ? "NQ" : "XAU"}
+    <div className="space-y-8">
+      <div>
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-2xl font-bold text-white">Market Statistics</h1>
+          <button
+            onClick={() => setShowLegend(true)}
+            className="flex items-center gap-1.5 rounded-full border border-blue-800 bg-blue-950/40 px-3 py-1 text-xs text-blue-300 hover:bg-blue-900/40 transition-colors"
+          >
+            <Info size={13} /> Legenda
+          </button>
         </div>
-        <div className="text-left">
-          <div className="font-bold text-white">{m.label}</div>
-          <div className="text-xs text-gray-500">
-            {m.bars_m5.toLocaleString("cs")} 5m barů ({m.from} → {m.to}) · {m.days} dní · {m.weeks} týdnů
-          </div>
-        </div>
-        <span className="ml-auto text-gray-500">{open ? <ChevronUp size={18} /> : <ChevronDown size={18} />}</span>
-      </button>
+        <p className="text-sm text-gray-400 mt-1">
+          Backtestované pravděpodobnosti a statistiky trhu napříč instrumenty
+        </p>
+      </div>
 
-      {open && (
-        <div className="p-4 pt-0 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {/* Session Sizes */}
+      {/* Filtr instrumentu */}
+      <div className="flex items-center gap-2 -mt-4">
+        {(["nq", "gold"] as const).map((k) => (
+          <button
+            key={k}
+            onClick={() => setSelected(k)}
+            disabled={!data[k]}
+            className={`rounded-lg px-4 py-2 text-sm font-medium border transition-colors disabled:opacity-40 ${
+              selected === k
+                ? "bg-[#1e2536] text-white border-[#2f3b55]"
+                : "bg-[#151823] text-gray-400 border-[#2a2d3a] hover:text-white"
+            }`}
+          >
+            {k === "nq" ? "NQ" : "GOLD"}
+          </button>
+        ))}
+        {m && (
+          <span className="ml-2 text-xs text-gray-500">
+            {m.bars_m5.toLocaleString("cs")} 5m barů · {m.from} → {m.to} · {m.days} dní · {m.weeks} týdnů
+            {prev && <> · změny vs. data k {prev.meta.to}</>}
+          </span>
+        )}
+      </div>
+
+      {error && (
+        <div className="rounded-xl border border-yellow-800 bg-yellow-950/40 p-4 text-sm text-yellow-300">{error}</div>
+      )}
+
+      {!stats && !error && (
+        <div className="space-y-4">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="h-40 rounded-2xl bg-[#151823] animate-pulse border border-[#2a2d3a]" />
+          ))}
+        </div>
+      )}
+
+      {stats && m && (
+        <>
+          {/* ============ SESSIONS ============ */}
+          <Section
+            icon={Layers}
+            title="Sessions"
+            description="Rozsahy a chování jednotlivých obchodních seancí (Asia / London / NY)"
+          >
             <Card title="Session Sizes" subtitle={`průměrný rozsah v ${m.unit}`}>
               <table className="w-full text-xs">
                 <thead>
@@ -216,9 +331,16 @@ function InstrumentBlock({ stats }: { stats: MarketStats }) {
                   {Object.entries(stats.session_sizes).map(([k, v]) => (
                     <tr key={k} className="border-t border-[#232735]">
                       <td className="py-1.5 font-medium" style={{ color: k === "asia" ? "#a855f7" : k === "ny" ? "#eab308" : "#3b82f6" }}>
-                        {SESSION_LABELS[k]}
+                        {SESSION_NAME[k]}
                       </td>
-                      <td className="text-right text-gray-300">{v.avg}</td>
+                      <td className="text-right text-gray-300">
+                        {v.avg}
+                        {prev?.session_sizes?.[k] && Math.abs(v.avg - prev.session_sizes[k].avg) >= 1 && (
+                          <span className="text-[9px] ml-1" style={{ color: v.avg > prev.session_sizes[k].avg ? "#4ade80" : "#f87171" }}>
+                            {v.avg > prev.session_sizes[k].avg ? "▲" : "▼"}
+                          </span>
+                        )}
+                      </td>
                       <td className="text-right text-gray-300">{v.median}</td>
                       <td className="text-right text-gray-500">{v.min}</td>
                       <td className="text-right text-gray-500">{v.max}</td>
@@ -229,128 +351,91 @@ function InstrumentBlock({ stats }: { stats: MarketStats }) {
             </Card>
 
             <Card title="Daily HIGH — Session" subtitle={`${m.days} dní · kde se tiskne denní high`}>
-              <BarGroup data={stats.daily_high_session} labels={SESSION_LABELS} accents={sessionAccents} />
+              <BarGroup data={stats.daily_high_session} prevData={prev?.daily_high_session} labels={SESSION_LABELS} accents={sessionAccents} />
             </Card>
 
             <Card title="Daily LOW — Session" subtitle={`${m.days} dní · kde se tiskne denní low`}>
-              <BarGroup data={stats.daily_low_session} labels={SESSION_LABELS} accents={sessionAccents} />
+              <BarGroup data={stats.daily_low_session} prevData={prev?.daily_low_session} labels={SESSION_LABELS} accents={sessionAccents} />
             </Card>
 
-            <Card title="Daily Open Revisit" subtitle={`${m.days} dní · cena se vrací k open`}>
-              <BarGroup data={stats.daily_open_revisit} labels={REVISIT_LABELS} />
-            </Card>
+            <HourChart title="Volatility by Hour" values={stats.by_hour.volatility} unit={`průměrný rozsah / hod v ${m.unit}`} />
+            <HourChart title="Volume by Hour" values={stats.by_hour.volume} unit="průměrný objem per 5m bar" />
+          </Section>
 
+          {/* ============ HIGHS & LOWS ============ */}
+          <Section
+            icon={TrendingUp}
+            title="Highs & Lows"
+            description="Retesty denních extrémů, týdenní maxima/minima a prolomení klíčových range"
+          >
             <Card title="Candle H/L Revisit" subtitle={`${stats.candle_hl_revisit.levels} levelů · daily high & low retested`}>
-              <BarGroup data={stats.candle_hl_revisit} labels={DAY_LABELS} />
+              <BarGroup data={stats.candle_hl_revisit} prevData={prev?.candle_hl_revisit} labels={DAY_LABELS} />
             </Card>
-
-            <Card title="Daily NPOC Revisit" subtitle={`${stats.daily_npoc_revisit.days} dní · POC retested`}>
-              <BarGroup data={stats.daily_npoc_revisit} labels={DAY_LABELS} />
-            </Card>
-
-            <Card title="VWAP Edge Revisit" subtitle={`${stats.vwap_edge_revisit.days} dní · návrat k VWAP po ±1σ edge`}>
-              <BarGroup data={stats.vwap_edge_revisit} labels={REVISIT_LABELS} />
-            </Card>
-
-            {Object.entries(stats.session_npoc_revisit).map(([sess, data]) => (
-              <Card key={sess} title={`${SESSION_LABELS[sess]} NPOC Revisit`} subtitle={`${data.days} dní`}>
-                <BarGroup data={data} labels={REVISIT_LABELS} />
-              </Card>
-            ))}
 
             <Card title="Weekly HIGH — Day" subtitle={`${m.weeks} týdnů`}>
-              <BarGroup data={stats.weekly_high_day} labels={Object.fromEntries(Object.keys(stats.weekly_high_day).map(k => [k, k]))} />
+              <BarGroup data={stats.weekly_high_day} prevData={prev?.weekly_high_day} labels={dayLabels(stats.weekly_high_day)} />
             </Card>
 
             <Card title="Weekly LOW — Day" subtitle={`${m.weeks} týdnů`}>
-              <BarGroup data={stats.weekly_low_day} labels={Object.fromEntries(Object.keys(stats.weekly_low_day).map(k => [k, k]))} />
-            </Card>
-
-            <Card title="Weekly Open Revisit" subtitle={`${m.weeks} týdnů · den prvního revisitu`}>
-              <BarGroup data={stats.weekly_open_revisit} labels={Object.fromEntries(Object.keys(stats.weekly_open_revisit).map(k => [k, k]))} />
+              <BarGroup data={stats.weekly_low_day} prevData={prev?.weekly_low_day} labels={dayLabels(stats.weekly_low_day)} />
             </Card>
 
             <Card title="Asia — Both Sides" subtitle={`${stats.asia_both_sides.days} dní · during London+NY`}>
-              <BarGroup data={stats.asia_both_sides} labels={SIDES_LABELS} />
+              <BarGroup data={stats.asia_both_sides} prevData={prev?.asia_both_sides} labels={SIDES_LABELS} />
               <div className="mt-3 pt-3 border-t border-[#232735] space-y-2">
-                <Bar label="Low → High" value={stats.asia_both_sides.order?.low_to_high ?? 0} accent="#64748b" />
-                <Bar label="High → Low" value={stats.asia_both_sides.order?.high_to_low ?? 0} accent="#64748b" />
+                <Bar label="Low → High" value={stats.asia_both_sides.order?.low_to_high ?? 0} prev={prev?.asia_both_sides?.order?.low_to_high} accent="#64748b" />
+                <Bar label="High → Low" value={stats.asia_both_sides.order?.high_to_low ?? 0} prev={prev?.asia_both_sides?.order?.high_to_low} accent="#64748b" />
               </div>
             </Card>
 
             <Card title="Globex — Both Sides" subtitle={`${stats.globex_both_sides.days} dní · during NY RTH`}>
-              <BarGroup data={stats.globex_both_sides} labels={SIDES_LABELS} />
+              <BarGroup data={stats.globex_both_sides} prevData={prev?.globex_both_sides} labels={SIDES_LABELS} />
               <div className="mt-3 pt-3 border-t border-[#232735] space-y-2">
-                <Bar label="Low → High" value={stats.globex_both_sides.order?.low_to_high ?? 0} accent="#64748b" />
-                <Bar label="High → Low" value={stats.globex_both_sides.order?.high_to_low ?? 0} accent="#64748b" />
+                <Bar label="Low → High" value={stats.globex_both_sides.order?.low_to_high ?? 0} prev={prev?.globex_both_sides?.order?.low_to_high} accent="#64748b" />
+                <Bar label="High → Low" value={stats.globex_both_sides.order?.high_to_low ?? 0} prev={prev?.globex_both_sides?.order?.high_to_low} accent="#64748b" />
               </div>
             </Card>
-          </div>
+          </Section>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <HourChart title="Volatility by Hour" values={stats.by_hour.volatility} unit={`průměrný rozsah / hod v ${m.unit}`} />
-            <HourChart title="Volume by Hour" values={stats.by_hour.volume} unit="průměrný objem per 5m bar" />
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
+          {/* ============ NPOC ============ */}
+          <Section
+            icon={Crosshair}
+            title="NPOC"
+            description="Naked Point of Control — kdy se cena vrací na úrovně s největším zobchodovaným objemem"
+          >
+            <Card title="Daily NPOC Revisit" subtitle={`${stats.daily_npoc_revisit.days} dní · POC retested`}>
+              <BarGroup data={stats.daily_npoc_revisit} prevData={prev?.daily_npoc_revisit} labels={DAY_LABELS} />
+            </Card>
 
-/* ----------------------------------------------------------------- page */
+            {Object.entries(stats.session_npoc_revisit).map(([sess, d]) => (
+              <Card key={sess} title={`${SESSION_NAME[sess]} NPOC Revisit`} subtitle={`${d.days} dní`}>
+                <BarGroup data={d} prevData={prev?.session_npoc_revisit?.[sess]} labels={REVISIT_LABELS} />
+              </Card>
+            ))}
+          </Section>
 
-export default function StatsPage() {
-  const [data, setData] = useState<MarketStats[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [showHelp, setShowHelp] = useState(false);
+          {/* ============ VWAP & OPENS ============ */}
+          <Section
+            icon={LineChart}
+            title="VWAP & Opens"
+            description="Návraty k VWAP linii a k denním/týdenním otevíracím cenám"
+          >
+            <Card title="VWAP Edge Revisit" subtitle={`${stats.vwap_edge_revisit.days} dní · návrat k VWAP po ±1σ edge`}>
+              <BarGroup data={stats.vwap_edge_revisit} prevData={prev?.vwap_edge_revisit} labels={REVISIT_LABELS} />
+            </Card>
 
-  useEffect(() => {
-    Promise.allSettled(
-      ["nq", "gold"].map((k) =>
-        fetch(`/stats/${k}.json`, { cache: "no-store" }).then((r) => {
-          if (!r.ok) throw new Error(`${k}: ${r.status}`);
-          return r.json() as Promise<MarketStats>;
-        })
-      )
-    ).then((results) => {
-      const ok = results.filter((r): r is PromiseFulfilledResult<MarketStats> => r.status === "fulfilled").map((r) => r.value);
-      if (ok.length === 0) setError("Statistiky nejsou k dispozici. Spusť data/compute_stats.py.");
-      setData(ok);
-    });
-  }, []);
+            <Card title="Daily Open Revisit" subtitle={`${m.days} dní · cena se vrací k open`}>
+              <BarGroup data={stats.daily_open_revisit} prevData={prev?.daily_open_revisit} labels={REVISIT_LABELS} />
+            </Card>
 
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-2xl font-bold text-white">Market Statistics</h1>
-        <button
-          onClick={() => setShowHelp(true)}
-          className="flex items-center gap-1.5 rounded-full border border-blue-800 bg-blue-950/40 px-3 py-1 text-xs text-blue-300 hover:bg-blue-900/40 transition-colors"
-        >
-          <Info size={13} /> Jak to funguje
-        </button>
-      </div>
-      <p className="text-sm text-gray-400 -mt-3">
-        Backtestované pravděpodobnosti a statistiky trhu napříč instrumenty
-      </p>
-
-      {error && (
-        <div className="rounded-xl border border-yellow-800 bg-yellow-950/40 p-4 text-sm text-yellow-300">{error}</div>
+            <Card title="Weekly Open Revisit" subtitle={`${m.weeks} týdnů · den prvního revisitu`}>
+              <BarGroup data={stats.weekly_open_revisit} prevData={prev?.weekly_open_revisit} labels={dayLabels(stats.weekly_open_revisit)} />
+            </Card>
+          </Section>
+        </>
       )}
 
-      {data.length === 0 && !error && (
-        <div className="space-y-4">
-          {[0, 1].map((i) => (
-            <div key={i} className="h-24 rounded-2xl bg-[#151823] animate-pulse border border-[#2a2d3a]" />
-          ))}
-        </div>
-      )}
-
-      <div className="space-y-5">
-        {data.map((s) => <InstrumentBlock key={s.meta.instrument} stats={s} />)}
-      </div>
-
-      {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
+      {showLegend && <LegendModal onClose={() => setShowLegend(false)} />}
     </div>
   );
 }

@@ -396,7 +396,19 @@ def main() -> None:
         cfg = INSTRUMENTS[key]
         print(f"== {key}: počítám…")
         stats = compute(key, cfg)
+
+        # Meziměsíční porovnání: předchozí stav ulož do "prev".
+        # Při přepočtu nad stejnými daty (stejné meta.to) zachovej původní baseline.
         out_file = OUT / f"{key}.json"
+        stats["prev"] = None
+        if out_file.exists():
+            old = json.loads(out_file.read_text(encoding="utf-8"))
+            old_prev = old.pop("prev", None)
+            if old.get("meta", {}).get("to") == stats["meta"]["to"]:
+                stats["prev"] = old_prev
+            else:
+                stats["prev"] = old
+
         out_file.write_text(json.dumps(stats, ensure_ascii=False, indent=1), encoding="utf-8")
         print(f"   -> {out_file} ({stats['meta']['bars_m5']} barů, {stats['meta']['days']} dní)")
 
