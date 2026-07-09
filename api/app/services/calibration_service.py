@@ -154,7 +154,7 @@ class CalibrationService:
                             "Reaction recorded",
                             news_id=pred.news_id,
                             ticker=symbol,
-                            pct_15m=pct_15m,
+                            pct_30m=pct_30m,
                             realized=realized,
                         )
                     except Exception as e:

@@ -10,8 +10,10 @@ from app.models.news import (
     DailySummary,
     DirectionEnum,
 )
+from app.models.site import SiteCounter
 
 __all__ = [
+    "SiteCounter",
     "Ticker",
     "NewsSource",
     "NewsItem",

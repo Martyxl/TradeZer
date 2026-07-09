@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Sidebar, MobileNav } from "@/components/Sidebar";
+import { Footer } from "@/components/Footer";
 
 export const metadata: Metadata = {
   title: "Tradezer — News Impact Trading Agent",
@@ -15,7 +16,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div className="flex">
           <Sidebar />
           <main className="flex-1 min-w-0 px-4 py-6 md:px-8">
-            <div className="mx-auto max-w-6xl">{children}</div>
+            <div className="mx-auto max-w-6xl">
+              {children}
+              <Footer />
+            </div>
           </main>
         </div>
       </body>

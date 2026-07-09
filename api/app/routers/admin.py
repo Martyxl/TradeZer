@@ -74,6 +74,35 @@ async def public_refresh(
     }
 
 
+@router.post("/public/visit")
+async def public_visit(session: AsyncSession = Depends(get_session)):
+    """Inkrementuje počítadlo návštěv a vrátí aktuální stav."""
+    from sqlalchemy import select
+    from app.models import SiteCounter
+
+    counter = await session.scalar(
+        select(SiteCounter).where(SiteCounter.name == "page_visits")
+    )
+    if counter is None:
+        counter = SiteCounter(name="page_visits", value=0)
+        session.add(counter)
+    counter.value += 1
+    await session.commit()
+    return {"visits": counter.value}
+
+
+@router.get("/public/visits")
+async def public_visits(session: AsyncSession = Depends(get_session)):
+    """Vrátí počet návštěv bez inkrementace."""
+    from sqlalchemy import select
+    from app.models import SiteCounter
+
+    counter = await session.scalar(
+        select(SiteCounter).where(SiteCounter.name == "page_visits")
+    )
+    return {"visits": counter.value if counter else 0}
+
+
 @router.post("/predict", dependencies=[Depends(_verify_token)])
 async def predict_pending(
     session: AsyncSession = Depends(get_session),
@@ -456,6 +485,65 @@ async def fix_default_predictions(
         await session.commit()
 
     return {"status": "ok", "dry_run": dry_run, "stats": stats, "fixed": fixed_details[:50]}
+
+
+@router.post("/backfill/reactions", dependencies=[Depends(_verify_token)])
+async def backfill_reactions(
+    payload: dict,
+    session: AsyncSession = Depends(get_session),
+):
+    """Upsert market reactions spočítaných externě (z přesných Dukascopy 5m dat).
+
+    Body: {"records": [{"news_id", "ticker", "price_at_news", "price_30m",
+    "price_1h", "price_1d", "pct_30m", "pct_1h", "pct_1d", "price_series"}]}
+    realized_direction se počítá server-side z pct_30m a neutral_threshold tickeru.
+    """
+    from app.models import DirectionEnum
+    from app.repositories import NewsRepository, TickerRepository
+
+    records = payload.get("records", [])
+    if not isinstance(records, list) or len(records) > 500:
+        raise HTTPException(status_code=422, detail="records musí být list (max 500)")
+
+    news_repo = NewsRepository(session)
+    ticker_repo = TickerRepository(session)
+    tickers = {t.symbol: t for t in await ticker_repo.get_all_enabled()}
+
+    stats = {"received": len(records), "saved": 0, "skipped": 0, "errors": 0}
+    for rec in records:
+        ticker = tickers.get(rec.get("ticker", ""))
+        if not ticker or not rec.get("news_id"):
+            stats["skipped"] += 1
+            continue
+        pct_30m = rec.get("pct_30m")
+        if pct_30m is None:
+            realized = None
+        elif pct_30m > ticker.neutral_threshold:
+            realized = DirectionEnum.UP
+        elif pct_30m < -ticker.neutral_threshold:
+            realized = DirectionEnum.DOWN
+        else:
+            realized = DirectionEnum.NEUTRAL
+        try:
+            await news_repo.save_market_reaction(
+                news_id=int(rec["news_id"]),
+                ticker_id=ticker.id,
+                price_at_news=rec.get("price_at_news"),
+                price_15m=rec.get("price_30m"),      # sloupec price_15m = 30min okno
+                price_1h=rec.get("price_1h"),
+                price_1d=rec.get("price_1d"),
+                pct_change_15m=pct_30m,
+                pct_change_1h=rec.get("pct_1h"),
+                pct_change_1d=rec.get("pct_1d"),
+                price_series=rec.get("price_series"),
+                realized_direction=realized,
+            )
+            stats["saved"] += 1
+        except Exception:
+            stats["errors"] += 1
+
+    await session.commit()
+    return {"status": "ok", **stats}
 
 
 @router.post("/backfill/price_series", dependencies=[Depends(_verify_token)])

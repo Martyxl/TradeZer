@@ -139,6 +139,19 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* LLM výpadek — workaround běží */}
+      {news.some(
+        (n) =>
+          n.prediction &&
+          (n.prediction.model_version === "stats-fallback-v1" || n.prediction.confidence === 0)
+      ) && (
+        <div className="rounded-xl border border-yellow-800 bg-yellow-950/40 p-4 text-sm text-yellow-300">
+          ⚠ <strong>AI predikce jsou dočasně nedostupné</strong> (výpadek LLM API). Běží statistický
+          workaround — pravděpodobnosti u části zpráv vycházejí z historických reakcí na podobné
+          kategorie zpráv, ne z AI analýzy. Predikce s hodnotami 33/33/33 % neberte v úvahu.
+        </div>
+      )}
+
       {/* Daily Summary */}
       <DailySummaryCard summary={summary} ticker={selectedTicker} />
 

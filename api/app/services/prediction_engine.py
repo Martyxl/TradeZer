@@ -10,6 +10,29 @@ from app.repositories.news_repository import NewsRepository
 log = structlog.get_logger(__name__)
 
 MIN_HISTORICAL_FOR_BLEND = 5
+MIN_HISTORICAL_FOR_FALLBACK = 3
+
+# Keyword → kategorie pro statistický fallback, když LLM není dostupné.
+# Kategorie odpovídají názvům, které LLM běžně přiřazuje (news_categories v DB).
+FALLBACK_KEYWORD_CATEGORIES: list[tuple[tuple[str, ...], str]] = [
+    (("fed", "fomc", "rate hike", "rate cut", "central bank", "ecb", "boj", "boe", "powell", "lagarde"), "monetary_policy"),
+    (("cpi", "inflation", "pce", "deflator"), "inflation"),
+    (("payroll", "nfp", "jobless", "unemployment", "jobs report", "adp", "jolts"), "employment"),
+    (("housing start", "building permit", "home sales", "housing"), "housing"),
+    (("pmi", "ism "), "pmi"),
+    (("gdp", "retail sales", "industrial production", "durable goods"), "macro_data"),
+    (("war", "iran", "strike", "missile", "ceasefire", "sanction", "geopolit"), "geopolitical"),
+    (("oil", "crude", "opec", "natural gas", "energy"), "energy"),
+    (("gold", "safe haven", "bullion"), "safe_haven"),
+    (("nasdaq", "tech", "apple", "nvidia", "microsoft", "meta", "amazon", "alphabet", "tesla", "ai "), "tech_sector"),
+    (("s&p", "dow", "stocks", "equities", "wall street", "index"), "equity_index"),
+    (("risk-on", "risk-off", "risk mood", "sentiment", "market wrap"), "risk_sentiment"),
+]
+
+
+def _keyword_categories(title: str, body: str | None) -> list[str]:
+    text = (title + " " + (body or "")[:500]).lower()
+    return [cat for keywords, cat in FALLBACK_KEYWORD_CATEGORIES if any(k in text for k in keywords)]
 
 
 @dataclass
@@ -134,6 +157,14 @@ class PredictionEngine:
     ) -> PredictionResult:
         llm_result = llm_client.classify_news(title, body, ticker_symbol)
 
+        # LLM selhalo (vyčerpaný kredit, výpadek API...) → statistický fallback:
+        # kategorie z keywords + historické base rates místo uniformních 33/33/33
+        if llm_result.llm_confidence == 0.0 and not llm_result.categories:
+            return await self._stats_fallback(
+                news_id, ticker_id, ticker_symbol, title, body,
+                source_weight, llm_result.reasoning,
+            )
+
         hist_probs, n_hist = await self._get_historical_probs(
             llm_result.categories, ticker_id
         )
@@ -166,5 +197,59 @@ class PredictionEngine:
             categories=llm_result.categories,
             llm_reasoning=llm_result.reasoning,
             model_version=settings.claude_model,
+            pattern_hints=pattern_hints,
+        )
+
+    async def _stats_fallback(
+        self,
+        news_id: int,
+        ticker_id: int,
+        ticker_symbol: str,
+        title: str,
+        body: str | None,
+        source_weight: float,
+        llm_error: str,
+    ) -> PredictionResult:
+        """Predikce bez LLM: kategorie z keywords, pravděpodobnosti z historie."""
+        categories = _keyword_categories(title, body)
+        hist_probs, n_hist = await self._get_historical_probs(categories, ticker_id)
+        pattern_hints = await self._get_pattern_hints(categories, ticker_id)
+
+        if n_hist >= MIN_HISTORICAL_FOR_FALLBACK:
+            # Cap na neutral bias stejně jako v _blend_probs
+            neutral = min(hist_probs.get("neutral", 0.334), 0.65)
+            down = hist_probs.get("down", 0.333)
+            up = hist_probs.get("up", 0.333)
+            total = down + neutral + up or 1.0
+            prob_down, prob_neutral, prob_up = down / total, neutral / total, up / total
+            confidence = 0.15
+            reasoning = (
+                f"⚠ STATISTICKÝ FALLBACK (LLM nedostupné) — kategorie {categories} "
+                f"z keywords, pravděpodobnosti z {n_hist} historických reakcí. {llm_error}"
+            )
+        else:
+            prob_down, prob_neutral, prob_up = 0.333, 0.334, 0.333
+            confidence = 0.0
+            reasoning = (
+                f"⚠ FALLBACK bez historie (LLM nedostupné, kategorie {categories or 'nenalezeny'}). "
+                f"{llm_error}"
+            )
+
+        relevance = 0.4 if categories else 0.2
+        log.warning(
+            "Stats fallback prediction",
+            news_id=news_id, ticker=ticker_symbol,
+            categories=categories, n_hist=n_hist,
+        )
+        return PredictionResult(
+            prob_down=prob_down,
+            prob_neutral=prob_neutral,
+            prob_up=prob_up,
+            confidence=confidence,
+            relevance_score=relevance,
+            importance_weight=relevance * confidence * source_weight,
+            categories=categories,
+            llm_reasoning=reasoning,
+            model_version="stats-fallback-v1",
             pattern_hints=pattern_hints,
         )
