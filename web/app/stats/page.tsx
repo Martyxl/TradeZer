@@ -24,6 +24,11 @@ interface StatsBody {
   weekly_open_revisit: Record<string, number>;
   asia_both_sides: Record<string, any>;
   globex_both_sides: Record<string, any>;
+  first15_range?: {
+    days: number;
+    c23: Record<string, any>;
+    eod: Record<string, any>;
+  };
   by_hour: { volatility: number[]; volume: number[] };
 }
 interface MarketStats extends StatsBody {
@@ -149,6 +154,7 @@ const LEGEND: [string, string][] = [
   ["VWAP Edge Revisit", "Denní VWAP s pásmy ±1σ. Jakmile cena zasáhne okraj (±1σ), jak brzy se vrátí k VWAP linii."],
   ["Weekly HIGH/LOW — Day", "Který den v týdnu se tiskne týdenní maximum/minimum."],
   ["Weekly Open Revisit", "Den v týdnu, kdy se cena poprvé vrátí k týdennímu open."],
+  ["First 15m Range", "První 15min svíčka po RTH open vytvoří range. Sledujeme, jestli 2.–3. svíčka (resp. zbytek seance) vybere její high, low, obě strany — a kterou stranu první (High → Low = sweep high, pak výběr low)."],
   ["Asia — Both Sides", "Během London+NY — je high/low Asia range prolomeno na obě strany, jen jednu, nebo žádnou? Pořadí: která strana padla první."],
   ["Globex — Both Sides", "Totéž pro overnight (Globex) range během NY RTH."],
   ["Volatility by Hour", "Průměrný hodinový rozsah high–low podle hodiny (UTC)."],
@@ -368,6 +374,26 @@ export default function StatsPage() {
             title="Highs & Lows"
             description="Retesty denních extrémů, týdenní maxima/minima a prolomení klíčových range"
           >
+            {stats.first15_range && (
+              <Card title="First 15m Range — 2. + 3. svíčka" subtitle={`${stats.first15_range.days} dní · sweep high/low první 15min po RTH open`}>
+                <BarGroup data={stats.first15_range.c23} prevData={prev?.first15_range?.c23} labels={SIDES_LABELS} />
+                <div className="mt-3 pt-3 border-t border-[#232735] space-y-2">
+                  <Bar label="High → Low" value={stats.first15_range.c23.order?.high_to_low ?? 0} prev={prev?.first15_range?.c23?.order?.high_to_low} accent="#64748b" />
+                  <Bar label="Low → High" value={stats.first15_range.c23.order?.low_to_high ?? 0} prev={prev?.first15_range?.c23?.order?.low_to_high} accent="#64748b" />
+                </div>
+              </Card>
+            )}
+
+            {stats.first15_range && (
+              <Card title="First 15m Range — do konce RTH" subtitle={`${stats.first15_range.days} dní · sweep do konce seance`}>
+                <BarGroup data={stats.first15_range.eod} prevData={prev?.first15_range?.eod} labels={SIDES_LABELS} />
+                <div className="mt-3 pt-3 border-t border-[#232735] space-y-2">
+                  <Bar label="High → Low" value={stats.first15_range.eod.order?.high_to_low ?? 0} prev={prev?.first15_range?.eod?.order?.high_to_low} accent="#64748b" />
+                  <Bar label="Low → High" value={stats.first15_range.eod.order?.low_to_high ?? 0} prev={prev?.first15_range?.eod?.order?.low_to_high} accent="#64748b" />
+                </div>
+              </Card>
+            )}
+
             <Card title="Candle H/L Revisit" subtitle={`${stats.candle_hl_revisit.levels} levelů · daily high & low retested`}>
               <BarGroup data={stats.candle_hl_revisit} prevData={prev?.candle_hl_revisit} labels={DAY_LABELS} />
             </Card>

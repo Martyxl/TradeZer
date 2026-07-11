@@ -140,6 +140,29 @@
    "high_to_low": 57.4
   }
  },
+ "first15_range": {
+  "days": 264,
+  "c23": {
+   "both": 16.3,
+   "high_only": 40.5,
+   "low_only": 36.0,
+   "neither": 7.2,
+   "order": {
+    "high_to_low": 44.2,
+    "low_to_high": 55.8
+   }
+  },
+  "eod": {
+   "both": 62.9,
+   "high_only": 20.1,
+   "low_only": 17.0,
+   "neither": 0.0,
+   "order": {
+    "high_to_low": 49.4,
+    "low_to_high": 50.6
+   }
+  }
+ },
  "by_hour": {
   "volatility": [
    230.7,
@@ -193,5 +216,6 @@
    0.0,
    0.0
   ]
- }
+ },
+ "prev": null
 }

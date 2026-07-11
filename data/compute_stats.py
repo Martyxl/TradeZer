@@ -331,6 +331,64 @@ def range_break_stats(df: pd.DataFrame, range_hours: tuple, break_hours: tuple) 
     return {"days": n, **dist_pct(counts), "order": dist_pct(order)}
 
 
+def first15_range_stats(df: pd.DataFrame, open_hour: float, rth_end: float) -> dict:
+    """První 15min svíčka po RTH open → kdy 2./3. svíčka (nebo zbytek dne)
+    vybere její high/low a v jakém pořadí (sweep high → výběr low apod.)."""
+
+    def _events(bars: pd.DataFrame, h1: float, l1: float) -> tuple:
+        """Vrátí (t_high, t_low) — index prvního baru, který prolomil high/low."""
+        t_high = t_low = None
+        for idx, b in bars.iterrows():
+            if t_high is None and b["high"] > h1:
+                t_high = idx
+            if t_low is None and b["low"] < l1:
+                t_low = idx
+            if t_high is not None and t_low is not None:
+                break
+        return t_high, t_low
+
+    def _classify(t_high, t_low, bars: pd.DataFrame, h1: float, l1: float, counts: dict, order: dict) -> None:
+        if t_high is not None and t_low is not None:
+            counts["both"] += 1
+            if t_high == t_low:
+                # stejný 5m bar prolomil obě strany — rozhodne close vůči středu range
+                mid = (h1 + l1) / 2
+                key = "high_to_low" if bars.loc[t_high, "close"] < mid else "low_to_high"
+            else:
+                key = "high_to_low" if t_high < t_low else "low_to_high"
+            order[key] += 1
+        elif t_high is not None:
+            counts["high_only"] += 1
+        elif t_low is not None:
+            counts["low_only"] += 1
+        else:
+            counts["neither"] += 1
+
+    c23_counts = {"both": 0, "high_only": 0, "low_only": 0, "neither": 0}
+    c23_order = {"high_to_low": 0, "low_to_high": 0}
+    eod_counts = {"both": 0, "high_only": 0, "low_only": 0, "neither": 0}
+    eod_order = {"high_to_low": 0, "low_to_high": 0}
+    n = 0
+
+    for _, day in df.groupby("tday"):
+        c1 = day[(day["hour_f"] >= open_hour) & (day["hour_f"] < open_hour + 0.25)]
+        c23 = day[(day["hour_f"] >= open_hour + 0.25) & (day["hour_f"] < open_hour + 0.75)]
+        rest = day[(day["hour_f"] >= open_hour + 0.25) & (day["hour_f"] < rth_end)]
+        if len(c1) < 2 or len(c23) < 4 or len(rest) < 6:
+            continue  # svátek / díra v datech
+        n += 1
+        h1, l1 = float(c1["high"].max()), float(c1["low"].min())
+
+        _classify(*_events(c23, h1, l1), c23, h1, l1, c23_counts, c23_order)
+        _classify(*_events(rest, h1, l1), rest, h1, l1, eod_counts, eod_order)
+
+    return {
+        "days": n,
+        "c23": {**dist_pct(c23_counts), "order": dist_pct(c23_order)},
+        "eod": {**dist_pct(eod_counts), "order": dist_pct(eod_order)},
+    }
+
+
 def by_hour(df: pd.DataFrame) -> dict:
     rng = df.groupby("hour").apply(lambda g: (g["high"] - g["low"]).mean() * 12, include_groups=False)
     vol = df.groupby("hour")["volume"].mean()
@@ -385,6 +443,7 @@ def compute(key: str, cfg: dict) -> dict:
         "weekly_open_revisit": weekly_open_revisit(df),
         "asia_both_sides": range_break_stats(df, sessions["asia"], (7, 21)),
         "globex_both_sides": range_break_stats(df, (ov_start, rth[0]), rth),
+        "first15_range": first15_range_stats(df, rth[0], rth[1]),
         "by_hour": by_hour(df),
     }
 
