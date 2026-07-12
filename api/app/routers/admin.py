@@ -410,11 +410,15 @@ async def fix_default_predictions(
 
     cutoff = __import__("datetime").datetime.utcnow() - timedelta(days=days)
 
-    # Najdi predikce s confidence=0 z posledních N dní
+    # Najdi defaultní (confidence=0) a statistické fallback predikce z posledních N dní
+    from sqlalchemy import or_
     stmt = (
         select(NewsPrediction)
         .join(NewsItem, NewsItem.id == NewsPrediction.news_id)
-        .where(NewsPrediction.confidence == 0.0)
+        .where(or_(
+            NewsPrediction.confidence == 0.0,
+            NewsPrediction.model_version == "stats-fallback-v1",
+        ))
         .where(NewsItem.published_at >= cutoff)
         .options(selectinload(NewsPrediction.news_item).selectinload(NewsItem.source))
         .order_by(NewsItem.published_at.desc())
