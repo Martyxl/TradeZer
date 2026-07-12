@@ -93,16 +93,14 @@ def _detect_tickers_by_keywords(
 ) -> list[Ticker]:
     text = (title + " " + (body or "")).lower()
     enabled_symbols = {t.symbol for t in all_tickers}
-    matched = [
+    # Žádný fallback — zpráva bez keyword shody se sledovaným tickerem se ignoruje.
+    # (Dřívější default na EURUSD posílal veškerý nezařazený šum do LLM predikcí.)
+    return [
         t for t in all_tickers
         if t.symbol in KEYWORD_TICKER_MAP
         and any(kw in text for kw in KEYWORD_TICKER_MAP[t.symbol])
         and t.symbol in enabled_symbols
     ]
-    # Fallback: default to EURUSD if no keyword match
-    if not matched:
-        matched = [t for t in all_tickers if t.symbol == "EURUSD"]
-    return matched
 
 
 def _build_sources() -> list[NewsSource]:
@@ -159,8 +157,9 @@ class NewsAggregator:
         """
         log.info("News aggregator refresh start (fetch-only)")
         source_results = await self._fetch_all_sources()
+        enabled_tickers = list(await self.ticker_repo.get_all_enabled())
 
-        stats = {"fetched": 0, "new": 0, "skipped": 0, "predicted": 0}
+        stats = {"fetched": 0, "new": 0, "skipped": 0, "irrelevant": 0, "predicted": 0}
 
         for source, raw_items in source_results:
             if not raw_items:
@@ -179,6 +178,15 @@ class NewsAggregator:
                     if known[raw.external_id] in predicted_ids:
                         stats["skipped"] += 1
                 else:
+                    # Filtr už při ingestu: zpráva bez vztahu ke sledovanému
+                    # tickeru se vůbec neukládá (šetří DB i LLM cally)
+                    hint = raw.instruments_hint or []
+                    relevant = await self._get_relevant_tickers(
+                        hint, enabled_tickers, raw.title, raw.body
+                    )
+                    if not relevant:
+                        stats["irrelevant"] += 1
+                        continue
                     await self.repo.create_news_item(
                         source_id=db_source.id,
                         external_id=raw.external_id,
@@ -204,6 +212,7 @@ class NewsAggregator:
         stats = {"pending": len(items), "predicted": 0, "errors": 0}
         engine = PredictionEngine(self.repo)
 
+        stats["purged"] = 0
         for item in items:
             if stats["predicted"] >= max_predictions:
                 break
@@ -212,6 +221,12 @@ class NewsAggregator:
             relevant_tickers = await self._get_relevant_tickers(
                 instruments_hint, tickers, item.title, item.body
             )
+            if not relevant_tickers:
+                # Položka bez vztahu ke sledovaným tickerům by frontu blokovala
+                # navždy (nikdy nedostane predikci) — smaž ji
+                await self.session.delete(item)
+                stats["purged"] += 1
+                continue
             for ticker in relevant_tickers:
                 try:
                     result = await engine.predict(

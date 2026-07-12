@@ -11,7 +11,7 @@ import { api, type Ticker, type NewsItem, type DailySummary } from "@/lib/api";
 
 export default function DashboardPage() {
   const [tickers, setTickers] = useState<Ticker[]>([]);
-  const [selectedTicker, setSelectedTicker] = useState("EURUSD");
+  const [selectedTicker, setSelectedTicker] = useState("NQ");
   const [news, setNews] = useState<NewsItem[]>([]);
   const [summary, setSummary] = useState<DailySummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -107,11 +107,9 @@ export default function DashboardPage() {
             tickers.length > 0
               ? tickers
               : [
-                  { id: 1, symbol: "EURUSD", name: "EUR/USD", asset_class: "forex", neutral_threshold: 0.002, enabled: true },
-                  { id: 4, symbol: "XAUUSD", name: "XAU/USD", asset_class: "commodity", neutral_threshold: 0.002, enabled: true },
-                  { id: 5, symbol: "BTCUSD", name: "BTC/USD", asset_class: "crypto", neutral_threshold: 0.005, enabled: true },
-                  { id: 6, symbol: "ES", name: "E-mini S&P 500", asset_class: "futures", neutral_threshold: 0.002, enabled: true },
                   { id: 7, symbol: "NQ", name: "E-mini Nasdaq 100", asset_class: "futures", neutral_threshold: 0.003, enabled: true },
+                  { id: 6, symbol: "ES", name: "E-mini S&P 500", asset_class: "futures", neutral_threshold: 0.002, enabled: true },
+                  { id: 4, symbol: "XAUUSD", name: "XAU/USD", asset_class: "commodity", neutral_threshold: 0.002, enabled: true },
                 ]
           }
           selected={selectedTicker}

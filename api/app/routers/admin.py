@@ -257,6 +257,24 @@ async def update_threshold(
     }
 
 
+@router.patch("/tickers/{symbol}/enabled", dependencies=[Depends(_verify_token)])
+async def set_ticker_enabled(
+    symbol: str,
+    value: bool = Query(...),
+    session: AsyncSession = Depends(get_session),
+):
+    """Zapne/vypne sledování tickeru (predikce, feed, agregace)."""
+    from sqlalchemy import select
+    from app.models import Ticker
+
+    ticker = await session.scalar(select(Ticker).where(Ticker.symbol == symbol.upper()))
+    if not ticker:
+        raise HTTPException(status_code=404, detail=f"Ticker {symbol} nenalezen")
+    ticker.enabled = value
+    await session.commit()
+    return {"symbol": ticker.symbol, "enabled": ticker.enabled}
+
+
 @router.post("/repredict/reroute", dependencies=[Depends(_verify_token)])
 async def reroute_predictions(
     days: int = Query(default=3, ge=1, le=14, description="Kolik dní zpět prohledat"),
