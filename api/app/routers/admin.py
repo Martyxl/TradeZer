@@ -32,8 +32,13 @@ async def manual_refresh(
     session: AsyncSession = Depends(get_session),
 ):
     """Stáhne RSS a uloží nové zprávy. Predikce jsou v /api/predict."""
+    import traceback
     aggregator = NewsAggregator(session)
-    stats = await aggregator.refresh()
+    try:
+        stats = await aggregator.refresh()
+    except Exception as e:
+        # Endpoint je token-chráněný — traceback pomáhá debugovat prod issue
+        raise HTTPException(status_code=500, detail=f"{e}\n{traceback.format_exc()[-1500:]}")
     return RefreshResponse(status="ok", stats=stats)
 
 
