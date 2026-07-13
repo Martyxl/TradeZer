@@ -1,5 +1,5 @@
 """Repository pro NewsItem a příbuzné modely."""
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from typing import Sequence
 
 from sqlalchemy import select, and_, or_, func, not_, exists
@@ -87,6 +87,11 @@ class NewsRepository:
         published_at: datetime,
         raw_payload: dict,
     ) -> NewsItem:
+        # Postgres sloupec je TIMESTAMP WITHOUT TIME ZONE — asyncpg odmítá
+        # aware datetime (SQLite ho toleruje, proto to lokálně prochází).
+        # Normalizuj na naive UTC, což je konvence celé DB.
+        if published_at.tzinfo is not None:
+            published_at = published_at.astimezone(timezone.utc).replace(tzinfo=None)
         item = NewsItem(
             source_id=source_id,
             external_id=external_id,

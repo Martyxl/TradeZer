@@ -227,16 +227,26 @@ class NewsAggregator:
                 await self.session.delete(item)
                 stats["purged"] += 1
                 continue
+            # Jeden LLM call pro všechny relevantní tickery najednou
+            try:
+                results = await engine.predict_multi(
+                    news_id=item.id,
+                    tickers=[(t.id, t.symbol) for t in relevant_tickers],
+                    title=item.title,
+                    body=item.body,
+                    source_weight=source_weight,
+                )
+            except Exception as e:
+                stats["errors"] += 1
+                log.error("Predict multi error", news_id=item.id, error=str(e))
+                continue
+
             for ticker in relevant_tickers:
+                result = results.get(ticker.symbol)
+                if result is None:
+                    stats["errors"] += 1
+                    continue
                 try:
-                    result = await engine.predict(
-                        news_id=item.id,
-                        ticker_id=ticker.id,
-                        ticker_symbol=ticker.symbol,
-                        title=item.title,
-                        body=item.body,
-                        source_weight=source_weight,
-                    )
                     await self.repo.upsert_ticker_relevance(
                         news_id=item.id,
                         ticker_id=ticker.id,

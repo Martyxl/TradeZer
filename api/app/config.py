@@ -13,6 +13,10 @@ class Settings(BaseSettings):
     # LLM
     anthropic_api_key: str = Field(default="", alias="ANTHROPIC_API_KEY")
     claude_model: str = "claude-sonnet-4-6"
+    # Klasifikace zpráv je jednoduchá strukturovaná úloha — Haiku je 3× levnější
+    claude_classifier_model: str = Field(
+        default="claude-haiku-4-5-20251001", alias="CLAUDE_CLASSIFIER_MODEL"
+    )
 
     # News sources
     newsapi_key: str = Field(default="", alias="NEWSAPI_KEY")

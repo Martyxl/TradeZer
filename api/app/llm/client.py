@@ -46,20 +46,45 @@ class AnthropicLLMClient:
             self._client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
         return self._client
 
-    def classify_news(self, title: str, body: str | None, ticker: str) -> LLMClassificationResult:
-        request_id = str(uuid.uuid4())[:8]
-        log.info("LLM classify start", request_id=request_id, ticker=ticker)
+    _FAIL_DATA = {
+        "relevance_score": 0.0,
+        "categories": [],
+        "raw_direction_probs": {"down": 0.333, "neutral": 0.334, "up": 0.333},
+        "llm_confidence": 0.0,
+        "key_drivers": [],
+    }
 
-        user_content = f"Ticker: {ticker}\n\nZpráva:\nTitulek: {title}\n"
+    def classify_news_multi(
+        self, title: str, body: str | None, tickers: list[str]
+    ) -> dict[str, LLMClassificationResult]:
+        """Klasifikuje zprávu pro VŠECHNY tickery jedním LLM callem.
+
+        Úspora: dřív 1 call per ticker (USD event = 6 callů se stejným textem),
+        teď 1 call per zpráva. System prompt se cachuje (cache_control).
+        """
+        request_id = str(uuid.uuid4())[:8]
+        log.info("LLM classify start", request_id=request_id, tickers=tickers)
+
+        user_content = f"Tickery: {', '.join(tickers)}\n\nZpráva:\nTitulek: {title}\n"
         if body:
             user_content += f"Obsah: {body[:2000]}"
+
+        def _fail(err: str) -> dict[str, LLMClassificationResult]:
+            return {
+                t: LLMClassificationResult({**self._FAIL_DATA, "reasoning": f"LLM nedostupný: {err}"})
+                for t in tickers
+            }
 
         try:
             client = self._get_client()
             message = client.messages.create(
-                model=settings.claude_model,
-                max_tokens=512,
-                system=_NEWS_CLASSIFIER_PROMPT,
+                model=settings.claude_classifier_model,
+                max_tokens=min(300 + 420 * len(tickers), 3000),
+                system=[{
+                    "type": "text",
+                    "text": _NEWS_CLASSIFIER_PROMPT,
+                    "cache_control": {"type": "ephemeral"},
+                }],
                 messages=[{"role": "user", "content": user_content}],
             )
             raw_text = message.content[0].text.strip()
@@ -69,18 +94,23 @@ class AnthropicLLMClient:
                 if raw_text.startswith("json"):
                     raw_text = raw_text[4:]
             data = json.loads(raw_text)
-            log.info("LLM classify complete", request_id=request_id, relevance=data.get("relevance_score"))
-            return LLMClassificationResult(data)
+            results = {}
+            for t in tickers:
+                if isinstance(data.get(t), dict):
+                    results[t] = LLMClassificationResult(data[t])
+                else:
+                    results[t] = LLMClassificationResult(
+                        {**self._FAIL_DATA, "reasoning": f"LLM nevrátil klasifikaci pro {t}"}
+                    )
+            log.info("LLM classify complete", request_id=request_id, tickers=len(results))
+            return results
         except Exception as e:
             log.error("LLM classify failed", request_id=request_id, error=str(e))
-            return LLMClassificationResult({
-                "relevance_score": 0.0,
-                "categories": [],
-                "raw_direction_probs": {"down": 0.333, "neutral": 0.334, "up": 0.333},
-                "llm_confidence": 0.0,
-                "key_drivers": [],
-                "reasoning": f"LLM nedostupný: {e}",
-            })
+            return _fail(str(e))
+
+    def classify_news(self, title: str, body: str | None, ticker: str) -> LLMClassificationResult:
+        """Klasifikace pro jediný ticker — wrapper nad multi variantou."""
+        return self.classify_news_multi(title, body, [ticker])[ticker]
 
     def generate_daily_recommendation(
         self,

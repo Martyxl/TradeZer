@@ -146,6 +146,26 @@ class PredictionEngine:
             log.warning("Pattern hints fetch failed", error=str(e))
             return []
 
+    async def predict_multi(
+        self,
+        news_id: int,
+        tickers: list[tuple[int, str]],
+        title: str,
+        body: str | None,
+        source_weight: float,
+    ) -> dict[str, PredictionResult]:
+        """Predikce pro všechny tickery jedním LLM callem (tickers = [(id, symbol)])."""
+        symbols = [s for _, s in tickers]
+        llm_results = llm_client.classify_news_multi(title, body, symbols)
+
+        out: dict[str, PredictionResult] = {}
+        for ticker_id, symbol in tickers:
+            out[symbol] = await self._finalize(
+                news_id, ticker_id, symbol, title, body,
+                source_weight, llm_results[symbol],
+            )
+        return out
+
     async def predict(
         self,
         news_id: int,
@@ -156,7 +176,20 @@ class PredictionEngine:
         source_weight: float,
     ) -> PredictionResult:
         llm_result = llm_client.classify_news(title, body, ticker_symbol)
+        return await self._finalize(
+            news_id, ticker_id, ticker_symbol, title, body, source_weight, llm_result
+        )
 
+    async def _finalize(
+        self,
+        news_id: int,
+        ticker_id: int,
+        ticker_symbol: str,
+        title: str,
+        body: str | None,
+        source_weight: float,
+        llm_result: LLMClassificationResult,
+    ) -> PredictionResult:
         # LLM selhalo (vyčerpaný kredit, výpadek API...) → statistický fallback:
         # kategorie z keywords + historické base rates místo uniformních 33/33/33
         if llm_result.llm_confidence == 0.0 and not llm_result.categories:

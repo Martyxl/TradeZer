@@ -21,12 +21,7 @@ DEFAULT_FEEDS = [
         "source_weight": 0.5,
         "instruments_hint": [],  # auto-detected from keywords
     },
-    {
-        "name": "rss_ecb",
-        "url": "https://www.ecb.europa.eu/rss/press.html",
-        "source_weight": 0.9,
-        "instruments_hint": ["EURUSD"],
-    },
+    # rss_ecb odstraněn — EURUSD se nesleduje
     {
         "name": "rss_fxstreet_gold",
         "url": "https://www.fxstreet.com/rss/analysis/commodities",
@@ -66,13 +61,7 @@ DEFAULT_FEEDS = [
         "source_weight": 0.80,
         "instruments_hint": [],
     },
-    # CoinDesk — crypto/Bitcoin
-    {
-        "name": "rss_coindesk",
-        "url": "https://www.coindesk.com/arc/outboundfeeds/rss/",
-        "source_weight": 0.80,
-        "instruments_hint": ["BTCUSD"],
-    },
+    # rss_coindesk odstraněn — BTCUSD se nesleduje
     # MarketPulse (OANDA) — forex, gold, akcie — 10 kvalitních článků
     {
         "name": "rss_marketpulse",
@@ -80,13 +69,7 @@ DEFAULT_FEEDS = [
         "source_weight": 0.80,
         "instruments_hint": [],
     },
-    # ActionForex — forex analýza EUR/USD, GBP/USD, USD/JPY
-    {
-        "name": "rss_actionforex",
-        "url": "https://www.actionforex.com/feed/",
-        "source_weight": 0.70,
-        "instruments_hint": [],
-    },
+    # rss_actionforex odstraněn — čistě forexová analýza, forex se nesleduje
 ]
 
 
