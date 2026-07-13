@@ -229,7 +229,7 @@ class PredictionEngine:
             importance_weight=importance,
             categories=llm_result.categories,
             llm_reasoning=llm_result.reasoning,
-            model_version=settings.claude_model,
+            model_version=settings.claude_classifier_model,
             pattern_hints=pattern_hints,
         )
 
