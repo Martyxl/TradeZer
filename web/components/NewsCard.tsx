@@ -118,6 +118,25 @@ interface NewsCardProps {
   item: NewsItem;
 }
 
+function ModelTag({ version }: { version?: string }) {
+  if (!version) return null;
+  let label = version, cls = "bg-gray-800 text-gray-400 border-gray-700";
+  if (version.startsWith("local-")) {
+    label = "Qwen · local"; cls = "bg-emerald-950/60 text-emerald-300 border-emerald-800";
+  } else if (version.includes("haiku")) {
+    label = "Haiku"; cls = "bg-blue-950/60 text-blue-300 border-blue-800";
+  } else if (version.includes("sonnet")) {
+    label = "Sonnet"; cls = "bg-indigo-950/60 text-indigo-300 border-indigo-800";
+  } else if (version.includes("fallback")) {
+    label = "Fallback"; cls = "bg-yellow-950/60 text-yellow-300 border-yellow-800";
+  }
+  return (
+    <span className={`ml-1 rounded border px-1.5 py-px text-[9px] font-medium ${cls}`} title={version}>
+      {label}
+    </span>
+  );
+}
+
 export function NewsCard({ item }: NewsCardProps) {
   const [expanded, setExpanded] = useState(false);
   const pred = item.prediction;
@@ -148,10 +167,11 @@ export function NewsCard({ item }: NewsCardProps) {
           </h3>
 
           {pred && (
-            <div className="flex gap-2 text-[11px]">
+            <div className="flex items-center gap-2 text-[11px]">
               <span className="text-green-400 font-medium">↑ {(pred.prob_up * 100).toFixed(0)}%</span>
               <span className="text-yellow-400 font-medium">→ {(pred.prob_neutral * 100).toFixed(0)}%</span>
               <span className="text-red-400 font-medium">↓ {(pred.prob_down * 100).toFixed(0)}%</span>
+              <ModelTag version={pred.model_version} />
             </div>
           )}
         </div>

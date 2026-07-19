@@ -11,9 +11,11 @@ from app.models.news import (
     DirectionEnum,
 )
 from app.models.site import SiteCounter
+from app.models.bias import DailyBias
 
 __all__ = [
     "SiteCounter",
+    "DailyBias",
     "Ticker",
     "NewsSource",
     "NewsItem",

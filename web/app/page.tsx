@@ -6,6 +6,7 @@ import { TickerFilter } from "@/components/TickerFilter";
 import { DailySummaryCard } from "@/components/DailySummaryCard";
 import { NewsCard } from "@/components/NewsCard";
 import { MarketHoursBar } from "@/components/MarketHoursBar";
+import { BiasCard } from "@/components/BiasCard";
 import { PatternPanel } from "@/components/PatternPanel";
 import { api, type Ticker, type NewsItem, type DailySummary } from "@/lib/api";
 
@@ -149,6 +150,9 @@ export default function DashboardPage() {
           kategorie zpráv, ne z AI analýzy. Predikce s hodnotami 33/33/33 % neberte v úvahu.
         </div>
       )}
+
+      {/* Dnešní BIAS */}
+      <BiasCard ticker={selectedTicker} />
 
       {/* Daily Summary */}
       <DailySummaryCard summary={summary} ticker={selectedTicker} />
