@@ -262,6 +262,101 @@ async def update_threshold(
     }
 
 
+@router.get("/unpredicted", dependencies=[Depends(_verify_token)])
+async def list_unpredicted(
+    limit: int = Query(default=10, ge=1, le=50),
+    session: AsyncSession = Depends(get_session),
+):
+    """Nepredikované zprávy s relevantními tickery — pro lokálního LLM workera."""
+    from app.repositories import NewsRepository, TickerRepository
+
+    repo = NewsRepository(session)
+    ticker_repo = TickerRepository(session)
+    tickers = await ticker_repo.get_all_enabled()
+    aggregator = NewsAggregator(session)
+
+    items = await repo.get_unpredicted_items(limit=limit)
+    out = []
+    for item in items:
+        hint = item.raw_payload.get("instruments_hint", []) if item.raw_payload else []
+        relevant = await aggregator._get_relevant_tickers(hint, tickers, item.title, item.body)
+        if not relevant:
+            continue
+        out.append({
+            "news_id": item.id,
+            "title": item.title,
+            "body": (item.body or "")[:2000],
+            "source_weight": item.source.source_weight if item.source else 0.5,
+            "tickers": [t.symbol for t in relevant],
+        })
+    return {"items": out}
+
+
+@router.post("/backfill/predictions", dependencies=[Depends(_verify_token)])
+async def backfill_predictions(
+    payload: dict,
+    session: AsyncSession = Depends(get_session),
+):
+    """Uloží predikce spočítané externě (lokální LLM worker).
+
+    Body: {"records": [{"news_id", "ticker", "prob_down", "prob_neutral",
+    "prob_up", "confidence", "relevance_score", "categories", "reasoning",
+    "model_version"}]}
+    """
+    from app.repositories import NewsRepository, TickerRepository
+
+    records = payload.get("records", [])
+    if not isinstance(records, list) or len(records) > 200:
+        raise HTTPException(status_code=422, detail="records musí být list (max 200)")
+
+    repo = NewsRepository(session)
+    ticker_repo = TickerRepository(session)
+    tickers = {t.symbol: t for t in await ticker_repo.get_all_enabled()}
+
+    stats = {"received": len(records), "saved": 0, "skipped": 0, "errors": 0}
+    # Souběh s cronem: zprávy, které už predikci mají, přeskoč celé.
+    # Kontrola jednou za dávku — multi-ticker záznamy téže zprávy projdou.
+    batch_ids = [r.get("news_id") for r in records if r.get("news_id")]
+    already = await repo.get_predicted_news_ids(batch_ids) if batch_ids else set()
+
+    for rec in records:
+        ticker = tickers.get(rec.get("ticker", ""))
+        news_id = rec.get("news_id")
+        if not ticker or not news_id or news_id in already:
+            stats["skipped"] += 1
+            continue
+        try:
+            relevance = float(rec.get("relevance_score", 0.5))
+            confidence = float(rec.get("confidence", 0.5))
+            source_weight = float(rec.get("source_weight", 0.5))
+            await repo.upsert_ticker_relevance(
+                news_id=news_id,
+                ticker_id=ticker.id,
+                relevance_score=relevance,
+                importance_weight=relevance * confidence * source_weight,
+                llm_rationale=rec.get("reasoning"),
+            )
+            await repo.create_prediction(
+                news_id=news_id,
+                ticker_id=ticker.id,
+                prob_down=float(rec.get("prob_down", 0.333)),
+                prob_neutral=float(rec.get("prob_neutral", 0.334)),
+                prob_up=float(rec.get("prob_up", 0.333)),
+                confidence=confidence,
+                llm_reasoning=rec.get("reasoning"),
+                model_version=str(rec.get("model_version", "local-llm"))[:100],
+            )
+            cats = rec.get("categories") or []
+            if cats:
+                await repo.save_item_categories(news_id, [(c, 1.0) for c in cats[:6]])
+            stats["saved"] += 1
+        except Exception:
+            stats["errors"] += 1
+
+    await session.commit()
+    return {"status": "ok", **stats}
+
+
 @router.patch("/tickers/{symbol}/enabled", dependencies=[Depends(_verify_token)])
 async def set_ticker_enabled(
     symbol: str,
