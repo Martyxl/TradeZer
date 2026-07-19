@@ -1,4 +1,5 @@
 @echo off
+chcp 65001 >nul
 title Tradezer - lokalni LLM worker (Qwen)
 cd /d "%~dp0"
 set PYTHONIOENCODING=utf-8
