@@ -13,10 +13,12 @@ Konfigurace (env nebo výchozí):
 Použití:
   py local_predictor.py              # jeden průchod
   py local_predictor.py --loop 300   # smyčka à 5 minut
+  py local_predictor.py --watch 45   # hlídá RSS feedy, workflow spouští při změně
 """
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import time
@@ -120,12 +122,74 @@ def run_once() -> int:
     return result.get("saved", 0)
 
 
+def fetch_feed_hash(url: str) -> str | None:
+    """Stáhne feed a vrátí hash obsahu — levná detekce změny."""
+    try:
+        req = urllib.request.Request(
+            url, headers={"User-Agent": "Mozilla/5.0 (compatible; TradezerWatch/1.0)"}
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            return hashlib.sha256(resp.read()).hexdigest()
+    except Exception:
+        return None
+
+
+def watch(interval: int) -> None:
+    """Event-driven režim: hlídá feedy, workflow spouští jen při změně.
+
+    Latence nová zpráva -> predikce: ~interval + 30s (refresh + klasifikace).
+    Pojistka: plný průchod minimálně každých 10 minut i bez detekované změny.
+    """
+    try:
+        sources = http_json(f"{API}/api/sources", headers={"X-Internal-Token": TOKEN})["sources"]
+    except Exception as e:
+        print(f"Nelze načíst zdroje ({e}) — přepínám na --loop 180")
+        while True:
+            try:
+                run_once()
+            except Exception as err:
+                print(f"Chyba průchodu: {err}")
+            time.sleep(180)
+
+    print(f"Watch: hlídám {len(sources)} feedů à {interval}s (debounce 120s, pojistka 600s)")
+    hashes: dict[str, str] = {}
+    last_workflow = 0.0
+
+    while True:
+        changed = []
+        for s in sources:
+            h = fetch_feed_hash(s["url"])
+            if h is None:
+                continue
+            if s["url"] in hashes and hashes[s["url"]] != h:
+                changed.append(s["name"])
+            hashes[s["url"]] = h
+
+        now = time.time()
+        debounced = now - last_workflow >= 120
+        heartbeat = now - last_workflow >= 600
+        if (changed and debounced) or heartbeat:
+            if changed:
+                print(f"[{time.strftime('%H:%M:%S')}] Změna: {', '.join(changed)} -> workflow")
+            try:
+                http_json(f"{API}/api/refresh", "POST", headers={"X-Internal-Token": TOKEN})
+                run_once()
+            except Exception as e:
+                print(f"Chyba workflow: {e}")
+            last_workflow = now
+        time.sleep(interval)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--loop", type=int, metavar="SEC", help="opakuj každých SEC sekund")
+    ap.add_argument("--watch", type=int, metavar="SEC", help="hlídej feedy à SEC sekund, workflow při změně")
     args = ap.parse_args()
 
     print(f"Worker: {LLM_MODEL} @ {LLM_BASE} -> {API}")
+    if args.watch:
+        watch(args.watch)
+        return
     if not args.loop:
         run_once()
         return

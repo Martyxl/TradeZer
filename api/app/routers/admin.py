@@ -262,6 +262,17 @@ async def update_threshold(
     }
 
 
+@router.get("/sources", dependencies=[Depends(_verify_token)])
+async def list_sources():
+    """Seznam sledovaných feedů — pro lokálního watch workera."""
+    from app.sources.rss_adapter import DEFAULT_FEEDS
+    from app.sources.forex_factory import FF_XML_URL
+
+    sources = [{"name": f["name"], "url": f["url"]} for f in DEFAULT_FEEDS]
+    sources.append({"name": "forex_factory", "url": FF_XML_URL})
+    return {"sources": sources}
+
+
 @router.get("/unpredicted", dependencies=[Depends(_verify_token)])
 async def list_unpredicted(
     limit: int = Query(default=10, ge=1, le=50),
