@@ -160,6 +160,11 @@ export function NewsCard({ item }: NewsCardProps) {
             <span>{SOURCE_LABELS[item.source_name] ?? item.source_name}</span>
             <span className="text-gray-700">·</span>
             <span>{formatDateTime(item.published_at)}</span>
+            {new Date(item.published_at + (item.published_at.endsWith("Z") ? "" : "Z")).getTime() > Date.now() && (
+              <span className="rounded border border-sky-800 bg-sky-950/60 px-1.5 py-px text-[9px] font-medium text-sky-300">
+                📅 Nadcházející event
+              </span>
+            )}
           </div>
 
           <h3 className="text-sm font-medium text-white leading-snug mb-1.5 line-clamp-2">
