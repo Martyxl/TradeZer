@@ -41,3 +41,4 @@ Thumbs.db
 # Market data (velke CSV - negeneruji se do repa)
 data/raw/
 data/agg/
+web/tsconfig.tsbuildinfo
