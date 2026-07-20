@@ -1,0 +1,243 @@
+{
+ "meta": {
+  "instrument": "YM",
+  "label": "DOW (US Wall St 30)",
+  "unit": "bodů",
+  "from": "2025-06-01",
+  "to": "2026-07-19",
+  "bars_m5": 77365,
+  "days": 293,
+  "weeks": 60
+ },
+ "session_sizes": {
+  "asia": {
+   "avg": 161.3,
+   "median": 129.0,
+   "min": 38.0,
+   "max": 722.0
+  },
+  "london": {
+   "avg": 196.5,
+   "median": 165.1,
+   "min": 0.0,
+   "max": 1653.0
+  },
+  "ny": {
+   "avg": 489.9,
+   "median": 443.2,
+   "min": 67.0,
+   "max": 1259.4
+  }
+ },
+ "daily_high_session": {
+  "asia": 10.2,
+  "london": 9.2,
+  "ny": 70.0,
+  "close": 10.6
+ },
+ "daily_low_session": {
+  "asia": 10.6,
+  "london": 11.3,
+  "ny": 62.8,
+  "close": 15.4
+ },
+ "daily_open_revisit": {
+  "same": 93.9,
+  "1": 2.0,
+  "2": 0.3,
+  "3": 1.0,
+  "never": 2.7
+ },
+ "candle_hl_revisit": {
+  "levels": 580,
+  "1": 49.5,
+  "2": 10.7,
+  "3": 8.3,
+  "never": 31.6
+ },
+ "daily_npoc_revisit": {
+  "days": 292,
+  "1": 73.6,
+  "2": 7.2,
+  "3": 2.1,
+  "never": 17.1
+ },
+ "session_npoc_revisit": {
+  "asia": {
+   "days": 292,
+   "same": 89.0,
+   "1": 5.8,
+   "2": 1.7,
+   "3": 1.0,
+   "never": 2.4
+  },
+  "london": {
+   "days": 291,
+   "same": 86.3,
+   "1": 5.2,
+   "2": 1.7,
+   "3": 0.3,
+   "never": 6.5
+  },
+  "ny": {
+   "days": 292,
+   "same": 4.8,
+   "1": 69.5,
+   "2": 7.2,
+   "3": 2.4,
+   "never": 16.1
+  }
+ },
+ "vwap_edge_revisit": {
+  "days": 293,
+  "same": 100.0,
+  "1": 0.0,
+  "2": 0.0,
+  "3": 0.0,
+  "never": 0.0
+ },
+ "weekly_high_day": {
+  "Po": 21.7,
+  "Út": 11.7,
+  "St": 15.0,
+  "Čt": 16.7,
+  "Pá": 35.0
+ },
+ "weekly_low_day": {
+  "Po": 33.3,
+  "Út": 11.7,
+  "St": 10.0,
+  "Čt": 13.3,
+  "Pá": 31.7
+ },
+ "weekly_open_revisit": {
+  "Po": 95.0,
+  "Út": 1.7,
+  "St": 0.0,
+  "Čt": 1.7,
+  "Pá": 0.0,
+  "Nikdy": 1.7
+ },
+ "asia_both_sides": {
+  "days": 292,
+  "both": 61.0,
+  "high_only": 21.2,
+  "low_only": 17.5,
+  "neither": 0.3,
+  "order": {
+   "low_to_high": 49.4,
+   "high_to_low": 50.6
+  }
+ },
+ "globex_both_sides": {
+  "days": 292,
+  "both": 32.5,
+  "high_only": 36.0,
+  "low_only": 27.7,
+  "neither": 3.8,
+  "order": {
+   "low_to_high": 35.8,
+   "high_to_low": 64.2
+  }
+ },
+ "first15_range": {
+  "days": 291,
+  "c23": {
+   "both": 12.7,
+   "high_only": 41.6,
+   "low_only": 35.7,
+   "neither": 10.0,
+   "order": {
+    "high_to_low": 56.8,
+    "low_to_high": 43.2
+   }
+  },
+  "eod": {
+   "both": 58.1,
+   "high_only": 22.7,
+   "low_only": 19.2,
+   "neither": 0.0,
+   "order": {
+    "high_to_low": 53.3,
+    "low_to_high": 46.7
+   }
+  }
+ },
+ "ny_entry": {
+  "up": {
+   "n": 132,
+   "offset_pct": 0.194,
+   "offset_p75_pct": 0.352,
+   "median_min": 15,
+   "within_30min": 58.0,
+   "within_60min": 70.0,
+   "follow_pct": 0.904,
+   "reach_2x_offset_pct": 100.0
+  },
+  "down": {
+   "n": 118,
+   "offset_pct": 0.203,
+   "offset_p75_pct": 0.383,
+   "median_min": 25,
+   "within_30min": 53.0,
+   "within_60min": 69.0,
+   "follow_pct": 0.963,
+   "reach_2x_offset_pct": 100.0
+  }
+ },
+ "by_hour": {
+  "volatility": [
+   255.3,
+   224.6,
+   175.9,
+   157.4,
+   145.4,
+   176.5,
+   212.0,
+   268.0,
+   296.1,
+   251.5,
+   255.7,
+   284.9,
+   335.4,
+   580.9,
+   716.5,
+   622.4,
+   511.8,
+   475.6,
+   456.3,
+   470.2,
+   451.6,
+   381.3,
+   259.8,
+   216.8
+  ],
+  "volume": [
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.1,
+   0.1,
+   0.1,
+   0.1,
+   0.1,
+   0.1,
+   0.1,
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ]
+ },
+ "prev": null
+}
