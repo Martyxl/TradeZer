@@ -22,6 +22,7 @@ import hashlib
 import json
 import os
 import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -57,7 +58,6 @@ def classify(title: str, body: str, tickers: list[str]) -> dict | None:
                 "model": LLM_MODEL,
                 "temperature": 0.1,
                 "max_tokens": 350 * len(tickers) + 200,
-                "response_format": {"type": "json_object"},
                 "messages": [
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {"role": "user", "content": user},
@@ -71,6 +71,14 @@ def classify(title: str, body: str, tickers: list[str]) -> dict | None:
             if text.startswith("json"):
                 text = text[4:]
         return json.loads(text)
+    except urllib.error.HTTPError as e:
+        detail = ""
+        try:
+            detail = e.read().decode()[:200]
+        except Exception:
+            pass
+        print(f"  LLM error: {e} {detail}")
+        return None
     except Exception as e:
         print(f"  LLM error: {e}")
         return None
