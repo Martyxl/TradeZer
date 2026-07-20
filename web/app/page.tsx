@@ -110,6 +110,7 @@ export default function DashboardPage() {
               ? tickers
               : [
                   { id: 7, symbol: "NQ", name: "E-mini Nasdaq 100", asset_class: "futures", neutral_threshold: 0.003, enabled: true },
+                  { id: 8, symbol: "YM", name: "E-mini Dow Jones", asset_class: "futures", neutral_threshold: 0.0008, enabled: true },
                   { id: 6, symbol: "ES", name: "E-mini S&P 500", asset_class: "futures", neutral_threshold: 0.002, enabled: true },
                   { id: 4, symbol: "XAUUSD", name: "XAU/USD", asset_class: "commodity", neutral_threshold: 0.002, enabled: true },
                 ]

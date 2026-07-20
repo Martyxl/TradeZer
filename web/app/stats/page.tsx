@@ -187,7 +187,7 @@ function LegendModal({ onClose }: { onClose: () => void }) {
               </tr>
             </thead>
             <tbody>
-              <tr className="border-t border-[#2a2d3a]"><td className="px-3 py-2">NQ</td><td className="px-3 py-2">00–07</td><td className="px-3 py-2">07–12</td><td className="px-3 py-2">12–21</td><td className="px-3 py-2">13:30–20</td></tr>
+              <tr className="border-t border-[#2a2d3a]"><td className="px-3 py-2">NQ / YM</td><td className="px-3 py-2">00–07</td><td className="px-3 py-2">07–12</td><td className="px-3 py-2">12–21</td><td className="px-3 py-2">13:30–20</td></tr>
               <tr className="border-t border-[#2a2d3a]"><td className="px-3 py-2">GOLD</td><td className="px-3 py-2">22–07</td><td className="px-3 py-2">07–12</td><td className="px-3 py-2">12–21</td><td className="px-3 py-2">13:30–18:30</td></tr>
             </tbody>
           </table>
@@ -239,7 +239,7 @@ export default function StatsPage() {
 
   useEffect(() => {
     Promise.allSettled(
-      ["nq", "gold"].map((k) =>
+      ["nq", "gold", "ym"].map((k) =>
         fetch(`/stats/${k}.json`, { cache: "no-store" }).then((r) => {
           if (!r.ok) throw new Error(`${k}: ${r.status}`);
           return r.json().then((j: MarketStats) => [k, j] as const);
@@ -282,7 +282,7 @@ export default function StatsPage() {
 
       {/* Filtr instrumentu */}
       <div className="flex items-center gap-2 -mt-4">
-        {(["nq", "gold"] as const).map((k) => (
+        {(["nq", "gold", "ym"] as const).map((k) => (
           <button
             key={k}
             onClick={() => setSelected(k)}
@@ -293,7 +293,7 @@ export default function StatsPage() {
                 : "bg-[#151823] text-gray-400 border-[#2a2d3a] hover:text-white"
             }`}
           >
-            {k === "nq" ? "NQ" : "GOLD"}
+            {k === "nq" ? "NQ" : k === "gold" ? "GOLD" : "YM"}
           </button>
         ))}
         {m && (

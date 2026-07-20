@@ -33,6 +33,9 @@ jobs:
       - name: Download US Tech 100 5m data (13 months)
         run: bash data/download.sh usatechidxusd
 
+      - name: Download Dow Jones 5m data (13 months)
+        run: bash data/download.sh usa30idxusd
+
       - name: Compute stats (embeds previous month as baseline)
         run: python data/compute_stats.py
 

@@ -41,6 +41,13 @@ INSTRUMENTS = {
         "sessions": {"asia": (22, 7), "london": (7, 12), "ny": (12, 21)},
         "rth": (13.5, 18.5),   # COMEX RTH v UTC
     },
+    "ym": {
+        "file_glob": "usa30idxusd-m5-*.csv",
+        "label": "DOW (US Wall St 30)",
+        "unit": "bodů",
+        "sessions": {"asia": (0, 7), "london": (7, 12), "ny": (12, 21)},
+        "rth": (13.5, 20.0),   # NY RTH v UTC
+    },
 }
 
 WEEKDAYS_CZ = ["Po", "Út", "St", "Čt", "Pá"]

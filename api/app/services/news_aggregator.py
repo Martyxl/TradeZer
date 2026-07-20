@@ -69,6 +69,26 @@ KEYWORD_TICKER_MAP: dict[str, list[str]] = {
         "housing starts", "building permits",
         "jobless claims", "initial claims", "adp employment",
     ],
+    # Dow Jones — blue chips, value, průmysl; méně tech, víc makro/cyklika
+    "YM": [
+        "dow jones", "dow ", "djia", "industrial average", "blue chip", "blue-chip",
+        "u.s. stocks", "us stocks", "u.s. equities", "stock market", "wall street",
+        # US makro — Dow reaguje na cyklická data silněji než NQ
+        "non-farm payroll", "nonfarm payroll", "nfp", "jobs report",
+        "u.s. gdp", "us gdp", "gdp growth",
+        "fed rate", "fomc", "federal reserve", "powell",
+        "u.s. inflation", "us inflation", "core cpi", "core pce",
+        "ism manufacturing", "ism services", "ism pmi",
+        "u.s. retail sales", "us retail sales",
+        "consumer confidence", "consumer sentiment",
+        "industrial production", "capacity utilization",
+        "durable goods", "factory orders",
+        "jobless claims", "unemployment claims", "initial claims",
+        "adp employment", "adp jobs",
+        # Dow-heavy sektory: banky, energie, průmysl
+        "boeing", "caterpillar", "goldman sachs", "jpmorgan", "chevron",
+        "tariff", "trade war", "manufacturing",
+    ],
 
     # Forex
     "EURUSD": [

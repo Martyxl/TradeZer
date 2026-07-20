@@ -20,6 +20,7 @@ SYMBOL_MAP = {
     "BTCUSD": "BTC-USD",
     "ES": "ES=F",
     "NQ": "NQ=F",
+    "YM": "YM=F",
 }
 
 HEADERS = {

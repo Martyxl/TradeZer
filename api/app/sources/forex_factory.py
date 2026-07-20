@@ -175,10 +175,10 @@ class ForexFactoryAdapter(NewsSource):
         if currency == "EUR":
             return ["EURUSD", "XAUUSD"]
         elif currency == "USD":
-            return ["EURUSD", "GBPUSD", "USDJPY", "ES", "NQ", "XAUUSD"]
+            return ["EURUSD", "GBPUSD", "USDJPY", "ES", "NQ", "YM", "XAUUSD"]
         elif currency == "CNY":
             # Čínská makro data (PMI, GDP, trade balance) ovlivňují zlato a indexy
-            return ["XAUUSD", "ES", "NQ"]
+            return ["XAUUSD", "ES", "NQ", "YM"]
         return ["EURUSD"]
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))

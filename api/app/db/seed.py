@@ -18,6 +18,7 @@ TICKERS = [
     {"symbol": "BTCUSD", "name": "BTC/USD",          "asset_class": "crypto",   "source_symbol_map": {"yahoo": "BTC-USD"},               "neutral_threshold": 0.005, "enabled": True},
     {"symbol": "ES",     "name": "E-mini S&P 500",   "asset_class": "futures",  "source_symbol_map": {"yahoo": "ES=F", "cme": "ES"},     "neutral_threshold": 0.002, "enabled": True},
     {"symbol": "NQ",     "name": "E-mini Nasdaq 100","asset_class": "futures",  "source_symbol_map": {"yahoo": "NQ=F", "cme": "NQ"},     "neutral_threshold": 0.003, "enabled": True},
+    {"symbol": "YM",     "name": "E-mini Dow Jones", "asset_class": "futures",  "source_symbol_map": {"yahoo": "YM=F", "cme": "YM"},     "neutral_threshold": 0.0008, "enabled": True},
 ]
 
 NEWS_SOURCES = [

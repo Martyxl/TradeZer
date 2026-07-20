@@ -10,7 +10,7 @@ interface EntryLeg {
 }
 interface NyEntry { up: EntryLeg | null; down: EntryLeg | null }
 
-const STATS_KEY: Record<string, string> = { NQ: "nq", GOLD: "gold", XAUUSD: "gold" };
+const STATS_KEY: Record<string, string> = { NQ: "nq", GOLD: "gold", XAUUSD: "gold", YM: "ym" };
 
 export function EntryCard({ ticker }: { ticker: string }) {
   const [playbook, setPlaybook] = useState<NyEntry | null>(null);

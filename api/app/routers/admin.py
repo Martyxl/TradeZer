@@ -368,6 +368,33 @@ async def backfill_predictions(
     return {"status": "ok", **stats}
 
 
+@router.post("/tickers/upsert", dependencies=[Depends(_verify_token)])
+async def upsert_ticker(
+    payload: dict,
+    session: AsyncSession = Depends(get_session),
+):
+    """Vytvoří nebo aktualizuje ticker (seed se v běžící DB nespouští)."""
+    from sqlalchemy import select
+    from app.models import Ticker
+
+    symbol = str(payload.get("symbol", "")).upper()
+    if not symbol:
+        raise HTTPException(status_code=422, detail="symbol je povinný")
+    ticker = await session.scalar(select(Ticker).where(Ticker.symbol == symbol))
+    if ticker is None:
+        ticker = Ticker(symbol=symbol)
+        session.add(ticker)
+    ticker.name = payload.get("name", ticker.name if ticker.id else symbol)
+    ticker.asset_class = payload.get("asset_class", getattr(ticker, "asset_class", "futures"))
+    ticker.neutral_threshold = float(payload.get("neutral_threshold", getattr(ticker, "neutral_threshold", 0.002)))
+    ticker.enabled = bool(payload.get("enabled", True))
+    if payload.get("source_symbol_map") is not None:
+        ticker.source_symbol_map = payload["source_symbol_map"]
+    await session.commit()
+    return {"symbol": ticker.symbol, "name": ticker.name, "enabled": ticker.enabled,
+            "neutral_threshold": ticker.neutral_threshold}
+
+
 @router.patch("/tickers/{symbol}/enabled", dependencies=[Depends(_verify_token)])
 async def set_ticker_enabled(
     symbol: str,

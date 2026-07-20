@@ -19,10 +19,10 @@ const SOURCE_LABELS: Record<string, string> = {
 };
 
 const FEATURED: { symbol: string; label: string }[] = [
-  { symbol: "EURUSD", label: "EUR" },
   { symbol: "XAUUSD", label: "XAU" },
   { symbol: "ES",     label: "ES"  },
   { symbol: "NQ",     label: "NQ"  },
+  { symbol: "YM",     label: "YM"  },
 ];
 
 const BADGE_STYLE: Record<"S" | "M" | "L", string> = {
