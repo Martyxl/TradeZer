@@ -50,6 +50,17 @@ async def lifespan(app: FastAPI):
                 log.info("Migration: price_series column ensured")
             except Exception as e:
                 log.warning("Migration price_series skipped", error=str(e))
+            try:
+                await conn.execute(text(
+                    "ALTER TABLE daily_bias "
+                    "ADD COLUMN IF NOT EXISTS ny_open_price DOUBLE PRECISION, "
+                    "ADD COLUMN IF NOT EXISTS ny_adverse_pct DOUBLE PRECISION, "
+                    "ADD COLUMN IF NOT EXISTS ny_adverse_min INTEGER, "
+                    "ADD COLUMN IF NOT EXISTS ny_favorable_pct DOUBLE PRECISION"
+                ))
+                log.info("Migration: daily_bias NY-path columns ensured")
+            except Exception as e:
+                log.warning("Migration daily_bias skipped", error=str(e))
 
     # Auto-seed: pokud je DB prázdná (žádné tickery), spusť seed automaticky
     async with engine.connect() as conn:

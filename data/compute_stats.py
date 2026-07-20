@@ -389,6 +389,58 @@ def first15_range_stats(df: pd.DataFrame, open_hour: float, rth_end: float) -> d
     }
 
 
+def ny_entry_model(df: pd.DataFrame, ny_open_h: float, close_h: float) -> dict:
+    """Entry model po NY open, podmíněný směrem dne.
+
+    Reference = cena v NY open. Po openu cena udělá protipohyb (sweep) proti
+    směru dne → ideální limit entry. Měříme medián offsetu, čas a follow-through.
+    """
+    out = {}
+    buckets: dict[str, list] = {"up": [], "down": []}
+    for _, day in df.groupby("tday"):
+        sess = day[(day["hour_f"] >= ny_open_h) & (day["hour_f"] < close_h)].reset_index(drop=True)
+        if len(sess) < 40:
+            continue
+        ref = float(sess.iloc[0]["open"])
+        move = (float(sess.iloc[-1]["close"]) - ref) / ref
+        if abs(move) < 0.001:
+            continue
+        d = "up" if move > 0 else "down"
+        if d == "up":
+            adv_i = sess["low"].idxmin()
+            adverse = (ref - float(sess.loc[adv_i, "low"])) / ref
+            after = sess.loc[adv_i:]
+            follow = (float(after["high"].max()) - float(sess.loc[adv_i, "low"])) / ref
+        else:
+            adv_i = sess["high"].idxmax()
+            adverse = (float(sess.loc[adv_i, "high"]) - ref) / ref
+            after = sess.loc[adv_i:]
+            follow = (float(sess.loc[adv_i, "high"]) - float(after["low"].min())) / ref
+        minutes = (float(sess.loc[adv_i, "hour_f"]) - ny_open_h) * 60
+        buckets[d].append((adverse * 100, minutes, follow * 100))
+
+    for d, rows in buckets.items():
+        if not rows:
+            out[d] = None
+            continue
+        a = np.array(rows)
+        adv, mins, foll = a[:, 0], a[:, 1], a[:, 2]
+        offset = float(np.median(adv))
+        filled = a[adv >= offset]
+        edge_2x = float((filled[:, 2] >= 2 * offset).mean() * 100) if len(filled) else 0.0
+        out[d] = {
+            "n": int(len(a)),
+            "offset_pct": round(offset, 3),
+            "offset_p75_pct": round(float(np.percentile(adv, 75)), 3),
+            "median_min": int(np.median(mins)),
+            "within_30min": round(float((mins <= 30).mean() * 100), 0),
+            "within_60min": round(float((mins <= 60).mean() * 100), 0),
+            "follow_pct": round(float(np.median(foll)), 3),
+            "reach_2x_offset_pct": round(edge_2x, 0),
+        }
+    return out
+
+
 def by_hour(df: pd.DataFrame) -> dict:
     rng = df.groupby("hour").apply(lambda g: (g["high"] - g["low"]).mean() * 12, include_groups=False)
     vol = df.groupby("hour")["volume"].mean()
@@ -444,6 +496,7 @@ def compute(key: str, cfg: dict) -> dict:
         "asia_both_sides": range_break_stats(df, sessions["asia"], (7, 21)),
         "globex_both_sides": range_break_stats(df, (ov_start, rth[0]), rth),
         "first15_range": first15_range_stats(df, rth[0], rth[1]),
+        "ny_entry": ny_entry_model(df, rth[0], rth[1]),
         "by_hour": by_hour(df),
     }
 

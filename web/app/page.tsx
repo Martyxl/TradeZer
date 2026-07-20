@@ -7,6 +7,7 @@ import { DailySummaryCard } from "@/components/DailySummaryCard";
 import { NewsCard } from "@/components/NewsCard";
 import { MarketHoursBar } from "@/components/MarketHoursBar";
 import { BiasCard } from "@/components/BiasCard";
+import { EntryCard } from "@/components/EntryCard";
 import { PatternPanel } from "@/components/PatternPanel";
 import { api, type Ticker, type NewsItem, type DailySummary } from "@/lib/api";
 
@@ -153,6 +154,9 @@ export default function DashboardPage() {
 
       {/* Dnešní BIAS */}
       <BiasCard ticker={selectedTicker} />
+
+      {/* Entry plán po NY open */}
+      <EntryCard ticker={selectedTicker} />
 
       {/* Daily Summary */}
       <DailySummaryCard summary={summary} ticker={selectedTicker} />

@@ -28,3 +28,10 @@ class DailyBias(Base):
     realized_direction: Mapped[str | None] = mapped_column(String(10), nullable=True)
     realized_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
     evaluated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    # Intradenní cesta po NY open (13:30 UTC) — pro odhad ideálního entry.
+    # adverse/favorable jsou relativní k SMĚRU biasu (adverse = proti biasu).
+    ny_open_price: Mapped[float | None] = mapped_column(Float, nullable=True)
+    ny_adverse_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+    ny_adverse_min: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    ny_favorable_pct: Mapped[float | None] = mapped_column(Float, nullable=True)

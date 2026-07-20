@@ -98,13 +98,18 @@ def _fetch_chart(symbol: str, period1: int, period2: int, interval: str = "5m") 
         return []
 
     timestamps = result_list[0].get("timestamp", [])
-    closes = result_list[0].get("indicators", {}).get("quote", [{}])[0].get("close", [])
+    quote = result_list[0].get("indicators", {}).get("quote", [{}])[0]
+    closes = quote.get("close", [])
+    highs = quote.get("high", []) or closes
+    lows = quote.get("low", []) or closes
 
-    bars = [
-        {"t": t, "close": c}
-        for t, c in zip(timestamps, closes)
-        if t is not None and c is not None
-    ]
+    bars = []
+    for i, (t, c) in enumerate(zip(timestamps, closes)):
+        if t is None or c is None:
+            continue
+        h = highs[i] if i < len(highs) and highs[i] is not None else c
+        low = lows[i] if i < len(lows) and lows[i] is not None else c
+        bars.append({"t": t, "close": c, "high": h, "low": low})
     log.info("Yahoo Finance chart OK", symbol=symbol, bars=len(bars))
     return bars
 

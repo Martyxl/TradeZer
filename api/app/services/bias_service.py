@@ -19,6 +19,7 @@ from app.sources.yahoo_finance_adapter import YahooFinanceAdapter, _find_close_a
 log = structlog.get_logger(__name__)
 
 LONDON_OPEN_UTC = time(7, 0)
+NY_OPEN_UTC = time(13, 30)   # otevření US cash trhu
 NY_CLOSE_UTC = time(21, 0)
 DAY_START_SHIFT_H = 2  # 22:00 UTC = začátek obchodního dne
 
@@ -111,6 +112,39 @@ async def ensure_snapshots(session: AsyncSession, tickers: list[Ticker]) -> int:
     return created
 
 
+def _record_ny_path(bias: DailyBias, bars: list[dict]) -> None:
+    """Zaznamená protipohyb/pohyb po NY open (13:30) relativně ke směru biasu.
+
+    adverse = jak daleko šla cena PROTI biasu (kam dát limit entry),
+    favorable = jak daleko ve směru biasu. Neutral bias cestu nepočítá.
+    """
+    if bias.direction not in ("up", "down"):
+        return
+    ny_open_dt = datetime.combine(bias.bias_date, NY_OPEN_UTC, tzinfo=timezone.utc).timestamp()
+    ny_close_dt = datetime.combine(bias.bias_date, NY_CLOSE_UTC, tzinfo=timezone.utc).timestamp()
+    seg = [b for b in bars if ny_open_dt <= b["t"] <= ny_close_dt and b.get("high") and b.get("low")]
+    if len(seg) < 6:
+        return
+    ref = seg[0]["close"]
+    if not ref:
+        return
+    bias.ny_open_price = round(ref, 4)
+
+    if bias.direction == "down":
+        # adverse = nejvyšší high nad ref; favorable = nejnižší low pod ref
+        adv_bar = max(seg, key=lambda b: b["high"])
+        adverse = (adv_bar["high"] - ref) / ref
+        favorable = (ref - min(b["low"] for b in seg)) / ref
+    else:
+        adv_bar = min(seg, key=lambda b: b["low"])
+        adverse = (ref - adv_bar["low"]) / ref
+        favorable = (max(b["high"] for b in seg) - ref) / ref
+
+    bias.ny_adverse_pct = round(adverse * 100, 4)
+    bias.ny_favorable_pct = round(favorable * 100, 4)
+    bias.ny_adverse_min = int((adv_bar["t"] - ny_open_dt) / 60)
+
+
 async def evaluate_pending(session: AsyncSession, ticker_map: dict[int, Ticker]) -> int:
     """Doplhní realitu ke snapshotům po NY close (pohyb 07:00 -> 21:00 UTC)."""
     now = datetime.utcnow()
@@ -139,6 +173,9 @@ async def evaluate_pending(session: AsyncSession, ticker_map: dict[int, Ticker])
             b.realized_direction = realized
             b.realized_pct = round(pct, 5)
             b.evaluated_at = now
+
+            # Intradenní cesta po NY open — relativní ke SMĚRU biasu
+            _record_ny_path(b, bars)
             evaluated += 1
             log.info("Bias evaluated", ticker=ticker.symbol, date=str(b.bias_date),
                      bias=b.direction, realized=realized, pct=round(pct * 100, 2))

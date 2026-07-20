@@ -163,6 +163,28 @@
    }
   }
  },
+ "ny_entry": {
+  "up": {
+   "n": 114,
+   "offset_pct": 0.232,
+   "offset_p75_pct": 0.372,
+   "median_min": 15,
+   "within_30min": 61.0,
+   "within_60min": 75.0,
+   "follow_pct": 1.088,
+   "reach_2x_offset_pct": 100.0
+  },
+  "down": {
+   "n": 108,
+   "offset_pct": 0.217,
+   "offset_p75_pct": 0.399,
+   "median_min": 20,
+   "within_30min": 57.0,
+   "within_60min": 76.0,
+   "follow_pct": 1.186,
+   "reach_2x_offset_pct": 100.0
+  }
+ },
  "by_hour": {
   "volatility": [
    68.3,

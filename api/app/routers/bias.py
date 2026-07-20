@@ -100,6 +100,57 @@ async def bias_stats(
     }
 
 
+@router.get("/entry")
+async def bias_entry(
+    ticker: str = Query(...),
+    session: AsyncSession = Depends(get_session),
+):
+    """Odhad ideálního entry po NY open pro dnešní směr biasu.
+
+    Kombinuje: dnešní bias směr + reálné agregáty NY-cesty (jak se sbírají)
+    a slouží jako doplněk statického playbooku z /stats (ny_entry).
+    """
+    from statistics import median
+
+    t = await _get_ticker(session, ticker)
+    tday = bias_service._trading_day(datetime.utcnow())
+    snap = await session.scalar(
+        select(DailyBias).where(DailyBias.ticker_id == t.id, DailyBias.bias_date == tday)
+    )
+    live = await bias_service.compute_bias(session, t, tday)
+    direction = (snap.direction if snap else live["direction"])
+
+    # Reálné agregáty NY-cesty za posledních 90 dní pro daný směr biasu
+    rows = (await session.execute(
+        select(DailyBias)
+        .where(DailyBias.ticker_id == t.id)
+        .where(DailyBias.direction == direction)
+        .where(DailyBias.ny_adverse_pct.is_not(None))
+    )).scalars().all()
+
+    realized = None
+    if rows:
+        adv = [r.ny_adverse_pct for r in rows]
+        fav = [r.ny_favorable_pct for r in rows if r.ny_favorable_pct is not None]
+        mins = [r.ny_adverse_min for r in rows if r.ny_adverse_min is not None]
+        realized = {
+            "n": len(rows),
+            "offset_pct": round(median(adv), 3),
+            "favorable_pct": round(median(fav), 3) if fav else None,
+            "median_min": int(median(mins)) if mins else None,
+        }
+
+    return {
+        "ticker": t.symbol,
+        "date": str(tday),
+        "direction": direction,
+        "ny_open_utc": "13:30",
+        "realized": realized,  # z reálných biasů (roste časem)
+        "note": "Playbook z historických dat je v /stats (ny_entry). "
+                "'realized' je z reálně zaznamenaných biasů.",
+    }
+
+
 @router.post("/run")
 async def bias_run(session: AsyncSession = Depends(get_session)):
     """Ruční trigger snapshotu + vyhodnocení (jinak běží po refreshi)."""
