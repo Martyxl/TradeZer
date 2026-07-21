@@ -140,11 +140,10 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* LLM výpadek — workaround běží */}
+      {/* LLM výpadek — workaround běží. Pozor: spouští jen skutečný fallback
+          (model_version), NE reálnou predikci s nízkou/nulovou confidence. */}
       {news.some(
-        (n) =>
-          n.prediction &&
-          (n.prediction.model_version === "stats-fallback-v1" || n.prediction.confidence === 0)
+        (n) => n.prediction && (n.prediction.model_version ?? "").includes("fallback")
       ) && (
         <div className="rounded-xl border border-yellow-800 bg-yellow-950/40 p-4 text-sm text-yellow-300">
           ⚠ <strong>AI predikce jsou dočasně nedostupné</strong> (výpadek LLM API). Běží statistický
