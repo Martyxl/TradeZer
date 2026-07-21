@@ -23,6 +23,22 @@ NY_OPEN_UTC = time(13, 30)   # otevření US cash trhu
 NY_CLOSE_UTC = time(21, 0)
 DAY_START_SHIFT_H = 2  # 22:00 UTC = začátek obchodního dne
 
+# Doporučený entry offset (%) proti biasu po NY open — z historického playbooku
+# (medián protipohybu). Fallback = 2× neutral_threshold.
+ENTRY_OFFSET_PCT = {
+    "NQ":     {"up": 0.25, "down": 0.20},
+    "YM":     {"up": 0.22, "down": 0.20},
+    "XAUUSD": {"up": 0.27, "down": 0.23},
+    "ES":     {"up": 0.15, "down": 0.13},
+}
+
+
+def _entry_offset(symbol: str, direction: str, neutral_threshold: float) -> float:
+    m = ENTRY_OFFSET_PCT.get(symbol)
+    if m and direction in m:
+        return m[direction]
+    return round(neutral_threshold * 2 * 100, 3)
+
 
 def _trading_day(now: datetime) -> date:
     return (now + timedelta(hours=DAY_START_SHIFT_H)).date()
@@ -112,11 +128,12 @@ async def ensure_snapshots(session: AsyncSession, tickers: list[Ticker]) -> int:
     return created
 
 
-def _record_ny_path(bias: DailyBias, bars: list[dict]) -> None:
+def _record_ny_path(bias: DailyBias, bars: list[dict], symbol: str, neutral_threshold: float) -> None:
     """Zaznamená protipohyb/pohyb po NY open (13:30) relativně ke směru biasu.
 
     adverse = jak daleko šla cena PROTI biasu (kam dát limit entry),
     favorable = jak daleko ve směru biasu. Neutral bias cestu nepočítá.
+    Zároveň vyhodnotí entry plán (limit na offset, hold do close).
     """
     if bias.direction not in ("up", "down"):
         return
@@ -143,6 +160,18 @@ def _record_ny_path(bias: DailyBias, bars: list[dict]) -> None:
     bias.ny_adverse_pct = round(adverse * 100, 4)
     bias.ny_favorable_pct = round(favorable * 100, 4)
     bias.ny_adverse_min = int((adv_bar["t"] - ny_open_dt) / 60)
+
+    # Entry plán: limit na offset proti biasu. Fill když protipohyb dosáhl offsetu.
+    # P/L (ve směru biasu) = bias_sign * pohyb do close + offset (výhoda lepší ceny).
+    offset = _entry_offset(symbol, bias.direction, neutral_threshold)
+    bias.entry_filled = (bias.ny_adverse_pct >= offset)
+    if bias.entry_filled and bias.realized_pct is not None:
+        bias_sign = 1 if bias.direction == "up" else -1
+        bias.entry_pnl_pct = round(bias_sign * bias.realized_pct * 100 + offset, 4)
+        bias.entry_win = bias.entry_pnl_pct > 0
+    else:
+        bias.entry_pnl_pct = None
+        bias.entry_win = None
 
 
 async def evaluate_pending(session: AsyncSession, ticker_map: dict[int, Ticker]) -> int:
@@ -174,8 +203,8 @@ async def evaluate_pending(session: AsyncSession, ticker_map: dict[int, Ticker])
             b.realized_pct = round(pct, 5)
             b.evaluated_at = now
 
-            # Intradenní cesta po NY open — relativní ke SMĚRU biasu
-            _record_ny_path(b, bars)
+            # Intradenní cesta po NY open + vyhodnocení entry plánu
+            _record_ny_path(b, bars, ticker.symbol, ticker.neutral_threshold)
             evaluated += 1
             log.info("Bias evaluated", ticker=ticker.symbol, date=str(b.bias_date),
                      bias=b.direction, realized=realized, pct=round(pct * 100, 2))

@@ -77,6 +77,20 @@ async def bias_stats(
     directional = [b for b in rows if b.direction in ("up", "down")]
     dir_correct = sum(1 for b in directional if b.direction == b.realized_direction)
 
+    # Úspěšnost entry plánu (jen dny, kde limit fillnul)
+    filled = [b for b in directional if b.entry_filled]
+    entry_wins = [b for b in filled if b.entry_win]
+    entry_pnls = [b.entry_pnl_pct for b in filled if b.entry_pnl_pct is not None]
+    entry = {
+        "directional_days": len(directional),
+        "filled": len(filled),
+        "fill_rate": round(len(filled) / len(directional), 4) if directional else None,
+        "wins": len(entry_wins),
+        "win_rate": round(len(entry_wins) / len(filled), 4) if filled else None,
+        "avg_pnl_pct": round(sum(entry_pnls) / len(entry_pnls), 3) if entry_pnls else None,
+        "sum_pnl_pct": round(sum(entry_pnls), 2) if entry_pnls else None,
+    }
+
     return {
         "ticker": t.symbol,
         "days": days,
@@ -86,6 +100,7 @@ async def bias_stats(
         "directional_total": len(directional),
         "directional_correct": dir_correct,
         "directional_accuracy": round(dir_correct / len(directional), 4) if directional else None,
+        "entry": entry,
         "history": [
             {
                 "date": str(b.bias_date),
@@ -94,6 +109,9 @@ async def bias_stats(
                 "correct": b.direction == b.realized_direction,
                 "trust_score": b.trust_score,
                 "realized_pct": b.realized_pct,
+                "entry_filled": b.entry_filled,
+                "entry_win": b.entry_win,
+                "entry_pnl_pct": b.entry_pnl_pct,
             }
             for b in rows[:60]
         ],

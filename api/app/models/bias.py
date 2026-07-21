@@ -35,3 +35,8 @@ class DailyBias(Base):
     ny_adverse_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
     ny_adverse_min: Mapped[int | None] = mapped_column(Integer, nullable=True)
     ny_favorable_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    # Výsledek entry plánu (limit na offset proti biasu po NY open, hold do close)
+    entry_filled: Mapped[bool | None] = mapped_column(nullable=True)
+    entry_pnl_pct: Mapped[float | None] = mapped_column(Float, nullable=True)  # ve směru biasu, vč. offsetu
+    entry_win: Mapped[bool | None] = mapped_column(nullable=True)

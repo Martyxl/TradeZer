@@ -56,7 +56,10 @@ async def lifespan(app: FastAPI):
                     "ADD COLUMN IF NOT EXISTS ny_open_price DOUBLE PRECISION, "
                     "ADD COLUMN IF NOT EXISTS ny_adverse_pct DOUBLE PRECISION, "
                     "ADD COLUMN IF NOT EXISTS ny_adverse_min INTEGER, "
-                    "ADD COLUMN IF NOT EXISTS ny_favorable_pct DOUBLE PRECISION"
+                    "ADD COLUMN IF NOT EXISTS ny_favorable_pct DOUBLE PRECISION, "
+                    "ADD COLUMN IF NOT EXISTS entry_filled BOOLEAN, "
+                    "ADD COLUMN IF NOT EXISTS entry_pnl_pct DOUBLE PRECISION, "
+                    "ADD COLUMN IF NOT EXISTS entry_win BOOLEAN"
                 ))
                 log.info("Migration: daily_bias NY-path columns ensured")
             except Exception as e:
