@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { TrendingUp, TrendingDown, MoveRight, Target } from "lucide-react";
+import { TrendingUp, TrendingDown, MoveRight, Target, HelpCircle } from "lucide-react";
 
 interface BiasSnapshot {
   prob_down: number; prob_neutral: number; prob_up: number;
@@ -26,6 +26,7 @@ const DIR_META: Record<string, { label: string; color: string; Icon: typeof Tren
   up: { label: "LONG", color: "#4ade80", Icon: TrendingUp },
   down: { label: "SHORT", color: "#f87171", Icon: TrendingDown },
   neutral: { label: "NEUTRAL", color: "#eab308", Icon: MoveRight },
+  unknown: { label: "NELZE URČIT", color: "#94a3b8", Icon: HelpCircle },
 };
 
 function trustLabel(score: number): { text: string; color: string } {
@@ -66,6 +67,7 @@ export function BiasCard({ ticker }: { ticker: string }) {
   const meta = DIR_META[bias.direction] ?? DIR_META.neutral;
   const trust = trustLabel(bias.trust_score);
   const { Icon } = meta;
+  const isUnknown = bias.direction === "unknown";
 
   return (
     <div className="rounded-xl border border-[#2a2d3a] bg-[#1a1d27] p-4">
@@ -82,18 +84,28 @@ export function BiasCard({ ticker }: { ticker: string }) {
              style={{ borderColor: meta.color + "55", background: meta.color + "14" }}>
           <Icon size={16} style={{ color: meta.color }} />
           <span className="text-sm font-bold" style={{ color: meta.color }}>{meta.label}</span>
-          <span className="text-[10px]" style={{ color: trust.color }}>· {trust.text} ({bias.trust_score.toFixed(0)})</span>
+          {!isUnknown && (
+            <span className="text-[10px]" style={{ color: trust.color }}>· {trust.text} ({bias.trust_score.toFixed(0)})</span>
+          )}
         </div>
       </div>
 
-      <div className="mt-3">
-        <ProbRow b={bias} />
-        <div className="mt-1 flex justify-between text-[10px] text-gray-500">
-          <span className="text-red-400">↓ {(bias.prob_down * 100).toFixed(0)}%</span>
-          <span>→ {(bias.prob_neutral * 100).toFixed(0)}%</span>
-          <span className="text-green-400">↑ {(bias.prob_up * 100).toFixed(0)}%</span>
+      {isUnknown ? (
+        <p className="mt-3 text-[11px] text-gray-400">
+          Na základě aktuální situace <strong>nelze určit směr</strong> — chybí důvěryhodné predikce
+          (žádné relevantní zprávy s nenulovou confidence). Není to plochý trh (neutral), ale absence
+          podkladu pro směrovou sázku.
+        </p>
+      ) : (
+        <div className="mt-3">
+          <ProbRow b={bias} />
+          <div className="mt-1 flex justify-between text-[10px] text-gray-500">
+            <span className="text-red-400">↓ {(bias.prob_down * 100).toFixed(0)}%</span>
+            <span>→ {(bias.prob_neutral * 100).toFixed(0)}%</span>
+            <span className="text-green-400">↑ {(bias.prob_up * 100).toFixed(0)}%</span>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-gray-500">
         {snap?.realized_direction && (

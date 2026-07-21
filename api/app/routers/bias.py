@@ -71,6 +71,8 @@ async def bias_stats(
         .order_by(DailyBias.bias_date.desc())
     )).scalars().all()
 
+    # "unknown" (nešlo určit) se do úspěšnosti nepočítá — nebyl to výrok o směru
+    rows = [b for b in rows if b.direction != "unknown"]
     total = len(rows)
     correct = sum(1 for b in rows if b.direction == b.realized_direction)
     # Úspěšnost směrových biasů (bez neutral predikcí) — to tradera zajímá nejvíc

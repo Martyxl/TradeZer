@@ -64,8 +64,10 @@ async def compute_bias(session: AsyncSession, ticker: Ticker, tday: date,
     rows = (await session.execute(stmt)).all()
 
     if not rows:
+        # Žádná důvěryhodná predikce (0 zpráv nebo všechny s confidence 0)
+        # → nelze určit směr. "unknown" ≠ neutral (neutral = trh čekaně plochý).
         return {"n_news": 0, "prob_down": 0.333, "prob_neutral": 0.334, "prob_up": 0.333,
-                "direction": "neutral", "trust_score": 0.0, "avg_confidence": 0.0}
+                "direction": "unknown", "trust_score": 0.0, "avg_confidence": 0.0}
 
     tw = td = tn = tu = tc = 0.0
     for pred, _pub in rows:

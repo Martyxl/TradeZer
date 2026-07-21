@@ -50,8 +50,8 @@ export function EntryCard({ ticker }: { ticker: string }) {
       .catch(() => {});
   }, [ticker]);
 
-  if (!playbook || !direction || direction === "neutral") {
-    // Bez směru (neutral bias) nemá entry plán smysl
+  if (!playbook || !direction || direction === "neutral" || direction === "unknown") {
+    // Bez směru (neutral / nelze určit) nemá entry plán smysl
     return null;
   }
   const leg = direction === "up" ? playbook.up : playbook.down;
