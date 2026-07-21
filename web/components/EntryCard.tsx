@@ -105,7 +105,9 @@ export function EntryCard({ ticker }: { ticker: string }) {
         </div>
       ) : (
         <p className="mt-3 pt-3 border-t border-[#232735] text-[11px] text-gray-500">
-          Úspěšnost entry plánu se začne měřit, jakmile proběhnou první směrové biasy s fillnutým vstupem.
+          📊 Statistika se teprve <strong>tvoří</strong> — každý den po NY close (23:00) přibude jeden vyhodnocený
+          záznam. Prázdné hodnoty za dnešek a čerstvé dny <strong>nejsou chyba</strong>, jen se ještě čeká na
+          uzavření obchodního dne. Smysluplný vzorek bude za ~2–3 týdny.
         </p>
       )}
 
@@ -151,6 +153,11 @@ export function EntryCard({ ticker }: { ticker: string }) {
                   ))}
                 </tbody>
               </table>
+              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-gray-500 border-t border-[#232735] pt-2">
+                <span><span className="text-gray-400">✓ / no-fill</span> = limit se vyplnil / protipohyb nedosáhl offsetu</span>
+                <span><span style={{ color: "#4ade80" }}>WIN</span> / <span style={{ color: "#f87171" }}>LOSS</span> = P/L do NY close kladný / záporný</span>
+                <span><span className="text-gray-500">—</span> = ještě nevyhodnoceno (den probíhá; hodnotí se po NY close 23:00)</span>
+              </div>
             </div>
           )}
         </div>
