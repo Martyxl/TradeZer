@@ -448,6 +448,81 @@ def ny_entry_model(df: pd.DataFrame, ny_open_h: float, close_h: float) -> dict:
     return out
 
 
+def trade_sim(df: pd.DataFrame, ny_open_h: float, close_h: float) -> dict:
+    """Backtest entry doporučení: limit na offset proti biasu, SL = 1R, TP R1..R3.
+
+    Simulace bar po baru po NY open. Worst-case: svíčka na SL i TP → SL první.
+    Směr znám (proxy za bias) — charakterizuje strukturu, ne tradeable backtest.
+    """
+    R_TARGETS = [1.0, 1.5, 2.0, 2.5, 3.0]
+    daydata, adv = [], {"up": [], "down": []}
+    for _, day in df.groupby("tday"):
+        s = day[(day["hour_f"] >= ny_open_h) & (day["hour_f"] < close_h)].reset_index(drop=True)
+        if len(s) < 40:
+            continue
+        ref = float(s.iloc[0]["open"])
+        move = (float(s.iloc[-1]["close"]) - ref) / ref
+        if abs(move) < 0.001:
+            continue
+        d = "up" if move > 0 else "down"
+        a = (ref - float(s["low"].min())) / ref if d == "up" else (float(s["high"].max()) - ref) / ref
+        adv[d].append(a * 100)
+        daydata.append((d, ref, s))
+    offsets = {d: float(np.median(v)) for d, v in adv.items() if v}
+
+    out = {}
+    for d in ("up", "down"):
+        if d not in offsets:
+            out[d] = None
+            continue
+        od = offsets[d]
+        sign = 1 if d == "up" else -1
+        n_dir = filled = 0
+        max_rs, entry_mins, run_mins = [], [], []
+        for dd, ref, s in daydata:
+            if dd != d:
+                continue
+            n_dir += 1
+            entry = ref * (1 - sign * od / 100)
+            rp = ref * od / 100
+            sl = entry - sign * rp
+            ny_open_ts = float(s.iloc[0]["timestamp"])
+            fill_i = None
+            highs, lows, tss = s["high"].to_numpy(), s["low"].to_numpy(), s["timestamp"].to_numpy()
+            for i in range(len(s)):
+                if (d == "up" and lows[i] <= entry) or (d == "down" and highs[i] >= entry):
+                    fill_i = i
+                    break
+            if fill_i is None:
+                continue
+            filled += 1
+            entry_mins.append((float(tss[fill_i]) - ny_open_ts) / 60000)
+            max_r, run_at = 0.0, 0.0
+            for j in range(fill_i, len(s)):
+                if (d == "down" and highs[j] >= sl) or (d == "up" and lows[j] <= sl):
+                    break
+                fav = lows[j] if d == "down" else highs[j]
+                fav_r = sign * (fav - entry) / rp
+                if fav_r > max_r:
+                    max_r, run_at = fav_r, (float(tss[j]) - ny_open_ts) / 60000
+            max_rs.append(max_r)
+            run_mins.append(run_at)
+
+        arr = np.array(max_rs)
+        out[d] = {
+            "n_days": n_dir, "filled": filled,
+            "fill_rate": round(filled / n_dir * 100, 0) if n_dir else 0,
+            "offset_pct": round(od, 3),
+            "win_rate": round(float((arr >= 1.0).mean() * 100), 0) if len(arr) else 0,
+            "targets": {str(t): round(float((arr >= t).mean() * 100), 0) for t in R_TARGETS},
+            "avg_max_r": round(float(arr.mean()), 2) if len(arr) else 0,
+            "median_max_r": round(float(np.median(arr)), 2) if len(arr) else 0,
+            "entry_min": int(np.median(entry_mins)) if entry_mins else 0,
+            "run_min": int(np.median(run_mins)) if run_mins else 0,
+        }
+    return out
+
+
 def by_hour(df: pd.DataFrame) -> dict:
     rng = df.groupby("hour").apply(lambda g: (g["high"] - g["low"]).mean() * 12, include_groups=False)
     vol = df.groupby("hour")["volume"].mean()
@@ -504,6 +579,7 @@ def compute(key: str, cfg: dict) -> dict:
         "globex_both_sides": range_break_stats(df, (ov_start, rth[0]), rth),
         "first15_range": first15_range_stats(df, rth[0], rth[1]),
         "ny_entry": ny_entry_model(df, rth[0], rth[1]),
+        "trade_sim": trade_sim(df, rth[0], rth[1]),
         "by_hour": by_hour(df),
     }
 

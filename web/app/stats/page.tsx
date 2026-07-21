@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Info, X, TrendingUp, Layers, Crosshair, LineChart, type LucideIcon } from "lucide-react";
+import { Info, X, TrendingUp, Layers, Crosshair, LineChart, Target as TargetIcon, type LucideIcon } from "lucide-react";
 
 /* ---------------------------------------------------------------- typy */
 
@@ -29,7 +29,13 @@ interface StatsBody {
     c23: Record<string, any>;
     eod: Record<string, any>;
   };
+  trade_sim?: Record<string, TradeSimLeg | null>;
   by_hour: { volatility: number[]; volume: number[] };
+}
+interface TradeSimLeg {
+  n_days: number; filled: number; fill_rate: number; offset_pct: number;
+  win_rate: number; targets: Record<string, number>;
+  avg_max_r: number; median_max_r: number; entry_min: number; run_min: number;
 }
 interface MarketStats extends StatsBody {
   prev?: StatsBody | null;
@@ -158,6 +164,7 @@ const LEGEND: [string, string][] = [
   ["Asia — Both Sides", "Během London+NY — je high/low Asia range prolomeno na obě strany, jen jednu, nebo žádnou? Pořadí: která strana padla první."],
   ["Globex — Both Sides", "Totéž pro overnight (Globex) range během NY RTH."],
   ["Volatility by Hour", "Průměrný hodinový rozsah high–low podle hodiny (UTC)."],
+  ["Trading — backtest", "Simulace doporučeného vstupu: limit na offset (medián protipohybu) proti biasu po NY open, SL = 1R (=offset) za entry, TP na násobcích R. Ukazuje % obchodů, které dosáhly R1–R3 před SL, win rate (≥1R), medián/průměr max dosaženého R (potenciál) a časy (fill, peak). Vše podmíněno správným směrem — reálná výhoda = tato struktura × úspěšnost biasu."],
   ["▲▼ změny", "Šipky u hodnot ukazují posun oproti minulé měsíční aktualizaci dat (v procentních bodech)."],
 ];
 
@@ -224,6 +231,72 @@ function HourChart({ title, values, unit }: { title: string; values: number[]; u
         {values.map((_, h) => (
           <div key={h} className="flex-1 text-center text-[8px] text-gray-600">{h % 4 === 0 ? h : ""}</div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------- trade sim karta */
+
+function TradeSimCard({ dir, leg, unit }: { dir: "up" | "down"; leg: TradeSimLeg; unit: string }) {
+  const isLong = dir === "up";
+  const color = isLong ? "#4ade80" : "#f87171";
+  const side = isLong ? "LONG" : "SHORT";
+  const R_LEVELS = ["1.0", "1.5", "2.0", "2.5", "3.0"];
+
+  return (
+    <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-bold" style={{ color }}>{side}</span>
+          <span className="text-[10px] text-gray-500">{leg.filled} obchodů · fill {leg.fill_rate}%</span>
+        </div>
+        <div className="text-right">
+          <div className="text-lg font-bold" style={{ color: leg.win_rate >= 50 ? color : "#9ca3af" }}>{leg.win_rate}%</div>
+          <div className="text-[9px] text-gray-500 uppercase">win (≥1R)</div>
+        </div>
+      </div>
+
+      {/* Setup: entry / SL / TP */}
+      <div className="grid grid-cols-3 gap-2 mb-3 text-center">
+        <div className="rounded-lg bg-[#0f1117] border border-[#2a2d3a] py-1.5">
+          <div className="text-[9px] uppercase text-gray-500">Entry</div>
+          <div className="text-xs font-semibold text-gray-200">{isLong ? "−" : "+"}{leg.offset_pct}%</div>
+          <div className="text-[9px] text-gray-600">od NY open</div>
+        </div>
+        <div className="rounded-lg bg-[#0f1117] border border-red-900/40 py-1.5">
+          <div className="text-[9px] uppercase text-gray-500">SL (1R)</div>
+          <div className="text-xs font-semibold text-red-300">{leg.offset_pct}%</div>
+          <div className="text-[9px] text-gray-600">za entry</div>
+        </div>
+        <div className="rounded-lg bg-[#0f1117] border border-green-900/40 py-1.5">
+          <div className="text-[9px] uppercase text-gray-500">Potenciál</div>
+          <div className="text-xs font-semibold text-green-300">{leg.median_max_r}R</div>
+          <div className="text-[9px] text-gray-600">medián max</div>
+        </div>
+      </div>
+
+      {/* R-target hit rates */}
+      <div className="space-y-1.5 mb-3">
+        <div className="text-[10px] uppercase tracking-wider text-gray-500">Dosažení TP (% fillnutých obchodů)</div>
+        {R_LEVELS.map((r) => {
+          const pct = leg.targets[r] ?? 0;
+          return (
+            <div key={r} className="flex items-center gap-2 text-xs">
+              <span className="w-10 shrink-0 text-gray-400 font-mono">R{r}</span>
+              <div className="flex-1 h-2 rounded-full bg-[#232735] overflow-hidden">
+                <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
+              </div>
+              <span className="w-10 text-right font-medium" style={{ color: pct >= 50 ? color : "#9ca3af" }}>{pct}%</span>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-gray-500 border-t border-[#232735] pt-2">
+        <span>Entry ~<span className="text-gray-400">{leg.entry_min} min</span> po NY open</span>
+        <span>Peak ~<span className="text-gray-400">{leg.run_min} min</span></span>
+        <span>Ø max <span className="text-gray-400">{leg.avg_max_r}R</span></span>
       </div>
     </div>
   );
@@ -458,6 +531,30 @@ export default function StatsPage() {
               <BarGroup data={stats.weekly_open_revisit} prevData={prev?.weekly_open_revisit} labels={dayLabels(stats.weekly_open_revisit)} />
             </Card>
           </Section>
+
+          {/* ============ TRADING (backtest doporučení) ============ */}
+          {stats.trade_sim && (
+            <section>
+              <div className="flex items-center gap-2.5 mb-1">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-950/60 border border-blue-900/50">
+                  <TargetIcon size={15} className="text-blue-400" />
+                </span>
+                <h2 className="text-base font-bold text-white">Trading — backtest doporučení</h2>
+              </div>
+              <p className="text-xs text-gray-500 mb-4 ml-[42px]">
+                Entry limit na offset proti biasu po NY open, SL = 1R (offset), TP na R1–R3.
+                Simulace 5m bar po baru (SL má přednost). <span className="text-yellow-500/80">Podmíněno správným směrem
+                (hindsight) — reálná výhoda = tohle × úspěšnost biasu.</span>
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {(["down", "up"] as const).map((d) => {
+                  const leg = stats.trade_sim?.[d];
+                  if (!leg) return null;
+                  return <TradeSimCard key={d} dir={d} leg={leg} unit={m.unit} />;
+                })}
+              </div>
+            </section>
+          )}
         </>
       )}
 

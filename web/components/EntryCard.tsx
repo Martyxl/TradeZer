@@ -119,7 +119,7 @@ export function EntryCard({ ticker }: { ticker: string }) {
             className="flex items-center gap-1 text-[11px] text-gray-500 hover:text-gray-300 transition-colors"
           >
             {showHist ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-            Historie plánu ({history.length} dní)
+            Historie plánu (posledních {Math.min(history.length, 10)} z {history.length} dní)
           </button>
           {showHist && (
             <div className="mt-2 overflow-x-auto">
@@ -135,7 +135,7 @@ export function EntryCard({ ticker }: { ticker: string }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {history.map((h) => (
+                  {history.slice(0, 10).map((h) => (
                     <tr key={h.date} className="border-t border-[#232735]">
                       <td className="py-1 pr-3 text-gray-400">{h.date.slice(5)}</td>
                       <td className="py-1 pr-3 font-medium" style={{ color: h.bias === "up" ? "#4ade80" : h.bias === "down" ? "#f87171" : "#eab308" }}>
