@@ -43,6 +43,12 @@ class Settings(BaseSettings):
     neutral_threshold_eurusd: float = Field(default=0.002, alias="NEUTRAL_THRESHOLD_EURUSD")
     neutral_threshold_default: float = Field(default=0.002, alias="NEUTRAL_THRESHOLD_DEFAULT")
 
+    # Valuation Radar
+    market_data_provider: str = Field(default="yfinance", alias="MARKET_DATA_PROVIDER")
+    fmp_api_key: str = Field(default="", alias="FMP_API_KEY")
+    val_cache_ttl_hours: int = Field(default=24, alias="VAL_CACHE_TTL_HOURS")
+    val_model_version: str = Field(default="val-1.0.0", alias="VAL_MODEL_VERSION")
+
     model_config = {"env_file": str(_ENV_FILE), "extra": "ignore", "populate_by_name": True, "env_ignore_empty": True}
 
     def check_missing_keys(self) -> None:

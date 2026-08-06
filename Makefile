@@ -17,6 +17,16 @@ dev-web:
 seed:
 	cd api && python -m app.db.seed
 
+seed-valuation:
+	cd api && python -m app.db.seed_valuation
+
+# Valuation Radar — ingest fundamentů a přepočet skóre (P1/P3 doplní implementaci)
+ingest:
+	cd api && python -m app.valuation.ingest
+
+score:
+	cd api && python -m app.valuation.score
+
 migrate:
 	cd api && alembic upgrade head
 
