@@ -48,6 +48,10 @@ class Settings(BaseSettings):
     fmp_api_key: str = Field(default="", alias="FMP_API_KEY")
     val_cache_ttl_hours: int = Field(default=24, alias="VAL_CACHE_TTL_HOURS")
     val_model_version: str = Field(default="val-1.0.0", alias="VAL_MODEL_VERSION")
+    # LLM pro valuation shrnutí — OpenAI-compatible (LiteLLM/lokál) nebo Anthropic fallback
+    llm_base_url: str = Field(default="", alias="LLM_BASE_URL")
+    llm_model: str = Field(default="", alias="LLM_MODEL")
+    llm_api_key: str = Field(default="", alias="LLM_API_KEY")
 
     model_config = {"env_file": str(_ENV_FILE), "extra": "ignore", "populate_by_name": True, "env_ignore_empty": True}
 

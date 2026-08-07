@@ -131,7 +131,23 @@ async def get_run(run_id: int, session: AsyncSession = Depends(get_session)):
     )
 
 
+@router.get("/backtest")
+async def backtest(session: AsyncSession = Depends(get_session)):
+    """Skóre vs. budoucí výnos (1M/3M). Roste s historií skóre."""
+    from app.valuation.backtest import run_backtest
+    result = await run_backtest(session)
+    return {"meta": _meta(await _latest_score_date(session)).model_dump(), **result}
+
+
 # ---- dynamické routes -------------------------------------------------------
+
+@router.get("/{ticker}/summary")
+async def ticker_summary(ticker: str, session: AsyncSession = Depends(get_session)):
+    """LLM shrnutí nad spočítanými čísly (cache 24 h). Prázdné, když LLM nedostupné."""
+    from app.valuation.summary import get_summary
+    result = await get_summary(session, ticker)
+    return {"meta": _meta(None).model_dump(), **result}
+
 
 @router.get("/{ticker}/history", response_model=S.HistoryResponse)
 async def ticker_history(

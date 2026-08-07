@@ -209,6 +209,22 @@ class ValScoreDaily(Base):
     computed_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 
+class ValSummary(Base):
+    """Cache LLM shrnutí. Klíč = hash vstupních čísel → stejná čísla se negenerují znovu."""
+    __tablename__ = "val_summaries"
+    __table_args__ = (
+        UniqueConstraint("ticker", "input_hash", name="uq_val_summary"),
+        Index("ix_val_summary_ticker", "ticker"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    ticker: Mapped[str] = mapped_column(String(12), nullable=False)
+    input_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    summary: Mapped[str] = mapped_column(String(2000), nullable=False)
+    llm_model: Mapped[str | None] = mapped_column(String(80))
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
 class ValScoreRun(Base):
     __tablename__ = "val_score_runs"
 
