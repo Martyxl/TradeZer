@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, History, BarChart3 } from "lucide-react";
+import { LayoutDashboard, History, BarChart3, Target } from "lucide-react";
 import { SupportButton } from "@/components/SupportButton";
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/history", label: "Historie", icon: History },
   { href: "/stats", label: "Statistiky", icon: BarChart3 },
+  { href: "/valuation", label: "Valuation Radar", icon: Target },
 ];
 
 export function Sidebar() {
