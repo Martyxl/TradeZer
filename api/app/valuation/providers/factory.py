@@ -9,8 +9,8 @@ def get_provider(name: str | None = None) -> MarketDataProvider:
         from app.valuation.providers.fixture_provider import FixtureProvider
         return FixtureProvider()
     if provider == "fmp":
-        # Volitelný fallback — implementace až bude potřeba (viz sekce 4 specu).
-        raise NotImplementedError("FMPProvider zatím není implementován")
+        from app.valuation.providers.fmp_provider import FMPProvider
+        return FMPProvider()
     # default
     from app.valuation.providers.yfinance_provider import YFinanceProvider
     return YFinanceProvider()
