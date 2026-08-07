@@ -28,6 +28,10 @@ jobs:
           # FMP funguje z cloud IP (yfinance Yahoo blokuje z datacenter). Fallback na yfinance když klíč chybí.
           MARKET_DATA_PROVIDER: ${{ secrets.FMP_API_KEY && 'fmp' || 'yfinance' }}
           FMP_API_KEY: ${{ secrets.FMP_API_KEY }}
+          # FMP free tier = 250 req/den. 194 firem × ~5 endpointů by kvótu přeteklo,
+          # proto na free ingestujeme jen zobrazovaných 10. Přepiš secretem VAL_INGEST_UNIVERSE
+          # (CSV) při placeném tarifu pro plné peer univerzum.
+          VAL_PEER_UNIVERSE: ${{ vars.VAL_INGEST_UNIVERSE || 'NVDA,MSFT,AAPL,AMZN,AVGO,META,GOOGL,TSLA,NFLX,COST' }}
         run: python -m app.valuation.ingest
 
       - name: Compute metrics
