@@ -1,0 +1,55 @@
+{
+  "profile": {
+    "name": "Apple Inc.",
+    "exchange": "NMS",
+    "currency": "USD",
+    "gics_sector": "Information Technology",
+    "gics_industry": "Consumer Electronics",
+    "shares_outstanding": 15000000000
+  },
+  "financials": [
+    {"period_end": "2026-03-31", "period_type": "Q", "report_date": "2026-05-01",
+     "revenue": 95000000000, "gross_profit": 43000000000, "operating_income": 28000000000,
+     "ebitda": 30000000000, "net_income": 24000000000, "eps_diluted": 1.55,
+     "shares_diluted": 15100000000, "cfo": 27000000000, "capex": -3000000000,
+     "total_debt": 105000000000, "cash_and_equivalents": 30000000000, "total_equity": 62000000000},
+    {"period_end": "2025-12-31", "period_type": "Q", "report_date": "2026-02-01",
+     "revenue": 120000000000, "gross_profit": 54000000000, "operating_income": 40000000000,
+     "ebitda": 42000000000, "net_income": 33000000000, "eps_diluted": 2.10,
+     "shares_diluted": 15200000000, "cfo": 39000000000, "capex": -3500000000,
+     "total_debt": 108000000000, "cash_and_equivalents": 29000000000, "total_equity": 60000000000},
+    {"period_end": "2025-09-30", "period_type": "Q", "report_date": "2025-11-01",
+     "revenue": 94000000000, "gross_profit": 42000000000, "operating_income": 27000000000,
+     "ebitda": 29000000000, "net_income": 23000000000, "eps_diluted": 1.48,
+     "shares_diluted": 15300000000, "cfo": 26000000000, "capex": -2900000000,
+     "total_debt": 110000000000, "cash_and_equivalents": 28000000000, "total_equity": 58000000000},
+    {"period_end": "2025-06-30", "period_type": "Q", "report_date": "2025-08-01",
+     "revenue": 86000000000, "gross_profit": 39000000000, "operating_income": 25000000000,
+     "ebitda": 27000000000, "net_income": 21000000000, "eps_diluted": 1.35,
+     "shares_diluted": 15400000000, "cfo": 24000000000, "capex": -2700000000,
+     "total_debt": 112000000000, "cash_and_equivalents": 27000000000, "total_equity": 57000000000}
+  ],
+  "estimates": [
+    {"as_of_date": "2026-06-01", "horizon": "current_y", "metric": "eps",
+     "avg": 7.2, "low": 6.9, "high": 7.5, "n_analysts": 30, "year_ago_value": 6.5},
+    {"as_of_date": "2026-06-01", "horizon": "next_y", "metric": "eps",
+     "avg": 8.1, "low": 7.6, "high": 8.6, "n_analysts": 28, "year_ago_value": 7.2},
+    {"as_of_date": "2026-06-01", "horizon": "current_y", "metric": "revenue",
+     "avg": 410000000000, "low": 400000000000, "high": 420000000000, "n_analysts": 30, "year_ago_value": 390000000000}
+  ],
+  "revisions": [
+    {"as_of_date": "2026-06-01", "horizon": "current_y", "current": 7.2,
+     "days_ago_7": 7.15, "days_ago_30": 7.1, "days_ago_60": 7.05, "days_ago_90": 6.95,
+     "up_last_30d": 8, "down_last_30d": 2}
+  ],
+  "earnings_history": [
+    {"period_end": "2026-03-31", "report_date": "2026-05-01", "eps_actual": 1.55, "eps_estimate": 1.50, "surprise_pct": 3.3},
+    {"period_end": "2025-12-31", "report_date": "2026-02-01", "eps_actual": 2.10, "eps_estimate": 2.05, "surprise_pct": 2.4},
+    {"period_end": "2025-09-30", "report_date": "2025-11-01", "eps_actual": 1.48, "eps_estimate": 1.45, "surprise_pct": 2.1},
+    {"period_end": "2025-06-30", "report_date": "2025-08-01", "eps_actual": 1.35, "eps_estimate": 1.38, "surprise_pct": -2.2}
+  ],
+  "prices": [
+    {"date": "2026-05-29", "open": 210.0, "high": 213.0, "low": 209.0, "close": 212.5, "adj_close": 212.5, "volume": 50000000},
+    {"date": "2026-06-01", "open": 212.0, "high": 215.0, "low": 211.0, "close": 214.0, "adj_close": 214.0, "volume": 48000000}
+  ]
+}
