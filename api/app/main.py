@@ -13,6 +13,7 @@ from app.db.session import session_context
 from app.jobs.scheduler import start_scheduler, stop_scheduler
 from app.routers import (
     bias_router,
+    valuation_router,
     tickers_router,
     news_router,
     summary_router,
@@ -115,6 +116,7 @@ app.include_router(history_router)
 app.include_router(stream_router)
 app.include_router(stats_router)
 app.include_router(bias_router)
+app.include_router(valuation_router)
 
 
 @app.get("/")
