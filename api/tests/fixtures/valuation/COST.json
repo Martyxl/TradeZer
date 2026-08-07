@@ -1,0 +1,80 @@
+{
+  "profile": {
+    "name": "Costco Wholesale Corp.",
+    "exchange": "NMS",
+    "currency": "USD",
+    "gics_sector": "Consumer Staples",
+    "gics_industry": "Consumer Staples Merchandise Retail",
+    "shares_outstanding": 443000000
+  },
+  "financials": [
+    {"period_end": "2026-02-28", "period_type": "Q", "report_date": "2026-03-10",
+     "revenue": 62000000000, "gross_profit": 8000000000, "operating_income": 2400000000,
+     "ebitda": 3000000000, "net_income": 1900000000, "eps_diluted": 4.28,
+     "shares_diluted": 444000000, "cfo": 3200000000, "capex": -1100000000,
+     "total_debt": 9000000000, "cash_and_equivalents": 12000000000, "total_equity": 24000000000},
+    {"period_end": "2025-11-30", "period_type": "Q", "report_date": "2025-12-11",
+     "revenue": 61000000000, "gross_profit": 7800000000, "operating_income": 2300000000,
+     "ebitda": 2900000000, "net_income": 1800000000, "eps_diluted": 4.05,
+     "shares_diluted": 444000000, "cfo": 3100000000, "capex": -1050000000,
+     "total_debt": 9100000000, "cash_and_equivalents": 11500000000, "total_equity": 23500000000},
+    {"period_end": "2025-08-31", "period_type": "Q", "report_date": "2025-09-25",
+     "revenue": 79000000000, "gross_profit": 9500000000, "operating_income": 3000000000,
+     "ebitda": 3600000000, "net_income": 2350000000, "eps_diluted": 5.29,
+     "shares_diluted": 444000000, "cfo": 3800000000, "capex": -1200000000,
+     "total_debt": 9200000000, "cash_and_equivalents": 11000000000, "total_equity": 23000000000},
+    {"period_end": "2025-05-31", "period_type": "Q", "report_date": "2025-05-29",
+     "revenue": 58000000000, "gross_profit": 7400000000, "operating_income": 2200000000,
+     "ebitda": 2800000000, "net_income": 1700000000, "eps_diluted": 3.82,
+     "shares_diluted": 445000000, "cfo": 2900000000, "capex": -1000000000,
+     "total_debt": 9300000000, "cash_and_equivalents": 10500000000, "total_equity": 22500000000},
+    {"period_end": "2025-02-28", "period_type": "Q", "report_date": "2025-03-10",
+     "revenue": 58500000000, "gross_profit": 7300000000, "operating_income": 2150000000,
+     "ebitda": 2750000000, "net_income": 1650000000, "eps_diluted": 3.71,
+     "shares_diluted": 446000000, "cfo": 2850000000, "capex": -980000000,
+     "total_debt": 9400000000, "cash_and_equivalents": 10000000000, "total_equity": 22000000000},
+    {"period_end": "2024-11-30", "period_type": "Q", "report_date": "2024-12-12",
+     "revenue": 57000000000, "gross_profit": 7100000000, "operating_income": 2050000000,
+     "ebitda": 2650000000, "net_income": 1600000000, "eps_diluted": 3.58,
+     "shares_diluted": 447000000, "cfo": 2750000000, "capex": -950000000,
+     "total_debt": 9500000000, "cash_and_equivalents": 9500000000, "total_equity": 21500000000},
+    {"period_end": "2024-08-31", "period_type": "Q", "report_date": "2024-09-26",
+     "revenue": 74000000000, "gross_profit": 8900000000, "operating_income": 2750000000,
+     "ebitda": 3350000000, "net_income": 2150000000, "eps_diluted": 4.84,
+     "shares_diluted": 447000000, "cfo": 3500000000, "capex": -1150000000,
+     "total_debt": 9600000000, "cash_and_equivalents": 9000000000, "total_equity": 21000000000},
+    {"period_end": "2024-05-31", "period_type": "Q", "report_date": "2024-05-30",
+     "revenue": 55000000000, "gross_profit": 7000000000, "operating_income": 2000000000,
+     "ebitda": 2600000000, "net_income": 1550000000, "eps_diluted": 3.48,
+     "shares_diluted": 448000000, "cfo": 2650000000, "capex": -920000000,
+     "total_debt": 9700000000, "cash_and_equivalents": 8500000000, "total_equity": 20500000000}
+  ],
+  "annual": [
+    {"period_end": "2025-08-31", "period_type": "FY", "report_date": "2025-09-25",
+     "revenue": 258000000000, "operating_income": 9500000000, "ebitda": 11300000000,
+     "net_income": 7800000000, "eps_diluted": 17.45, "shares_diluted": 445000000}
+  ],
+  "estimates": [
+    {"as_of_date": "2026-06-01", "horizon": "current_y", "metric": "eps",
+     "avg": 18.5, "low": 18.0, "high": 19.0, "n_analysts": 25, "year_ago_value": 17.45},
+    {"as_of_date": "2026-06-01", "horizon": "next_y", "metric": "eps",
+     "avg": 20.5, "low": 19.8, "high": 21.2, "n_analysts": 24, "year_ago_value": 18.5},
+    {"as_of_date": "2026-06-01", "horizon": "current_y", "metric": "revenue",
+     "avg": 275000000000, "low": 270000000000, "high": 280000000000, "n_analysts": 25, "year_ago_value": 258000000000}
+  ],
+  "revisions": [
+    {"as_of_date": "2026-06-01", "horizon": "current_y", "current": 18.5,
+     "days_ago_7": 18.45, "days_ago_30": 18.4, "days_ago_60": 18.3, "days_ago_90": 18.2,
+     "up_last_30d": 6, "down_last_30d": 3}
+  ],
+  "earnings_history": [
+    {"period_end": "2026-02-28", "eps_actual": 4.28, "eps_estimate": 4.20, "surprise_pct": 1.9},
+    {"period_end": "2025-11-30", "eps_actual": 4.05, "eps_estimate": 4.00, "surprise_pct": 1.3},
+    {"period_end": "2025-08-31", "eps_actual": 5.29, "eps_estimate": 5.10, "surprise_pct": 3.7},
+    {"period_end": "2025-05-31", "eps_actual": 3.82, "eps_estimate": 3.85, "surprise_pct": -0.8}
+  ],
+  "prices": [
+    {"date": "2026-05-29", "close": 940.0, "adj_close": 940.0, "volume": 2000000},
+    {"date": "2026-06-01", "close": 950.0, "adj_close": 950.0, "volume": 2100000}
+  ]
+}

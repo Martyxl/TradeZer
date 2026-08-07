@@ -1,0 +1,20 @@
+{
+  "profile": {
+    "name": "Sparse Data Co.",
+    "exchange": "NMS",
+    "currency": "USD",
+    "gics_sector": "Industrials",
+    "gics_industry": "Machinery",
+    "shares_outstanding": 100000000
+  },
+  "financials": [
+    {"period_end": "2026-03-31", "period_type": "Q", "report_date": "2026-05-01",
+     "revenue": 500000000, "eps_diluted": 0.80, "shares_diluted": 100000000}
+  ],
+  "estimates": [],
+  "revisions": [],
+  "earnings_history": [],
+  "prices": [
+    {"date": "2026-06-01", "close": 40.0, "adj_close": 40.0, "volume": 500000}
+  ]
+}
