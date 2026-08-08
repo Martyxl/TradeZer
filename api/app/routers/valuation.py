@@ -135,9 +135,8 @@ async def get_run(run_id: int, session: AsyncSession = Depends(get_session)):
 async def debug_provider(ticker: str = Query(...)):
     """Živě stáhne 1 ticker přes provider a vrátí počty + vzorky/chyby. Diagnostika."""
     import asyncio
-    from app.valuation.providers import get_provider
     from app.valuation.providers.fmp_provider import FMPProvider, BASE
-    p = get_provider()
+    p = FMPProvider()  # vynuceně FMP (klíč je na Vercelu), ať diagnostikujeme reálný feed
     out: dict = {"provider": p.name}
 
     def _probe():
