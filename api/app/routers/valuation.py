@@ -131,6 +131,45 @@ async def get_run(run_id: int, session: AsyncSession = Depends(get_session)):
     )
 
 
+@router.get("/debug/provider", dependencies=[Depends(_verify_token)])
+async def debug_provider(ticker: str = Query(...)):
+    """Živě stáhne 1 ticker přes provider a vrátí počty + vzorky/chyby. Diagnostika."""
+    import asyncio
+    from app.valuation.providers import get_provider
+    from app.valuation.providers.fmp_provider import FMPProvider, BASE
+    p = get_provider()
+    out: dict = {"provider": p.name}
+
+    def _probe():
+        res = {}
+        try:
+            prof = p.get_profile(ticker); res["profile"] = bool(prof and prof.name)
+        except Exception as e:
+            res["profile_err"] = str(e)[:200]
+        for label, fn in (("financials", p.get_financials), ("estimates", p.get_estimates),
+                          ("earnings", p.get_earnings_history)):
+            try:
+                res[label] = len(fn(ticker))
+            except Exception as e:
+                res[f"{label}_err"] = str(e)[:200]
+        # syrová FMP odpověď na income-statement (ať vidíme přesný tvar/chybu)
+        if isinstance(p, FMPProvider):
+            try:
+                import httpx
+                from app.config import settings
+                r = httpx.get(f"{BASE}/income-statement",
+                              params={"symbol": ticker, "period": "quarter", "limit": 1,
+                                      "apikey": settings.fmp_api_key}, timeout=20)
+                res["income_raw_status"] = r.status_code
+                res["income_raw"] = r.text[:300]
+            except Exception as e:
+                res["income_raw_err"] = str(e)[:200]
+        return res
+
+    out.update(await asyncio.to_thread(_probe))
+    return out
+
+
 @router.get("/backtest")
 async def backtest(session: AsyncSession = Depends(get_session)):
     """Skóre vs. budoucí výnos (1M/3M). Roste s historií skóre."""
