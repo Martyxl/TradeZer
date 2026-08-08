@@ -92,7 +92,9 @@ class FMPProvider(MarketDataProvider):
 
     def get_financials(self, ticker: str) -> list[FinancialStatement]:
         self._t = ticker
-        return self._statements("quarter", "Q") + self._statements("annual", "FY")
+        # Jen kvartální výkazy — na FMP free šetří 3 requesty/ticker (roční jsou
+        # dopočitatelné z 4 kvartálů, fy_end_month default). Roční přidej na placeném tarifu.
+        return self._statements("quarter", "Q")
 
     def get_estimates(self, ticker: str) -> list[EstimatePoint]:
         rows = self._safe("analyst-estimates", symbol=ticker, period="annual", limit=4)
