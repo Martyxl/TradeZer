@@ -195,17 +195,23 @@ async def _normalize(session, ticker: str, source: str, bundle: ProviderBundle) 
                 eps_actual=h.eps_actual, eps_estimate=h.eps_estimate, surprise_pct=h.surprise_pct),
         )
 
+    # Ceny: dávkově (per-row SELECT+INSERT je proti vzdálenému Postgresu neúnosné —
+    # ~1500 barů/ticker × 2 round-tripy = tisíce dotazů po síti). Jeden SELECT
+    # existujících dat + jeden hromadný insert chybějících.
+    existing_dates = set(await session.scalars(
+        select(ValPriceDaily.date).where(ValPriceDaily.ticker == ticker)))
+    new_rows = []
+    seen = set()
     for b in bundle.prices:
         d = _parse_date(b.date)
-        if d is None:
+        if d is None or d in existing_dates or d in seen:
             continue
-        await _upsert_by_key(
-            session, ValPriceDaily,
-            (ValPriceDaily.ticker == ticker, ValPriceDaily.date == d),
-            lambda b=b, d=d: ValPriceDaily(
-                ticker=ticker, date=d, open=b.open, high=b.high, low=b.low,
-                close=b.close, adj_close=b.adj_close, volume=b.volume),
-        )
+        seen.add(d)
+        new_rows.append(ValPriceDaily(
+            ticker=ticker, date=d, open=b.open, high=b.high, low=b.low,
+            close=b.close, adj_close=b.adj_close, volume=b.volume))
+    if new_rows:
+        session.add_all(new_rows)
 
 
 # ---- orchestrace ------------------------------------------------------------
