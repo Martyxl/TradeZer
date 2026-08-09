@@ -143,18 +143,30 @@ async def debug_fmpraw(ticker: str = Query(default="AAPL")):
     from app.valuation.providers.fmp_provider import BASE
 
     def _probe():
+        from app.valuation.providers.fmp_provider import FMPProvider
         key = settings.fmp_api_key
         out = {}
         for label, path, params in (
-            ("income", "income-statement", {"symbol": ticker, "period": "quarter", "limit": 1}),
-            ("estimates", "analyst-estimates", {"symbol": ticker, "period": "annual", "limit": 1}),
-            ("prices", "historical-price-eod/full", {"symbol": ticker, "from": "2026-07-01", "to": "2026-07-05"}),
+            ("income", "income-statement", {"symbol": ticker, "period": "quarter", "limit": 8}),
+            ("estimates", "analyst-estimates", {"symbol": ticker, "period": "annual", "limit": 12}),
         ):
             try:
                 r = httpx.get(f"{BASE}/{path}", params={**params, "apikey": key}, timeout=20)
-                out[label] = {"status": r.status_code, "body": r.text[:200]}
+                out[f"raw_{label}"] = {"status": r.status_code, "n": len(r.json()) if r.status_code == 200 and isinstance(r.json(), list) else None}
             except Exception as e:
-                out[label] = {"err": str(e)[:150]}
+                out[f"raw_{label}"] = {"err": str(e)[:150]}
+        # přes provider (stejná cesta jako ingest)
+        p = FMPProvider()
+        try:
+            fins = p.get_financials(ticker)
+            out["provider_financials"] = len(fins)
+            out["provider_fin_sample"] = fins[0].__dict__ if fins else None
+        except Exception as e:
+            out["provider_financials_err"] = str(e)[:200]
+        try:
+            out["provider_estimates"] = len(p.get_estimates(ticker))
+        except Exception as e:
+            out["provider_estimates_err"] = str(e)[:200]
         return out
 
     return await asyncio.to_thread(_probe)
