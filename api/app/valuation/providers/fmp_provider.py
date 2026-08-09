@@ -97,32 +97,40 @@ class FMPProvider(MarketDataProvider):
         return self._statements("quarter", "Q")
 
     def get_estimates(self, ticker: str) -> list[EstimatePoint]:
-        rows = self._safe("analyst-estimates", symbol=ticker, period="annual", limit=4)
+        # FMP vrací roční odhady i roky daleko dopředu → větší limit + mapování
+        # na aktuální/příští rok bez ohledu na pořadí. Pole ve `stable`: epsAvg,
+        # revenueAvg, numAnalystsEps... (ne estimatedEpsAvg).
+        rows = self._safe("analyst-estimates", symbol=ticker, period="annual", limit=12)
         if not rows:
             return []
         today = date.today()
+        want = {today.year: "current_y", today.year + 1: "next_y"}
         out = []
         for r in rows:
             d = (r.get("date") or "")[:10]
-            if not d:
-                continue
             try:
                 yr = int(d[:4])
-            except ValueError:
+            except (ValueError, TypeError):
                 continue
-            horizon = "current_y" if yr == today.year else ("next_y" if yr == today.year + 1 else None)
+            horizon = want.get(yr)
             if not horizon:
                 continue
-            out.append(EstimatePoint(
-                as_of_date=today.isoformat(), horizon=horizon, metric="eps",
-                avg=_f(r.get("estimatedEpsAvg")), low=_f(r.get("estimatedEpsLow")),
-                high=_f(r.get("estimatedEpsHigh")),
-                n_analysts=int(_f(r.get("numberAnalystEstimatedEps")) or 0) or None))
-            out.append(EstimatePoint(
-                as_of_date=today.isoformat(), horizon=horizon, metric="revenue",
-                avg=_f(r.get("estimatedRevenueAvg")), low=_f(r.get("estimatedRevenueLow")),
-                high=_f(r.get("estimatedRevenueHigh")),
-                n_analysts=int(_f(r.get("numberAnalystsEstimatedRevenue")) or 0) or None))
+            eps_avg = _f(r.get("epsAvg") if r.get("epsAvg") is not None else r.get("estimatedEpsAvg"))
+            eps_low = _f(r.get("epsLow") if r.get("epsLow") is not None else r.get("estimatedEpsLow"))
+            eps_high = _f(r.get("epsHigh") if r.get("epsHigh") is not None else r.get("estimatedEpsHigh"))
+            n_eps = _f(r.get("numAnalystsEps") if r.get("numAnalystsEps") is not None
+                       else r.get("numberAnalystEstimatedEps"))
+            rev_avg = _f(r.get("revenueAvg") if r.get("revenueAvg") is not None else r.get("estimatedRevenueAvg"))
+            rev_low = _f(r.get("revenueLow") if r.get("revenueLow") is not None else r.get("estimatedRevenueLow"))
+            rev_high = _f(r.get("revenueHigh") if r.get("revenueHigh") is not None else r.get("estimatedRevenueHigh"))
+            n_rev = _f(r.get("numAnalystsRevenue") if r.get("numAnalystsRevenue") is not None
+                       else r.get("numberAnalystsEstimatedRevenue"))
+            out.append(EstimatePoint(as_of_date=today.isoformat(), horizon=horizon, metric="eps",
+                                     avg=eps_avg, low=eps_low, high=eps_high,
+                                     n_analysts=int(n_eps) if n_eps else None))
+            out.append(EstimatePoint(as_of_date=today.isoformat(), horizon=horizon, metric="revenue",
+                                     avg=rev_avg, low=rev_low, high=rev_high,
+                                     n_analysts=int(n_rev) if n_rev else None))
         return out
 
     def get_revisions(self, ticker: str) -> list[RevisionTrend]:
