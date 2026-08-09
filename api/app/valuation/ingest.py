@@ -237,6 +237,13 @@ async def ingest_ticker(session, provider, ticker: str, today: date, force: bool
         await _store_raw(session, ticker, source, today, bundle)
         result = "fetched"
 
+    if force:
+        # Čistý štít: smaž normalizované výkazy/odhady/earnings firmy (odstraní
+        # nakupené revize z opakovaných běhů), ceny nech (upsert dle data).
+        from sqlalchemy import delete
+        for model in (ValFinancials, ValEstimate, ValEstimateTrend, ValEarningsHistory):
+            await session.execute(delete(model).where(model.ticker == ticker))
+
     await _normalize(session, ticker, source, bundle)
     await session.commit()
     return result

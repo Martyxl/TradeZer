@@ -190,6 +190,10 @@ def parse_companyfacts(facts: dict, max_quarters: int = 12) -> list[FinancialSta
             for f in _fields:
                 if getattr(cur, f) is None and getattr(s, f) is not None:
                     setattr(cur, f, getattr(s, f))
+    # EPS přepočítej až po sloučení (NI a akcie mohly být v různých dílčích řádcích)
+    for s in merged.values():
+        if s.eps_diluted is None and s.net_income is not None and s.shares_diluted:
+            s.eps_diluted = round(s.net_income / s.shares_diluted, 4)
     out = sorted(merged.values(), key=lambda s: s.period_end, reverse=True)
     return out[:max_quarters]
 
