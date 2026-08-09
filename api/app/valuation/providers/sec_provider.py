@@ -176,8 +176,22 @@ def parse_companyfacts(facts: dict, max_quarters: int = 12) -> list[FinancialSta
             capex=(-abs(fval("capex", fy, q)) if fval("capex", fy, q) is not None else None),
             total_debt=ltd, cash_and_equivalents=ival("cash", fy, q),
             total_equity=ival("total_equity", fy, q)))
-    stmts.sort(key=lambda s: s.period_end, reverse=True)
-    return stmts[:max_quarters]
+    # Sloučit řádky se stejným period_end (různé fy/fp tagy pro totéž období,
+    # např. Broadcom) — non-None hodnota vyhrává, ať TTM nevidí půlené kvartály.
+    merged: dict[str, FinancialStatement] = {}
+    _fields = ("revenue", "gross_profit", "operating_income", "ebitda", "net_income",
+               "eps_diluted", "shares_diluted", "cfo", "capex", "total_debt",
+               "cash_and_equivalents", "total_equity", "report_date")
+    for s in stmts:
+        cur = merged.get(s.period_end)
+        if cur is None:
+            merged[s.period_end] = s
+        else:
+            for f in _fields:
+                if getattr(cur, f) is None and getattr(s, f) is not None:
+                    setattr(cur, f, getattr(s, f))
+    out = sorted(merged.values(), key=lambda s: s.period_end, reverse=True)
+    return out[:max_quarters]
 
 
 class SECEdgarProvider(MarketDataProvider):
