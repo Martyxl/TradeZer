@@ -134,44 +134,6 @@ async def get_run(run_id: int, session: AsyncSession = Depends(get_session)):
     )
 
 
-@router.get("/debug/fmpraw", dependencies=[Depends(_verify_token)])
-async def debug_fmpraw(ticker: str = Query(default="AAPL")):
-    """Syrové FMP odpovědi (status+tělo) na klíčové endpointy. Dočasná diagnostika."""
-    import asyncio
-    import httpx
-    from app.config import settings
-    from app.valuation.providers.fmp_provider import BASE
-
-    def _probe():
-        from app.valuation.providers.fmp_provider import FMPProvider
-        key = settings.fmp_api_key
-        out = {}
-        for label, path, params in (
-            ("income", "income-statement", {"symbol": ticker, "period": "quarter", "limit": 8}),
-            ("estimates", "analyst-estimates", {"symbol": ticker, "period": "annual", "limit": 12}),
-        ):
-            try:
-                r = httpx.get(f"{BASE}/{path}", params={**params, "apikey": key}, timeout=20)
-                out[f"raw_{label}"] = {"status": r.status_code, "n": len(r.json()) if r.status_code == 200 and isinstance(r.json(), list) else None}
-            except Exception as e:
-                out[f"raw_{label}"] = {"err": str(e)[:150]}
-        # přes provider (stejná cesta jako ingest)
-        p = FMPProvider()
-        try:
-            fins = p.get_financials(ticker)
-            out["provider_financials"] = len(fins)
-            out["provider_fin_sample"] = fins[0].__dict__ if fins else None
-        except Exception as e:
-            out["provider_financials_err"] = str(e)[:200]
-        try:
-            out["provider_estimates"] = len(p.get_estimates(ticker))
-        except Exception as e:
-            out["provider_estimates_err"] = str(e)[:200]
-        return out
-
-    return await asyncio.to_thread(_probe)
-
-
 @router.get("/backtest")
 async def backtest(session: AsyncSession = Depends(get_session)):
     """Skóre vs. budoucí výnos (1M/3M). Roste s historií skóre."""
