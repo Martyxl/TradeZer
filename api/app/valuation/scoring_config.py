@@ -77,6 +77,7 @@ BUBBLE = {"pctile_pe_fwd_gt": 85, "growth_accel_lt": 0, "revision_ratio_lt": 0}
 CONF_ANALYSTS_FULL = 15   # min(n_analysts/15, 1)
 CONF_YEARS_FULL = 5       # min(years/5, 1)
 CONF_UNRELIABLE = 0.5     # pod tímto prahem = nespolehlivé
+CONF_NO_ESTIMATES = 0.6   # faktor když zdroj odhady nedodává (n_analysts None)
 
 # invertované vstupy (percentily/z: vysoká hodnota = drahé = nízké subskóre)
 INVERTED_PERCENTILES = {"pctile_pe_fwd", "pctile_ev_ebitda"}

@@ -276,6 +276,11 @@ def compute_metrics(
     m.pctile_pe_fwd = percentile_rank(pe_series, m.pe_fwd)
     if m.pctile_pe_fwd is not None:
         m.notes.append("pctile_pe_fwd = percentil vůči vlastní pe_ttm historii (chybí 5y fwd odhadů)")
+    # Bez forward odhadů (jen výkazy, např. SEC) použij trailing percentil, ať
+    # valuace i osa mapy fungují z reálných dat.
+    if m.pctile_pe_fwd is None and m.pctile_pe_ttm is not None:
+        m.pctile_pe_fwd = m.pctile_pe_ttm
+        m.notes.append("pctile_pe_fwd = trailing pe_ttm percentil (bez forward odhadů)")
 
     if not eps_ttm_v:
         m.notes.append("TTM EPS chybí (< 4 kvartály nebo NULL)")

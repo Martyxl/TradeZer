@@ -180,9 +180,11 @@ def score_metrics(metrics: dict, n_analysts: int | None = None,
         and rr < C.BUBBLE["revision_ratio_lt"]
     )
 
-    # confidence = pokrytí metrik × pokrytí analytiky × délka historie
+    # confidence = pokrytí metrik × pokrytí analytiky × délka historie.
+    # n_analysts None = zdroj odhady nedodává (např. SEC) → neutrální faktor,
+    # ať skóre z reálných výkazů není nulově důvěryhodné; 0 analytiků = reálně 0.
     fill = total_present / total_inputs if total_inputs else 0.0
-    an = min((n_analysts or 0) / C.CONF_ANALYSTS_FULL, 1.0)
+    an = C.CONF_NO_ESTIMATES if n_analysts is None else min(n_analysts / C.CONF_ANALYSTS_FULL, 1.0)
     yr = min((years_history or 0) / C.CONF_YEARS_FULL, 1.0)
     res.confidence = round(fill * an * yr, 3)
 

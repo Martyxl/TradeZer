@@ -9,6 +9,9 @@ def get_provider(name: str | None = None) -> MarketDataProvider:
     # automaticky preferuj FMP i bez explicitního MARKET_DATA_PROVIDER=fmp.
     if provider == "yfinance" and settings.fmp_api_key:
         provider = "fmp"
+    if provider == "sec":
+        from app.valuation.providers.sec_provider import SECEdgarProvider
+        return SECEdgarProvider()
     if provider == "fixture":
         from app.valuation.providers.fixture_provider import FixtureProvider
         return FixtureProvider()

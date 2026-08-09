@@ -25,8 +25,8 @@ jobs:
       - name: Ingest fundamentals
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          # FMP funguje z cloud IP (yfinance Yahoo blokuje z datacenter). Fallback na yfinance když klíč chybí.
-          MARKET_DATA_PROVIDER: ${{ secrets.FMP_API_KEY && 'fmp' || 'yfinance' }}
+          # SEC EDGAR = free výkazy (FMP free je paywallnul, 402). Ceny bere SEC provider z FMP free.
+          MARKET_DATA_PROVIDER: sec
           FMP_API_KEY: ${{ secrets.FMP_API_KEY }}
           # FMP free tier = 250 req/den. 194 firem × ~5 endpointů by kvótu přeteklo,
           # proto na free ingestujeme jen zobrazovaných 10. Přepiš secretem VAL_INGEST_UNIVERSE

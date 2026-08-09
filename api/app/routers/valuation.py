@@ -78,7 +78,8 @@ async def overview(
         m = metrics.get(s.ticker, {})
         items.append(S.OverviewItem(
             ticker=s.ticker, name=inst.name, group_key=inst.group_key,
-            pctile_pe_fwd=m.get("pctile_pe_fwd"), eps_growth_ntm=m.get("eps_growth_ntm"),
+            pctile_pe_fwd=m.get("pctile_pe_fwd"),
+            eps_growth_ntm=m.get("eps_growth_ntm") if m.get("eps_growth_ntm") is not None else m.get("eps_yoy_ttm"),
             market_cap=m.get("market_cap"), valuation_score=s.valuation_score,
             composite_score=s.composite_score, valuation_verdict=s.valuation_verdict,
             horizon_verdict=s.horizon_verdict, bubble_flag=s.bubble_flag, confidence=s.confidence,

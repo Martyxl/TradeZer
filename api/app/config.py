@@ -46,6 +46,9 @@ class Settings(BaseSettings):
     # Valuation Radar
     market_data_provider: str = Field(default="yfinance", alias="MARKET_DATA_PROVIDER")
     fmp_api_key: str = Field(default="", alias="FMP_API_KEY")
+    # SEC EDGAR vyžaduje popisný User-Agent s kontaktem (jinak 403)
+    sec_user_agent: str = Field(default="Tradezer/1.0 (tradezer.app; contact martyxl@gmail.com)",
+                                alias="SEC_USER_AGENT")
     val_cache_ttl_hours: int = Field(default=24, alias="VAL_CACHE_TTL_HOURS")
     val_model_version: str = Field(default="val-1.0.0", alias="VAL_MODEL_VERSION")
     # LLM pro valuation shrnutí — OpenAI-compatible (LiteLLM/lokál) nebo Anthropic fallback
