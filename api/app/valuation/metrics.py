@@ -210,6 +210,13 @@ def compute_metrics(
     # růst
     m.revenue_yoy_ttm = yoy_ttm(quarters, "revenue")
     m.eps_yoy_ttm = yoy_ttm(quarters, "eps_diluted")
+    # Pojistka proti glitchům rekonstrukce TTM (díry/změna XBRL tagů): nereálné
+    # meziroční tempo u zavedených firem = chyba dat → zahoď.
+    for _attr in ("revenue_yoy_ttm", "eps_yoy_ttm"):
+        _v = getattr(m, _attr)
+        if _v is not None and (_v > 300 or _v < -95):
+            setattr(m, _attr, None)
+            m.notes.append(f"{_attr} zahozeno jako nereálné ({_v:.0f}% — glitch dat)")
     m.eps_growth_ntm = pct(eps_ntm_v, eps_ttm_v)
     m.revenue_growth_ntm = pct(cy_rev, revenue_ttm)
     if m.eps_growth_ntm is not None and m.eps_yoy_ttm is not None:
