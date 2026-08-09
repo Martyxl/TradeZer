@@ -242,8 +242,9 @@ async def ingest_ticker(session, provider, ticker: str, today: date, force: bool
     return result
 
 
-async def ingest_all(session, tickers: list[str] | None = None, force: bool = False) -> dict:
-    provider = get_provider()
+async def ingest_all(session, tickers: list[str] | None = None, force: bool = False,
+                     provider_name: str | None = None) -> dict:
+    provider = get_provider(provider_name)
     tickers = tickers or peer_universe()
     today = datetime.utcnow().date()
     stats = {"total": len(tickers), "fetched": 0, "cache": 0, "failed": 0, "provider": provider.name}

@@ -93,6 +93,7 @@ async def refresh(
     with_ingest: bool = Query(default=False, description="Zahrne i ingest (pomalé, jen mimo Vercel)"),
     tickers: str | None = Query(default=None, description="CSV omezení tickerů (jinak celé peer univerzum)"),
     force: bool = Query(default=False, description="Vynutí re-fetch (obejde dnešní cache)"),
+    provider: str | None = Query(default=None, description="Override providera pro tento běh (sec/fmp/yfinance)"),
     session: AsyncSession = Depends(get_session),
 ):
     """Přepočte metriky a skóre z DB. with_ingest=true navíc stáhne data
@@ -104,7 +105,7 @@ async def refresh(
     tick_list = [t.strip().upper() for t in tickers.split(",")] if tickers else None
     if with_ingest:
         from app.valuation.ingest import ingest_all
-        stages["ingest"] = await ingest_all(session, tickers=tick_list, force=force)
+        stages["ingest"] = await ingest_all(session, tickers=tick_list, force=force, provider_name=provider)
     # Když je zadán ticker list, scope i compute/score (jinak by přepočet přes celé
     # univerzum přetáhl 60s Vercel limit).
     stages["compute"] = await compute_all(session, tickers=tick_list)
