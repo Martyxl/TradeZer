@@ -133,6 +133,32 @@ async def get_run(run_id: int, session: AsyncSession = Depends(get_session)):
     )
 
 
+@router.get("/debug/fmpraw", dependencies=[Depends(_verify_token)])
+async def debug_fmpraw(ticker: str = Query(default="AAPL")):
+    """Syrové FMP odpovědi (status+tělo) na klíčové endpointy. Dočasná diagnostika."""
+    import asyncio
+    import httpx
+    from app.config import settings
+    from app.valuation.providers.fmp_provider import BASE
+
+    def _probe():
+        key = settings.fmp_api_key
+        out = {}
+        for label, path, params in (
+            ("income", "income-statement", {"symbol": ticker, "period": "quarter", "limit": 1}),
+            ("estimates", "analyst-estimates", {"symbol": ticker, "period": "annual", "limit": 1}),
+            ("prices", "historical-price-eod/full", {"symbol": ticker, "from": "2026-07-01", "to": "2026-07-05"}),
+        ):
+            try:
+                r = httpx.get(f"{BASE}/{path}", params={**params, "apikey": key}, timeout=20)
+                out[label] = {"status": r.status_code, "body": r.text[:200]}
+            except Exception as e:
+                out[label] = {"err": str(e)[:150]}
+        return out
+
+    return await asyncio.to_thread(_probe)
+
+
 @router.get("/backtest")
 async def backtest(session: AsyncSession = Depends(get_session)):
     """Skóre vs. budoucí výnos (1M/3M). Roste s historií skóre."""
