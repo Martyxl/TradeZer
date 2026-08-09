@@ -41,17 +41,18 @@ async def _years_history(session, ticker: str) -> float | None:
     return (hi - lo).days / 365.25
 
 
-async def score_all(session, as_of: date | None = None) -> dict:
+async def score_all(session, as_of: date | None = None, tickers: list[str] | None = None) -> dict:
     as_of = as_of or datetime.utcnow().date()
     version = settings.val_model_version
     run = ValScoreRun(model_version=version)
     session.add(run)
     await session.flush()
 
-    rows = (await session.execute(
-        select(ValMetricsDaily).where(
-            ValMetricsDaily.as_of_date == as_of, ValMetricsDaily.model_version == version)
-    )).scalars().all()
+    stmt = select(ValMetricsDaily).where(
+        ValMetricsDaily.as_of_date == as_of, ValMetricsDaily.model_version == version)
+    if tickers:
+        stmt = stmt.where(ValMetricsDaily.ticker.in_(tickers))
+    rows = (await session.execute(stmt)).scalars().all()
 
     ok = failed = 0
     for mrow in rows:

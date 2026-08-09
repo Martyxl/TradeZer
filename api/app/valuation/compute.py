@@ -91,13 +91,14 @@ async def _load_ticker_inputs(session, ticker: str) -> dict:
                 surprises=surprises, prices=price_list, close=close, fy_end_month=fy_end_month)
 
 
-async def compute_all(session, as_of: date | None = None) -> dict:
+async def compute_all(session, as_of: date | None = None, tickers: list[str] | None = None) -> dict:
     as_of = as_of or datetime.utcnow().date()
     version = settings.val_model_version
 
-    instruments = (await session.execute(
-        select(ValInstrument).where(ValInstrument.in_peer_universe == True)  # noqa: E712
-    )).scalars().all()
+    stmt = select(ValInstrument).where(ValInstrument.in_peer_universe == True)  # noqa: E712
+    if tickers:
+        stmt = stmt.where(ValInstrument.ticker.in_(tickers))
+    instruments = (await session.execute(stmt)).scalars().all()
 
     # 1) single-ticker metriky
     metric_by_ticker: dict[str, M.MetricSet] = {}

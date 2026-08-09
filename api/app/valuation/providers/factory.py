@@ -5,6 +5,10 @@ from app.valuation.providers.base import MarketDataProvider
 
 def get_provider(name: str | None = None) -> MarketDataProvider:
     provider = (name or settings.market_data_provider or "yfinance").lower()
+    # yfinance je z cloud/CI IP nefunkční (Yahoo blokuje) → když je FMP klíč,
+    # automaticky preferuj FMP i bez explicitního MARKET_DATA_PROVIDER=fmp.
+    if provider == "yfinance" and settings.fmp_api_key:
+        provider = "fmp"
     if provider == "fixture":
         from app.valuation.providers.fixture_provider import FixtureProvider
         return FixtureProvider()

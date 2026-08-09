@@ -103,8 +103,10 @@ async def refresh(
     if with_ingest:
         from app.valuation.ingest import ingest_all
         stages["ingest"] = await ingest_all(session, tickers=tick_list)
-    stages["compute"] = await compute_all(session)
-    score_stats = await score_all(session)
+    # Když je zadán ticker list, scope i compute/score (jinak by přepočet přes celé
+    # univerzum přetáhl 60s Vercel limit).
+    stages["compute"] = await compute_all(session, tickers=tick_list)
+    score_stats = await score_all(session, tickers=tick_list)
     stages["score"] = score_stats
     return S.RefreshResponse(meta=_meta(await _latest_score_date(session)),
                              status="ok", run_id=score_stats.get("run_id"), stages=stages)
