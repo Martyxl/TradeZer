@@ -49,14 +49,17 @@ _QUARTERS = ["Q1", "Q2", "Q3", "Q4"]
 
 
 def _facts_for(facts: dict, names: list[str]) -> list[dict]:
+    """Sloučí fakty ze VŠECH kandidátních konceptů (firmy mění XBRL tagy v čase)."""
     ug = facts.get("facts", {}).get("us-gaap", {})
+    merged: list[dict] = []
     for n in names:
         if n in ug:
             units = ug[n].get("units", {})
             for unit_key in ("USD", "USD/shares", "shares"):
                 if unit_key in units:
-                    return units[unit_key]
-    return []
+                    merged.extend(units[unit_key])
+                    break
+    return merged
 
 
 def _dur_days(f: dict) -> int | None:

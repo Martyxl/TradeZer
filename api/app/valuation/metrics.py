@@ -214,6 +214,13 @@ def compute_metrics(
     m.revenue_growth_ntm = pct(cy_rev, revenue_ttm)
     if m.eps_growth_ntm is not None and m.eps_yoy_ttm is not None:
         m.growth_accel = m.eps_growth_ntm - m.eps_yoy_ttm
+    # Bez forward odhadů použij trailing růst, ať growth score není prázdné
+    if m.eps_growth_ntm is None and m.eps_yoy_ttm is not None:
+        m.eps_growth_ntm = m.eps_yoy_ttm
+        m.notes.append("eps_growth_ntm = trailing eps_yoy (bez forward odhadů)")
+    if m.revenue_growth_ntm is None and m.revenue_yoy_ttm is not None:
+        m.revenue_growth_ntm = m.revenue_yoy_ttm
+        m.notes.append("revenue_growth_ntm = trailing revenue_yoy (bez forward odhadů)")
 
     if m.pe_fwd is not None and m.eps_growth_ntm and m.eps_growth_ntm > 0:
         m.peg_fwd = m.pe_fwd / m.eps_growth_ntm
