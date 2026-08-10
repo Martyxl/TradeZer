@@ -143,9 +143,10 @@ def historical_pe_series(quarters: list[dict], prices: list[dict]) -> list[float
     return series
 
 
-def percentile_rank(series: list[float], value: float | None) -> float | None:
-    """V jakém percentilu (0–100) je `value` v `series`."""
-    if value is None or len(series) < 30:  # potřeba rozumná historie
+def percentile_rank(series: list[float], value: float | None, min_points: int = 20) -> float | None:
+    """V jakém percentilu (0–100) je `value` v `series`. min_points = minimální historie
+    (na free datech ze SEC bývá mělká; nižší práh = víc firem má verdikt, slabší statistika)."""
+    if value is None or len(series) < min_points:
         return None
     below = sum(1 for x in series if x <= value)
     return round(100.0 * below / len(series), 1)
