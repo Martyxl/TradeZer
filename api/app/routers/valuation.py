@@ -54,28 +54,36 @@ async def overview(
     min_confidence: float = Query(default=0.0, ge=0.0, le=1.0),
     session: AsyncSession = Depends(get_session),
 ):
-    as_of = await _latest_score_date(session)
-    if as_of is None:
+    version = settings.val_model_version
+    # NEJNOVĚJŠÍ skóre PER FIRMA (různé firmy skórované různé dny se nesmí schovávat).
+    all_scores = (await session.execute(select(ValScoreDaily).where(
+        ValScoreDaily.model_version == version).order_by(ValScoreDaily.as_of_date.desc()))).scalars().all()
+    latest_score: dict[str, ValScoreDaily] = {}
+    for s in all_scores:
+        latest_score.setdefault(s.ticker, s)
+    if not latest_score:
         return S.OverviewResponse(meta=_meta(None), items=[])
 
-    version = settings.val_model_version
-    scores = (await session.execute(select(ValScoreDaily).where(
-        ValScoreDaily.as_of_date == as_of, ValScoreDaily.model_version == version))).scalars().all()
-    metrics = {m.ticker: m.metrics for m in (await session.execute(select(ValMetricsDaily).where(
-        ValMetricsDaily.as_of_date == as_of, ValMetricsDaily.model_version == version))).scalars().all()}
+    all_metrics = (await session.execute(select(ValMetricsDaily).where(
+        ValMetricsDaily.model_version == version).order_by(ValMetricsDaily.as_of_date.desc()))).scalars().all()
+    metrics: dict[str, dict] = {}
+    for mr in all_metrics:
+        metrics.setdefault(mr.ticker, mr.metrics)
+
     instruments = {i.ticker: i for i in (await session.execute(
         select(ValInstrument).where(ValInstrument.in_display_universe == True))).scalars().all()}  # noqa: E712
+    as_of = max(s.as_of_date for s in latest_score.values())
 
     items = []
-    for s in scores:
-        inst = instruments.get(s.ticker)
+    for ticker, s in latest_score.items():
+        inst = instruments.get(ticker)
         if inst is None:  # jen display univerzum
             continue
         if group and inst.group_key != group:
             continue
         if (s.confidence or 0) < min_confidence:
             continue
-        m = metrics.get(s.ticker, {})
+        m = metrics.get(ticker, {})
         items.append(S.OverviewItem(
             ticker=s.ticker, name=inst.name, group_key=inst.group_key,
             pctile_pe_fwd=m.get("pctile_pe_fwd"),
