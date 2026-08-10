@@ -115,6 +115,32 @@ async def refresh(
                              status="ok", run_id=score_stats.get("run_id"), stages=stages)
 
 
+@router.post("/instruments", dependencies=[Depends(_verify_token)])
+async def upsert_instruments(payload: dict, session: AsyncSession = Depends(get_session)):
+    """Přidá/aktualizuje instrumenty (ticker list) do dané skupiny + display/peer.
+
+    Body: {"tickers": ["MRK","OGN",...], "group_key": "healthcare", "display": true}
+    """
+    tickers = [t.strip().upper() for t in payload.get("tickers", []) if t.strip()]
+    group_key = payload.get("group_key")
+    display = bool(payload.get("display", True))
+    added = updated = 0
+    for t in tickers:
+        inst = await session.get(ValInstrument, t)
+        if inst is None:
+            session.add(ValInstrument(ticker=t, group_key=group_key,
+                                      in_display_universe=display, in_peer_universe=True, active=True))
+            added += 1
+        else:
+            inst.in_display_universe = display
+            inst.in_peer_universe = True
+            if group_key:
+                inst.group_key = group_key
+            updated += 1
+    await session.commit()
+    return {"status": "ok", "added": added, "updated": updated, "tickers": tickers}
+
+
 @router.post("/seed", dependencies=[Depends(_verify_token)])
 async def seed(session: AsyncSession = Depends(get_session)):
     """Naplní val_groups + val_instruments (běžící DB se přes app.db.seed neplní)."""
