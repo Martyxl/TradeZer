@@ -36,7 +36,7 @@ from app.valuation.universe import peer_universe, resolve_group
 log = structlog.get_logger(__name__)
 
 RATE_LIMIT_SECONDS = 1.5     # prodleva mezi tickery
-PRICE_HISTORY_YEARS = 6      # ~5 let pro percentily + rezerva
+PRICE_HISTORY_YEARS = 10     # plnější cyklus pro percentily (SEC EPS historie je hluboká)
 
 _ENDPOINTS = ("profile", "financials", "estimates", "revisions", "earnings_history", "prices")
 

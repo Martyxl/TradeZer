@@ -71,130 +71,104 @@ def _dur_days(f: dict) -> int | None:
         return None
 
 
-def _flow_by_fyq(facts: dict, names: list[str]) -> dict[tuple[int, str], dict]:
-    """Kvartální (≈90d) hodnoty flow konceptu podle (fy, fp). Nejnovější 'filed' vyhrává."""
-    out: dict[tuple, dict] = {}
+def _days_between(a: str, b: str) -> int:
+    return (date.fromisoformat(b[:10]) - date.fromisoformat(a[:10])).days
+
+
+def _by_end_duration(facts: dict, names: list[str], lo: int, hi: int) -> dict[str, dict]:
+    """Fakty s délkou trvání v [lo, hi] dní, klíčované KONCEM období (ne fy/fp — ty
+    firmy jako NVDA tagují nekonzistentně). Nejnovější 'filed' vyhrává."""
+    out: dict[str, dict] = {}
     for f in _facts_for(facts, names):
-        fy, fp, form = f.get("fy"), f.get("fp"), f.get("form", "")
-        if fy is None or fp not in ("Q1", "Q2", "Q3", "Q4"):
-            continue
         d = _dur_days(f)
-        if d is None or not (80 <= d <= 100):  # jen 3měsíční, ne YTD
+        end = f.get("end")
+        if d is None or end is None or not (lo <= d <= hi):
             continue
-        key = (int(fy), fp)
-        if key not in out or f.get("filed", "") > out[key].get("filed", ""):
-            out[key] = {"val": f.get("val"), "end": f.get("end"), "filed": f.get("filed")}
+        if end not in out or f.get("filed", "") > out[end].get("filed", ""):
+            out[end] = {"val": f.get("val"), "start": f.get("start"),
+                        "end": end, "filed": f.get("filed")}
     return out
 
 
-def _annual_by_fy(facts: dict, names: list[str]) -> dict[int, dict]:
-    out: dict[int, dict] = {}
+def _instant_by_end(facts: dict, names: list[str]) -> dict[str, dict]:
+    """Rozvahové (okamžité) hodnoty klíčované koncem období. Nejnovější 'filed' vyhrává."""
+    out: dict[str, dict] = {}
     for f in _facts_for(facts, names):
-        fy = f.get("fy")
-        if fy is None or f.get("fp") != "FY":
+        end = f.get("end")
+        if end is None:
             continue
-        d = _dur_days(f)
-        if d is None or not (350 <= d <= 380):
-            continue
-        if int(fy) not in out or f.get("filed", "") > out[int(fy)].get("filed", ""):
-            out[int(fy)] = {"val": f.get("val"), "end": f.get("end"), "filed": f.get("filed")}
+        if end not in out or f.get("filed", "") > out[end].get("filed", ""):
+            out[end] = {"val": f.get("val"), "filed": f.get("filed")}
     return out
 
 
-def _instant_by_fyq(facts: dict, names: list[str]) -> dict[tuple[int, str], dict]:
-    """Rozvahové (okamžité) hodnoty podle (fy, fp); FY = stav ke konci roku (~Q4)."""
-    out: dict[tuple, dict] = {}
-    for f in _facts_for(facts, names):
-        fy, fp = f.get("fy"), f.get("fp")
-        if fy is None or fp not in ("Q1", "Q2", "Q3", "Q4", "FY"):
-            continue
-        norm_fp = "Q4" if fp == "FY" else fp
-        key = (int(fy), norm_fp)
-        if key not in out or f.get("filed", "") > out[key].get("filed", ""):
-            out[key] = {"val": f.get("val"), "end": f.get("end"), "filed": f.get("filed")}
-    return out
+def parse_companyfacts(facts: dict, max_quarters: int = 44) -> list[FinancialStatement]:
+    """Sestaví kvartální výkazy z XBRL companyfacts (čistá funkce, testovatelná).
 
+    Klíč = KONEC období + délka trvání (ne fiskální fy/fp label — ten některé firmy,
+    např. NVDA, tagují posunutě mezi ročním a kvartálním výkazem a dopočet Q4 pak
+    odečítá kvartály ze špatného roku → záporné hodnoty).
+    Q4 dopočet aditivních flow = roční − (3 kvartály uvnitř ročního okna, dle dat).
+    shares_diluted je vážený PRŮMĚR (neaditivní) → na konci FY se NEODEČÍTÁ, bere se
+    roční hodnota přímo.
+    """
+    flow_q = {k: _by_end_duration(facts, names, 80, 100) for k, names in FLOW_CONCEPTS.items()}
+    flow_a = {k: _by_end_duration(facts, names, 350, 380) for k, names in FLOW_CONCEPTS.items()}
+    instants = {k: _instant_by_end(facts, names) for k, names in INSTANT_CONCEPTS.items()}
 
-def _q4(flow_q: dict, annual: dict, fy: int) -> dict | None:
-    """Q4 = roční − (Q1+Q2+Q3), pokud máme roční i všechny tři kvartály."""
-    if fy not in annual:
-        return None
-    parts = [flow_q.get((fy, q)) for q in ("Q1", "Q2", "Q3")]
-    if any(p is None or p.get("val") is None for p in parts):
-        return None
-    val = annual[fy]["val"] - sum(p["val"] for p in parts)
-    return {"val": val, "end": annual[fy]["end"], "filed": annual[fy]["filed"]}
+    additive = [k for k in FLOW_CONCEPTS if k != "shares_diluted"]
 
+    # Q4 aditivních flow: dle DAT najdi 3 kvartály uvnitř ročního okna, odečti od ročního.
+    for k in additive:
+        q, a = flow_q[k], flow_a[k]
+        for a_end, arow in a.items():
+            if a_end in q or not arow.get("start") or arow.get("val") is None:
+                continue
+            a_start = arow["start"]
+            inside = sorted(qe for qe in q
+                            if a_start < qe < a_end and _days_between(qe, a_end) >= 85)
+            if len(inside) != 3 or any(q[qe]["val"] is None for qe in inside):
+                continue
+            q[a_end] = {"val": arow["val"] - sum(q[qe]["val"] for qe in inside),
+                        "start": None, "end": a_end, "filed": arow["filed"]}
 
-def parse_companyfacts(facts: dict, max_quarters: int = 12) -> list[FinancialStatement]:
-    """Sestaví kvartální výkazy z XBRL companyfacts (čistá funkce, testovatelná)."""
-    flows = {k: _flow_by_fyq(facts, names) for k, names in FLOW_CONCEPTS.items()}
-    annuals = {k: _annual_by_fy(facts, names) for k, names in FLOW_CONCEPTS.items()}
-    instants = {k: _instant_by_fyq(facts, names) for k, names in INSTANT_CONCEPTS.items()}
+    # shares_diluted na FY-konci: roční vážený průměr přímo (NEODEČÍTAT — dá záporné akcie)
+    sh_q, sh_a = flow_q["shares_diluted"], flow_a["shares_diluted"]
+    for a_end, arow in sh_a.items():
+        if a_end not in sh_q and arow.get("val") is not None:
+            sh_q[a_end] = {"val": arow["val"], "start": None, "end": a_end, "filed": arow["filed"]}
 
-    # doplň Q4 do flows z ročních
-    all_fys = {fy for m in annuals.values() for fy in m}
-    for k in flows:
-        for fy in all_fys:
-            if (fy, "Q4") not in flows[k]:
-                q4 = _q4(flows[k], annuals[k], fy)
-                if q4:
-                    flows[k][(fy, "Q4")] = q4
+    # množina období = konce, kde máme revenue nebo net_income
+    periods = set(flow_q["revenue"]) | set(flow_q["net_income"])
 
-    # množina (fy, q) kde máme aspoň revenue nebo net_income
-    periods = set()
-    for k in ("revenue", "net_income"):
-        periods |= set(flows[k].keys())
-
-    def fval(concept, fy, q):
-        d = flows.get(concept, {}).get((fy, q))
+    def fval(concept: str, end: str):
+        d = flow_q[concept].get(end)
         return d["val"] if d else None
 
-    def ival(concept, fy, q):
-        d = instants.get(concept, {}).get((fy, q))
+    def ival(concept: str, end: str):
+        d = instants[concept].get(end)
         return d["val"] if d else None
 
     stmts = []
-    for (fy, q) in periods:
-        rev = fval("revenue", fy, q)
-        ni = fval("net_income", fy, q)
-        end = (flows["revenue"].get((fy, q)) or flows["net_income"].get((fy, q)) or {}).get("end")
-        filed = (flows["revenue"].get((fy, q)) or flows["net_income"].get((fy, q)) or {}).get("filed")
-        if not end:
-            continue
-        op = fval("operating_income", fy, q)
-        da = fval("dep_amort", fy, q)
+    for end in periods:
+        rev = fval("revenue", end)
+        ni = fval("net_income", end)
+        filed = (flow_q["revenue"].get(end) or flow_q["net_income"].get(end) or {}).get("filed")
+        op = fval("operating_income", end)
+        da = fval("dep_amort", end)
         ebitda = (op + da) if (op is not None and da is not None) else None
-        shares = fval("shares_diluted", fy, q)
+        shares = fval("shares_diluted", end)
         eps = (ni / shares) if (ni is not None and shares) else None
-        ltd = ival("long_term_debt", fy, q)
+        capex = fval("capex", end)
         stmts.append(FinancialStatement(
             period_end=end[:10], period_type="Q", report_date=(filed or "")[:10] or None,
-            revenue=rev, gross_profit=fval("gross_profit", fy, q), operating_income=op,
+            revenue=rev, gross_profit=fval("gross_profit", end), operating_income=op,
             ebitda=ebitda, net_income=ni, eps_diluted=round(eps, 4) if eps is not None else None,
-            shares_diluted=shares, cfo=fval("cfo", fy, q),
-            capex=(-abs(fval("capex", fy, q)) if fval("capex", fy, q) is not None else None),
-            total_debt=ltd, cash_and_equivalents=ival("cash", fy, q),
-            total_equity=ival("total_equity", fy, q)))
-    # Sloučit řádky se stejným period_end (různé fy/fp tagy pro totéž období,
-    # např. Broadcom) — non-None hodnota vyhrává, ať TTM nevidí půlené kvartály.
-    merged: dict[str, FinancialStatement] = {}
-    _fields = ("revenue", "gross_profit", "operating_income", "ebitda", "net_income",
-               "eps_diluted", "shares_diluted", "cfo", "capex", "total_debt",
-               "cash_and_equivalents", "total_equity", "report_date")
-    for s in stmts:
-        cur = merged.get(s.period_end)
-        if cur is None:
-            merged[s.period_end] = s
-        else:
-            for f in _fields:
-                if getattr(cur, f) is None and getattr(s, f) is not None:
-                    setattr(cur, f, getattr(s, f))
-    # EPS přepočítej až po sloučení (NI a akcie mohly být v různých dílčích řádcích)
-    for s in merged.values():
-        if s.eps_diluted is None and s.net_income is not None and s.shares_diluted:
-            s.eps_diluted = round(s.net_income / s.shares_diluted, 4)
-    out = sorted(merged.values(), key=lambda s: s.period_end, reverse=True)
+            shares_diluted=shares, cfo=fval("cfo", end),
+            capex=(-abs(capex) if capex is not None else None),
+            total_debt=ival("long_term_debt", end), cash_and_equivalents=ival("cash", end),
+            total_equity=ival("total_equity", end)))
+    out = sorted(stmts, key=lambda s: s.period_end, reverse=True)
     return out[:max_quarters]
 
 

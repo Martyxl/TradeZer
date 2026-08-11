@@ -78,12 +78,13 @@ async def _load_ticker_inputs(session, ticker: str) -> dict:
     )).scalars().all()
     surprises = [e.surprise_pct for e in earn]
 
-    # Ceny ASC (jen close potřeba)
+    # Ceny ASC (close = raw pro úrovňové metriky, adj_close = split/div-adjusted pro řady)
     prices = (await session.execute(
-        select(ValPriceDaily.date, ValPriceDaily.close).where(ValPriceDaily.ticker == ticker)
+        select(ValPriceDaily.date, ValPriceDaily.close, ValPriceDaily.adj_close)
+        .where(ValPriceDaily.ticker == ticker)
         .order_by(ValPriceDaily.date.asc())
     )).all()
-    price_list = [{"date": d, "close": c} for d, c in prices]
+    price_list = [{"date": d, "close": c, "adj_close": ac} for d, c, ac in prices]
     close = price_list[-1]["close"] if price_list else None
 
     fy_end_month = annual[0]["period_end"].month if annual else 12

@@ -131,15 +131,19 @@ def _pit_ttm_eps(quarters: list[dict], as_of: date) -> float | None:
 
 
 def historical_pe_series(quarters: list[dict], prices: list[dict]) -> list[float]:
-    """Denní řada pe_ttm za dostupnou historii (point-in-time TTM zisk)."""
+    """Denní řada pe_ttm za dostupnou historii (point-in-time TTM zisk).
+
+    Cena = adj_close (split-adjusted). SEC retroaktivně přepočítává historické akcie/EPS
+    na post-split bázi, takže je nutné je párovat se split-adjusted cenou — jinak by P/E
+    přes hranici splitu skočil ~10× (např. NVDA 10:1 v červnu 2024)."""
     series = []
     for p in prices:
-        close, d = p.get("close"), p.get("date")
-        if close is None or d is None:
+        px, d = (p.get("adj_close") or p.get("close")), p.get("date")
+        if px is None or d is None:
             continue
         eps = _pit_ttm_eps(quarters, d)
         if eps and eps > 0:
-            series.append(close / eps)
+            series.append(px / eps)
     return series
 
 
@@ -261,11 +265,13 @@ def compute_metrics(
         if s4:
             m.avg_surprise_4q = sum(s4) / len(s4)
 
-    # trend a riziko (z denních cen ASC)
-    closes = [p["close"] for p in prices if p.get("close") is not None]
+    # trend a riziko (z denních cen ASC). adj_close = split/dividend-adjusted, aby řada
+    # nekřížila hranici splitu (NVDA 10:1 by jinak dala falešný −90% propad v momentu).
+    closes = [(p.get("adj_close") or p.get("close")) for p in prices
+              if (p.get("adj_close") or p.get("close")) is not None]
     if len(closes) >= 200 and close is not None:
         sma200 = sum(closes[-200:]) / 200
-        m.px_vs_sma200 = _mul100(safe_div(close, sma200) - 1) if sma200 else None
+        m.px_vs_sma200 = _mul100(safe_div(closes[-1], sma200) - 1) if sma200 else None
     if len(closes) >= 252:
         # 12-1 momentum: výnos za ~12M bez posledního ~1M (21 dní)
         if closes[-21] and closes[-252]:
