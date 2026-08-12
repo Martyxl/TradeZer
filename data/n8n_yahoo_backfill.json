@@ -1,0 +1,149 @@
+{
+  "name": "Tradezer Yahoo Price Backfill",
+  "active": false,
+  "settings": {},
+  "nodes": [
+    {
+      "id": "trig-manual-0001",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [-400, 0],
+      "parameters": {}
+    },
+    {
+      "id": "trig-sched-0002",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-400, 200],
+      "parameters": {
+        "rule": {
+          "interval": [
+            { "field": "cronExpression", "expression": "0 5 * * 1" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "code-prep-0003",
+      "name": "Prepare Tickers",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-160, 100],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// KONFIGURACE — uprav dle potreby\nconst baseUrl = 'https://tradezer.app';\nconst token   = 'tradezer-secret-2026';\nconst tickers = ['LLY','MRK','AVGO','AMGN','VRTX','OGN','GILD','ABCL'];\n\nreturn tickers.map(t => ({ json: { ticker: t, baseUrl, token } }));"
+      }
+    },
+    {
+      "id": "http-yahoo-0004",
+      "name": "Yahoo Fetch",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [80, 100],
+      "parameters": {
+        "method": "GET",
+        "url": "=https://query1.finance.yahoo.com/v8/finance/chart/{{ $json.ticker }}?range=10y&interval=1d&includeAdjustedClose=true",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+            }
+          ]
+        },
+        "options": { "batching": { "batch": { "batchSize": 1, "batchInterval": 1200 } } }
+      }
+    },
+    {
+      "id": "code-bars-0005",
+      "name": "Build Bars",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [300, 100],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "language": "javaScript",
+        "jsCode": "const res = $json.chart.result[0];\nconst ts = res.timestamp || [];\nconst q = res.indicators.quote[0];\nconst adjArr = (res.indicators.adjclose && res.indicators.adjclose[0].adjclose) || [];\nconst src = $('Prepare Tickers').item.json;\n\nconst bars = [];\nfor (let i = 0; i < ts.length; i++) {\n  const c = q.close[i];\n  if (c === null || c === undefined) continue;\n  bars.push({\n    date: new Date(ts[i] * 1000).toISOString().slice(0, 10),\n    open: q.open[i], high: q.high[i], low: q.low[i], close: c,\n    adj_close: (adjArr[i] === null || adjArr[i] === undefined) ? c : adjArr[i],\n    volume: q.volume[i],\n  });\n}\n\nreturn { json: { ticker: src.ticker, baseUrl: src.baseUrl, token: src.token, bars } };"
+      }
+    },
+    {
+      "id": "http-push-0006",
+      "name": "Push Prices",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [520, 100],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.baseUrl }}/api/valuation/prices/ingest",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-Internal-Token", "value": "={{ $json.token }}" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"ticker\": $json.ticker, \"bars\": $json.bars } }}",
+        "options": { "batching": { "batch": { "batchSize": 1, "batchInterval": 500 } } }
+      }
+    },
+    {
+      "id": "code-collect-0007",
+      "name": "Collect Tickers",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [740, 100],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const items = $('Prepare Tickers').all();\nconst tickers = items.map(i => i.json.ticker).join(',');\nconst c = items[0].json;\nreturn [{ json: { tickers, baseUrl: c.baseUrl, token: c.token } }];"
+      }
+    },
+    {
+      "id": "http-recompute-0008",
+      "name": "Recompute",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 100],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.baseUrl }}/api/valuation/refresh?tickers={{ $json.tickers }}&with_ingest=false",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-Internal-Token", "value": "={{ $json.token }}" }
+          ]
+        },
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [[{ "node": "Prepare Tickers", "type": "main", "index": 0 }]]
+    },
+    "Schedule Trigger": {
+      "main": [[{ "node": "Prepare Tickers", "type": "main", "index": 0 }]]
+    },
+    "Prepare Tickers": {
+      "main": [[{ "node": "Yahoo Fetch", "type": "main", "index": 0 }]]
+    },
+    "Yahoo Fetch": {
+      "main": [[{ "node": "Build Bars", "type": "main", "index": 0 }]]
+    },
+    "Build Bars": {
+      "main": [[{ "node": "Push Prices", "type": "main", "index": 0 }]]
+    },
+    "Push Prices": {
+      "main": [[{ "node": "Collect Tickers", "type": "main", "index": 0 }]]
+    },
+    "Collect Tickers": {
+      "main": [[{ "node": "Recompute", "type": "main", "index": 0 }]]
+    }
+  }
+}
