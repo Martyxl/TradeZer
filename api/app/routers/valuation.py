@@ -17,7 +17,7 @@ from app.routers.admin import _verify_token
 from app.valuation import schemas as S
 from app.valuation.models import (
     ValGroup, ValInstrument, ValScoreDaily, ValMetricsDaily,
-    ValFinancials, ValEstimate, ValEarningsHistory, ValScoreRun,
+    ValFinancials, ValEstimate, ValEarningsHistory, ValScoreRun, ValPriceDaily,
 )
 from app.valuation.scoring_config import CONF_UNRELIABLE
 
@@ -121,6 +121,54 @@ async def refresh(
     stages["score"] = score_stats
     return S.RefreshResponse(meta=_meta(await _latest_score_date(session)),
                              status="ok", run_id=score_stats.get("run_id"), stages=stages)
+
+
+def _f(v) -> float | None:
+    try:
+        return float(v) if v is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+@router.post("/prices/ingest", dependencies=[Depends(_verify_token)])
+async def prices_ingest(payload: dict, session: AsyncSession = Depends(get_session)):
+    """Přijme externě natažené denní ceny (lokální Yahoo backfill / n8n) a upsertne do
+    ValPriceDaily. Řeší mezeru, kde FMP free nedává hlubokou historii pro některé firmy.
+
+    Body: {"ticker":"LLY","bars":[{"date":"2015-08-11","open":..,"high":..,"low":..,
+    "close":..,"adj_close":..,"volume":..}, ...]}. Vkládá jen chybějící data
+    (idempotentní). Přepočet metrik/skóre zvlášť přes POST /refresh?tickers=...
+    (with_ingest=false), aby percentil viděl doplněnou historii.
+    """
+    ticker = (payload.get("ticker") or "").strip().upper()
+    bars = payload.get("bars")
+    if not ticker or not isinstance(bars, list):
+        raise HTTPException(status_code=400, detail="Očekávám body {ticker, bars:[...]}")
+    existing = set(await session.scalars(
+        select(ValPriceDaily.date).where(ValPriceDaily.ticker == ticker)))
+    new_rows, seen = [], set()
+    for b in bars:
+        raw = (b.get("date") or "")[:10]
+        try:
+            d = date.fromisoformat(raw)
+        except (ValueError, TypeError):
+            continue
+        if d in existing or d in seen:
+            continue
+        seen.add(d)
+        close = _f(b.get("close"))
+        new_rows.append(ValPriceDaily(
+            ticker=ticker, date=d, open=_f(b.get("open")), high=_f(b.get("high")),
+            low=_f(b.get("low")), close=close,
+            adj_close=(_f(b.get("adj_close")) if b.get("adj_close") is not None else close),
+            volume=_f(b.get("volume"))))
+    if new_rows:
+        session.add_all(new_rows)
+        await session.commit()
+    total = await session.scalar(
+        select(func.count()).select_from(ValPriceDaily).where(ValPriceDaily.ticker == ticker))
+    return {"status": "ok", "ticker": ticker, "received": len(bars),
+            "inserted": len(new_rows), "total_in_db": total}
 
 
 @router.post("/instruments", dependencies=[Depends(_verify_token)])
