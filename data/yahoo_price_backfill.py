@@ -17,6 +17,12 @@ from __future__ import annotations
 import os, sys, time
 import httpx
 
+# Windows konzole (cp1250) neumí unicode šipky apod. → vynuť UTF-8 výstup.
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+except Exception:  # noqa: BLE001
+    pass
+
 BASE = os.environ.get("TRADEZER_BASE", "https://tradezer.app").rstrip("/")
 TOKEN = os.environ.get("TRADEZER_TOKEN", "tradezer-secret-2026")
 DEFAULT_TICKERS = ["LLY", "MRK", "AVGO", "AMGN", "VRTX", "OGN"]
@@ -48,16 +54,27 @@ def fetch_yahoo(ticker: str) -> list[dict]:
     return bars
 
 
+def _post_with_retry(url: str, payload: dict, headers: dict, tries: int = 3) -> dict:
+    last_exc = None
+    for attempt in range(tries):
+        try:
+            r = httpx.post(url, headers=headers, json=payload, timeout=90)
+            r.raise_for_status()
+            return r.json()
+        except Exception as e:  # noqa: BLE001
+            last_exc = e
+            time.sleep(2 * (attempt + 1))
+    raise last_exc
+
+
 def post_prices(ticker: str, bars: list[dict]) -> dict:
     """POSTuje bary po dávkách; vrací poslední odpověď + součet vložených."""
     headers = {"X-Internal-Token": TOKEN}
     inserted, last = 0, {}
     for i in range(0, len(bars), 1500):
         chunk = bars[i:i + 1500]
-        r = httpx.post(f"{BASE}/api/valuation/prices/ingest",
-                       headers=headers, json={"ticker": ticker, "bars": chunk}, timeout=90)
-        r.raise_for_status()
-        last = r.json()
+        last = _post_with_retry(f"{BASE}/api/valuation/prices/ingest",
+                                {"ticker": ticker, "bars": chunk}, headers)
         inserted += last.get("inserted", 0)
     last["_inserted_total"] = inserted
     return last
@@ -78,7 +95,7 @@ def main() -> None:
         try:
             bars = fetch_yahoo(t)
             res = post_prices(t, bars)
-            print(f"{t}: Yahoo {len(bars)} barů → vloženo {res['_inserted_total']}, "
+            print(f"{t}: Yahoo {len(bars)} baru -> vlozeno {res['_inserted_total']}, "
                   f"v DB celkem {res.get('total_in_db')}")
             ok.append(t)
         except Exception as e:  # noqa: BLE001
