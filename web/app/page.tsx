@@ -8,6 +8,7 @@ import { NewsCard } from "@/components/NewsCard";
 import { MarketHoursBar } from "@/components/MarketHoursBar";
 import { BiasCard } from "@/components/BiasCard";
 import { EntryCard } from "@/components/EntryCard";
+import { OutlookCard } from "@/components/OutlookCard";
 import { api, type Ticker, type NewsItem, type DailySummary } from "@/lib/api";
 
 export default function DashboardPage() {
@@ -157,8 +158,11 @@ export default function DashboardPage() {
       {/* Entry plán po NY open */}
       <EntryCard ticker={selectedTicker} />
 
-      {/* Daily Summary */}
-      <DailySummaryCard summary={summary} ticker={selectedTicker} />
+      {/* Pre-open výhled: dnešní eventy + scénáře dopadu */}
+      <OutlookCard ticker={selectedTicker} />
+
+      {/* Denní přehled (zpětné vyhodnocení) — jen když už existuje */}
+      {summary && <DailySummaryCard summary={summary} ticker={selectedTicker} />}
 
       {/* News feed */}
       <div>

@@ -52,6 +52,46 @@ async def bias_today(
     }
 
 
+@router.get("/outlook")
+async def bias_outlook(
+    ticker: str = Query(...),
+    session: AsyncSession = Depends(get_session),
+):
+    """Pre-open výhled: dnešní US eventy + deterministické scénáře dopadu na instrument
+    + krátký LLM narativ (cache 1×/den/instrument). Není investiční doporučení."""
+    from datetime import date as _date
+    from app.models import DailyOutlook
+    from app.services.outlook_service import build_outlook
+    from app.llm.client import llm_client
+
+    t = await _get_ticker(session, ticker)
+    tday = bias_service._trading_day(datetime.utcnow())
+
+    outlook = await build_outlook(t.symbol)
+    bias = await bias_service.compute_bias(session, t, tday)
+    bias_ctx = {"direction": bias["direction"], "trust_score": bias["trust_score"],
+                "prob_up": bias["prob_up"], "prob_down": bias["prob_down"],
+                "prob_neutral": bias["prob_neutral"]}
+
+    # Narativ: cache 1×/den/instrument (bounded cost i pro veřejný endpoint).
+    cache_date = _date.fromisoformat(outlook["date"])
+    cached = await session.scalar(
+        select(DailyOutlook).where(DailyOutlook.ticker_id == t.id,
+                                   DailyOutlook.outlook_date == cache_date)
+    )
+    if cached:
+        narrative = cached.narrative
+    else:
+        narrative = llm_client.generate_outlook_narrative(t.symbol, outlook["scenarios"], bias_ctx)
+        try:
+            session.add(DailyOutlook(ticker_id=t.id, outlook_date=cache_date, narrative=narrative))
+            await session.commit()
+        except Exception:  # noqa: BLE001 — race: jiný request mezitím vložil týž řádek
+            await session.rollback()
+
+    return {**outlook, "bias": bias_ctx, "narrative": narrative}
+
+
 @router.get("/stats")
 async def bias_stats(
     ticker: str = Query(...),

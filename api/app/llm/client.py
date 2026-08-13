@@ -161,4 +161,47 @@ class AnthropicLLMClient:
             )
 
 
+    _OUTLOOK_SYSTEM = (
+        "Jsi trading asistent. Napiš stručný český pre-open výhled pro daný instrument "
+        "(2–3 věty, max ~55 slov). Vyjdi POUZE z dodaných dnešních eventů a jejich "
+        "deterministických scénářů — nevymýšlej čísla ani události. Shrň, na co si dnes dát "
+        "pozor a jak by výsledek (nad/pod forecastem) mohl instrument pohnout. Věcně, bez "
+        "hype. Nekonči investičním doporučením. Pokud nejsou žádné eventy, napiš to."
+    )
+
+    def generate_outlook_narrative(self, ticker: str, scenarios: list[dict],
+                                   bias: dict | None) -> str:
+        """Krátký narativ dne (LLM 'barva' nad deterministickými scénáři). Haiku."""
+        lines = []
+        for s in scenarios:
+            hot, cool = s.get("hot", {}), s.get("cool", {})
+            lines.append(
+                f"- {s.get('title')} ({s.get('impact')}, fc {s.get('forecast')}, prev {s.get('previous')}): "
+                f"nad fc → {hot.get('text')}; pod fc → {cool.get('text')}"
+            )
+        events_text = "\n".join(lines) if lines else "(dnes žádné plánované US high/medium eventy)"
+        bias_text = ""
+        if bias:
+            bias_text = f"\nAktuální bias: {bias.get('direction')} (trust {bias.get('trust_score')})."
+        user_content = f"Instrument: {ticker}\nDnešní eventy a scénáře:\n{events_text}{bias_text}"
+
+        try:
+            client = self._get_client()
+            message = client.messages.create(
+                model=settings.claude_classifier_model,
+                max_tokens=180,
+                system=self._OUTLOOK_SYSTEM,
+                messages=[{"role": "user", "content": user_content}],
+            )
+            return message.content[0].text.strip()
+        except Exception as e:  # noqa: BLE001
+            log.warning("LLM outlook narrative failed", ticker=ticker, error=str(e))
+            if not scenarios:
+                return "Dnes nejsou naplánované žádné klíčové US eventy. Sleduj bias a širší kontext."
+            first = scenarios[0]
+            return (f"Dnes klíčové: {first.get('title')} v {(first.get('time_utc') or '')[11:16]} UTC. "
+                    f"Nad forecastem: {first.get('hot', {}).get('text')}. "
+                    f"Pod forecastem: {first.get('cool', {}).get('text')}.")
+
+
 llm_client = AnthropicLLMClient()
