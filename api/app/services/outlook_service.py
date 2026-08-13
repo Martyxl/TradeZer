@@ -198,20 +198,33 @@ async def compute_scenario_stats(session, ticker_symbol: str, days: int = 90) ->
     if not ticker:
         return {"ticker": ticker_symbol, "days": days, "overall": {"n": 0, "hits": 0, "hit_rate": None},
                 "by_category": {}}
-    thr = ticker.neutral_threshold
     since = datetime.utcnow() - timedelta(days=days)
 
+    # Skutečný směr = realized_direction (kalibrace, primární ~30min okno; jednotkově
+    # bezpečné). Fallback na znaménko pct_change_1h/15m proti neutral_threshold.
+    thr = ticker.neutral_threshold
     rows = (await session.execute(
-        select(NewsItem.title, NewsItem.body, MarketReaction.pct_change_1h)
+        select(NewsItem.title, NewsItem.body, MarketReaction.realized_direction,
+               MarketReaction.pct_change_1h, MarketReaction.pct_change_15m)
         .join(MarketReaction, (MarketReaction.news_id == NewsItem.id) & (MarketReaction.ticker_id == ticker.id))
         .where(NewsItem.published_at >= since)
         .where(NewsItem.title.like("%Actual:%"))
     )).all()
 
+    def _actual_dir(rdir, pct1h, pct15) -> str | None:
+        if rdir is not None:
+            v = rdir.value if hasattr(rdir, "value") else str(rdir)
+            return "flat" if v == "neutral" else v
+        pct = pct1h if pct1h is not None else pct15
+        if pct is None:
+            return None
+        return "up" if pct > thr else "down" if pct < -thr else "flat"
+
     by_cat: dict[str, dict] = {}
     overall = {"n": 0, "hits": 0}
-    for title, body, pct1h in rows:
-        if pct1h is None:
+    for title, body, rdir, pct1h, pct15 in rows:
+        actual_dir = _actual_dir(rdir, pct1h, pct15)
+        if actual_dir is None:
             continue
         cat = classify_event(title)
         if cat is None:
@@ -226,7 +239,6 @@ async def compute_scenario_stats(session, ticker_symbol: str, days: int = 90) ->
         pred_dir = sc[bucket]["dir"]
         if pred_dir not in ("up", "down"):
             continue
-        actual_dir = "up" if pct1h > thr else "down" if pct1h < -thr else "flat"
         hit = pred_dir == actual_dir
         c = by_cat.setdefault(cat, {"n": 0, "hits": 0})
         c["n"] += 1
