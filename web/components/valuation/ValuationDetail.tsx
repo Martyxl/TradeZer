@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X } from "lucide-react";
+import { X, Loader2 } from "lucide-react";
 import { VERDICT_COLOR } from "./BubbleMap";
 
 interface Driver { name: string; value: number | null; contribution: number | null }
@@ -76,7 +76,12 @@ export function ValuationDetail({ ticker, onClose }: { ticker: string; onClose: 
         </div>
 
         {err && <p className="text-sm text-yellow-300">Nedostatek dat pro hodnocení.</p>}
-        {!d && !err && <div className="h-40 rounded-xl bg-[#151823] animate-pulse" />}
+        {!d && !err && (
+          <div className="flex h-40 flex-col items-center justify-center gap-2 rounded-xl bg-[#151823] text-gray-400">
+            <Loader2 size={24} className="animate-spin text-blue-400" />
+            <span className="text-xs">Načítám detail…</span>
+          </div>
+        )}
 
         {d && (
           <>

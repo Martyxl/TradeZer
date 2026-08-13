@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Target, LayoutGrid, Table2, Info } from "lucide-react";
+import { Target, LayoutGrid, Table2, Info, Loader2 } from "lucide-react";
 import { BubbleMap, VERDICT_COLOR, type OverviewItem } from "@/components/valuation/BubbleMap";
 import { ValuationDetail } from "@/components/valuation/ValuationDetail";
 
@@ -75,7 +75,13 @@ export default function ValuationPage() {
       </div>
 
       {loading ? (
-        <div className="h-[460px] rounded-xl bg-[#151823] animate-pulse border border-[#2a2d3a]" />
+        <div className="flex h-[460px] flex-col items-center justify-center gap-3 rounded-xl border border-[#2a2d3a] bg-[#151823] text-gray-400">
+          <Loader2 size={30} className="animate-spin text-blue-400" />
+          <div className="text-sm font-medium text-gray-300">Načítám data valuace…</div>
+          <div className="max-w-xs text-center text-[11px] text-gray-600">
+            Po delší nečinnosti může první načtení trvat ~10&nbsp;s (server se probouzí). Vydrž, není potřeba obnovovat stránku.
+          </div>
+        </div>
       ) : items.length === 0 ? (
         <div className="rounded-xl border border-yellow-800 bg-yellow-950/40 p-6 text-center text-sm text-yellow-300">
           <Info size={18} className="inline mb-1" /><br />

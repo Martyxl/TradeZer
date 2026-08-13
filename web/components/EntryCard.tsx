@@ -50,45 +50,55 @@ export function EntryCard({ ticker }: { ticker: string }) {
       .catch(() => {});
   }, [ticker]);
 
-  if (!playbook || !direction || direction === "neutral" || direction === "unknown") {
-    // Bez směru (neutral / nelze určit) nemá entry plán smysl
-    return null;
-  }
-  const leg = direction === "up" ? playbook.up : playbook.down;
-  if (!leg) return null;
+  // Bez statistik pro tento ticker (žádný stats klíč, např. ES) nemáme co ukázat.
+  if (!playbook) return null;
 
+  // Směrový setup má smysl jen když bias určí směr; v neutrální dny zůstane karta
+  // viditelná kvůli naakumulované úspěšnosti plánu, jen bez konkrétního setupu.
+  const hasDir = direction === "up" || direction === "down";
+  const leg = hasDir ? (direction === "up" ? playbook.up : playbook.down) : null;
   const isLong = direction === "up";
   const color = isLong ? "#4ade80" : "#f87171";
   const Icon = isLong ? ArrowUpToLine : ArrowDownToLine;
   const side = isLong ? "LONG" : "SHORT";
   const waitFor = isLong ? "pokles" : "výskok";
-  const rr = (leg.follow_pct / leg.offset_pct).toFixed(1);
+  const rr = leg ? (leg.follow_pct / leg.offset_pct).toFixed(1) : null;
 
   return (
     <div className="rounded-xl border border-[#2a2d3a] bg-[#1a1d27] p-4">
       <div className="flex items-center gap-2 mb-3">
         <LogIn size={15} className="text-blue-400" />
         <h2 className="text-sm font-semibold text-white">Entry plán po NY open · {ticker}</h2>
-        <span className="text-[10px] text-gray-500">NY open 13:30 UTC (15:30) · z {leg.n} historických dní</span>
+        <span className="text-[10px] text-gray-500">
+          NY open 13:30 UTC (15:30){leg ? ` · z ${leg.n} historických dní` : ""}
+        </span>
       </div>
 
-      <div className="flex flex-wrap items-stretch gap-3">
-        <div className="flex items-center gap-2 rounded-lg px-3 py-2 border"
-             style={{ borderColor: color + "55", background: color + "14" }}>
-          <Icon size={18} style={{ color }} />
-          <div>
-            <div className="text-sm font-bold" style={{ color }}>{side} setup</div>
-            <div className="text-[10px] text-gray-500">ve směru dnešního biasu</div>
+      {leg ? (
+        <div className="flex flex-wrap items-stretch gap-3">
+          <div className="flex items-center gap-2 rounded-lg px-3 py-2 border"
+               style={{ borderColor: color + "55", background: color + "14" }}>
+            <Icon size={18} style={{ color }} />
+            <div>
+              <div className="text-sm font-bold" style={{ color }}>{side} setup</div>
+              <div className="text-[10px] text-gray-500">ve směru dnešního biasu</div>
+            </div>
+          </div>
+
+          <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-2 min-w-0">
+            <Metric label="Čekej na" value={`${waitFor} +${leg.offset_pct}%`} sub="entry limit od open" />
+            <Metric label="Vyplní se do" value={`~${leg.median_min} min`} sub={`${leg.within_60min}% do 60 min`} />
+            <Metric label="Follow-through" value={`${leg.follow_pct}%`} sub="medián pohyb potom" accent={color} />
+            <Metric label="Poměr R:R" value={`~${rr}:1`} sub="offset vs. follow" accent={color} />
           </div>
         </div>
-
-        <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-2 min-w-0">
-          <Metric label="Čekej na" value={`${waitFor} +${leg.offset_pct}%`} sub="entry limit od open" />
-          <Metric label="Vyplní se do" value={`~${leg.median_min} min`} sub={`${leg.within_60min}% do 60 min`} />
-          <Metric label="Follow-through" value={`${leg.follow_pct}%`} sub="medián pohyb potom" accent={color} />
-          <Metric label="Poměr R:R" value={`~${rr}:1`} sub="offset vs. follow" accent={color} />
+      ) : (
+        <div className="rounded-lg border border-[#2a2d3a] bg-[#0f1117] px-3 py-2.5 text-[11px] text-gray-400">
+          Dnešní bias je <span className="font-medium text-yellow-500">neutrální</span> → pro dnešek žádný směrový
+          entry setup. Konkrétní plán (LONG/SHORT limit po open) se ukáže, jakmile bias určí směr.
+          Níže je úspěšnost plánu z minulých dní.
         </div>
-      </div>
+      )}
 
       {/* Reálná úspěšnost entry plánu (roste den po dni) */}
       {perf && perf.filled > 0 ? (
@@ -163,13 +173,15 @@ export function EntryCard({ ticker }: { ticker: string }) {
         </div>
       )}
 
-      <p className="mt-2 text-[10px] text-gray-500 leading-relaxed">
-        <Clock size={10} className="inline mr-1" />
-        Historicky: po NY open cena v {leg.within_30min}% dní udělá {waitFor} proti biasu do 30 min
-        (medián {leg.offset_pct}%, p75 {leg.offset_p75_pct}%) — to je limit pro vstup ve směru biasu.
-        P/L počítá pohyb do NY close ve směru biasu včetně zisku z lepší ceny (offsetu).
-        Čísla platí <em>pokud</em> bias směr sedí; kombinuj s trust score. Není to obchodní doporučení.
-      </p>
+      {leg && (
+        <p className="mt-2 text-[10px] text-gray-500 leading-relaxed">
+          <Clock size={10} className="inline mr-1" />
+          Historicky: po NY open cena v {leg.within_30min}% dní udělá {waitFor} proti biasu do 30 min
+          (medián {leg.offset_pct}%, p75 {leg.offset_p75_pct}%) — to je limit pro vstup ve směru biasu.
+          P/L počítá pohyb do NY close ve směru biasu včetně zisku z lepší ceny (offsetu).
+          Čísla platí <em>pokud</em> bias směr sedí; kombinuj s trust score. Není to obchodní doporučení.
+        </p>
+      )}
     </div>
   );
 }
