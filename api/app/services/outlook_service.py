@@ -172,3 +172,73 @@ def _realized_bucket(actual, forecast) -> str | None:
     if a < f - tol:
         return "cool"
     return "inline"
+
+
+def _parse_event_values(body: str, title: str) -> tuple[str | None, str | None]:
+    """Vytáhne (forecast, actual) z body eventu ('Forecast: X', 'Actual: Y') nebo titulku."""
+    import re
+    src = f"{body or ''}\n{title or ''}"
+    fc = re.search(r"Forecast:\s*([^\n|]+)", src)
+    ac = re.search(r"Actual:\s*([^\n|]+)", src)
+    f = fc.group(1).strip() if fc else None
+    a = ac.group(1).strip() if ac else None
+    return (f if f and f not in ("?", "N/A") else None,
+            a if a and a not in ("?", "N/A") else None)
+
+
+async def compute_scenario_stats(session, ticker_symbol: str, days: int = 90) -> dict:
+    """Úspěšnost scénářů: pro minulé vydané eventy porovná predikovaný směr (dle
+    scénáře pro nastalý bucket hot/cool) se SKUTEČNÝM pohybem ceny 1h po eventu
+    (MarketReaction.pct_change_1h). Deterministické → počítá se z existujících dat."""
+    from datetime import datetime, timedelta
+    from sqlalchemy import select
+    from app.models import NewsItem, MarketReaction, Ticker
+
+    ticker = await session.scalar(select(Ticker).where(Ticker.symbol == ticker_symbol.upper()))
+    if not ticker:
+        return {"ticker": ticker_symbol, "days": days, "overall": {"n": 0, "hits": 0, "hit_rate": None},
+                "by_category": {}}
+    thr = ticker.neutral_threshold
+    since = datetime.utcnow() - timedelta(days=days)
+
+    rows = (await session.execute(
+        select(NewsItem.title, NewsItem.body, MarketReaction.pct_change_1h)
+        .join(MarketReaction, (MarketReaction.news_id == NewsItem.id) & (MarketReaction.ticker_id == ticker.id))
+        .where(NewsItem.published_at >= since)
+        .where(NewsItem.title.like("%Actual:%"))
+    )).all()
+
+    by_cat: dict[str, dict] = {}
+    overall = {"n": 0, "hits": 0}
+    for title, body, pct1h in rows:
+        if pct1h is None:
+            continue
+        cat = classify_event(title)
+        if cat is None:
+            continue
+        fc, act = _parse_event_values(body, title)
+        bucket = _realized_bucket(act, fc)
+        if bucket not in ("hot", "cool"):   # jen směrové scénáře (inline nehodnotíme)
+            continue
+        sc = scenario_for(cat, ticker_symbol)
+        if sc is None:
+            continue
+        pred_dir = sc[bucket]["dir"]
+        if pred_dir not in ("up", "down"):
+            continue
+        actual_dir = "up" if pct1h > thr else "down" if pct1h < -thr else "flat"
+        hit = pred_dir == actual_dir
+        c = by_cat.setdefault(cat, {"n": 0, "hits": 0})
+        c["n"] += 1
+        c["hits"] += 1 if hit else 0
+        overall["n"] += 1
+        overall["hits"] += 1 if hit else 0
+
+    def _rate(d: dict) -> float | None:
+        return round(100 * d["hits"] / d["n"], 1) if d["n"] else None
+
+    return {
+        "ticker": ticker_symbol, "days": days,
+        "overall": {**overall, "hit_rate": _rate(overall)},
+        "by_category": {k: {**v, "hit_rate": _rate(v)} for k, v in by_cat.items()},
+    }

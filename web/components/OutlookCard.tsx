@@ -4,11 +4,12 @@ import { useEffect, useState } from "react";
 import { CalendarClock, TrendingUp, TrendingDown, Minus, Loader2 } from "lucide-react";
 
 interface Leg { dir: "up" | "down" | "flat"; text: string }
+interface Stat { n: number; hits: number; hit_rate: number | null }
 interface Scenario {
   title: string; time_utc: string; impact: string;
   forecast: string; previous: string; actual: string;
   category: string; realized: "hot" | "inline" | "cool" | null;
-  hot: Leg; inline: Leg; cool: Leg;
+  hot: Leg; inline: Leg; cool: Leg; stat?: Stat | null;
 }
 interface EventRow {
   title: string; impact: string; time_utc: string;
@@ -125,6 +126,14 @@ export function OutlookCard({ ticker }: { ticker: string }) {
                       fc {s.forecast || "—"} · prev {s.previous || "—"}
                       {s.actual ? <> · <span className="text-gray-300 font-medium">actual {s.actual}</span></> : null}
                     </span>
+                    {s.stat && s.stat.n > 0 && s.stat.hit_rate != null && (
+                      <span className="ml-auto rounded px-1.5 py-0.5 text-[10px] font-medium"
+                            title="Jak často predikovaný směr scénáře seděl se skutečným pohybem 1h po eventu (90 dní)"
+                            style={{ background: s.stat.hit_rate >= 55 ? "#14532d55" : s.stat.hit_rate >= 45 ? "#78350f55" : "#7f1d1d55",
+                                     color: s.stat.hit_rate >= 55 ? "#86efac" : s.stat.hit_rate >= 45 ? "#fcd34d" : "#fca5a5" }}>
+                        ⌀ {s.stat.hit_rate}% ({s.stat.n})
+                      </span>
+                    )}
                   </div>
                   <div className="space-y-1">
                     {SCEN_ROWS.map(({ key, label }) => {
@@ -149,8 +158,10 @@ export function OutlookCard({ ticker }: { ticker: string }) {
           )}
 
           <p className="mt-4 text-[10px] leading-relaxed text-gray-600">
-            Edukativní mapování typických makro reakcí (deterministická pravidla + krátký AI komentář),
-            ne investiční doporučení. Skutečný pohyb závisí na kontextu, pozicování a rétorice.
+            <span className="text-gray-500">⌀ badge</span> = jak často predikovaný směr scénáře seděl se
+            skutečným pohybem ceny ~1h po eventu (90 dní, počet v závorce). Edukativní mapování typických
+            makro reakcí (pravidla + AI komentář), ne investiční doporučení — skutečný pohyb závisí na
+            kontextu, pozicování a rétorice.
           </p>
         </>
       )}

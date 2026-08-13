@@ -1,5 +1,16 @@
 """Testy deterministického outlook rule enginu (offline)."""
-from app.services.outlook_service import classify_event, scenario_for, _realized_bucket
+from app.services.outlook_service import (
+    classify_event, scenario_for, _realized_bucket, _parse_event_values,
+)
+
+
+def test_parse_event_values_from_body():
+    body = "Status: RELEASED\nCurrency: USD\nImpact: high\nActual: 0.4%\nForecast: 0.3%\nPrevious: 0.2%"
+    assert _parse_event_values(body, "") == ("0.3%", "0.4%")
+    # z titulku, chybějící actual → None
+    title = "[USD] Core PPI m/m ⚡ HIGH IMPACT | Upcoming | Forecast: 0.3% | Prev: 0.2%"
+    fc, ac = _parse_event_values("", title)
+    assert fc == "0.3%" and ac is None
 
 
 def test_classify_inflation_and_claims():

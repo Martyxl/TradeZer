@@ -61,13 +61,18 @@ async def bias_outlook(
     + krátký LLM narativ (cache 1×/den/instrument). Není investiční doporučení."""
     from datetime import date as _date
     from app.models import DailyOutlook
-    from app.services.outlook_service import build_outlook
+    from app.services.outlook_service import build_outlook, compute_scenario_stats
     from app.llm.client import llm_client
 
     t = await _get_ticker(session, ticker)
     tday = bias_service._trading_day(datetime.utcnow())
 
     outlook = await build_outlook(t.symbol)
+    # Úspěšnost scénářů (1h reakce) — přiřaď každému scénáři dle jeho kategorie.
+    stats = await compute_scenario_stats(session, t.symbol, days=90)
+    for s in outlook["scenarios"]:
+        s["stat"] = stats["by_category"].get(s.get("category"))
+    outlook["scenario_stats"] = stats
     bias = await bias_service.compute_bias(session, t, tday)
     bias_ctx = {"direction": bias["direction"], "trust_score": bias["trust_score"],
                 "prob_up": bias["prob_up"], "prob_down": bias["prob_down"],
@@ -90,6 +95,18 @@ async def bias_outlook(
             await session.rollback()
 
     return {**outlook, "bias": bias_ctx, "narrative": narrative}
+
+
+@router.get("/outlook/stats")
+async def bias_outlook_stats(
+    ticker: str = Query(...),
+    days: int = Query(default=90),
+    session: AsyncSession = Depends(get_session),
+):
+    """Úspěšnost scénářů: predikovaný směr vs skutečný pohyb 1h po eventu, per kategorie."""
+    from app.services.outlook_service import compute_scenario_stats
+    t = await _get_ticker(session, ticker)
+    return await compute_scenario_stats(session, t.symbol, days=days)
 
 
 @router.get("/stats")
