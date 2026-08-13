@@ -1,3 +1,4 @@
+import hmac
 import os
 
 from fastapi import APIRouter, Depends, HTTPException, Header, Query
@@ -15,16 +16,20 @@ def _verify_token(
     x_internal_token: str = Header(default=""),
     authorization: str = Header(default=""),
 ):
-    # Accept X-Internal-Token (manual calls, cron-job.org)
-    if settings.internal_api_token and x_internal_token == settings.internal_api_token:
-        return
-    # Accept Vercel cron: Authorization: Bearer <CRON_SECRET>
+    """Autentizace admin endpointů. FAIL-SAFE: bez nakonfigurovaného secretu odmítni
+    (dřív fail-open → chybějící env otevřel celý admin). Porovnání konstantní v čase."""
+    token = settings.internal_api_token
     cron_secret = os.environ.get("CRON_SECRET", "")
-    if cron_secret and authorization == f"Bearer {cron_secret}":
+    # Bez jakéhokoli secretu neotvírej — radši 503 než dokořán otevřený admin.
+    if not token and not cron_secret:
+        raise HTTPException(status_code=503, detail="Autentizace není nakonfigurována")
+    # X-Internal-Token (manuální volání, n8n, cron-job.org)
+    if token and hmac.compare_digest(x_internal_token, token):
         return
-    # Reject if token is configured but nothing matched
-    if settings.internal_api_token:
-        raise HTTPException(status_code=401, detail="Neplatný token")
+    # Vercel cron: Authorization: Bearer <CRON_SECRET>
+    if cron_secret and hmac.compare_digest(authorization, f"Bearer {cron_secret}"):
+        return
+    raise HTTPException(status_code=401, detail="Neplatný token")
 
 
 @router.post("/refresh", response_model=RefreshResponse, dependencies=[Depends(_verify_token)])
@@ -32,45 +37,64 @@ async def manual_refresh(
     session: AsyncSession = Depends(get_session),
 ):
     """Stáhne RSS a uloží nové zprávy. Predikce jsou v /api/predict."""
-    import traceback
+    import structlog
     aggregator = NewsAggregator(session)
     try:
         stats = await aggregator.refresh()
     except Exception as e:
-        # Endpoint je token-chráněný — traceback pomáhá debugovat prod issue
-        raise HTTPException(status_code=500, detail=f"{e}\n{traceback.format_exc()[-1500:]}")
+        # Traceback jen do logu (server-side), klientovi generická hláška — žádný leak.
+        structlog.get_logger().error("manual_refresh failed", error=str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="Refresh selhal")
     return RefreshResponse(status="ok", stats=stats)
 
 
-# Timestamp posledního veřejného refreshe — základní rate limit (60s)
-_last_public_refresh: float = 0.0
+_PUBLIC_REFRESH_COOLDOWN = 60          # s mezi veřejnými refreshi
+_PUBLIC_REFRESH_DAILY_LLM_CAP = 100    # strop LLM predikcí/den z veřejného tlačítka
 
 
 @router.post("/public/refresh")
 async def public_refresh(
     session: AsyncSession = Depends(get_session),
 ):
-    """Veřejný endpoint pro manuální refresh z UI — nevyžaduje token.
+    """Veřejný refresh z UI (bez tokenu). Stáhne zprávy + spustí LLM predikce.
 
-    Stáhne nové zprávy ze všech zdrojů a spustí LLM predikce.
-    Rate limit: max jednou za 60 sekund.
+    Ochrana proti cost-abuse (endpoint je bez autentizace): cooldown i denní strop
+    jsou v DB (SiteCounter.updated_at/value) — přežijí serverless (in-memory limit
+    byl per-instance a tím neúčinný). Denní strop omezí max LLM náklady z útoku.
     """
-    import time
-    global _last_public_refresh
-    now = time.time()
-    cooldown = 60.0
-    wait = cooldown - (now - _last_public_refresh)
-    if wait > 0:
-        return {
-            "status": "rate_limited",
-            "retry_after_seconds": round(wait),
-            "message": f"Počkej ještě {round(wait)}s před dalším refreshem.",
-        }
-    _last_public_refresh = now
+    from datetime import datetime
+    from sqlalchemy import select
+    from app.models import SiteCounter
+
+    now = datetime.utcnow()
+    row = await session.scalar(select(SiteCounter).where(SiteCounter.name == "public_refresh"))
+    if row is not None and row.updated_at is not None:
+        elapsed = (now - row.updated_at).total_seconds()
+        if elapsed < _PUBLIC_REFRESH_COOLDOWN:
+            return {
+                "status": "rate_limited",
+                "retry_after_seconds": round(_PUBLIC_REFRESH_COOLDOWN - elapsed),
+                "message": f"Počkej ještě {round(_PUBLIC_REFRESH_COOLDOWN - elapsed)}s.",
+            }
+    if row is None:
+        row = SiteCounter(name="public_refresh", value=0)
+        session.add(row)
+    # denní reset počítadla predikcí
+    if row.updated_at is None or row.updated_at.date() != now.date():
+        row.value = 0
+    # denní strop LLM predikcí (bound na náklady i při zneužití)
+    if row.value >= _PUBLIC_REFRESH_DAILY_LLM_CAP:
+        row.updated_at = now
+        await session.commit()
+        return {"status": "daily_cap", "message": "Denní limit predikcí vyčerpán, zkus zítra."}
 
     aggregator = NewsAggregator(session)
     refresh_stats = await aggregator.refresh()
-    predict_stats = await aggregator.predict_pending(max_predictions=8)
+    budget = min(8, _PUBLIC_REFRESH_DAILY_LLM_CAP - row.value)
+    predict_stats = await aggregator.predict_pending(max_predictions=budget)
+    row.value += predict_stats.get("predicted", 0)
+    row.updated_at = now
+    await session.commit()
     return {
         "status": "ok",
         "new_items": refresh_stats.get("new", 0),

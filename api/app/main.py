@@ -90,22 +90,32 @@ async def lifespan(app: FastAPI):
     log.info("Tradezer shutdown")
 
 
+# V produkci skryj /docs, /redoc i /openapi.json — nemapovat útočníkovi admin API.
+# Robustně: APP_ENV=production NEBO Vercel prostředí (kdyby APP_ENV nebylo nastavené).
+_docs_off = settings.is_production or os.environ.get("VERCEL_ENV") == "production"
 app = FastAPI(
     title="Tradezer — News Impact Trading Agent",
     version="1.2.0",
     lifespan=lifespan,
+    docs_url=None if _docs_off else "/docs",
+    redoc_url=None if _docs_off else "/redoc",
+    openapi_url=None if _docs_off else "/openapi.json",
 )
 
-_cors_origins = ["http://localhost:3000", "https://*.vercel.app"]
+# CORS pinnutý na známé originy. Prod frontend jde přes Next.js rewrite (same-origin
+# proxy), takže cross-origin sem chodí jen dev/preview. Wildcard '*.vercel.app' ve
+# Starlette allow_origins NEfunguje (bere se literálně) → přes allow_origin_regex.
+_cors_origins = ["http://localhost:3000"]
 if os.environ.get("ALLOWED_ORIGIN"):
     _cors_origins.append(os.environ["ALLOWED_ORIGIN"])
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
+    allow_origin_regex=r"https://[a-z0-9-]+\.vercel\.app",
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
+    allow_headers=["Content-Type", "X-Internal-Token", "Authorization"],
 )
 
 app.include_router(tickers_router)
@@ -121,4 +131,5 @@ app.include_router(valuation_router)
 
 @app.get("/")
 async def root():
-    return {"app": "Tradezer", "version": "1.2.0", "docs": "/docs"}
+    return {"app": "Tradezer", "version": "1.2.0",
+            "docs": None if _docs_off else "/docs"}

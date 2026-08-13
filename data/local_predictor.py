@@ -27,7 +27,9 @@ import urllib.request
 from pathlib import Path
 
 API = os.environ.get("TRADEZER_API", "https://tradezer.app")
-TOKEN = os.environ.get("TRADEZER_TOKEN", "tradezer-secret-2026")
+TOKEN = os.environ.get("TRADEZER_TOKEN", "")
+if not TOKEN:
+    raise SystemExit("Chybí TRADEZER_TOKEN env (interní API token).")
 LLM_BASE = os.environ.get("LLM_BASE_URL", "http://localhost:11434/v1")
 LLM_KEY = os.environ.get("LLM_API_KEY", "local")
 LLM_MODEL = os.environ.get("LLM_MODEL", "qwen2.5-coder:7b")

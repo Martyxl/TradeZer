@@ -24,7 +24,9 @@ except Exception:  # noqa: BLE001
     pass
 
 BASE = os.environ.get("TRADEZER_BASE", "https://tradezer.app").rstrip("/")
-TOKEN = os.environ.get("TRADEZER_TOKEN", "tradezer-secret-2026")
+TOKEN = os.environ.get("TRADEZER_TOKEN", "")
+if not TOKEN:
+    raise SystemExit("Chybí TRADEZER_TOKEN env (interní API token). Nastav ho a spusť znovu.")
 DEFAULT_TICKERS = ["LLY", "MRK", "AVGO", "AMGN", "VRTX", "OGN"]
 
 _UA = {"User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "

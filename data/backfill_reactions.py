@@ -20,7 +20,9 @@ from pathlib import Path
 import pandas as pd
 
 API = "https://tradezer.app"
-TOKEN = os.environ.get("TRADEZER_TOKEN", "tradezer-secret-2026")
+TOKEN = os.environ.get("TRADEZER_TOKEN", "")
+if not TOKEN:
+    raise SystemExit("Chybí TRADEZER_TOKEN env (interní API token).")
 RAW = Path(__file__).parent / "raw"
 
 TICKER_DATA = {

@@ -34,7 +34,7 @@
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "// KONFIGURACE — uprav dle potreby\nconst baseUrl = 'https://tradezer.app';\nconst token   = 'tradezer-secret-2026';\nconst tickers = ['LLY','MRK','AVGO','AMGN','VRTX','OGN','GILD','ABCL'];\n\nreturn tickers.map(t => ({ json: { ticker: t, baseUrl, token } }));"
+        "jsCode": "// KONFIGURACE — dopl/n TOKEN (interni API token) po importu\nconst baseUrl = 'https://tradezer.app';\nconst token   = 'REPLACE_WITH_YOUR_INTERNAL_TOKEN';\nconst tickers = ['LLY','MRK','AVGO','AMGN','VRTX','OGN','GILD','ABCL'];\n\nreturn tickers.map(t => ({ json: { ticker: t, baseUrl, token } }));"
       }
     },
     {
