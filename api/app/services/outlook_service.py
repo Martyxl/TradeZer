@@ -186,65 +186,37 @@ def _parse_event_values(body: str, title: str) -> tuple[str | None, str | None]:
             a if a and a not in ("?", "N/A") else None)
 
 
+EVAL_TICKERS = ["NQ", "ES", "YM", "XAUUSD"]
+
+
 async def compute_scenario_stats(session, ticker_symbol: str, days: int = 90) -> dict:
-    """Úspěšnost scénářů: pro minulé vydané eventy porovná predikovaný směr (dle
-    scénáře pro nastalý bucket hot/cool) se SKUTEČNÝM pohybem ceny 1h po eventu
-    (MarketReaction.pct_change_1h). Deterministické → počítá se z existujících dat."""
-    from datetime import datetime, timedelta
+    """Úspěšnost scénářů z tabulky OutlookEval (plní denní eval job): kolik % případů
+    predikovaný směr scénáře seděl se skutečným ~1h pohybem ceny. Per kategorie."""
+    from datetime import date as _date, timedelta
     from sqlalchemy import select
-    from app.models import NewsItem, MarketReaction, Ticker
+    from app.models import Ticker, OutlookEval
 
     ticker = await session.scalar(select(Ticker).where(Ticker.symbol == ticker_symbol.upper()))
     if not ticker:
-        return {"ticker": ticker_symbol, "days": days, "overall": {"n": 0, "hits": 0, "hit_rate": None},
-                "by_category": {}}
-    since = datetime.utcnow() - timedelta(days=days)
-
-    # Skutečný směr = realized_direction (kalibrace, primární ~30min okno; jednotkově
-    # bezpečné). Fallback na znaménko pct_change_1h/15m proti neutral_threshold.
-    thr = ticker.neutral_threshold
+        return {"ticker": ticker_symbol, "days": days,
+                "overall": {"n": 0, "hits": 0, "hit_rate": None}, "by_category": {}}
+    since = _date.today() - timedelta(days=days)
     rows = (await session.execute(
-        select(NewsItem.title, NewsItem.body, MarketReaction.realized_direction,
-               MarketReaction.pct_change_1h, MarketReaction.pct_change_15m)
-        .join(MarketReaction, (MarketReaction.news_id == NewsItem.id) & (MarketReaction.ticker_id == ticker.id))
-        .where(NewsItem.published_at >= since)
-        .where(NewsItem.title.like("%Actual:%"))
-    )).all()
-
-    def _actual_dir(rdir, pct1h, pct15) -> str | None:
-        if rdir is not None:
-            v = rdir.value if hasattr(rdir, "value") else str(rdir)
-            return "flat" if v == "neutral" else v
-        pct = pct1h if pct1h is not None else pct15
-        if pct is None:
-            return None
-        return "up" if pct > thr else "down" if pct < -thr else "flat"
+        select(OutlookEval).where(
+            OutlookEval.ticker_id == ticker.id,
+            OutlookEval.eval_date >= since,
+            OutlookEval.hit.isnot(None),
+        )
+    )).scalars().all()
 
     by_cat: dict[str, dict] = {}
     overall = {"n": 0, "hits": 0}
-    for title, body, rdir, pct1h, pct15 in rows:
-        actual_dir = _actual_dir(rdir, pct1h, pct15)
-        if actual_dir is None:
-            continue
-        cat = classify_event(title)
-        if cat is None:
-            continue
-        fc, act = _parse_event_values(body, title)
-        bucket = _realized_bucket(act, fc)
-        if bucket not in ("hot", "cool"):   # jen směrové scénáře (inline nehodnotíme)
-            continue
-        sc = scenario_for(cat, ticker_symbol)
-        if sc is None:
-            continue
-        pred_dir = sc[bucket]["dir"]
-        if pred_dir not in ("up", "down"):
-            continue
-        hit = pred_dir == actual_dir
-        c = by_cat.setdefault(cat, {"n": 0, "hits": 0})
+    for r in rows:
+        c = by_cat.setdefault(r.category, {"n": 0, "hits": 0})
         c["n"] += 1
-        c["hits"] += 1 if hit else 0
+        c["hits"] += 1 if r.hit else 0
         overall["n"] += 1
-        overall["hits"] += 1 if hit else 0
+        overall["hits"] += 1 if r.hit else 0
 
     def _rate(d: dict) -> float | None:
         return round(100 * d["hits"] / d["n"], 1) if d["n"] else None
@@ -254,3 +226,75 @@ async def compute_scenario_stats(session, ticker_symbol: str, days: int = 90) ->
         "overall": {**overall, "hit_rate": _rate(overall)},
         "by_category": {k: {**v, "hit_rate": _rate(v)} for k, v in by_cat.items()},
     }
+
+
+async def evaluate_outlook(session) -> dict:
+    """Denní eval job: pro dnešní vydané eventy (s actual) spočítá pro každý instrument
+    nastalý scénář + skutečný ~1h pohyb ceny (Yahoo) + zda predikce seděla; uloží do
+    OutlookEval (idempotentně). Event zpracuje až ≥70 min po vydání (kvůli 1h ceně)."""
+    import asyncio
+    from datetime import datetime, timezone, timedelta
+    from sqlalchemy import select
+    from app.models import Ticker, OutlookEval
+    from app.sources.yahoo_finance_adapter import YahooFinanceAdapter, _find_close_at
+
+    now = datetime.now(timezone.utc)
+    raw = await get_upcoming_events(window_before_min=60, window_after_min=1440)  # posledních ~24h
+    tickers = (await session.execute(
+        select(Ticker).where(Ticker.symbol.in_(EVAL_TICKERS))
+    )).scalars().all()
+    yahoo = YahooFinanceAdapter()
+    created = 0
+
+    for e in raw:
+        if e.get("impact") not in ("high", "medium"):
+            continue
+        cat = classify_event(e.get("title", ""))
+        if cat is None:
+            continue
+        actual = (e.get("actual") or "").strip()
+        if not actual:                       # ještě není výsledek
+            continue
+        try:
+            ev_dt = datetime.fromisoformat((e.get("time_utc") or "").replace("Z", "+00:00"))
+        except ValueError:
+            continue
+        if (now - ev_dt).total_seconds() < 70 * 60:   # počkej na 1h cenových dat
+            continue
+        bucket = _realized_bucket(actual, e.get("forecast"))
+        eval_date = ev_dt.date()
+        title = (e.get("title") or "")[:200]
+
+        for t in tickers:
+            exists = await session.scalar(select(OutlookEval).where(
+                OutlookEval.eval_date == eval_date, OutlookEval.ticker_id == t.id,
+                OutlookEval.event_title == title))
+            if exists:
+                continue
+            sc = scenario_for(cat, t.symbol)
+            pred = sc[bucket]["dir"] if (sc and bucket in ("hot", "cool", "inline")) else None
+            move = adir = None
+            try:
+                bars = await asyncio.to_thread(yahoo.fetch_day_bars, t.symbol, eval_date)
+                p0 = _find_close_at(bars, ev_dt, 15)
+                p1 = _find_close_at(bars, ev_dt + timedelta(minutes=60), 15)
+                if p0 and p1:
+                    move = (p1 - p0) / p0
+                    thr = t.neutral_threshold
+                    adir = "up" if move > thr else "down" if move < -thr else "flat"
+            except Exception:  # noqa: BLE001
+                pass
+            hit = None
+            if bucket in ("hot", "cool") and pred in ("up", "down") and adir is not None:
+                hit = (pred == adir)
+            session.add(OutlookEval(
+                eval_date=eval_date, ticker_id=t.id, event_title=title, category=cat,
+                forecast=e.get("forecast"), actual=actual, realized_bucket=bucket,
+                predicted_dir=pred, actual_dir=adir, hit=hit,
+                price_move_pct=round(move * 100, 4) if move is not None else None,
+                event_time_utc=ev_dt.replace(tzinfo=None)))
+            created += 1
+
+    if created:
+        await session.commit()
+    return {"created": created, "tickers": [t.symbol for t in tickers]}

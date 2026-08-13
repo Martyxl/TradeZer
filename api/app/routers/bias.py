@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import get_session
 from app.models import DailyBias, Ticker
 from app.repositories import TickerRepository
+from app.routers.admin import _verify_token
 from app.services import bias_service
 
 router = APIRouter(prefix="/api/bias", tags=["bias"])
@@ -107,6 +108,13 @@ async def bias_outlook_stats(
     from app.services.outlook_service import compute_scenario_stats
     t = await _get_ticker(session, ticker)
     return await compute_scenario_stats(session, t.symbol, days=days)
+
+
+@router.post("/outlook/evaluate", dependencies=[Depends(_verify_token)])
+async def outlook_evaluate(session: AsyncSession = Depends(get_session)):
+    """Denní eval: uloží scénář vs realita pro dnešní vydané eventy. Volá cron."""
+    from app.services.outlook_service import evaluate_outlook
+    return await evaluate_outlook(session)
 
 
 @router.get("/stats")

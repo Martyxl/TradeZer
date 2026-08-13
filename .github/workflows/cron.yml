@@ -67,3 +67,18 @@ jobs:
             -X POST "$API_URL/api/calibrate" \
             -H "X-Internal-Token: $TOKEN" || true
           cat /tmp/calibrate.json
+
+  outlook_eval:
+    name: Evaluate outlook scenarios vs reality
+    runs-on: ubuntu-latest
+    needs: calibrate
+    if: always() && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'calibrate' || github.event.inputs.job == 'all')))
+    steps:
+      - name: POST /api/bias/outlook/evaluate
+        run: |
+          echo "Evaluating outlook scenarios at $(date -u)"
+          curl -s -o /tmp/oeval.json -w "\nHTTP %{http_code}\n" \
+            --max-time 58 \
+            -X POST "$API_URL/api/bias/outlook/evaluate" \
+            -H "X-Internal-Token: $TOKEN" || true
+          cat /tmp/oeval.json
