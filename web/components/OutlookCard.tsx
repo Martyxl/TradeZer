@@ -21,6 +21,14 @@ interface Outlook {
   narrative: string;
 }
 
+// Očisti případný markdown z LLM narativu (starší cache může mít #, **).
+const clean = (t: string) =>
+  (t || "")
+    .replace(/^#{1,6}\s+.*$/gm, "")   // řádky s nadpisem
+    .replace(/\*\*(.*?)\*\*/g, "$1")  // **bold**
+    .replace(/[*#]/g, "")
+    .trim();
+
 const cet = (iso: string) =>
   iso ? new Date(iso).toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Prague" }) : "";
 
@@ -77,8 +85,8 @@ export function OutlookCard({ ticker }: { ticker: string }) {
         <>
           {/* LLM narativ dne */}
           {d.narrative && (
-            <p className="mb-4 rounded-xl border border-[#2a2d3a] bg-[#0f1117] p-3 text-sm leading-relaxed text-gray-200">
-              {d.narrative}
+            <p className="mb-4 whitespace-pre-line rounded-xl border border-[#2a2d3a] bg-[#0f1117] p-3 text-sm leading-relaxed text-gray-200">
+              {clean(d.narrative)}
             </p>
           )}
 

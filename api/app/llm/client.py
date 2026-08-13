@@ -166,7 +166,8 @@ class AnthropicLLMClient:
         "(2–3 věty, max ~55 slov). Vyjdi POUZE z dodaných dnešních eventů a jejich "
         "deterministických scénářů — nevymýšlej čísla ani události. Shrň, na co si dnes dát "
         "pozor a jak by výsledek (nad/pod forecastem) mohl instrument pohnout. Věcně, bez "
-        "hype. Nekonči investičním doporučením. Pokud nejsou žádné eventy, napiš to."
+        "hype. Nekonči investičním doporučením. Pokud nejsou žádné eventy, napiš to. "
+        "Piš čistý plain text — ŽÁDNÝ markdown, žádný nadpis, žádné **, #, ani odrážky."
     )
 
     def generate_outlook_narrative(self, ticker: str, scenarios: list[dict],
