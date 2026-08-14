@@ -144,25 +144,25 @@ async def fmp_probe():
         params["apikey"] = key
         try:
             r = httpx.get(f"{base}/{path}", params=params, timeout=20)
-            ct = r.headers.get("content-type", "")
-            body = r.json() if ct.startswith("application/json") else r.text[:300]
+            try:
+                body = r.json()
+            except Exception:  # noqa: BLE001
+                body = r.text[:300]
             first = body[0] if isinstance(body, list) and body else (
                 body if isinstance(body, dict) else None)
             out[name] = {
                 "status": r.status_code,
                 "count": len(body) if isinstance(body, list) else None,
                 "keys": sorted(first.keys()) if isinstance(first, dict) else None,
-                "sample": first if isinstance(first, dict) else body,
+                "sample": first if isinstance(first, dict) else str(body)[:300],
             }
         except Exception as e:  # noqa: BLE001
             out[name] = {"error": str(e)[:200]}
 
-    v3 = "https://financialmodelingprep.com/api/v3"
     stable = "https://financialmodelingprep.com/stable"
-    probe("econ_cal_v3", v3, "economic_calendar", **{"from": "2026-08-11", "to": "2026-08-14"})
-    probe("econ_cal_stable", stable, "economic-calendar", **{"from": "2026-08-11", "to": "2026-08-14"})
+    probe("econ_economics-calendar", stable, "economics-calendar", **{"from": "2026-08-13", "to": "2026-08-13"})
+    probe("econ_economic-calendar", stable, "economic-calendar", **{"from": "2026-08-13", "to": "2026-08-13"})
     probe("estimates_stable", stable, "analyst-estimates", symbol="NVDA", period="annual", limit=2)
-    probe("estimates_v3", v3, "analyst-estimates/NVDA", period="annual", limit=2)
     return out
 
 
