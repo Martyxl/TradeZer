@@ -130,42 +130,6 @@ def _f(v) -> float | None:
         return None
 
 
-@router.get("/fmp-probe", dependencies=[Depends(_verify_token)])
-async def fmp_probe():
-    """DOČASNÉ: ověří, co FMP klíč (free) vrací na economic-calendar + analyst-estimates
-    — jestli je endpoint dostupný a jestli obsahuje 'actual'/odhady. Pro nákupní rozhodnutí."""
-    import httpx
-    key = settings.fmp_api_key
-    if not key:
-        return {"error": "FMP_API_KEY není nastaven"}
-    out: dict = {}
-
-    def probe(name: str, base: str, path: str, **params):
-        params["apikey"] = key
-        try:
-            r = httpx.get(f"{base}/{path}", params=params, timeout=20)
-            try:
-                body = r.json()
-            except Exception:  # noqa: BLE001
-                body = r.text[:300]
-            first = body[0] if isinstance(body, list) and body else (
-                body if isinstance(body, dict) else None)
-            out[name] = {
-                "status": r.status_code,
-                "count": len(body) if isinstance(body, list) else None,
-                "keys": sorted(first.keys()) if isinstance(first, dict) else None,
-                "sample": first if isinstance(first, dict) else str(body)[:300],
-            }
-        except Exception as e:  # noqa: BLE001
-            out[name] = {"error": str(e)[:200]}
-
-    stable = "https://financialmodelingprep.com/stable"
-    probe("econ_economics-calendar", stable, "economics-calendar", **{"from": "2026-08-13", "to": "2026-08-13"})
-    probe("econ_economic-calendar", stable, "economic-calendar", **{"from": "2026-08-13", "to": "2026-08-13"})
-    probe("estimates_stable", stable, "analyst-estimates", symbol="NVDA", period="annual", limit=2)
-    return out
-
-
 @router.post("/prices/ingest", dependencies=[Depends(_verify_token)])
 async def prices_ingest(payload: dict, session: AsyncSession = Depends(get_session)):
     """Přijme externě natažené denní ceny (lokální Yahoo backfill / n8n) a upsertne do
