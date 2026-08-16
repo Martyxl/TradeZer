@@ -100,7 +100,8 @@ class FMPProvider(MarketDataProvider):
         # FMP vrací roční odhady i roky daleko dopředu → větší limit + mapování
         # na aktuální/příští rok bez ohledu na pořadí. Pole ve `stable`: epsAvg,
         # revenueAvg, numAnalystsEps... (ne estimatedEpsAvg).
-        rows = self._safe("analyst-estimates", symbol=ticker, period="annual", limit=12)
+        # Free tier povoluje limit ≤ 10 (jinak 402). 10 ročních řad pokryje current+next rok.
+        rows = self._safe("analyst-estimates", symbol=ticker, period="annual", limit=10)
         if not rows:
             return []
         today = date.today()
