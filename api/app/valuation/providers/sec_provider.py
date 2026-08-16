@@ -233,7 +233,14 @@ class SECEdgarProvider(MarketDataProvider):
         return parse_companyfacts(facts)
 
     def get_estimates(self, ticker: str) -> list[EstimatePoint]:
-        return []  # SEC odhady nemá; dopočítáme vlastním modelem
+        # SEC odhady nemá → deleguj na FMP (stable analyst-estimates je i na free tieru).
+        if settings.fmp_api_key:
+            try:
+                from app.valuation.providers.fmp_provider import FMPProvider
+                return FMPProvider().get_estimates(ticker)
+            except Exception:  # noqa: BLE001
+                pass
+        return []
 
     def get_revisions(self, ticker: str) -> list[RevisionTrend]:
         return []
