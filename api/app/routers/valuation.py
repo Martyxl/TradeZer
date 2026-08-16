@@ -130,6 +130,29 @@ def _f(v) -> float | None:
         return None
 
 
+@router.get("/est-probe", dependencies=[Depends(_verify_token)])
+async def est_probe(ticker: str = "NVDA"):
+    """DOČASNÉ: syrové FMP analyst-estimates daty + parsované EstimatePointy."""
+    import httpx
+    from dataclasses import asdict
+    from app.valuation.providers.fmp_provider import FMPProvider
+    key = settings.fmp_api_key
+    raw_dates = []
+    try:
+        r = httpx.get("https://financialmodelingprep.com/stable/analyst-estimates",
+                      params={"symbol": ticker, "period": "annual", "limit": 12, "apikey": key}, timeout=20)
+        data = r.json()
+        raw_dates = [(row.get("date"), row.get("epsAvg")) for row in data] if isinstance(data, list) else data
+    except Exception as e:  # noqa: BLE001
+        raw_dates = {"error": str(e)[:150]}
+    parsed = []
+    try:
+        parsed = [asdict(p) for p in FMPProvider().get_estimates(ticker)]
+    except Exception as e:  # noqa: BLE001
+        parsed = {"error": str(e)[:150]}
+    return {"ticker": ticker, "raw_dates_eps": raw_dates, "parsed": parsed}
+
+
 @router.post("/prices/ingest", dependencies=[Depends(_verify_token)])
 async def prices_ingest(payload: dict, session: AsyncSession = Depends(get_session)):
     """Přijme externě natažené denní ceny (lokální Yahoo backfill / n8n) a upsertne do
