@@ -66,7 +66,9 @@ jobs:
             --max-time 58 \
             -X POST "$API_URL/api/calibrate" \
             -H "X-Internal-Token: $TOKEN" || true
-          cat /tmp/calibrate.json
+          # Best-effort: timeout na studeném/těžkém běhu nesmí shodit job (jinak GitHub
+          # posílá fail email; příště se to samo srovná). cat proto tolerantní.
+          cat /tmp/calibrate.json 2>/dev/null || echo "(bez odpovědi — pravděpodobně timeout)"
 
   outlook_eval:
     name: Evaluate outlook scenarios vs reality
@@ -81,4 +83,4 @@ jobs:
             --max-time 58 \
             -X POST "$API_URL/api/bias/outlook/evaluate" \
             -H "X-Internal-Token: $TOKEN" || true
-          cat /tmp/oeval.json
+          cat /tmp/oeval.json 2>/dev/null || echo "(bez odpovědi — pravděpodobně timeout)"
