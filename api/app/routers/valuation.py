@@ -138,11 +138,18 @@ async def est_probe(ticker: str = "NVDA"):
     from app.valuation.providers.fmp_provider import FMPProvider
     key = settings.fmp_api_key
     raw_dates = []
+    status = None
+    text = None
     try:
         r = httpx.get("https://financialmodelingprep.com/stable/analyst-estimates",
                       params={"symbol": ticker, "period": "annual", "limit": 12, "apikey": key}, timeout=20)
-        data = r.json()
-        raw_dates = [(row.get("date"), row.get("epsAvg")) for row in data] if isinstance(data, list) else data
+        status = r.status_code
+        text = r.text[:250]
+        try:
+            data = r.json()
+            raw_dates = [(row.get("date"), row.get("epsAvg")) for row in data] if isinstance(data, list) else data
+        except Exception:  # noqa: BLE001
+            raw_dates = "not-json"
     except Exception as e:  # noqa: BLE001
         raw_dates = {"error": str(e)[:150]}
     parsed = []
@@ -150,7 +157,8 @@ async def est_probe(ticker: str = "NVDA"):
         parsed = [asdict(p) for p in FMPProvider().get_estimates(ticker)]
     except Exception as e:  # noqa: BLE001
         parsed = {"error": str(e)[:150]}
-    return {"ticker": ticker, "raw_dates_eps": raw_dates, "parsed": parsed}
+    return {"ticker": ticker, "http_status": status, "raw_text": text,
+            "raw_dates_eps": raw_dates, "parsed": parsed}
 
 
 @router.post("/prices/ingest", dependencies=[Depends(_verify_token)])
