@@ -4,10 +4,20 @@ import { useEffect, useState } from "react";
 import { Target, LayoutGrid, Table2, Info, Loader2 } from "lucide-react";
 import { BubbleMap, VERDICT_COLOR, type OverviewItem } from "@/components/valuation/BubbleMap";
 import { ValuationDetail } from "@/components/valuation/ValuationDetail";
+import { PaywallGuard } from "@/components/PaywallGuard";
 
 interface Group { key: string; label_cs: string; color_hex: string }
 
+// Placená záložka: gate před obsahem (flag teď vypnutý → otevřené).
 export default function ValuationPage() {
+  return (
+    <PaywallGuard>
+      <ValuationInner />
+    </PaywallGuard>
+  );
+}
+
+function ValuationInner() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [items, setItems] = useState<OverviewItem[]>([]);
   const [group, setGroup] = useState<string | null>(null);
