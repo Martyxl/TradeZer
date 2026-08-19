@@ -54,7 +54,7 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="hidden md:flex flex-col w-56 shrink-0 border-r border-[#2a2d3a] bg-[#12141c] min-h-screen sticky top-0">
+    <aside className="hidden md:flex flex-col w-56 shrink-0 border-r border-[#2a2d3a] bg-[#12141c] h-screen sticky top-0 self-start overflow-y-auto">
       <Link href="/" className="flex items-center gap-2 px-5 py-5 border-b border-[#2a2d3a]">
         <div className="h-7 w-7 rounded-full bg-gradient-to-br from-green-400 to-blue-500" />
         <div>
