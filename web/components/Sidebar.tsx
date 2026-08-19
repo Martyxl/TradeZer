@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, History, BarChart3, Target, User as UserIcon, LogOut, CreditCard } from "lucide-react";
+import { LayoutDashboard, History, BarChart3, Target, User as UserIcon, LogOut, CreditCard, ShieldCheck } from "lucide-react";
 import { SupportButton } from "@/components/SupportButton";
 import { useAuth } from "@/lib/auth";
 
@@ -43,6 +43,7 @@ function UserMenu() {
         </div>
         <PlanBadge plan={user.plan} admin={user.is_admin} />
       </div>
+      {user.is_admin && <Link href="/admin" className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-[#8fffab] hover:text-white hover:bg-[#1a1d27] transition-colors"><ShieldCheck size={14} /> Admin</Link>}
       <Link href="/ucet" className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-[#1a1d27] transition-colors"><UserIcon size={14} /> Účet</Link>
       <Link href="/predplatne" className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-[#1a1d27] transition-colors"><CreditCard size={14} /> Předplatné</Link>
       <button onClick={logout} className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-left text-sm text-gray-400 hover:text-white hover:bg-[#1a1d27] transition-colors"><LogOut size={14} /> Odhlásit</button>

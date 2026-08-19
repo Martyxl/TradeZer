@@ -66,6 +66,15 @@ async def lifespan(app: FastAPI):
                 log.info("Migration: daily_bias NY-path columns ensured")
             except Exception as e:
                 log.warning("Migration daily_bias skipped", error=str(e))
+            try:
+                await conn.execute(text(
+                    "ALTER TABLE users "
+                    "ADD COLUMN IF NOT EXISTS last_login TIMESTAMP, "
+                    "ADD COLUMN IF NOT EXISTS login_count INTEGER NOT NULL DEFAULT 0"
+                ))
+                log.info("Migration: users login-tracking columns ensured")
+            except Exception as e:
+                log.warning("Migration users skipped", error=str(e))
 
     # Auto-seed: pokud je DB prázdná (žádné tickery), spusť seed automaticky
     async with engine.connect() as conn:

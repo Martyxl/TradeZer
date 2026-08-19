@@ -22,6 +22,10 @@ interface AuthState {
 const TOKEN_KEY = "tz_token";
 const AuthContext = createContext<AuthState | null>(null);
 
+export function authToken(): string | null {
+  return typeof window !== "undefined" ? localStorage.getItem(TOKEN_KEY) : null;
+}
+
 async function authFetch(path: string, body?: unknown, token?: string | null) {
   const res = await fetch(`/api/auth/${path}`, {
     method: body ? "POST" : "GET",
