@@ -7,10 +7,12 @@ from app.routers.stream import router as stream_router
 from app.routers.stats import router as stats_router
 from app.routers.bias import router as bias_router
 from app.routers.valuation import router as valuation_router
+from app.routers.auth import router as auth_router
 
 __all__ = [
     "bias_router",
     "valuation_router",
+    "auth_router",
     "tickers_router",
     "news_router",
     "summary_router",

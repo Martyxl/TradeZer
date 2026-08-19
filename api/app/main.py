@@ -21,6 +21,7 @@ from app.routers import (
     history_router,
     stream_router,
     stats_router,
+    auth_router,
 )
 
 structlog.configure(
@@ -78,6 +79,22 @@ async def lifespan(app: FastAPI):
             await seed(session)
         log.info("Auto-seed complete")
 
+    # Admin účet z env (NIKDY natvrdo v kódu — repo je veřejné). Nastav na Vercelu
+    # ADMIN_USERNAME + ADMIN_PASSWORD; heslo se uloží hashované, jde změnit v účtu.
+    admin_user = os.environ.get("ADMIN_USERNAME")
+    admin_pass = os.environ.get("ADMIN_PASSWORD")
+    if admin_user and admin_pass:
+        from sqlalchemy import select
+        from app.models import User
+        from app.services.auth_service import hash_password
+        async with session_context() as session:
+            existing = await session.scalar(select(User).where(User.username == admin_user))
+            if existing is None:
+                session.add(User(username=admin_user, password_hash=hash_password(admin_pass),
+                                 plan="pro", is_admin=True))
+                await session.commit()
+                log.info("Admin account seeded", username=admin_user)
+
     # APScheduler nefunguje na Vercel serverless (stateless funkce bez persistent procesu).
     # Na Vercelu použij Cron Jobs: POST /api/refresh každých N minut.
     if settings.app_env != "test" and not os.environ.get("VERCEL"):
@@ -127,6 +144,7 @@ app.include_router(stream_router)
 app.include_router(stats_router)
 app.include_router(bias_router)
 app.include_router(valuation_router)
+app.include_router(auth_router)
 
 
 @app.get("/")
