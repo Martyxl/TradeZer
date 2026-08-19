@@ -5,6 +5,22 @@
 :root {
   --background: #0f1117;
   --foreground: #e5e7eb;
+
+  /* Tradezer brand — Neon Candles (jediný závazný zdroj tokenů, viz handoff/BRAND.md) */
+  --tz-bg: #060a0c;
+  --tz-bg-soft: #0a0d0f;
+  --tz-text: #ffffff;
+  --tz-text-muted: rgba(255, 255, 255, 0.72);
+  --tz-text-faint: rgba(255, 255, 255, 0.65);
+  --tz-green: #60ff82;
+  --tz-green-bright: #7dffa0;
+  --tz-green-pale: #8fffab;
+  --tz-red: #ff4040;
+  --tz-red-bright: #ff5050;
+  --tz-red-pale: #ff6b6b;
+  --tz-grid: rgba(255, 255, 255, 0.035);
+  --tz-border: rgba(255, 255, 255, 0.22);
+  --tz-surface: rgba(255, 255, 255, 0.04);
 }
 
 body {

@@ -44,7 +44,7 @@ export default function RegisterPage() {
         {err && <p className="text-sm text-red-400">{err}</p>}
         <button type="submit" disabled={busy} className="tz-btn-primary">{busy ? "Zakládám…" : "Vytvořit účet"}</button>
       </form>
-      <p className="mt-4 text-sm text-gray-400">Už máš účet? <Link href="/prihlaseni" className="text-[#d2cefd] hover:underline">Přihlásit se</Link></p>
+      <p className="mt-4 text-sm text-white/60">Už máš účet? <Link href="/prihlaseni" className="tz-link">Přihlásit se</Link></p>
     </AuthShell>
   );
 }

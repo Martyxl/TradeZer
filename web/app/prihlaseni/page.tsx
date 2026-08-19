@@ -39,7 +39,7 @@ export default function LoginPage() {
         {err && <p className="text-sm text-red-400">{err}</p>}
         <button type="submit" disabled={busy} className="tz-btn-primary">{busy ? "Přihlašuji…" : "Přihlásit se"}</button>
       </form>
-      <p className="mt-4 text-sm text-gray-400">Nemáš účet? <Link href="/registrace" className="text-[#d2cefd] hover:underline">Vytvořit účet</Link></p>
+      <p className="mt-4 text-sm text-white/60">Nemáš účet? <Link href="/registrace" className="tz-link">Vytvořit účet</Link></p>
     </AuthShell>
   );
 }

@@ -14,8 +14,8 @@ const NAV_ITEMS = [
 ];
 
 function PlanBadge({ plan, admin }: { plan: string; admin: boolean }) {
-  if (admin) return <span className="rounded bg-[#423a6a] px-1.5 py-0.5 text-[9px] font-semibold uppercase text-[#d2cefd]">Admin</span>;
-  if (plan === "pro") return <span className="rounded bg-[#423a6a] px-1.5 py-0.5 text-[9px] font-semibold uppercase text-[#d2cefd]">Pro</span>;
+  if (admin) return <span className="rounded bg-[rgba(96,255,130,0.14)] px-1.5 py-0.5 text-[9px] font-semibold uppercase text-[#8fffab]">Admin</span>;
+  if (plan === "pro") return <span className="rounded bg-[rgba(96,255,130,0.14)] px-1.5 py-0.5 text-[9px] font-semibold uppercase text-[#8fffab]">Pro</span>;
   return <span className="rounded bg-[#2a2d3a] px-1.5 py-0.5 text-[9px] font-semibold uppercase text-gray-400">Free</span>;
 }
 
@@ -28,7 +28,7 @@ function UserMenu() {
         <Link href="/prihlaseni" className="rounded-lg border border-[#2a2d3a] px-3 py-2 text-center text-sm text-gray-300 hover:text-white hover:border-gray-500 transition-colors">
           Přihlásit
         </Link>
-        <Link href="/registrace" className="rounded-lg border border-[#5d5294] bg-[#2b2741] px-3 py-2 text-center text-sm font-medium text-[#d2cefd] hover:bg-[#423a6a] transition-colors">
+        <Link href="/registrace" className="rounded-lg border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.10)] px-3 py-2 text-center text-sm font-medium text-[#8fffab] hover:bg-[rgba(96,255,130,0.18)] transition-colors">
           Vytvořit účet
         </Link>
       </div>
@@ -37,7 +37,7 @@ function UserMenu() {
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center gap-2 px-1 pb-1">
-        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#2b2741] text-[#d2cefd]"><UserIcon size={14} /></div>
+        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[rgba(96,255,130,0.12)] text-[#8fffab]"><UserIcon size={14} /></div>
         <div className="min-w-0 flex-1">
           <div className="truncate text-xs text-gray-300">{user.email || user.username}</div>
         </div>

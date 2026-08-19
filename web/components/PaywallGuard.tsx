@@ -18,13 +18,13 @@ export function PaywallGuard({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 rounded-2xl border border-[#2a2d3a] bg-[#151823] p-8 text-center">
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#2b2741] text-[#d2cefd]"><Lock size={22} /></div>
+      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[rgba(96,255,130,0.12)] text-[#8fffab]"><Lock size={22} /></div>
       <h2 className="text-lg font-semibold text-white">Valuation Radar je součást Pro</h2>
       <p className="max-w-sm text-sm text-gray-400">Fundamentální skóre, valuační percentily a objevování příležitostí jsou dostupné v Pro plánu.</p>
       <div className="flex gap-3">
         {user
-          ? <Link href="/predplatne" className="rounded-lg border border-[#5d5294] bg-[#2b2741] px-4 py-2 text-sm font-medium text-[#d2cefd] hover:bg-[#423a6a]">Zobrazit předplatné</Link>
-          : <Link href="/registrace" className="rounded-lg border border-[#5d5294] bg-[#2b2741] px-4 py-2 text-sm font-medium text-[#d2cefd] hover:bg-[#423a6a]">Vytvořit účet</Link>}
+          ? <Link href="/predplatne" className="rounded-lg border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.10)] px-4 py-2 text-sm font-medium text-[#8fffab] hover:bg-[rgba(96,255,130,0.18)]">Zobrazit předplatné</Link>
+          : <Link href="/registrace" className="rounded-lg border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.10)] px-4 py-2 text-sm font-medium text-[#8fffab] hover:bg-[rgba(96,255,130,0.18)]">Vytvořit účet</Link>}
       </div>
     </div>
   );

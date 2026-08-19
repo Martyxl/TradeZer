@@ -20,12 +20,12 @@ export default function AccountPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#2b2741] text-[#d2cefd]"><UserIcon size={20} /></div>
+        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[rgba(96,255,130,0.12)] text-[#8fffab]"><UserIcon size={20} /></div>
         <div>
           <h1 className="text-xl font-semibold text-white">{user.email || user.username}</h1>
           <div className="mt-1 flex items-center gap-2 text-xs">
             <span className="rounded bg-[#2a2d3a] px-2 py-0.5 uppercase text-gray-300">Plán: {user.plan}</span>
-            {user.is_admin && <span className="inline-flex items-center gap-1 rounded bg-[#423a6a] px-2 py-0.5 uppercase text-[#d2cefd]"><ShieldCheck size={11} /> Admin</span>}
+            {user.is_admin && <span className="inline-flex items-center gap-1 rounded bg-[rgba(96,255,130,0.14)] px-2 py-0.5 uppercase text-[#8fffab]"><ShieldCheck size={11} /> Admin</span>}
           </div>
         </div>
       </div>
@@ -68,9 +68,9 @@ function ChangePasswordCard({ onChange }: { onChange: (o: string, n: string) => 
           <input type="password" required minLength={6} value={newP} onChange={(e) => setNewP(e.target.value)} className="acc-input" autoComplete="new-password" />
         </label>
         {msg && <p className={`text-sm ${msg.ok ? "text-green-400" : "text-red-400"}`}>{msg.text}</p>}
-        <button type="submit" disabled={busy} className="mt-1 min-h-9 rounded-lg border border-[#5d5294] bg-[#2b2741] text-sm font-medium text-[#d2cefd] hover:bg-[#423a6a] disabled:opacity-50">{busy ? "Ukládám…" : "Změnit heslo"}</button>
+        <button type="submit" disabled={busy} className="mt-1 min-h-9 rounded-lg border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.10)] text-sm font-medium text-[#8fffab] hover:bg-[rgba(96,255,130,0.18)] disabled:opacity-50">{busy ? "Ukládám…" : "Změnit heslo"}</button>
       </form>
-      <style>{`.acc-input{min-height:36px;padding:6px 10px;font-size:14px;color:#e9e9ed;background:#0f1117;border:1px solid #2a2d3a;border-radius:8px;outline:none}.acc-input:focus{border-color:#9184d9}`}</style>
+      <style>{`.acc-input{min-height:36px;padding:6px 10px;font-size:14px;color:#e5e7eb;background:#0f1117;border:1px solid #2a2d3a;border-radius:8px;outline:none}.acc-input:focus{border-color:#60ff82}`}</style>
     </div>
   );
 }
