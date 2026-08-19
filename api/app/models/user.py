@@ -19,3 +19,4 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     last_login: Mapped[datetime | None] = mapped_column(DateTime)
     login_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    reset_requested: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

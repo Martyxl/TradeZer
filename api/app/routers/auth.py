@@ -5,6 +5,7 @@ sbírá emaily zájemců i zakládá plnohodnotný účet (plan=free)."""
 from __future__ import annotations
 
 import re
+import secrets
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, Header, HTTPException
@@ -97,6 +98,18 @@ async def change_password(
     return {"status": "ok"}
 
 
+@router.post("/request-reset")
+async def request_reset(payload: dict, session: AsyncSession = Depends(get_session)):
+    """Self-service: uživatel zapomněl heslo → označí žádost, admin ji vyřídí v panelu.
+    Vrací vždy generickou odpověď (neprozrazuje, jestli email existuje)."""
+    email = (payload.get("email") or "").strip().lower()
+    user = await session.scalar(select(User).where(User.email == email))
+    if user is not None:
+        user.reset_requested = True
+        await session.commit()
+    return {"status": "ok"}
+
+
 async def require_admin(user: User = Depends(current_user)) -> User:
     if not user.is_admin:
         raise HTTPException(status_code=403, detail="Přístup jen pro admina")
@@ -124,19 +137,86 @@ async def admin_overview(_: User = Depends(require_admin), session: AsyncSession
     visits_row = await session.scalar(select(SiteCounter).where(SiteCounter.name == "page_visits"))
     visits = int(visits_row.value) if visits_row else 0
 
+    reset_requests = await count(User.reset_requested.is_(True))
+
     rows = (await session.execute(select(User).order_by(User.created_at.desc()).limit(200))).scalars().all()
     users = [{
         "id": u.id, "email": u.email, "username": u.username, "plan": u.plan,
         "is_admin": u.is_admin, "login_count": u.login_count or 0,
+        "reset_requested": u.reset_requested,
         "created_at": str(u.created_at)[:19] if u.created_at else None,
         "last_login": str(u.last_login)[:19] if u.last_login else None,
     } for u in rows]
+
+    # registrace po dnech za 30 dní (pro graf)
+    since30 = (now - timedelta(days=29)).date()
+    by_day_rows = (await session.execute(
+        select(func.date(User.created_at), func.count())
+        .where(User.created_at >= now - timedelta(days=30))
+        .group_by(func.date(User.created_at))
+    )).all()
+    counts = {str(d): int(n) for d, n in by_day_rows}
+    reg_by_day = [{"date": str(since30 + timedelta(days=i)),
+                   "count": counts.get(str(since30 + timedelta(days=i)), 0)} for i in range(30)]
 
     return {
         "stats": {
             "total_users": total, "pro": pro, "free": total - pro, "admins": admins,
             "logins_total": logins, "reg_7d": reg7, "reg_30d": reg30, "visits": visits,
+            "reset_requests": reset_requests,
         },
         "users": users,
+        "reg_by_day": reg_by_day,
         "payments": [],  # zatím žádné (platby nespuštěné)
     }
+
+
+def _rand_password() -> str:
+    return "tz-" + secrets.token_urlsafe(8)
+
+
+@router.post("/admin/users/{user_id}/reset-password")
+async def admin_reset_password(user_id: int, _: User = Depends(require_admin),
+                               session: AsyncSession = Depends(get_session)):
+    """Admin resetuje heslo uživateli → vygeneruje dočasné, vrátí ho (jen adminovi).
+    Admin ho předá uživateli, ten si ho pak změní v /ucet."""
+    u = await session.get(User, user_id)
+    if not u:
+        raise HTTPException(status_code=404, detail="Uživatel nenalezen")
+    temp = _rand_password()
+    u.password_hash = hash_password(temp)
+    u.reset_requested = False
+    await session.commit()
+    return {"status": "ok", "temp_password": temp,
+            "user": u.email or u.username}
+
+
+@router.post("/admin/users/{user_id}/plan")
+async def admin_set_plan(user_id: int, payload: dict, _: User = Depends(require_admin),
+                         session: AsyncSession = Depends(get_session)):
+    plan = (payload.get("plan") or "").strip().lower()
+    if plan not in ("free", "pro"):
+        raise HTTPException(status_code=400, detail="Plán musí být free nebo pro")
+    u = await session.get(User, user_id)
+    if not u:
+        raise HTTPException(status_code=404, detail="Uživatel nenalezen")
+    u.plan = plan
+    await session.commit()
+    return {"status": "ok", "plan": plan}
+
+
+@router.delete("/admin/users/{user_id}")
+async def admin_delete_user(user_id: int, admin: User = Depends(require_admin),
+                            session: AsyncSession = Depends(get_session)):
+    if user_id == admin.id:
+        raise HTTPException(status_code=400, detail="Nemůžeš smazat sám sebe")
+    u = await session.get(User, user_id)
+    if not u:
+        raise HTTPException(status_code=404, detail="Uživatel nenalezen")
+    if u.is_admin:
+        remaining = await session.scalar(select(func.count()).select_from(User).where(User.is_admin.is_(True)))
+        if int(remaining or 0) <= 1:
+            raise HTTPException(status_code=400, detail="Nelze smazat posledního admina")
+    await session.delete(u)
+    await session.commit()
+    return {"status": "ok"}

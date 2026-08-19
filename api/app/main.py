@@ -70,7 +70,8 @@ async def lifespan(app: FastAPI):
                 await conn.execute(text(
                     "ALTER TABLE users "
                     "ADD COLUMN IF NOT EXISTS last_login TIMESTAMP, "
-                    "ADD COLUMN IF NOT EXISTS login_count INTEGER NOT NULL DEFAULT 0"
+                    "ADD COLUMN IF NOT EXISTS login_count INTEGER NOT NULL DEFAULT 0, "
+                    "ADD COLUMN IF NOT EXISTS reset_requested BOOLEAN NOT NULL DEFAULT FALSE"
                 ))
                 log.info("Migration: users login-tracking columns ensured")
             except Exception as e:
