@@ -53,10 +53,15 @@ async def register(payload: dict, session: AsyncSession = Depends(get_session)):
     exists = await session.scalar(select(User).where(User.email == email))
     if exists:
         raise HTTPException(status_code=409, detail="Účet s tímto emailem už existuje")
-    user = User(email=email, password_hash=hash_password(password), plan="free", is_admin=False)
-    session.add(user)
-    await session.commit()
-    await session.refresh(user)
+    try:
+        user = User(email=email, password_hash=hash_password(password), plan="free", is_admin=False)
+        session.add(user)
+        await session.commit()
+        await session.refresh(user)
+    except Exception as e:  # DOČASNÉ: odhalit příčinu 500 při registraci
+        import traceback
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {e}\n{traceback.format_exc()[-800:]}")
     return {"token": make_token(user.id), "user": _user_out(user)}
 
 
