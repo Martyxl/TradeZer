@@ -31,8 +31,8 @@ export default function ForgotPasswordPage() {
       {done ? (
         <div className="flex flex-col gap-3">
           <p className="text-sm text-white/80">
-            Pokud účet s tímto emailem existuje, předali jsme žádost o reset správci. Ozve se ti s novým dočasným
-            heslem, které si pak změníš v Účtu.
+            Pokud účet s tímto emailem existuje, poslali jsme ti e-mail s odkazem pro nastavení nového hesla
+            (platí 1 hodinu). Zkontroluj i složku Spam.
           </p>
           <Link href="/prihlaseni" className="tz-link text-sm">Zpět na přihlášení</Link>
         </div>

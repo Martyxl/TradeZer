@@ -46,6 +46,22 @@ def make_token(user_id: int, days: int = 30) -> str:
 
 
 def verify_token(token: str) -> int | None:
+    return _verify(token, purpose="auth")
+
+
+def make_reset_token(user_id: int, minutes: int = 60) -> str:
+    """Krátkodobý (1h) token pro reset hesla — jiný purpose než login token."""
+    payload = {"uid": user_id, "p": "reset", "exp": int(time.time()) + minutes * 60}
+    body = base64.urlsafe_b64encode(json.dumps(payload).encode()).decode().rstrip("=")
+    sig = hmac.new(_secret(), body.encode(), hashlib.sha256).hexdigest()
+    return f"{body}.{sig}"
+
+
+def verify_reset_token(token: str) -> int | None:
+    return _verify(token, purpose="reset")
+
+
+def _verify(token: str, purpose: str) -> int | None:
     try:
         body, sig = token.split(".")
         expected = hmac.new(_secret(), body.encode(), hashlib.sha256).hexdigest()
@@ -54,6 +70,11 @@ def verify_token(token: str) -> int | None:
         pad = "=" * (-len(body) % 4)
         payload = json.loads(base64.urlsafe_b64decode(body + pad))
         if int(payload.get("exp", 0)) < time.time():
+            return None
+        # login token nemá "p"; reset token má "p":"reset"
+        if purpose == "reset" and payload.get("p") != "reset":
+            return None
+        if purpose == "auth" and payload.get("p") == "reset":
             return None
         return int(payload.get("uid"))
     except (ValueError, TypeError, json.JSONDecodeError):

@@ -16,7 +16,9 @@ from app.db import get_session
 from app.models import User
 from app.services.auth_service import (
     hash_password, verify_password, make_token, verify_token,
+    make_reset_token, verify_reset_token,
 )
+from app.services.email_service import send_email, reset_email_html, app_url
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -114,10 +116,39 @@ async def request_reset(payload: dict, session: AsyncSession = Depends(get_sessi
     """Self-service: uživatel zapomněl heslo → označí žádost, admin ji vyřídí v panelu.
     Vrací vždy generickou odpověď (neprozrazuje, jestli email existuje)."""
     email = (payload.get("email") or "").strip().lower()
-    user = await session.scalar(select(User).where(User.email == email))
-    if user is not None:
-        user.reset_requested = True
-        await session.commit()
+    try:
+        user = await session.scalar(select(User).where(User.email == email))
+        if user is not None:
+            user.reset_requested = True
+            await session.commit()
+            link = f"{app_url()}/reset-hesla?token={make_reset_token(user.id)}"
+            send_email(user.email, "Reset hesla — Tradezer", reset_email_html(link))
+    except Exception as e:  # noqa: BLE001 — DB/email výpadek nesmí prozradit ani shodit
+        import structlog
+        structlog.get_logger().warning("request_reset failed", error=str(e))
+        try:
+            await session.rollback()
+        except Exception:  # noqa: BLE001
+            pass
+    return {"status": "ok"}
+
+
+@router.post("/reset-password")
+async def reset_password(payload: dict, session: AsyncSession = Depends(get_session)):
+    """Self-service reset: token z e-mailu + nové heslo → nastaví heslo."""
+    token = payload.get("token") or ""
+    new = payload.get("new_password") or ""
+    uid = verify_reset_token(token)
+    if not uid:
+        raise HTTPException(status_code=400, detail="Odkaz je neplatný nebo vypršel")
+    if len(new) < 6:
+        raise HTTPException(status_code=400, detail="Nové heslo musí mít aspoň 6 znaků")
+    user = await session.get(User, uid)
+    if not user:
+        raise HTTPException(status_code=400, detail="Odkaz je neplatný")
+    user.password_hash = hash_password(new)
+    user.reset_requested = False
+    await session.commit()
     return {"status": "ok"}
 
 
