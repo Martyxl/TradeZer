@@ -50,18 +50,23 @@ async def register(payload: dict, session: AsyncSession = Depends(get_session)):
         raise HTTPException(status_code=400, detail="Neplatný email")
     if len(password) < 6:
         raise HTTPException(status_code=400, detail="Heslo musí mít aspoň 6 znaků")
-    exists = await session.scalar(select(User).where(User.email == email))
-    if exists:
-        raise HTTPException(status_code=409, detail="Účet s tímto emailem už existuje")
     try:
+        exists = await session.scalar(select(User).where(User.email == email))
+        if exists:
+            raise HTTPException(status_code=409, detail="Účet s tímto emailem už existuje")
         user = User(email=email, password_hash=hash_password(password), plan="free", is_admin=False)
         session.add(user)
         await session.commit()
         await session.refresh(user)
-    except Exception as e:  # DOČASNÉ: odhalit příčinu 500 při registraci
+    except HTTPException:
+        raise
+    except Exception as e:  # DOČASNÉ: odhalit příčinu 500 (DB) při registraci
         import traceback
-        await session.rollback()
-        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {e}\n{traceback.format_exc()[-800:]}")
+        try:
+            await session.rollback()
+        except Exception:
+            pass
+        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {str(e)[:400]}")
     return {"token": make_token(user.id), "user": _user_out(user)}
 
 
