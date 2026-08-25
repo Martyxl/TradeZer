@@ -35,11 +35,9 @@ structlog.configure(
 log = structlog.get_logger(__name__)
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    log.info("Tradezer starting", env=settings.app_env)
-    settings.check_missing_keys()
-
+async def _startup_db() -> None:
+    """DB init (create_all, migrace, seed, admin). Volané z lifespan v try/except,
+    aby výpadek DB při startu neshodil celý backend (FUNCTION_INVOCATION_FAILED)."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         # Schema migration: přidej price_series pokud neexistuje (Postgres only)
@@ -104,6 +102,18 @@ async def lifespan(app: FastAPI):
                                  plan="pro", is_admin=True))
                 await session.commit()
                 log.info("Admin account seeded", username=admin_user)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    log.info("Tradezer starting", env=settings.app_env)
+    settings.check_missing_keys()
+    try:
+        await _startup_db()
+    except Exception as e:  # noqa: BLE001
+        # Výpadek DB při startu NESMÍ shodit celý backend — appka nabootuje degradovaně
+        # (non-DB endpointy jedou, DB endpointy vrátí zachytitelnou chybu místo hard crashe).
+        log.error("DB startup failed — booting in degraded mode", error=str(e))
 
     # APScheduler nefunguje na Vercel serverless (stateless funkce bez persistent procesu).
     # Na Vercelu použij Cron Jobs: POST /api/refresh každých N minut.
