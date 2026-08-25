@@ -60,13 +60,14 @@ async def register(payload: dict, session: AsyncSession = Depends(get_session)):
         await session.refresh(user)
     except HTTPException:
         raise
-    except Exception as e:  # DOČASNÉ: odhalit příčinu 500 (DB) při registraci
-        import traceback
+    except Exception as e:  # noqa: BLE001 — typicky výpadek DB; nešířit traceback ven
+        import structlog
+        structlog.get_logger().error("register failed", error=str(e))
         try:
             await session.rollback()
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass
-        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {str(e)[:400]}")
+        raise HTTPException(status_code=503, detail="Registrace je dočasně nedostupná, zkus to prosím za chvíli.")
     return {"token": make_token(user.id), "user": _user_out(user)}
 
 

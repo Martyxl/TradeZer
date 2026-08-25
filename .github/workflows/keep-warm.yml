@@ -1,10 +1,10 @@
 name: Tradezer Keep-Warm (valuation)
 
-# Drží Vercel serverless funkci (a Neon připojení) teplou, aby /valuation nemělo
-# ~12s cold start. GitHub cron bývá zpožděný/vynechává, proto každý běh pinguje
-# ve smyčce ~4.5 min — tím přemostí mezery mezi (nepravidelnými) spuštěními.
-# Ping je veřejný GET /api/valuation/overview (bez tokenu, bez vedlejších efektů).
-# Neon je tak jako tak hřátý existujícím fast-refresh (DB hit každých 5 min).
+# Drží Vercel serverless funkci (Python) teplou, aby endpointy neměly ~12s cold
+# boot. Pinguje /api/health — statický endpoint BEZ DB, takže NEspaluje datový
+# přenos Neonu (dřív mířil na /valuation/overview a vyčerpal free-tier kvótu Neonu
+# → celý backend spadl). Neon se nechá autosuspendovat; jeho probuzení (~1-2s) na
+# první DB dotaz je akceptovatelné. GitHub cron bývá zpožděný → smyčka přemostí mezery.
 
 on:
   schedule:
@@ -31,7 +31,7 @@ jobs:
           while [ "$SECONDS" -lt "$end" ]; do
             n=$((n + 1))
             resp=$(curl -s -o /dev/null -w "%{http_code} %{time_total}s" \
-              --max-time 20 "$API_URL/api/valuation/overview" || echo "ERR ?")
-            echo "$(date -u +%H:%M:%S) ping #$n overview -> $resp"
+              --max-time 20 "$API_URL/api/health" || echo "ERR ?")
+            echo "$(date -u +%H:%M:%S) ping #$n health -> $resp"
             sleep 50
           done
