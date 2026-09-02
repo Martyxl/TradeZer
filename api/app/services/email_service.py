@@ -14,15 +14,17 @@ log = structlog.get_logger(__name__)
 
 
 def app_url() -> str:
-    return os.environ.get("APP_URL", "https://tradezer.app").rstrip("/")
+    return os.environ.get("APP_URL", "https://tradezer.app").strip().rstrip("/")
 
 
 def _from() -> str:
-    return os.environ.get("EMAIL_FROM", "Tradezer <noreply@tradezer.app>")
+    return os.environ.get("EMAIL_FROM", "Tradezer <noreply@tradezer.app>").strip()
 
 
 def send_email(to: str, subject: str, html: str) -> bool:
-    key = os.environ.get("RESEND_API_KEY")
+    # .strip() — env proměnné z Vercelu občas nesou koncový \n/mezeru z kopírování,
+    # což dělá "Bearer <key>\n" neplatnou hodnotu HTTP hlavičky (Illegal header value).
+    key = (os.environ.get("RESEND_API_KEY") or "").strip()
     if not key:
         log.warning("RESEND_API_KEY not set — email skipped", to=to)
         return False
