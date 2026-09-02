@@ -533,6 +533,133 @@ def by_hour(df: pd.DataFrame) -> dict:
     }
 
 
+# ---------------------------------------------------------------- ORB (opening range)
+# Horizonty po openu (v 5m barech): 30 min, 60 min, celá session.
+ORB_HORIZONS = {"m30": 6, "m60": 12, "sess": None}
+# Délka opening range (počet 5m barů): 5 min = 1 bar, 15 min = 3 bary.
+OR_LENGTHS = {"or5": 1, "or15": 3}
+
+
+def _orb_outcome(h1: float, l1: float, hs, ls, cs, horizon: int | None) -> tuple[str, str | None]:
+    """Vybere se high/low OR (h1/l1) v `horizon` barech po openu?
+      outcome ∈ both / high_only / low_only / neither
+      order   ∈ high_to_low / low_to_high / None (jen když both)."""
+    n = len(hs) if horizon is None else min(horizon, len(hs))
+    t_high = t_low = None
+    for i in range(n):
+        if t_high is None and hs[i] > h1:
+            t_high = i
+        if t_low is None and ls[i] < l1:
+            t_low = i
+        if t_high is not None and t_low is not None:
+            break
+    if t_high is not None and t_low is not None:
+        if t_high == t_low:  # týž 5m bar vzal obě strany → rozhodne close vůči středu
+            order = "high_to_low" if cs[t_high] < (h1 + l1) / 2 else "low_to_high"
+        else:
+            order = "high_to_low" if t_high < t_low else "low_to_high"
+        return "both", order
+    if t_high is not None:
+        return "high_only", None
+    if t_low is not None:
+        return "low_only", None
+    return "neither", None
+
+
+def _orb_records(df: pd.DataFrame, s: float, e: float, or_bars: int) -> list[dict]:
+    """Per-day ORB výsledky pro jednu session (open = start hodiny) přes všechny horizonty.
+    Prvních `or_bars` 5m barů = opening range (5min=1, 15min=3); hodnotí se
+    vybrání jeho high/low ve zbytku session (po OR) v jednotlivých horizontech."""
+    recs = []
+    for tday, day in df.groupby("tday"):
+        sess = day[in_session(day["hour_f"], s, e)].sort_values("ts")
+        if len(sess) < or_bars + 3:  # OR + aspoň pár barů (svátek/díra jinak)
+            continue
+        orbars = sess.iloc[:or_bars]
+        h1, l1 = float(orbars["high"].max()), float(orbars["low"].min())
+        rest = sess.iloc[or_bars:]
+        hs, ls, cs = rest["high"].to_numpy(), rest["low"].to_numpy(), rest["close"].to_numpy()
+        rec = {"tday": tday, "or_range": round(h1 - l1, 2)}
+        for hk, hb in ORB_HORIZONS.items():
+            rec[hk] = _orb_outcome(h1, l1, hs, ls, cs, hb)
+        recs.append(rec)
+    return recs
+
+
+def _agg_orb(recs: list[dict], hk: str) -> dict:
+    counts = {"both": 0, "high_only": 0, "low_only": 0, "neither": 0}
+    order = {"high_to_low": 0, "low_to_high": 0}
+    for r in recs:
+        outcome, o = r[hk]
+        counts[outcome] += 1
+        if o:
+            order[o] += 1
+    d = dist_pct(counts)
+    return {
+        "days": len(recs),
+        **d,
+        "high_taken": round(d["both"] + d["high_only"], 1),   # jak často se vybere HIGH OR
+        "low_taken": round(d["both"] + d["low_only"], 1),     # jak často se vybere LOW OR
+        "break_rate": round(100.0 - d["neither"], 1),         # aspoň jedna strana vybrána
+        "one_sided": round(d["high_only"] + d["low_only"], 1),  # čistý směrový proraz
+        "order": dist_pct(order),
+    }
+
+
+def _rolling_orb(recs: list[dict], hk: str, window: int, step: int) -> list[dict]:
+    """Plovoucí okno přes seřazené dny → časová řada klíčových metrik (trend)."""
+    recs = sorted(recs, key=lambda r: r["tday"])
+    n = len(recs)
+    keys = ("high_taken", "low_taken", "break_rate", "one_sided", "both", "neither")
+    if n < window:
+        if not n:
+            return []
+        a = _agg_orb(recs, hk)
+        return [{"from": str(recs[0]["tday"]), "to": str(recs[-1]["tday"]),
+                 "n": a["days"], **{k: a[k] for k in keys}}]
+    starts = list(range(0, n - window + 1, step))
+    if starts[-1] != n - window:
+        starts.append(n - window)  # ať poslední okno vždy končí posledním dnem
+    out = []
+    for st in starts:
+        w = recs[st:st + window]
+        a = _agg_orb(w, hk)
+        out.append({"from": str(w[0]["tday"]), "to": str(w[-1]["tday"]),
+                    "n": a["days"], **{k: a[k] for k in keys}})
+    return out
+
+
+def orb_stats(df: pd.DataFrame, sessions: dict, months: int = 6,
+              window: int = 30, step: int = 5) -> dict:
+    """ORB statistiky za posledních `months` měsíců + plovoucí okno pro trend.
+
+    Pro každou délku OR (5min / 15min) a každou session (open = start hodiny)
+    měříme vybrání high/low opening range ve třech horizontech: 30 min, 60 min
+    a celá session. Overall = celé 6M okno; rolling = trend v čase (na 30m a 60m
+    horizontu — tam je edge, na celé session se OR sundá skoro vždy).
+    Struktura: {_meta, or5:{asia,london,ny}, or15:{...}}.
+    Pozn.: NY open = start NY session (12:00 UTC), ne cash open (13:30). Lze přepnout."""
+    max_day = max(df["tday"])
+    cutoff = max_day - timedelta(days=round(months * 30.5))
+    sub = df[df["tday"] >= cutoff]
+    out = {"_meta": {"months": months, "window_days": window, "step_days": step,
+                     "from": str(cutoff), "to": str(max_day),
+                     "horizons": {"m30": "30 min", "m60": "60 min", "sess": "celá session"},
+                     "or_lengths": {"or5": "5 min", "or15": "15 min"}}}
+    for olk, ob in OR_LENGTHS.items():
+        block = {}
+        for name, (s, e) in sessions.items():
+            recs = _orb_records(sub, s, e, ob)
+            block[name] = {
+                "open_utc": s,
+                "or_range_avg": round(float(np.mean([r["or_range"] for r in recs])), 2) if recs else 0.0,
+                "overall": {hk: _agg_orb(recs, hk) for hk in ORB_HORIZONS},
+                "rolling": {hk: _rolling_orb(recs, hk, window, step) for hk in ("m30", "m60")},
+            }
+        out[olk] = block
+    return out
+
+
 def compute(key: str, cfg: dict) -> dict:
     df = load_m5(cfg["file_glob"])
     daily = df.groupby("tday").agg(
@@ -578,6 +705,7 @@ def compute(key: str, cfg: dict) -> dict:
         "asia_both_sides": range_break_stats(df, sessions["asia"], (7, 21)),
         "globex_both_sides": range_break_stats(df, (ov_start, rth[0]), rth),
         "first15_range": first15_range_stats(df, rth[0], rth[1]),
+        "orb_sessions": orb_stats(df, sessions),
         "ny_entry": ny_entry_model(df, rth[0], rth[1]),
         "trade_sim": trade_sim(df, rth[0], rth[1]),
         "by_hour": by_hour(df),
