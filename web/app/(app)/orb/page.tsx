@@ -41,6 +41,17 @@ const SIDES_LABELS: LabelList = [
   ["both", "Obě strany"], ["high_only", "Pouze high"], ["low_only", "Pouze low"], ["neither", "Ani jedna"],
 ];
 
+type MetricKey = "one_sided" | "both" | "neither" | "high_taken" | "low_taken";
+// pol: +1 = růst zlepšuje edge, -1 = růst zhoršuje (whipsaw), 0 = neutrální (jen roste/klesá)
+const METRICS: Record<MetricKey, { label: string; short: string; pol: number; color: string }> = {
+  one_sided: { label: "1-sided proraz (čistý směr)", short: "1-sided", pol: 1, color: "#3b82f6" },
+  both: { label: "Obě strany (whipsaw)", short: "Obě strany", pol: -1, color: "#f59e0b" },
+  neither: { label: "Ani jedna (range drží)", short: "Ani jedna", pol: 0, color: "#a855f7" },
+  high_taken: { label: "High vybráno", short: "High", pol: 0, color: "#4ade80" },
+  low_taken: { label: "Low vybráno", short: "Low", pol: 0, color: "#f87171" },
+};
+const METRIC_ORDER: MetricKey[] = ["one_sided", "both", "neither", "high_taken", "low_taken"];
+
 function Delta({ now, prev }: { now: number; prev?: number }) {
   if (prev === undefined || prev === null) return null;
   const d = Math.round((now - prev) * 10) / 10;
@@ -125,24 +136,26 @@ function OrbSparkline({ points, color }: { points: number[]; color: string }) {
   );
 }
 
-function orbVerdict(points: number[]): { txt: string; color: string; arrow: string; delta: number } {
+function orbVerdict(points: number[], pol: number): { txt: string; color: string; arrow: string; delta: number } {
   const f = fitLine(points);
-  const delta = f.b * (points.length - 1); // fitnutá změna 1-sided prorazu start→konec (víc = lepší edge)
+  const delta = f.b * (points.length - 1); // fitnutá změna metriky start→konec za 6M
   if (Math.abs(delta) < 4) return { txt: "Stabilní", color: "#eab308", arrow: "→", delta };
-  if (delta > 0) return { txt: "Zpevňuje", color: "#4ade80", arrow: "▲", delta };
-  return { txt: "Rozpadá se", color: "#f87171", arrow: "▼", delta };
+  const up = delta > 0;
+  if (pol === 0) return { txt: up ? "Roste" : "Klesá", color: "#93a4c4", arrow: up ? "▲" : "▼", delta };
+  const good = delta * pol > 0;
+  return { txt: good ? "Zpevňuje" : "Rozpadá se", color: good ? "#4ade80" : "#f87171", arrow: up ? "▲" : "▼", delta };
 }
 
-function OrbCard({ name, sess, prevSess, hor }: {
-  name: string; sess: OrbSession; prevSess?: OrbSession | null; hor: string;
+function OrbCard({ name, sess, hor, metric }: {
+  name: string; sess: OrbSession; hor: string; metric: MetricKey;
 }) {
   const ov = sess.overall[hor];
   const roll = sess.rolling[hor];
-  const prevOv = prevSess?.overall?.[hor];
+  const M = METRICS[metric];
   const open = String(sess.open_utc).padStart(2, "0") + ":00";
-  const os = roll ? roll.map((r) => r.one_sided) : [];
-  const v = roll && os.length > 1 ? orbVerdict(os) : null;
-  const cur = roll && os.length ? os[os.length - 1] : ov.one_sided;
+  const os = roll ? roll.map((r) => r[metric]) : [];
+  const v = roll && os.length > 1 ? orbVerdict(os, M.pol) : null;
+  const cur = roll && os.length ? os[os.length - 1] : (ov as unknown as Record<string, number>)[metric];
   return (
     <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-4">
       <div className="flex items-start justify-between gap-2">
@@ -164,30 +177,29 @@ function OrbCard({ name, sess, prevSess, hor }: {
         <div className="mt-2 mb-1">
           <div className="flex items-baseline gap-1.5">
             <span className="text-2xl font-bold text-white">{cur}</span>
-            <span className="text-[11px] text-gray-500">% · 1-sided proraz</span>
+            <span className="text-[11px] text-gray-500">% · {M.label}</span>
             {v && (
               <span className="text-[10px] ml-auto font-medium" style={{ color: v.color }}>
                 {v.delta >= 0 ? "+" : ""}{v.delta.toFixed(1)} pp / 6M
               </span>
             )}
           </div>
-          <OrbSparkline points={os} color="#3b82f6" />
+          <OrbSparkline points={os} color={M.color} />
         </div>
       )}
 
       <div className="mt-2">
-        <BarGroup data={ov as unknown as Record<string, number>}
-          prevData={prevOv as unknown as Record<string, number> | undefined} labels={SIDES_LABELS} />
+        <BarGroup data={ov as unknown as Record<string, number>} labels={SIDES_LABELS} />
       </div>
 
       <div className="mt-3 pt-3 border-t border-[#232735] space-y-2">
-        <Bar label="High vybráno" value={ov.high_taken} prev={prevOv?.high_taken} accent="#3b82f6" />
-        <Bar label="Low vybráno" value={ov.low_taken} prev={prevOv?.low_taken} accent="#3b82f6" />
+        <Bar label="High vybráno" value={ov.high_taken} accent="#3b82f6" />
+        <Bar label="Low vybráno" value={ov.low_taken} accent="#3b82f6" />
       </div>
 
       <div className="mt-3 pt-3 border-t border-[#232735] space-y-2">
-        <Bar label="Nejdřív High" value={ov.order?.high_to_low ?? 0} prev={prevOv?.order?.high_to_low} accent="#64748b" />
-        <Bar label="Nejdřív Low" value={ov.order?.low_to_high ?? 0} prev={prevOv?.order?.low_to_high} accent="#64748b" />
+        <Bar label="Nejdřív High" value={ov.order?.high_to_low ?? 0} accent="#64748b" />
+        <Bar label="Nejdřív Low" value={ov.order?.low_to_high ?? 0} accent="#64748b" />
       </div>
     </div>
   );
@@ -207,7 +219,8 @@ function InfoModal({ onClose }: { onClose: () => void }) {
           <p><b className="text-white">Opening range (OR)</b> = prvních 5 nebo 15 min po openu session (1 nebo 3 pětiminutové svíčky). Sledujeme, jak často se ve zvoleném horizontu <b className="text-white">vybere high / low</b> tohoto rangu.</p>
           <p><b className="text-blue-400">1-sided proraz</b> = vybere se jen jedna strana (čistý směr). <b className="text-blue-400">Obě strany</b> = vybere se high i low (whipsaw). <b className="text-blue-400">Ani jedna</b> = range drží.</p>
           <p><b className="text-white">Horizont</b>: 30 / 60 min po OR, nebo celá session (na celé session se OR sundá skoro vždy — edge je čitelný na 30/60 min).</p>
-          <p><b className="text-white">Verdikt</b> (Zpevňuje / Rozpadá se / Stabilní) = lineární regrese 1-sided prorazu přes plovoucí 30denní okna za posledních 6 měsíců. Sparkline ukazuje ten trend.</p>
+          <p><b className="text-white">Trend (křivka)</b> = vyber, kterou metriku sleduje velké číslo, sparkline a verdikt: 1-sided, Obě strany, Ani jedna, High nebo Low. Bary pod tím ukazují celé rozdělení vždy.</p>
+          <p><b className="text-white">Verdikt</b> = lineární regrese zvolené metriky přes plovoucí 30denní okna za 6 měsíců. U „1-sided" a „Obě strany" hodnotí edge (Zpevňuje / Rozpadá se), u ostatních jen směr (Roste / Klesá). Sparkline ukazuje ten trend.</p>
           <p><b className="text-white">Nejdřív High / Low</b> = která strana OR padne první.</p>
           <p className="text-xs text-gray-500">Open = start session (Asia dle instrumentu, London 07:00, NY 12:00 UTC — session open, ne cash open 13:30). Data: Dukascopy 5m bary. Statistika popisuje strukturu trhu, není investiční doporučení.</p>
         </div>
@@ -224,6 +237,7 @@ export default function OrbPage() {
   const [error, setError] = useState<string | null>(null);
   const [orLen, setOrLen] = useState<"or5" | "or15">("or5");
   const [hor, setHor] = useState<"m30" | "m60" | "sess">("m60");
+  const [metric, setMetric] = useState<MetricKey>("one_sided");
   const [showInfo, setShowInfo] = useState(false);
 
   useEffect(() => {
@@ -337,13 +351,24 @@ export default function OrbPage() {
                 </button>
               ))}
             </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] uppercase tracking-wider text-gray-500 mr-1">Trend (křivka)</span>
+              {METRIC_ORDER.map((k) => (
+                <button key={k} onClick={() => setMetric(k)}
+                  className={`rounded-md px-3 py-1 text-xs font-medium border transition-colors ${
+                    metric === k ? "bg-[#1e2536] text-white border-[#2f3b55]"
+                      : "bg-[#151823] text-gray-400 border-[#2a2d3a] hover:text-white"}`}>
+                  {METRICS[k].short}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {SESSION_LABELS.map(([k, name]) => {
               const sess = orb[orLen][k];
               if (!sess) return null;
-              return <OrbCard key={k} name={name} sess={sess} hor={hor} />;
+              return <OrbCard key={k} name={name} sess={sess} hor={hor} metric={metric} />;
             })}
           </div>
 
