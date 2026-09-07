@@ -32,3 +32,22 @@ class JournalEntry(Base):
     screenshot_url: Mapped[str | None] = mapped_column(String(500))
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime | None] = mapped_column(DateTime, onupdate=func.now())
+
+
+class JournalAnalysisJob(Base):
+    """Async job pro AI vision extrakci obchodu (engine=spark). Claude engine běží
+    synchronně a job nepotřebuje. Spark worker (na Sparku) polluje pending, stáhne
+    obrázek ze source_url, proežene lokální vision model a pushne result zpět."""
+    __tablename__ = "journal_analysis_jobs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    engine: Mapped[str] = mapped_column(String(20), default="spark", nullable=False)  # claude | spark
+    source_url: Mapped[str | None] = mapped_column(String(500))  # TradingView URL (worker stáhne obrázek)
+    status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False, index=True)  # pending|done|failed
+    result: Mapped[str | None] = mapped_column(Text)   # JSON s vytěženými poli
+    error: Mapped[str | None] = mapped_column(String(500))
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime, onupdate=func.now())

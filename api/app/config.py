@@ -17,6 +17,12 @@ class Settings(BaseSettings):
     claude_classifier_model: str = Field(
         default="claude-haiku-4-5-20251001", alias="CLAUDE_CLASSIFIER_MODEL"
     )
+    # Vision extrakce obchodu z TradingView screenshotu (deník). Default sonnet =
+    # rychlý/levný pro testy + bezpečný vůči Vercel timeoutu; pro max přesnost
+    # čtení grafů nastav CLAUDE_VISION_MODEL=claude-opus-5.
+    claude_vision_model: str = Field(
+        default="claude-sonnet-4-6", alias="CLAUDE_VISION_MODEL"
+    )
 
     # News sources
     newsapi_key: str = Field(default="", alias="NEWSAPI_KEY")

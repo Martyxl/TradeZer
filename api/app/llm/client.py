@@ -205,4 +205,60 @@ class AnthropicLLMClient:
                     f"Pod forecastem: {first.get('cool', {}).get('text')}.")
 
 
+    _TRADE_VISION_SYSTEM = (
+        "Jsi asistent obchodního deníku. Uživatel pošle screenshot z TradingView "
+        "s nakreslenou analýzou a obchodem (entry, stop, target, úrovně). Vytěž z obrázku "
+        "strukturované informace o obchodu. Vrať POUZE validní JSON (bez markdownu, bez "
+        "komentářů) v tomto tvaru:\n"
+        "{\n"
+        '  "instrument": string|null,        // symbol, např. "NQ", "XAUUSD", "BTCUSD"\n'
+        '  "direction": "long"|"short"|null, // směr obchodu\n'
+        '  "timeframe": string|null,          // např. "5m", "1h", "D"\n'
+        '  "entry": number|null,              // vstupní cena (číslo, bez měny)\n'
+        '  "stop": number|null,               // stop-loss cena\n'
+        '  "target": number|null,             // cílová/výstupní cena (pokud víc, ta hlavní)\n'
+        '  "rr": number|null,                 // plánovaný poměr zisk:riziko jako násobek R (např. 2.5)\n'
+        '  "setup": string|null,              // krátký název setupu, pokud je z grafu patrný\n'
+        '  "notes": string|null               // 1–2 věty česky shrnující nakreslenou analýzu\n'
+        "}\n"
+        "Použij null u čehokoli, co v obrázku není jasně vidět. NEVYMÝŠLEJ si čísla. "
+        "Pokud jde entry, stop i target vyčíst, můžeš rr dopočítat z těch úrovní. "
+        "Ceny jsou čistá čísla bez symbolů měny a bez oddělovačů tisíců."
+    )
+
+    def extract_trade_from_image(self, image_bytes: bytes, media_type: str = "image/png") -> dict:
+        """Vision extrakce obchodu z TradingView screenshotu → dict polí deníku.
+        Vrací {} při selhání (endpoint pak vrátí přívětivou chybu)."""
+        import base64
+
+        request_id = str(uuid.uuid4())[:8]
+        log.info("Vision trade extract start", request_id=request_id, model=settings.claude_vision_model)
+        try:
+            client = self._get_client()
+            b64 = base64.standard_b64encode(image_bytes).decode("ascii")
+            message = client.messages.create(
+                model=settings.claude_vision_model,
+                max_tokens=800,
+                system=self._TRADE_VISION_SYSTEM,
+                messages=[{
+                    "role": "user",
+                    "content": [
+                        {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": b64}},
+                        {"type": "text", "text": "Vytěž obchod z tohoto grafu jako JSON dle instrukcí."},
+                    ],
+                }],
+            )
+            raw_text = message.content[0].text.strip()
+            if raw_text.startswith("```"):
+                raw_text = raw_text.split("```")[1]
+                if raw_text.startswith("json"):
+                    raw_text = raw_text[4:]
+            data = json.loads(raw_text)
+            log.info("Vision trade extract complete", request_id=request_id)
+            return data if isinstance(data, dict) else {}
+        except Exception as e:  # noqa: BLE001
+            log.error("Vision trade extract failed", request_id=request_id, error=str(e))
+            return {}
+
+
 llm_client = AnthropicLLMClient()

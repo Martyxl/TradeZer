@@ -5,16 +5,25 @@ uživatel nikdy nevidí ani nemění cizí záznamy.
 """
 from __future__ import annotations
 
+import base64
+import json
+import re
 from datetime import datetime
 
+import httpx
+import structlog
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
+from app.llm.client import llm_client
 from app.models import User
-from app.models.journal import JournalEntry
+from app.models.journal import JournalEntry, JournalAnalysisJob
+from app.routers.admin import _verify_token
 from app.routers.auth import current_user
+
+log = structlog.get_logger(__name__)
 
 router = APIRouter(prefix="/api/journal", tags=["journal"])
 
@@ -197,3 +206,160 @@ async def journal_stats(user: User = Depends(current_user),
         "by_session": _bucket_stats(entries, lambda e: e.session),
         "by_instrument": _bucket_stats(entries, lambda e: e.instrument),
     }
+
+
+# ---------------------------------------------------------------- AI vision analýza (TradingView)
+
+_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+       "(KHTML, like Gecko) Chrome/124 Safari/537.36")
+_IMG_EXT = (".png", ".jpg", ".jpeg", ".webp", ".gif")
+_MAX_IMG = 8 * 1024 * 1024
+
+
+async def _resolve_tv_image(url: str) -> tuple[bytes, str]:
+    """Z TradingView (nebo přímého) odkazu vrať (bytes, media_type). Snapshot link
+    /x/ID/ → z og:image stáhne PNG. HTTPException s návodem při selhání."""
+    url = url.strip()
+    if not url.startswith(("http://", "https://")):
+        raise HTTPException(status_code=400, detail="Neplatná URL")
+    try:
+        async with httpx.AsyncClient(follow_redirects=True, timeout=20.0,
+                                     headers={"User-Agent": _UA}) as cl:
+            img_url = url
+            if not url.lower().split("?")[0].endswith(_IMG_EXT):
+                r = await cl.get(url)
+                r.raise_for_status()
+                m = (re.search(r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)', r.text, re.I)
+                     or re.search(r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:image["\']', r.text, re.I))
+                if not m:
+                    raise HTTPException(status_code=400, detail=(
+                        "Z odkazu nešel získat obrázek grafu. Použij TradingView snapshot "
+                        "(ikona fotoaparátu → Copy link to the chart image) nebo nahraj obrázek."))
+                img_url = m.group(1)
+            ir = await cl.get(img_url)
+            ir.raise_for_status()
+            data = ir.content
+            if len(data) > _MAX_IMG:
+                raise HTTPException(status_code=400, detail="Obrázek je moc velký (max 8 MB).")
+            ctype = ir.headers.get("content-type", "").split(";")[0].strip().lower()
+            return data, ctype if ctype.startswith("image/") else "image/png"
+    except HTTPException:
+        raise
+    except Exception as e:  # noqa: BLE001
+        log.warning("TV image resolve failed", url=url, error=str(e))
+        raise HTTPException(status_code=400, detail=(
+            "Odkaz se nepodařilo načíst. Zkontroluj, že je veřejný (TradingView snapshot), "
+            "nebo nahraj obrázek."))
+
+
+def _map_extracted(data: dict, source_url: str | None) -> dict:
+    """Vytěžená vision pole → tvar formuláře deníku (řetězce/čísla)."""
+    d = str(data.get("direction") or "").lower().strip()
+    direction = d if d in DIRECTIONS else ""
+    tf = str(data.get("timeframe") or "").strip()
+    setup = str(data.get("setup") or "").strip()
+    if tf and setup:
+        setup = f"{setup} ({tf})"
+    elif tf:
+        setup = tf
+    notes = str(data.get("notes") or "").strip()
+    stop = data.get("stop")
+    if stop is not None and _num(stop) is not None:
+        notes = (notes + f" | Stop: {stop}").strip(" |")
+    return {
+        "instrument": str(data.get("instrument") or "").strip(),
+        "direction": direction,
+        "entry_price": data.get("entry"),
+        "exit_price": data.get("target"),
+        "r_result": data.get("rr"),
+        "setup": setup[:80],
+        "notes": notes,
+        "screenshot_url": source_url or "",
+    }
+
+
+@router.post("/analyze")
+async def analyze(payload: dict, user: User = Depends(current_user),
+                  session: AsyncSession = Depends(get_session)):
+    """AI extrakce obchodu z TradingView. engine=claude (synchronně → extracted hned)
+    nebo engine=spark (async job → worker na Sparku → poll GET /analyze/{id})."""
+    engine = (payload.get("engine") or "claude").lower()
+    if engine not in ("claude", "spark"):
+        engine = "claude"
+    tv_url = (payload.get("tradingview_url") or "").strip()
+    image_b64 = payload.get("image_base64") or ""
+
+    if engine == "spark":
+        if not tv_url:
+            raise HTTPException(status_code=400, detail=(
+                "Spark engine potřebuje TradingView odkaz (obrázek se neukládá)."))
+        job = JournalAnalysisJob(user_id=user.id, engine="spark", source_url=tv_url, status="pending")
+        session.add(job)
+        await session.commit()
+        await session.refresh(job)
+        return {"status": "pending", "job_id": job.id}
+
+    # claude — synchronně v request handleru
+    if image_b64:
+        try:
+            raw = base64.b64decode(image_b64.split(",")[-1])
+        except Exception:  # noqa: BLE001
+            raise HTTPException(status_code=400, detail="Neplatný obrázek.")
+        media = image_b64[5:].split(";")[0] if image_b64.startswith("data:") else "image/png"
+        media = media or "image/png"
+    elif tv_url:
+        raw, media = await _resolve_tv_image(tv_url)
+    else:
+        raise HTTPException(status_code=400, detail="Zadej TradingView odkaz nebo obrázek.")
+
+    extracted = llm_client.extract_trade_from_image(raw, media)
+    if not extracted:
+        raise HTTPException(status_code=502, detail=(
+            "Vision analýza se nepodařila. Zkus to znovu nebo zadej obchod ručně."))
+    return {"status": "done", "extracted": _map_extracted(extracted, tv_url or None)}
+
+
+@router.get("/analyze/pending")
+async def analyze_pending(_: None = Depends(_verify_token),
+                          session: AsyncSession = Depends(get_session)):
+    """Worker (Spark) si vyzvedne pending spark joby."""
+    rows = (await session.execute(
+        select(JournalAnalysisJob)
+        .where(JournalAnalysisJob.status == "pending", JournalAnalysisJob.engine == "spark")
+        .order_by(JournalAnalysisJob.id).limit(20)
+    )).scalars().all()
+    return {"jobs": [{"id": j.id, "source_url": j.source_url} for j in rows]}
+
+
+@router.post("/analyze/{job_id}/result")
+async def analyze_result(job_id: int, payload: dict, _: None = Depends(_verify_token),
+                         session: AsyncSession = Depends(get_session)):
+    """Worker pushne výsledek vision extrakce (nebo chybu)."""
+    job = await session.get(JournalAnalysisJob, job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job nenalezen")
+    err = payload.get("error")
+    extracted = payload.get("extracted")
+    if err or not isinstance(extracted, dict):
+        job.status = "failed"
+        job.error = str(err or "prázdný výsledek")[:500]
+    else:
+        job.status = "done"
+        job.result = json.dumps(_map_extracted(extracted, job.source_url), ensure_ascii=False)
+    await session.commit()
+    return {"status": "ok"}
+
+
+@router.get("/analyze/{job_id}")
+async def analyze_status(job_id: int, user: User = Depends(current_user),
+                         session: AsyncSession = Depends(get_session)):
+    """Frontend polluje stav spark jobu."""
+    job = await session.get(JournalAnalysisJob, job_id)
+    if job is None or job.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Job nenalezen")
+    out: dict = {"status": job.status, "job_id": job.id}
+    if job.status == "done" and job.result:
+        out["extracted"] = json.loads(job.result)
+    elif job.status == "failed":
+        out["error"] = job.error
+    return out

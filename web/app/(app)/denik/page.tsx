@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { NotebookPen, Plus, Pencil, Trash2, X, ExternalLink, TrendingUp } from "lucide-react";
+import { NotebookPen, Plus, Pencil, Trash2, X, ExternalLink, TrendingUp, Sparkles } from "lucide-react";
 import { authToken, useAuth } from "@/lib/auth";
 import Link from "next/link";
 
@@ -133,8 +133,9 @@ const EMPTY = {
 };
 type FormState = typeof EMPTY;
 
-function EntryForm({ initial, onClose, onSaved }: {
-  initial: Entry | null; onClose: () => void; onSaved: () => void;
+function EntryForm({ initial, draft, onClose, onSaved }: {
+  initial: Entry | null; draft?: Partial<FormState> | null;
+  onClose: () => void; onSaved: () => void;
 }) {
   const [f, setF] = useState<FormState>(() => initial ? {
     instrument: initial.instrument ?? "",
@@ -149,7 +150,7 @@ function EntryForm({ initial, onClose, onSaved }: {
     setup: initial.setup ?? "",
     notes: initial.notes ?? "",
     screenshot_url: initial.screenshot_url ?? "",
-  } : { ...EMPTY });
+  } : { ...EMPTY, ...(draft || {}) });
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -267,6 +268,126 @@ function EntryForm({ initial, onClose, onSaved }: {
   );
 }
 
+/* -------------------------------------------------------- AI analýza (vision) */
+
+function extractedToForm(ex: Record<string, unknown>): Partial<FormState> {
+  const s = (v: unknown) => (v === null || v === undefined || v === "" ? "" : String(v));
+  const dir = String(ex.direction || "");
+  return {
+    instrument: s(ex.instrument),
+    ...(dir === "long" || dir === "short" ? { direction: dir } : {}),
+    entry_price: s(ex.entry_price),
+    exit_price: s(ex.exit_price),
+    r_result: s(ex.r_result),
+    setup: s(ex.setup),
+    notes: s(ex.notes),
+    screenshot_url: s(ex.screenshot_url),
+  };
+}
+
+function AnalyzeModal({ isAdmin, onClose, onExtracted }: {
+  isAdmin: boolean; onClose: () => void; onExtracted: (draft: Partial<FormState>) => void;
+}) {
+  const [url, setUrl] = useState("");
+  const [imgB64, setImgB64] = useState<string | null>(null);
+  const [imgName, setImgName] = useState<string>("");
+  const [engine, setEngine] = useState<"claude" | "spark">("claude");
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImgName(file.name);
+    const rd = new FileReader();
+    rd.onload = () => setImgB64(rd.result as string);
+    rd.readAsDataURL(file);
+  };
+
+  const run = async () => {
+    if (!url.trim() && !imgB64) { setErr("Zadej TradingView odkaz nebo nahraj obrázek."); return; }
+    if (engine === "spark" && !url.trim()) { setErr("Spark potřebuje TradingView odkaz (obrázek se neukládá)."); return; }
+    setBusy(true); setErr(null); setStatus("Analyzuji graf…");
+    try {
+      const body: Record<string, unknown> = { engine };
+      if (url.trim()) body.tradingview_url = url.trim();
+      if (imgB64 && engine === "claude") body.image_base64 = imgB64;
+      const res = await jFetch("/analyze", { method: "POST", body });
+      if (res.status === "done") { onExtracted(extractedToForm(res.extracted)); return; }
+      // spark → poll
+      const jobId = res.job_id;
+      setStatus("Spark zpracovává… (může chvíli trvat)");
+      for (let i = 0; i < 60; i++) {
+        await new Promise((r) => setTimeout(r, 2500));
+        const st = await jFetch(`/analyze/${jobId}`);
+        if (st.status === "done") { onExtracted(extractedToForm(st.extracted)); return; }
+        if (st.status === "failed") throw new Error(st.error || "Spark analýza selhala");
+      }
+      throw new Error("Timeout — Spark neodpověděl. Běží na Sparku worker?");
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Analýza selhala");
+      setBusy(false); setStatus(null);
+    }
+  };
+
+  const field = "w-full rounded-lg bg-[#0f1117] border border-[#2a2d3a] px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:border-blue-600 focus:outline-none";
+  const lab = "text-[10px] uppercase tracking-wider text-gray-500 mb-1 block";
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/70 flex items-start justify-center p-4 overflow-y-auto" onClick={busy ? undefined : onClose}>
+      <div className="bg-[#12141c] border border-[#2a2d3a] rounded-2xl max-w-lg w-full p-6 my-8" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="text-lg font-bold text-white flex items-center gap-2"><Sparkles size={17} className="text-blue-400" /> Přidat z TradingView</h2>
+          {!busy && <button onClick={onClose} className="text-gray-400 hover:text-white"><X size={20} /></button>}
+        </div>
+        <p className="text-xs text-gray-500 mb-4">AI vytěží z grafu instrument, směr, entry/target a analýzu — pak si to zkontroluješ a uložíš.</p>
+
+        <label className={lab}>TradingView odkaz (snapshot)</label>
+        <input className={field} value={url} placeholder="https://www.tradingview.com/x/…"
+          onChange={(e) => setUrl(e.target.value)} disabled={busy} />
+        <p className="text-[10px] text-gray-600 mt-1">Na grafu ikona fotoaparátu → „Copy link to the chart image“.</p>
+
+        {engine === "claude" && (
+          <div className="mt-3">
+            <label className={lab}>…nebo nahraj obrázek {imgName && <span className="text-gray-400 normal-case">— {imgName}</span>}</label>
+            <input type="file" accept="image/*" onChange={onFile} disabled={busy}
+              className="text-xs text-gray-400 file:mr-3 file:rounded-md file:border-0 file:bg-[#1e2536] file:px-3 file:py-1.5 file:text-gray-200 file:text-xs" />
+            <p className="text-[10px] text-gray-600 mt-1">Obrázek se použije jen k analýze, neukládá se.</p>
+          </div>
+        )}
+
+        {isAdmin && (
+          <div className="mt-4">
+            <label className={lab}>Engine (jen admin)</label>
+            <div className="flex gap-1.5">
+              {(["claude", "spark"] as const).map((k) => (
+                <button key={k} type="button" onClick={() => setEngine(k)} disabled={busy}
+                  className={`flex-1 rounded-lg px-3 py-2 text-xs font-medium border transition-colors ${
+                    engine === k ? "bg-[#1e2536] text-white border-[#2f3b55]"
+                      : "bg-[#0f1117] text-gray-400 border-[#2a2d3a] hover:text-white"}`}>
+                  {k === "claude" ? "Claude (cloud)" : "Spark (lokální)"}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {status && <p className="text-sm text-blue-300 mt-4 flex items-center gap-2"><span className="inline-block h-3 w-3 rounded-full border-2 border-blue-400 border-t-transparent animate-spin" /> {status}</p>}
+        {err && <p className="text-sm text-red-400 mt-3">{err}</p>}
+
+        <div className="flex justify-end gap-2 mt-5">
+          <button onClick={onClose} disabled={busy} className="rounded-lg px-4 py-2 text-sm text-gray-300 border border-[#2a2d3a] hover:text-white transition-colors disabled:opacity-40">Zrušit</button>
+          <button onClick={run} disabled={busy}
+            className="rounded-lg px-4 py-2 text-sm font-medium bg-blue-600 text-white hover:bg-blue-500 transition-colors disabled:opacity-50 flex items-center gap-1.5">
+            <Sparkles size={14} /> {busy ? "Analyzuji…" : "Analyzovat"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ----------------------------------------------------------------- page */
 
 export default function DenikPage() {
@@ -277,6 +398,8 @@ export default function DenikPage() {
   const [error, setError] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Entry | null>(null);
+  const [analyzeOpen, setAnalyzeOpen] = useState(false);
+  const [draft, setDraft] = useState<Partial<FormState> | null>(null);
 
   const reload = useCallback(async () => {
     setLoading(true); setError(null);
@@ -296,9 +419,10 @@ export default function DenikPage() {
     else if (!authLoading && !user) setLoading(false);
   }, [authLoading, user, reload]);
 
-  const openNew = () => { setEditing(null); setFormOpen(true); };
-  const openEdit = (e: Entry) => { setEditing(e); setFormOpen(true); };
-  const onSaved = () => { setFormOpen(false); setEditing(null); reload(); };
+  const openNew = () => { setEditing(null); setDraft(null); setFormOpen(true); };
+  const openEdit = (e: Entry) => { setEditing(e); setDraft(null); setFormOpen(true); };
+  const onSaved = () => { setFormOpen(false); setEditing(null); setDraft(null); reload(); };
+  const onExtracted = (d: Partial<FormState>) => { setAnalyzeOpen(false); setEditing(null); setDraft(d); setFormOpen(true); };
   const remove = async (e: Entry) => {
     if (!confirm(`Smazat obchod ${e.instrument} z ${fmtDate(e.traded_at)}?`)) return;
     try { await jFetch(`/${e.id}`, { method: "DELETE" }); reload(); }
@@ -324,10 +448,16 @@ export default function DenikPage() {
           <p className="text-sm text-gray-400 mt-1">Zaznamenávej obchody a sleduj, co ti reálně funguje</p>
         </div>
         {user && (
-          <button onClick={openNew}
-            className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium bg-[rgba(96,255,130,0.14)] text-[#8fffab] border border-[rgba(96,255,130,0.4)] hover:bg-[rgba(96,255,130,0.22)] transition-colors">
-            <Plus size={15} /> Přidat obchod
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button onClick={() => setAnalyzeOpen(true)}
+              className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium bg-blue-600/90 text-white border border-blue-500 hover:bg-blue-500 transition-colors">
+              <Sparkles size={15} /> Z TradingView (AI)
+            </button>
+            <button onClick={openNew}
+              className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium bg-[rgba(96,255,130,0.14)] text-[#8fffab] border border-[rgba(96,255,130,0.4)] hover:bg-[rgba(96,255,130,0.22)] transition-colors">
+              <Plus size={15} /> Přidat obchod
+            </button>
+          </div>
         )}
       </div>
 
@@ -435,7 +565,8 @@ export default function DenikPage() {
         </>
       )}
 
-      {formOpen && <EntryForm initial={editing} onClose={() => { setFormOpen(false); setEditing(null); }} onSaved={onSaved} />}
+      {analyzeOpen && <AnalyzeModal isAdmin={!!user?.is_admin} onClose={() => setAnalyzeOpen(false)} onExtracted={onExtracted} />}
+      {formOpen && <EntryForm initial={editing} draft={draft} onClose={() => { setFormOpen(false); setEditing(null); setDraft(null); }} onSaved={onSaved} />}
     </div>
   );
 }
