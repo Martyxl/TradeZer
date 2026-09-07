@@ -42,3 +42,6 @@ Thumbs.db
 data/raw/
 data/agg/
 web/tsconfig.tsbuildinfo
+
+# Spark predikční worker — obsahuje hardcoded LLM_API_KEY (lokální síť), nepatří do repa
+data/run_predictor_spark.bat
