@@ -14,6 +14,7 @@ from app.models.site import SiteCounter
 from app.models.bias import DailyBias
 from app.models.outlook import DailyOutlook, OutlookEval
 from app.models.user import User
+from app.models.journal import JournalEntry
 # Registrace valuation tabulek do Base.metadata (create_all je najde)
 from app.valuation import models as _valuation_models  # noqa: F401
 
@@ -23,6 +24,7 @@ __all__ = [
     "DailyOutlook",
     "OutlookEval",
     "User",
+    "JournalEntry",
     "Ticker",
     "NewsSource",
     "NewsItem",

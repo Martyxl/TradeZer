@@ -22,6 +22,7 @@ from app.routers import (
     stream_router,
     stats_router,
     auth_router,
+    journal_router,
 )
 
 structlog.configure(
@@ -151,7 +152,7 @@ app.add_middleware(
     allow_origins=_cors_origins,
     allow_origin_regex=r"https://[a-z0-9-]+\.vercel\.app",
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
+    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "X-Internal-Token", "Authorization"],
 )
 
@@ -165,6 +166,7 @@ app.include_router(stats_router)
 app.include_router(bias_router)
 app.include_router(valuation_router)
 app.include_router(auth_router)
+app.include_router(journal_router)
 
 
 @app.get("/")
