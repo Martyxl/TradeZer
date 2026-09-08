@@ -37,9 +37,7 @@ if not TOKEN:
     raise SystemExit("Chybí TRADEZER_TOKEN env (interní API token).")
 LLM_BASE = os.environ.get("LLM_BASE_URL", "http://192.168.50.47:4000/v1").rstrip("/")
 LLM_KEY = os.environ.get("LLM_API_KEY", "local")
-LLM_MODEL = os.environ.get("LLM_VISION_MODEL", "")
-if not LLM_MODEL:
-    raise SystemExit("Chybí LLM_VISION_MODEL env (alias vision modelu na Spark bráně).")
+LLM_MODEL = os.environ.get("LLM_VISION_MODEL", "vision")  # alias vision modelu na Spark bráně
 
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/124 Safari/537.36")
