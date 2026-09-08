@@ -58,9 +58,12 @@ SYSTEM_PROMPT = (
     '"setup": string|null, "notes": string|null}\n'
     "Použij null u čehokoli, co není jasně vidět. NEVYMÝŠLEJ si čísla. Ceny jsou čistá čísla "
     "bez měny a oddělovačů tisíců. notes = 1–2 věty česky shrnující nakreslenou analýzu.\n"
-    "SMĚR urči z GEOMETRIE úrovní, ne z barvy: u SHORT je stop NAD vstupem a target POD "
-    "vstupem; u LONG opačně. Pečlivě rozliš stop (za entry, riziko) od target (cíl). "
-    "TradingView Short Position = target pod entry, Long Position = target nad entry."
+    "POZICE: na grafu je nakreslený position tool = obdélník se ZELENOU (cíl/profit) a "
+    "ČERVENOU (stop) zónou — tyto barvy platí pro OBA směry! NEPŘEDPOKLÁDEJ 'zelená=long'. "
+    "Směr urči podle VZÁJEMNÉ POLOHY zón: ZELENÁ zóna POD červenou → SHORT (cíl je dole); "
+    "ZELENÁ NAD červenou → LONG. stop = vzdálená hrana ČERVENÉ zóny, target = vzdálená hrana "
+    "ZELENÉ zóny, entry = hranice mezi zónami. Ceny vyplň tak, aby platilo: "
+    "SHORT → stop > entry > target; LONG → stop < entry < target."
 )
 
 

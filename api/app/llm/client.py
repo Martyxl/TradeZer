@@ -224,11 +224,13 @@ class AnthropicLLMClient:
         "}\n"
         "Použij null u čehokoli, co v obrázku není jasně vidět. NEVYMÝŠLEJ si čísla. "
         "Ceny jsou čistá čísla bez symbolů měny a bez oddělovačů tisíců.\n"
-        "SMĚR urči z GEOMETRIE úrovní, ne z barvy nástroje: u SHORT je stop NAD vstupem a "
-        "target POD vstupem; u LONG je stop POD vstupem a target NAD vstupem. Pečlivě rozliš "
-        "stop (na straně rizika, za entry) od target (cíl zisku). TradingView Long/Short "
-        "Position nástroj: zelená zóna = target nad entry (long), červená zóna = target pod "
-        "entry (short). Pokud jde entry, stop i target vyčíst, dopočítej rr z těch úrovní."
+        "POZICE: na grafu je nakreslený position tool = obdélník se ZELENOU (cíl/profit) a "
+        "ČERVENOU (stop) zónou. TYTO BARVY PLATÍ PRO OBA SMĚRY — NEPŘEDPOKLÁDEJ, že zelená = long! "
+        "Směr urči podle VZÁJEMNÉ POLOHY zón: ZELENÁ zóna POD červenou → SHORT (cíl je dole); "
+        "ZELENÁ zóna NAD červenou → LONG. stop = vzdálená hrana ČERVENÉ zóny, target = vzdálená "
+        "hrana ZELENÉ zóny, entry = hranice mezi zónami. Ceny entry/stop/target vyplň přesně dle "
+        "os tak, aby platilo: SHORT → stop > entry > target; LONG → stop < entry < target. "
+        "Z těch úrovní dopočítej rr."
     )
 
     def extract_trade_from_image(self, image_bytes: bytes, media_type: str = "image/png") -> tuple[dict, dict]:
