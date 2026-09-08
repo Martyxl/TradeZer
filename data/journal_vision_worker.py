@@ -174,8 +174,8 @@ def process_once() -> int:
             extracted, meta = vision_extract(img, media)
             http_json(f"{API}/api/journal/analyze/{jid}/result", "POST",
                       {"extracted": extracted, "meta": meta}, hdr)
-            print(f"[job {jid}] OK -> {extracted.get('instrument')} {extracted.get('direction')} "
-                  f"({meta.get('ms')}ms, {meta.get('total_tokens')} tok)")
+            print(f"[job {jid}] OK ({meta.get('ms')}ms, {meta.get('total_tokens')} tok) -> "
+                  f"{json.dumps(extracted, ensure_ascii=False)}")
             done += 1
         except Exception as e:  # noqa: BLE001
             print(f"[job {jid}] FAIL: {e}")
