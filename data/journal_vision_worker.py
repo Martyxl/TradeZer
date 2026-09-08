@@ -51,7 +51,10 @@ SYSTEM_PROMPT = (
     '"entry": number|null, "stop": number|null, "target": number|null, "rr": number|null, '
     '"setup": string|null, "notes": string|null}\n'
     "Použij null u čehokoli, co není jasně vidět. NEVYMÝŠLEJ si čísla. Ceny jsou čistá čísla "
-    "bez měny a oddělovačů tisíců. notes = 1–2 věty česky shrnující nakreslenou analýzu."
+    "bez měny a oddělovačů tisíců. notes = 1–2 věty česky shrnující nakreslenou analýzu.\n"
+    "SMĚR urči z GEOMETRIE úrovní, ne z barvy: u SHORT je stop NAD vstupem a target POD "
+    "vstupem; u LONG opačně. Pečlivě rozliš stop (za entry, riziko) od target (cíl). "
+    "TradingView Short Position = target pod entry, Long Position = target nad entry."
 )
 
 

@@ -222,8 +222,12 @@ class AnthropicLLMClient:
         '  "notes": string|null               // 1–2 věty česky shrnující nakreslenou analýzu\n'
         "}\n"
         "Použij null u čehokoli, co v obrázku není jasně vidět. NEVYMÝŠLEJ si čísla. "
-        "Pokud jde entry, stop i target vyčíst, můžeš rr dopočítat z těch úrovní. "
-        "Ceny jsou čistá čísla bez symbolů měny a bez oddělovačů tisíců."
+        "Ceny jsou čistá čísla bez symbolů měny a bez oddělovačů tisíců.\n"
+        "SMĚR urči z GEOMETRIE úrovní, ne z barvy nástroje: u SHORT je stop NAD vstupem a "
+        "target POD vstupem; u LONG je stop POD vstupem a target NAD vstupem. Pečlivě rozliš "
+        "stop (na straně rizika, za entry) od target (cíl zisku). TradingView Long/Short "
+        "Position nástroj: zelená zóna = target nad entry (long), červená zóna = target pod "
+        "entry (short). Pokud jde entry, stop i target vyčíst, dopočítej rr z těch úrovní."
     )
 
     def extract_trade_from_image(self, image_bytes: bytes, media_type: str = "image/png") -> dict:

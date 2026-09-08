@@ -252,10 +252,21 @@ async def _resolve_tv_image(url: str) -> tuple[bytes, str]:
             "nebo nahraj obrázek."))
 
 
+def _derive_direction(data: dict) -> str:
+    """Směr určuj z GEOMETRIE úrovní (spolehlivější než vizuální odhad modelu):
+    short = stop nad entry / target pod entry; long = opačně. Fallback na model."""
+    e, s, t = _num(data.get("entry")), _num(data.get("stop")), _num(data.get("target"))
+    if e is not None and s is not None and s != e:
+        return "short" if s > e else "long"
+    if e is not None and t is not None and t != e:
+        return "long" if t > e else "short"
+    d = str(data.get("direction") or "").lower().strip()
+    return d if d in DIRECTIONS else ""
+
+
 def _map_extracted(data: dict, source_url: str | None) -> dict:
     """Vytěžená vision pole → tvar formuláře deníku (řetězce/čísla)."""
-    d = str(data.get("direction") or "").lower().strip()
-    direction = d if d in DIRECTIONS else ""
+    direction = _derive_direction(data)
     tf = str(data.get("timeframe") or "").strip()
     setup = str(data.get("setup") or "").strip()
     if tf and setup:
