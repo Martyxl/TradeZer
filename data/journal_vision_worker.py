@@ -96,8 +96,10 @@ def vision_extract(img: bytes, media: str) -> tuple[dict, dict]:
         "model": LLM_MODEL,
         "max_tokens": 1500,
         "temperature": 0,
-        # Vynuť čistý JSON (vLLM/LiteLLM guided decoding) — model jinak píše úvahu v próze
-        # a dojdou mu tokeny dřív, než vyplivne JSON.
+        # Qwen3.8-27B: nativní thinking laditelný přes reasoning_effort → "low" přeskočí
+        # většinu reasoningu (jinak píše úvahu a dojdou tokeny / timeout).
+        "reasoning_effort": "low",
+        # Vynuť čistý JSON (vLLM/LiteLLM guided decoding).
         "response_format": {"type": "json_object"},
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
