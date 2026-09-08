@@ -37,7 +37,12 @@ if not TOKEN:
     raise SystemExit("Chybí TRADEZER_TOKEN env (interní API token).")
 LLM_BASE = os.environ.get("LLM_BASE_URL", "http://192.168.50.47:4000/v1").rstrip("/")
 LLM_KEY = os.environ.get("LLM_API_KEY", "local")
-LLM_MODEL = os.environ.get("LLM_VISION_MODEL", "vision")  # alias vision modelu na Spark bráně
+LLM_MODEL = os.environ.get("LLM_VISION_MODEL", "vision")  # alias na LiteLLM bráně (nepoužito pro vision)
+
+# Vision jde PŘÍMO na Ollamu (ne přes LiteLLM) — nativní think:false + format:json,
+# které LiteLLM s drop_params zahazuje. Worker běží na DGX → localhost:11434.
+OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434").rstrip("/")
+OLLAMA_MODEL = os.environ.get("OLLAMA_VISION_MODEL", "hf.co/ggml-org/Qwen3.8-27B-GGUF:Q8_0")
 
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/124 Safari/537.36")
@@ -92,42 +97,33 @@ def fetch_image(url: str) -> tuple[bytes, str]:
 
 
 def vision_extract(img: bytes, media: str) -> tuple[dict, dict]:
-    b64 = base64.standard_b64encode(img).decode("ascii")
+    """Nativní Ollama /api/chat — think:false (vypne reasoning → rychlé + krátké) +
+    format:json (grammar-constrained validní JSON). Obrázek jako base64 v images[]."""
+    b64 = base64.standard_b64encode(img).decode("ascii")  # bez data: prefixu (Ollama)
     body = {
-        "model": LLM_MODEL,
-        # Model (Qwen3.8 thinking) stejně píše úvahu — necháme mu prostor, ať ji dokončí
-        # a NA KONCI vyplivne JSON; ten pak vytáhneme z textu (viz _parse_json_obj).
-        # response_format/reasoning_effort přes LiteLLM (drop_params) nefungují → vynecháno.
-        "max_tokens": 4000,
-        "temperature": 0,
+        "model": OLLAMA_MODEL,
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": [
-                {"type": "text", "text": "Analyzuj graf. Klidně nejdřív stručně uvažuj, ale POSLEDNÍ částí odpovědi musí být validní JSON objekt dle schématu (za ním už nic)."},
-                {"type": "image_url", "image_url": {"url": f"data:{media};base64,{b64}"}},
-            ]},
+            {"role": "user",
+             "content": "Analyzuj graf a vrať výsledek jako JSON objekt dle schématu.",
+             "images": [b64]},
         ],
+        "think": False,       # Qwen3.8 thinking OFF → žádná dlouhá úvaha (jinak timeout)
+        "format": "json",     # grammar-constrained validní JSON
+        "stream": False,
+        "options": {"temperature": 0, "num_predict": 700},
     }
     t0 = time.time()
-    resp = http_json(f"{LLM_BASE}/chat/completions", "POST", body,
-                     {"Authorization": f"Bearer {LLM_KEY}"}, timeout=300)
+    resp = http_json(f"{OLLAMA_URL}/api/chat", "POST", body, timeout=300)
     ms = int((time.time() - t0) * 1000)
-    u = resp.get("usage") or {}
-    meta = {"model": LLM_MODEL, "ms": ms,
-            "in_tokens": u.get("prompt_tokens"), "out_tokens": u.get("completion_tokens"),
-            "total_tokens": u.get("total_tokens")}
-    choice = resp["choices"][0] if resp.get("choices") else {}
-    msg = choice.get("message", {}) if isinstance(choice, dict) else {}
-    text = msg.get("content")
-    if not text:  # některé reasoning modely dají odpověď sem
-        text = msg.get("reasoning_content")
-    if isinstance(text, list):  # content jako pole částí
-        text = "".join(p.get("text", "") for p in text if isinstance(p, dict))
-    if not isinstance(text, str):
-        text = str(text or "")
-    if not text.strip():
+    in_tok = resp.get("prompt_eval_count")
+    out_tok = resp.get("eval_count")
+    meta = {"model": OLLAMA_MODEL, "ms": ms, "in_tokens": in_tok, "out_tokens": out_tok,
+            "total_tokens": (in_tok or 0) + (out_tok or 0)}
+    text = ((resp.get("message") or {}).get("content") or "").strip()
+    if not text:
         raise RuntimeError(
-            f"prázdná odpověď (finish_reason={choice.get('finish_reason')}); "
+            f"prázdná odpověď (done_reason={resp.get('done_reason')}); "
             f"resp={json.dumps(resp, ensure_ascii=False)[:400]}")
     return _parse_json_obj(text), meta
 
@@ -195,7 +191,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--loop", type=int, default=0, help="interval smyčky v sekundách (0 = jeden průchod)")
     args = ap.parse_args()
-    print(f"Spark vision worker | API={API} | model={LLM_MODEL} | brána={LLM_BASE}")
+    print(f"Spark vision worker | API={API} | ollama={OLLAMA_URL} | model={OLLAMA_MODEL} | think=off")
     if args.loop <= 0:
         process_once()
         return
