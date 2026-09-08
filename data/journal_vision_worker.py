@@ -99,13 +99,15 @@ def vision_extract(img: bytes, media: str) -> dict:
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": [
-                {"type": "text", "text": "Vytěž obchod z tohoto grafu jako JSON dle instrukcí."},
+                # /no_think = vypne "thinking" u Qwen3 (jinak reasoning sežere tokeny/čas → prázdno/timeout);
+                # u ne-Qwen3 je to jen neškodný text.
+                {"type": "text", "text": "Vytěž obchod z tohoto grafu jako JSON dle instrukcí. /no_think"},
                 {"type": "image_url", "image_url": {"url": f"data:{media};base64,{b64}"}},
             ]},
         ],
     }
     resp = http_json(f"{LLM_BASE}/chat/completions", "POST", body,
-                     {"Authorization": f"Bearer {LLM_KEY}"}, timeout=180)
+                     {"Authorization": f"Bearer {LLM_KEY}"}, timeout=300)
     choice = resp["choices"][0] if resp.get("choices") else {}
     msg = choice.get("message", {}) if isinstance(choice, dict) else {}
     text = msg.get("content")
