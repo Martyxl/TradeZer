@@ -96,12 +96,13 @@ def vision_extract(img: bytes, media: str) -> dict:
         "model": LLM_MODEL,
         "max_tokens": 1500,
         "temperature": 0,
+        # Vynuť čistý JSON (vLLM/LiteLLM guided decoding) — model jinak píše úvahu v próze
+        # a dojdou mu tokeny dřív, než vyplivne JSON.
+        "response_format": {"type": "json_object"},
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": [
-                # /no_think = vypne "thinking" u Qwen3 (jinak reasoning sežere tokeny/čas → prázdno/timeout);
-                # u ne-Qwen3 je to jen neškodný text.
-                {"type": "text", "text": "Vytěž obchod z tohoto grafu jako JSON dle instrukcí. /no_think"},
+                {"type": "text", "text": "Vytěž obchod z grafu. Odpověz POUZE JSON objektem dle schématu — žádný jiný text, žádné uvažování, žádný úvod."},
                 {"type": "image_url", "image_url": {"url": f"data:{media};base64,{b64}"}},
             ]},
         ],
