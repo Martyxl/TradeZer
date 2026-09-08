@@ -90,7 +90,7 @@ def fetch_image(url: str) -> tuple[bytes, str]:
     return data, ctype if ctype.startswith("image/") else "image/png"
 
 
-def vision_extract(img: bytes, media: str) -> dict:
+def vision_extract(img: bytes, media: str) -> tuple[dict, dict]:
     b64 = base64.standard_b64encode(img).decode("ascii")
     body = {
         "model": LLM_MODEL,
@@ -107,8 +107,14 @@ def vision_extract(img: bytes, media: str) -> dict:
             ]},
         ],
     }
+    t0 = time.time()
     resp = http_json(f"{LLM_BASE}/chat/completions", "POST", body,
                      {"Authorization": f"Bearer {LLM_KEY}"}, timeout=300)
+    ms = int((time.time() - t0) * 1000)
+    u = resp.get("usage") or {}
+    meta = {"model": LLM_MODEL, "ms": ms,
+            "in_tokens": u.get("prompt_tokens"), "out_tokens": u.get("completion_tokens"),
+            "total_tokens": u.get("total_tokens")}
     choice = resp["choices"][0] if resp.get("choices") else {}
     msg = choice.get("message", {}) if isinstance(choice, dict) else {}
     text = msg.get("content")
@@ -122,7 +128,7 @@ def vision_extract(img: bytes, media: str) -> dict:
         raise RuntimeError(
             f"prázdná odpověď (finish_reason={choice.get('finish_reason')}); "
             f"resp={json.dumps(resp, ensure_ascii=False)[:400]}")
-    return _parse_json_obj(text)
+    return _parse_json_obj(text), meta
 
 
 def _parse_json_obj(text: str) -> dict:
@@ -155,10 +161,11 @@ def process_once() -> int:
         print(f"[job {jid}] {url}")
         try:
             img, media = fetch_image(url)
-            extracted = vision_extract(img, media)
+            extracted, meta = vision_extract(img, media)
             http_json(f"{API}/api/journal/analyze/{jid}/result", "POST",
-                      {"extracted": extracted}, hdr)
-            print(f"[job {jid}] OK -> {extracted.get('instrument')} {extracted.get('direction')}")
+                      {"extracted": extracted, "meta": meta}, hdr)
+            print(f"[job {jid}] OK -> {extracted.get('instrument')} {extracted.get('direction')} "
+                  f"({meta.get('ms')}ms, {meta.get('total_tokens')} tok)")
             done += 1
         except Exception as e:  # noqa: BLE001
             print(f"[job {jid}] FAIL: {e}")

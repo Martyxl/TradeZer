@@ -323,11 +323,12 @@ async def analyze(payload: dict, user: User = Depends(current_user),
     else:
         raise HTTPException(status_code=400, detail="Zadej TradingView odkaz nebo obrázek.")
 
-    extracted = llm_client.extract_trade_from_image(raw, media)
+    extracted, meta = llm_client.extract_trade_from_image(raw, media)
     if not extracted:
         raise HTTPException(status_code=502, detail=(
             "Vision analýza se nepodařila. Zkus to znovu nebo zadej obchod ručně."))
-    return {"status": "done", "extracted": _map_extracted(extracted, tv_url or None)}
+    return {"status": "done", "extracted": _map_extracted(extracted, tv_url or None),
+            "meta": {**(meta or {}), "engine": "claude"}}
 
 
 @router.get("/analyze/pending")
@@ -356,7 +357,10 @@ async def analyze_result(job_id: int, payload: dict, _: None = Depends(_verify_t
         job.error = str(err or "prázdný výsledek")[:500]
     else:
         job.status = "done"
-        job.result = json.dumps(_map_extracted(extracted, job.source_url), ensure_ascii=False)
+        meta = payload.get("meta") if isinstance(payload.get("meta"), dict) else None
+        job.result = json.dumps(
+            {"extracted": _map_extracted(extracted, job.source_url), "meta": meta},
+            ensure_ascii=False)
     await session.commit()
     return {"status": "ok"}
 
@@ -370,7 +374,13 @@ async def analyze_status(job_id: int, user: User = Depends(current_user),
         raise HTTPException(status_code=404, detail="Job nenalezen")
     out: dict = {"status": job.status, "job_id": job.id}
     if job.status == "done" and job.result:
-        out["extracted"] = json.loads(job.result)
+        r = json.loads(job.result)
+        if isinstance(r, dict) and "extracted" in r:
+            out["extracted"] = r["extracted"]
+            if r.get("meta"):
+                out["meta"] = {**r["meta"], "engine": "spark"}
+        else:
+            out["extracted"] = r  # zpětná kompat se staršími joby (bez meta)
     elif job.status == "failed":
         out["error"] = job.error
     return out

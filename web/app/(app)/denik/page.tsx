@@ -34,6 +34,10 @@ interface Stats {
   by_session: Bucket[];
   by_instrument: Bucket[];
 }
+interface AnalysisMeta {
+  engine?: string; model?: string; ms?: number;
+  in_tokens?: number | null; out_tokens?: number | null; total_tokens?: number | null;
+}
 
 /* ------------------------------------------------------------ pomocné */
 
@@ -133,8 +137,8 @@ const EMPTY = {
 };
 type FormState = typeof EMPTY;
 
-function EntryForm({ initial, draft, onClose, onSaved }: {
-  initial: Entry | null; draft?: Partial<FormState> | null;
+function EntryForm({ initial, draft, meta, onClose, onSaved }: {
+  initial: Entry | null; draft?: Partial<FormState> | null; meta?: AnalysisMeta | null;
   onClose: () => void; onSaved: () => void;
 }) {
   const [f, setF] = useState<FormState>(() => initial ? {
@@ -179,6 +183,17 @@ function EntryForm({ initial, draft, onClose, onSaved }: {
           <h2 className="text-lg font-bold text-white">{initial ? "Upravit obchod" : "Nový obchod"}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-white"><X size={20} /></button>
         </div>
+
+        {meta && (
+          <div className="mb-4 rounded-lg border border-blue-900/40 bg-blue-950/30 px-3 py-2 text-[11px] text-blue-300 flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span className="font-semibold">🔎 AI analýza</span>
+            <span className="text-blue-200">{meta.engine === "spark" ? "Spark" : "Claude"}{meta.model ? ` · ${meta.model}` : ""}</span>
+            {meta.ms != null && <span>⏱ {(meta.ms / 1000).toFixed(1)} s</span>}
+            {meta.total_tokens != null && (
+              <span>🔢 {meta.total_tokens} tok{meta.in_tokens != null ? ` (${meta.in_tokens} in / ${meta.out_tokens} out)` : ""}</span>
+            )}
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-3">
           <div className="col-span-2">
@@ -286,7 +301,8 @@ function extractedToForm(ex: Record<string, unknown>): Partial<FormState> {
 }
 
 function AnalyzeModal({ isAdmin, onClose, onExtracted }: {
-  isAdmin: boolean; onClose: () => void; onExtracted: (draft: Partial<FormState>) => void;
+  isAdmin: boolean; onClose: () => void;
+  onExtracted: (draft: Partial<FormState>, meta: AnalysisMeta | null) => void;
 }) {
   const [url, setUrl] = useState("");
   const [imgB64, setImgB64] = useState<string | null>(null);
@@ -314,14 +330,14 @@ function AnalyzeModal({ isAdmin, onClose, onExtracted }: {
       if (url.trim()) body.tradingview_url = url.trim();
       if (imgB64 && engine === "claude") body.image_base64 = imgB64;
       const res = await jFetch("/analyze", { method: "POST", body });
-      if (res.status === "done") { onExtracted(extractedToForm(res.extracted)); return; }
+      if (res.status === "done") { onExtracted(extractedToForm(res.extracted), res.meta ?? null); return; }
       // spark → poll
       const jobId = res.job_id;
       setStatus("Spark zpracovává… (může chvíli trvat)");
-      for (let i = 0; i < 60; i++) {
+      for (let i = 0; i < 120; i++) {
         await new Promise((r) => setTimeout(r, 2500));
         const st = await jFetch(`/analyze/${jobId}`);
-        if (st.status === "done") { onExtracted(extractedToForm(st.extracted)); return; }
+        if (st.status === "done") { onExtracted(extractedToForm(st.extracted), st.meta ?? null); return; }
         if (st.status === "failed") throw new Error(st.error || "Spark analýza selhala");
       }
       throw new Error("Timeout — Spark neodpověděl. Běží na Sparku worker?");
@@ -400,6 +416,7 @@ export default function DenikPage() {
   const [editing, setEditing] = useState<Entry | null>(null);
   const [analyzeOpen, setAnalyzeOpen] = useState(false);
   const [draft, setDraft] = useState<Partial<FormState> | null>(null);
+  const [lastMeta, setLastMeta] = useState<AnalysisMeta | null>(null);
 
   const reload = useCallback(async () => {
     setLoading(true); setError(null);
@@ -419,10 +436,13 @@ export default function DenikPage() {
     else if (!authLoading && !user) setLoading(false);
   }, [authLoading, user, reload]);
 
-  const openNew = () => { setEditing(null); setDraft(null); setFormOpen(true); };
-  const openEdit = (e: Entry) => { setEditing(e); setDraft(null); setFormOpen(true); };
-  const onSaved = () => { setFormOpen(false); setEditing(null); setDraft(null); reload(); };
-  const onExtracted = (d: Partial<FormState>) => { setAnalyzeOpen(false); setEditing(null); setDraft(d); setFormOpen(true); };
+  const openNew = () => { setEditing(null); setDraft(null); setLastMeta(null); setFormOpen(true); };
+  const openEdit = (e: Entry) => { setEditing(e); setDraft(null); setLastMeta(null); setFormOpen(true); };
+  const onSaved = () => { setFormOpen(false); setEditing(null); setDraft(null); setLastMeta(null); reload(); };
+  const onExtracted = (d: Partial<FormState>, meta: AnalysisMeta | null) => {
+    setAnalyzeOpen(false); setEditing(null); setDraft(d);
+    setLastMeta(user?.is_admin ? meta : null); setFormOpen(true);
+  };
   const remove = async (e: Entry) => {
     if (!confirm(`Smazat obchod ${e.instrument} z ${fmtDate(e.traded_at)}?`)) return;
     try { await jFetch(`/${e.id}`, { method: "DELETE" }); reload(); }
@@ -566,7 +586,7 @@ export default function DenikPage() {
       )}
 
       {analyzeOpen && <AnalyzeModal isAdmin={!!user?.is_admin} onClose={() => setAnalyzeOpen(false)} onExtracted={onExtracted} />}
-      {formOpen && <EntryForm initial={editing} draft={draft} onClose={() => { setFormOpen(false); setEditing(null); setDraft(null); }} onSaved={onSaved} />}
+      {formOpen && <EntryForm initial={editing} draft={draft} meta={lastMeta} onClose={() => { setFormOpen(false); setEditing(null); setDraft(null); setLastMeta(null); }} onSaved={onSaved} />}
     </div>
   );
 }

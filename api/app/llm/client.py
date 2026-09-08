@@ -231,16 +231,18 @@ class AnthropicLLMClient:
         "entry (short). Pokud jde entry, stop i target vyčíst, dopočítej rr z těch úrovní."
     )
 
-    def extract_trade_from_image(self, image_bytes: bytes, media_type: str = "image/png") -> dict:
-        """Vision extrakce obchodu z TradingView screenshotu → dict polí deníku.
-        Vrací {} při selhání (endpoint pak vrátí přívětivou chybu)."""
+    def extract_trade_from_image(self, image_bytes: bytes, media_type: str = "image/png") -> tuple[dict, dict]:
+        """Vision extrakce obchodu z TradingView screenshotu → (dict polí deníku, meta).
+        meta = {model, ms, in_tokens, out_tokens, total_tokens}. Při selhání ({}, {})."""
         import base64
+        import time
 
         request_id = str(uuid.uuid4())[:8]
         log.info("Vision trade extract start", request_id=request_id, model=settings.claude_vision_model)
         try:
             client = self._get_client()
             b64 = base64.standard_b64encode(image_bytes).decode("ascii")
+            t0 = time.time()
             message = client.messages.create(
                 model=settings.claude_vision_model,
                 max_tokens=800,
@@ -253,6 +255,13 @@ class AnthropicLLMClient:
                     ],
                 }],
             )
+            ms = int((time.time() - t0) * 1000)
+            u = getattr(message, "usage", None)
+            in_tok = getattr(u, "input_tokens", None)
+            out_tok = getattr(u, "output_tokens", None)
+            meta = {"model": settings.claude_vision_model, "ms": ms,
+                    "in_tokens": in_tok, "out_tokens": out_tok,
+                    "total_tokens": (in_tok or 0) + (out_tok or 0)}
             raw_text = message.content[0].text.strip()
             if raw_text.startswith("```"):
                 raw_text = raw_text.split("```")[1]
@@ -264,11 +273,11 @@ class AnthropicLLMClient:
             except json.JSONDecodeError:
                 m = re.search(r"\{.*\}", raw_text, re.DOTALL)  # vytáhni JSON i z textu okolo
                 data = json.loads(m.group(0)) if m else {}
-            log.info("Vision trade extract complete", request_id=request_id)
-            return data if isinstance(data, dict) else {}
+            log.info("Vision trade extract complete", request_id=request_id, ms=ms, tokens=meta["total_tokens"])
+            return (data if isinstance(data, dict) else {}), meta
         except Exception as e:  # noqa: BLE001
             log.error("Vision trade extract failed", request_id=request_id, error=str(e))
-            return {}
+            return {}, {}
 
 
 llm_client = AnthropicLLMClient()
