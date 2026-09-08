@@ -46,7 +46,8 @@ MAX_IMG = 8 * 1024 * 1024
 
 SYSTEM_PROMPT = (
     "Jsi asistent obchodního deníku. Uživatel pošle screenshot z TradingView s nakreslenou "
-    "analýzou a obchodem. Vytěž strukturované informace a vrať POUZE validní JSON (bez markdownu):\n"
+    "analýzou a obchodem. Vytěž strukturované informace. Klidně nejdřív stručně uvažuj, ale "
+    "POSLEDNÍ částí odpovědi MUSÍ být validní JSON objekt dle tohoto schématu (za ním už nic):\n"
     '{"instrument": string|null, "direction": "long"|"short"|null, "timeframe": string|null, '
     '"entry": number|null, "stop": number|null, "target": number|null, "rr": number|null, '
     '"setup": string|null, "notes": string|null}\n'
@@ -94,17 +95,15 @@ def vision_extract(img: bytes, media: str) -> tuple[dict, dict]:
     b64 = base64.standard_b64encode(img).decode("ascii")
     body = {
         "model": LLM_MODEL,
-        "max_tokens": 1500,
+        # Model (Qwen3.8 thinking) stejně píše úvahu — necháme mu prostor, ať ji dokončí
+        # a NA KONCI vyplivne JSON; ten pak vytáhneme z textu (viz _parse_json_obj).
+        # response_format/reasoning_effort přes LiteLLM (drop_params) nefungují → vynecháno.
+        "max_tokens": 4000,
         "temperature": 0,
-        # Qwen3.8-27B: nativní thinking laditelný přes reasoning_effort → "low" přeskočí
-        # většinu reasoningu (jinak píše úvahu a dojdou tokeny / timeout).
-        "reasoning_effort": "low",
-        # Vynuť čistý JSON (vLLM/LiteLLM guided decoding).
-        "response_format": {"type": "json_object"},
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": [
-                {"type": "text", "text": "Vytěž obchod z grafu. Odpověz POUZE JSON objektem dle schématu — žádný jiný text, žádné uvažování, žádný úvod."},
+                {"type": "text", "text": "Analyzuj graf. Klidně nejdřív stručně uvažuj, ale POSLEDNÍ částí odpovědi musí být validní JSON objekt dle schématu (za ním už nic)."},
                 {"type": "image_url", "image_url": {"url": f"data:{media};base64,{b64}"}},
             ]},
         ],
@@ -134,7 +133,8 @@ def vision_extract(img: bytes, media: str) -> tuple[dict, dict]:
 
 
 def _parse_json_obj(text: str) -> dict:
-    """Tolerantní parse — qwen občas obalí JSON textem/markdownem. Vytáhne { … }."""
+    """Tolerantní parse — model píše úvahu a JSON dá na konec. Vytáhne POSLEDNÍ
+    vyvážený { … } objekt (i když úvaha obsahuje závorky)."""
     t = text.strip()
     if t.startswith("```"):
         t = t.split("```")[1]
@@ -144,10 +144,22 @@ def _parse_json_obj(text: str) -> dict:
     try:
         return json.loads(t)
     except json.JSONDecodeError:
-        m = re.search(r"\{.*\}", t, re.DOTALL)
-        if not m:
-            raise RuntimeError(f"model nevrátil JSON: {text[:200]!r}")
-        return json.loads(m.group(0))
+        pass
+    end = t.rfind("}")
+    while end != -1:
+        depth = 0
+        for i in range(end, -1, -1):
+            if t[i] == "}":
+                depth += 1
+            elif t[i] == "{":
+                depth -= 1
+                if depth == 0:
+                    try:
+                        return json.loads(t[i:end + 1])
+                    except json.JSONDecodeError:
+                        break  # zkus předchozí } (vnořená/nevalidní část)
+        end = t.rfind("}", 0, end)
+    raise RuntimeError(f"model nevrátil JSON: {text[:200]!r}")
 
 
 def process_once() -> int:
