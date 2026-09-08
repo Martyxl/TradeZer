@@ -63,7 +63,10 @@ SYSTEM_PROMPT = (
     "Směr urči podle VZÁJEMNÉ POLOHY zón: ZELENÁ zóna POD červenou → SHORT (cíl je dole); "
     "ZELENÁ NAD červenou → LONG. stop = vzdálená hrana ČERVENÉ zóny, target = vzdálená hrana "
     "ZELENÉ zóny, entry = hranice mezi zónami. Ceny vyplň tak, aby platilo: "
-    "SHORT → stop > entry > target; LONG → stop < entry < target."
+    "SHORT → stop > entry > target; LONG → stop < entry < target.\n"
+    "PŘESNOST CEN: čti z ČÍSELNÝCH ŠTÍTKŮ, ne odhadem mezi ryskami. Position tool i cenová "
+    "osa mají u každé úrovně přesný popisek s cenou; pokud tool zobrazuje entry/stop/target "
+    "nebo RR jako text, POUŽIJ ty hodnoty. Zaokrouhluj přesně dle zobrazené ceny."
 )
 
 

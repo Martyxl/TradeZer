@@ -230,7 +230,11 @@ class AnthropicLLMClient:
         "ZELENÁ zóna NAD červenou → LONG. stop = vzdálená hrana ČERVENÉ zóny, target = vzdálená "
         "hrana ZELENÉ zóny, entry = hranice mezi zónami. Ceny entry/stop/target vyplň přesně dle "
         "os tak, aby platilo: SHORT → stop > entry > target; LONG → stop < entry < target. "
-        "Z těch úrovní dopočítej rr."
+        "Z těch úrovní dopočítej rr.\n"
+        "PŘESNOST CEN je klíčová (u vysokého RR i malá chyba v entry mění výsledek): čti ceny "
+        "z ČÍSELNÝCH ŠTÍTKŮ, ne odhadem mezi ryskami osy. Position tool i cenová osa mají u "
+        "každé úrovně přesný číselný popisek; pokud tool zobrazuje entry/stop/target nebo RR "
+        "jako text, POUŽIJ přesně ty hodnoty."
     )
 
     def extract_trade_from_image(self, image_bytes: bytes, media_type: str = "image/png") -> tuple[dict, dict]:
