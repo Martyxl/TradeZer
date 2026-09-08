@@ -106,12 +106,28 @@ def vision_extract(img: bytes, media: str) -> dict:
     }
     resp = http_json(f"{LLM_BASE}/chat/completions", "POST", body,
                      {"Authorization": f"Bearer {LLM_KEY}"}, timeout=180)
-    text = resp["choices"][0]["message"]["content"].strip()
-    if text.startswith("```"):
-        text = text.split("```")[1]
-        if text.startswith("json"):
-            text = text[4:]
-    return json.loads(text)
+    msg = resp["choices"][0]["message"]
+    text = msg.get("content") if isinstance(msg, dict) else None
+    if not isinstance(text, str):
+        text = str(text or "")
+    return _parse_json_obj(text)
+
+
+def _parse_json_obj(text: str) -> dict:
+    """Tolerantní parse — qwen občas obalí JSON textem/markdownem. Vytáhne { … }."""
+    t = text.strip()
+    if t.startswith("```"):
+        t = t.split("```")[1]
+        if t[:4].lower() == "json":
+            t = t[4:]
+        t = t.strip()
+    try:
+        return json.loads(t)
+    except json.JSONDecodeError:
+        m = re.search(r"\{.*\}", t, re.DOTALL)
+        if not m:
+            raise RuntimeError(f"model nevrátil JSON: {text[:200]!r}")
+        return json.loads(m.group(0))
 
 
 def process_once() -> int:

@@ -1,5 +1,6 @@
 """Anthropic Claude klient pro news klasifikaci a daily doporučení."""
 import json
+import re
 import uuid
 from pathlib import Path
 
@@ -255,9 +256,14 @@ class AnthropicLLMClient:
             raw_text = message.content[0].text.strip()
             if raw_text.startswith("```"):
                 raw_text = raw_text.split("```")[1]
-                if raw_text.startswith("json"):
+                if raw_text[:4].lower() == "json":
                     raw_text = raw_text[4:]
-            data = json.loads(raw_text)
+            raw_text = raw_text.strip()
+            try:
+                data = json.loads(raw_text)
+            except json.JSONDecodeError:
+                m = re.search(r"\{.*\}", raw_text, re.DOTALL)  # vytáhni JSON i z textu okolo
+                data = json.loads(m.group(0)) if m else {}
             log.info("Vision trade extract complete", request_id=request_id)
             return data if isinstance(data, dict) else {}
         except Exception as e:  # noqa: BLE001
