@@ -94,7 +94,7 @@ def vision_extract(img: bytes, media: str) -> dict:
     b64 = base64.standard_b64encode(img).decode("ascii")
     body = {
         "model": LLM_MODEL,
-        "max_tokens": 800,
+        "max_tokens": 1500,
         "temperature": 0,
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
@@ -106,10 +106,19 @@ def vision_extract(img: bytes, media: str) -> dict:
     }
     resp = http_json(f"{LLM_BASE}/chat/completions", "POST", body,
                      {"Authorization": f"Bearer {LLM_KEY}"}, timeout=180)
-    msg = resp["choices"][0]["message"]
-    text = msg.get("content") if isinstance(msg, dict) else None
+    choice = resp["choices"][0] if resp.get("choices") else {}
+    msg = choice.get("message", {}) if isinstance(choice, dict) else {}
+    text = msg.get("content")
+    if not text:  # některé reasoning modely dají odpověď sem
+        text = msg.get("reasoning_content")
+    if isinstance(text, list):  # content jako pole částí
+        text = "".join(p.get("text", "") for p in text if isinstance(p, dict))
     if not isinstance(text, str):
         text = str(text or "")
+    if not text.strip():
+        raise RuntimeError(
+            f"prázdná odpověď (finish_reason={choice.get('finish_reason')}); "
+            f"resp={json.dumps(resp, ensure_ascii=False)[:400]}")
     return _parse_json_obj(text)
 
 
