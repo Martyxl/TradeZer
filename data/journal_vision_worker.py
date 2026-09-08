@@ -64,9 +64,12 @@ SYSTEM_PROMPT = (
     "ZELENÁ NAD červenou → LONG. stop = vzdálená hrana ČERVENÉ zóny, target = vzdálená hrana "
     "ZELENÉ zóny, entry = hranice mezi zónami. Ceny vyplň tak, aby platilo: "
     "SHORT → stop > entry > target; LONG → stop < entry < target.\n"
-    "PŘESNOST CEN: čti z ČÍSELNÝCH ŠTÍTKŮ, ne odhadem mezi ryskami. Position tool i cenová "
-    "osa mají u každé úrovně přesný popisek s cenou; pokud tool zobrazuje entry/stop/target "
-    "nebo RR jako text, POUŽIJ ty hodnoty. Zaokrouhluj přesně dle zobrazené ceny."
+    "POUZE NAKRESLENÝ OBCHOD: soustřeď se VÝHRADNĚ na position/order tool (obdélník se zelenou "
+    "a červenou zónou). IGNORUJ všechno ostatní — volume profil vpravo, VWAP, session čáry, "
+    "Fibonacci, indikátory dole i cenové štítky, které k toolu NEpatří (na grafu je hodně "
+    "rušivých prvků). Cenu KAŽDÉ ze 3 úrovní (entry = hranice zón, stop = vzdálená hrana "
+    "červené, target = vzdálená hrana zelené) odečti tak, že danou VODOROVNOU čáru sleduješ "
+    "doprava k CENOVÉ OSE a přečteš číslo tam. U vysokého RR i malá chyba mění výsledek."
 )
 
 
