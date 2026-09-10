@@ -74,7 +74,12 @@ def _apply(e: JournalEntry, p: dict) -> None:
         e.instrument = (str(p.get("instrument") or "").strip() or "?")[:40]
     if "direction" in p:
         d = str(p.get("direction") or "").lower().strip()
-        e.direction = d if d in DIRECTIONS else "long"
+        if d in ("buy", "long", "l"):
+            e.direction = "long"
+        elif d in ("sell", "short", "s"):
+            e.direction = "short"
+        else:
+            e.direction = d if d in DIRECTIONS else "long"
     if "session" in p:
         s = str(p.get("session") or "").lower().strip()
         e.session = s if s in SESSIONS else None
@@ -114,6 +119,35 @@ async def create_entry(payload: dict, user: User = Depends(current_user),
     await session.commit()
     await session.refresh(e)
     return {"entry": _out(e)}
+
+
+@router.post("/import")
+async def import_entries(payload: dict, user: User = Depends(current_user),
+                        session: AsyncSession = Depends(get_session)):
+    """Hromadný import obchodů (frontend rozparsuje CSV a namapuje sloupce na pole).
+    Tělo: {rows: [{instrument, direction, entry_price, exit_price, size, r_result,
+    pnl, traded_at, session, setup, notes}, ...]}. Vrací počet vytvořených + chyby."""
+    rows = payload.get("rows")
+    if not isinstance(rows, list):
+        raise HTTPException(status_code=400, detail="Chybí rows (pole obchodů).")
+    if len(rows) > 2000:
+        raise HTTPException(status_code=400, detail="Max 2000 řádků na import.")
+    created = 0
+    errors: list[dict] = []
+    for i, r in enumerate(rows):
+        if not isinstance(r, dict) or not str(r.get("instrument") or "").strip():
+            errors.append({"row": i + 1, "error": "chybí instrument"})
+            continue
+        try:
+            e = JournalEntry(user_id=user.id, instrument="?", direction="long")
+            _apply(e, r)
+            session.add(e)
+            created += 1
+        except Exception as ex:  # noqa: BLE001
+            errors.append({"row": i + 1, "error": str(ex)[:120]})
+    if created:
+        await session.commit()
+    return {"created": created, "error_count": len(errors), "errors": errors[:25]}
 
 
 async def _owned(entry_id: int, user: User, session: AsyncSession) -> JournalEntry:

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { NotebookPen, Plus, Pencil, Trash2, X, ExternalLink, TrendingUp, Sparkles } from "lucide-react";
+import { NotebookPen, Plus, Pencil, Trash2, X, ExternalLink, TrendingUp, Sparkles, Upload } from "lucide-react";
 import { authToken, useAuth } from "@/lib/auth";
 import Link from "next/link";
 
@@ -82,6 +82,11 @@ function toLocalInput(s: string | null): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
+function nowLocalInput(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 /* -------------------------------------------------------------- stat karta */
 
@@ -154,7 +159,7 @@ function EntryForm({ initial, draft, meta, onClose, onSaved }: {
     setup: initial.setup ?? "",
     notes: initial.notes ?? "",
     screenshot_url: initial.screenshot_url ?? "",
-  } : { ...EMPTY, ...(draft || {}) });
+  } : { ...EMPTY, traded_at: nowLocalInput(), ...(draft || {}) });
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -404,6 +409,129 @@ function AnalyzeModal({ isAdmin, onClose, onExtracted }: {
   );
 }
 
+/* -------------------------------------------------------------- CSV import */
+
+function parseCSV(text: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [], cur = "", q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) {
+      if (c === '"') { if (text[i + 1] === '"') { cur += '"'; i++; } else q = false; }
+      else cur += c;
+    } else if (c === '"') q = true;
+    else if (c === "," || c === ";" || c === "\t") { row.push(cur); cur = ""; }
+    else if (c === "\n") { row.push(cur); rows.push(row); row = []; cur = ""; }
+    else if (c !== "\r") cur += c;
+  }
+  if (cur !== "" || row.length) { row.push(cur); rows.push(row); }
+  return rows;
+}
+
+const COL_MAP: Record<string, string> = {
+  instrument: "instrument", symbol: "instrument", ticker: "instrument", instr: "instrument",
+  direction: "direction", side: "direction", type: "direction", smer: "direction", "směr": "direction",
+  entry: "entry_price", entry_price: "entry_price", open: "entry_price", price: "entry_price", vstup: "entry_price",
+  exit: "exit_price", exit_price: "exit_price", close: "exit_price", target: "exit_price", vystup: "exit_price", "výstup": "exit_price",
+  size: "size", qty: "size", quantity: "size", contracts: "size", volume: "size", lot: "size", lots: "size",
+  r: "r_result", rr: "r_result", r_result: "r_result", r_multiple: "r_result", "r-multiple": "r_result", vysledek: "r_result", "výsledek": "r_result",
+  pnl: "pnl", profit: "pnl", pl: "pnl", "p/l": "pnl", "p&l": "pnl",
+  date: "traded_at", time: "traded_at", datetime: "traded_at", traded_at: "traded_at", "date/time": "traded_at", datum: "traded_at", cas: "traded_at", "čas": "traded_at",
+  session: "session", relace: "session", seance: "session",
+  setup: "setup", strategy: "setup", strategie: "setup", tag: "setup",
+  notes: "notes", note: "notes", comment: "notes", description: "notes", poznamka: "notes", "poznámka": "notes",
+};
+const normHeader = (h: string) => h.trim().toLowerCase().replace(/\s+/g, "_");
+
+function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: (created: number, errors: number) => void }) {
+  const [rows, setRows] = useState<Record<string, string>[] | null>(null);
+  const [mapped, setMapped] = useState<string[]>([]);
+  const [ignored, setIgnored] = useState<string[]>([]);
+  const [fileName, setFileName] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setFileName(file.name); setErr(null); setRows(null);
+    const rd = new FileReader();
+    rd.onload = () => {
+      try {
+        const grid = parseCSV(String(rd.result)).filter((r) => r.some((c) => c.trim() !== ""));
+        if (grid.length < 2) { setErr("CSV nemá data (chybí hlavička nebo řádky)."); return; }
+        const hdr = grid[0].map((h) => h.trim());
+        const fields = hdr.map((h) => COL_MAP[normHeader(h)] || null);
+        setMapped(hdr.filter((_, i) => fields[i]));
+        setIgnored(hdr.filter((_, i) => !fields[i]));
+        const data = grid.slice(1).map((r) => {
+          const o: Record<string, string> = {};
+          fields.forEach((f, i) => { if (f && r[i] !== undefined && r[i].trim() !== "") o[f] = r[i].trim(); });
+          return o;
+        }).filter((o) => o.instrument);
+        setRows(data);
+        if (!data.length) setErr("Nenašel jsem řádky s instrumentem — je ve CSV sloupec instrument/symbol?");
+      } catch { setErr("Nepodařilo se rozparsovat CSV."); }
+    };
+    rd.readAsText(file);
+  };
+
+  const doImport = async () => {
+    if (!rows?.length) return;
+    setBusy(true); setErr(null);
+    try {
+      const res = await jFetch("/import", { method: "POST", body: { rows } });
+      onDone(res.created ?? 0, res.error_count ?? 0);
+    } catch (e) { setErr(e instanceof Error ? e.message : "Import selhal"); setBusy(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/70 flex items-start justify-center p-4 overflow-y-auto" onClick={busy ? undefined : onClose}>
+      <div className="bg-[#12141c] border border-[#2a2d3a] rounded-2xl max-w-lg w-full p-6 my-8" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="text-lg font-bold text-white flex items-center gap-2"><Upload size={17} className="text-blue-400" /> Import CSV</h2>
+          {!busy && <button onClick={onClose} className="text-gray-400 hover:text-white"><X size={20} /></button>}
+        </div>
+        <p className="text-xs text-gray-500 mb-4">Nahraj CSV s obchody. Sloupce se namapují automaticky podle hlavičky.</p>
+
+        <input type="file" accept=".csv,text/csv" onChange={onFile} disabled={busy}
+          className="text-sm text-gray-400 file:mr-3 file:rounded-md file:border-0 file:bg-[#1e2536] file:px-3 file:py-1.5 file:text-gray-200 file:text-xs" />
+        {fileName && <span className="text-xs text-gray-500 ml-2">{fileName}</span>}
+
+        {rows && (
+          <div className="mt-4 space-y-2 text-xs">
+            <div className="text-gray-300">Nalezeno <b className="text-white">{rows.length}</b> obchodů.</div>
+            <div className="flex flex-wrap gap-1.5">
+              {mapped.map((h) => <span key={h} className="rounded bg-green-950/50 text-green-300 px-2 py-0.5">{h}</span>)}
+              {ignored.map((h) => <span key={h} className="rounded bg-[#232735] text-gray-500 px-2 py-0.5 line-through">{h}</span>)}
+            </div>
+            {ignored.length > 0 && <div className="text-[10px] text-gray-600">Přeškrtnuté sloupce se ignorují (nerozpoznaná hlavička).</div>}
+          </div>
+        )}
+
+        <details className="mt-4 text-[11px] text-gray-500">
+          <summary className="cursor-pointer hover:text-gray-300">Jaké sloupce fungují?</summary>
+          <div className="mt-2 leading-relaxed">
+            <b className="text-gray-400">instrument</b> (symbol/ticker), <b className="text-gray-400">direction</b> (side/type — long/short i buy/sell),
+            entry (open/price), exit (close/target), size (qty), r (rr), pnl (p/l), date (time/datetime),
+            session, setup (strategy), notes (comment). Oddělovač , ; nebo tab.
+          </div>
+        </details>
+
+        {err && <p className="text-sm text-red-400 mt-3">{err}</p>}
+
+        <div className="flex justify-end gap-2 mt-5">
+          <button onClick={onClose} disabled={busy} className="rounded-lg px-4 py-2 text-sm text-gray-300 border border-[#2a2d3a] hover:text-white transition-colors disabled:opacity-40">Zrušit</button>
+          <button onClick={doImport} disabled={busy || !rows?.length}
+            className="rounded-lg px-4 py-2 text-sm font-medium bg-blue-600 text-white hover:bg-blue-500 transition-colors disabled:opacity-50 flex items-center gap-1.5">
+            <Upload size={14} /> {busy ? "Importuji…" : `Importovat${rows?.length ? ` (${rows.length})` : ""}`}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ----------------------------------------------------------------- page */
 
 export default function DenikPage() {
@@ -415,6 +543,7 @@ export default function DenikPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Entry | null>(null);
   const [analyzeOpen, setAnalyzeOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [draft, setDraft] = useState<Partial<FormState> | null>(null);
   const [lastMeta, setLastMeta] = useState<AnalysisMeta | null>(null);
 
@@ -442,6 +571,10 @@ export default function DenikPage() {
   const onExtracted = (d: Partial<FormState>, meta: AnalysisMeta | null) => {
     setAnalyzeOpen(false); setEditing(null); setDraft(d);
     setLastMeta(user?.is_admin ? meta : null); setFormOpen(true);
+  };
+  const onImported = (created: number, errors: number) => {
+    setImportOpen(false); reload();
+    alert(`Importováno ${created} obchodů${errors ? `, ${errors} přeskočeno (chybějící instrument apod.)` : ""}.`);
   };
   const remove = async (e: Entry) => {
     if (!confirm(`Smazat obchod ${e.instrument} z ${fmtDate(e.traded_at)}?`)) return;
@@ -472,6 +605,10 @@ export default function DenikPage() {
             <button onClick={() => setAnalyzeOpen(true)}
               className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium bg-blue-600/90 text-white border border-blue-500 hover:bg-blue-500 transition-colors">
               <Sparkles size={15} /> Z TradingView (AI)
+            </button>
+            <button onClick={() => setImportOpen(true)}
+              className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium bg-[#151823] text-gray-300 border border-[#2a2d3a] hover:text-white transition-colors">
+              <Upload size={15} /> Import CSV
             </button>
             <button onClick={openNew}
               className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium bg-[rgba(96,255,130,0.14)] text-[#8fffab] border border-[rgba(96,255,130,0.4)] hover:bg-[rgba(96,255,130,0.22)] transition-colors">
@@ -586,6 +723,7 @@ export default function DenikPage() {
       )}
 
       {analyzeOpen && <AnalyzeModal isAdmin={!!user?.is_admin} onClose={() => setAnalyzeOpen(false)} onExtracted={onExtracted} />}
+      {importOpen && <ImportModal onClose={() => setImportOpen(false)} onDone={onImported} />}
       {formOpen && <EntryForm initial={editing} draft={draft} meta={lastMeta} onClose={() => { setFormOpen(false); setEditing(null); setDraft(null); setLastMeta(null); }} onSaved={onSaved} />}
     </div>
   );
