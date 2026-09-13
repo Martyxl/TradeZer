@@ -140,11 +140,14 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* LLM výpadek — workaround běží. Pozor: spouští jen skutečný fallback
-          (model_version), NE reálnou predikci s nízkou/nulovou confidence. */}
-      {news.some(
-        (n) => n.prediction && (n.prediction.model_version ?? "").includes("fallback")
-      ) && (
+      {/* LLM výpadek — workaround běží. Ukázat jen při REÁLNÉM výpadku (≥30 % predikcí
+          fallback, min. 4 predikce), ne kvůli jednomu okrajovému eventu (kalendář apod.). */}
+      {(() => {
+        const preds = news.filter((n) => n.prediction);
+        if (preds.length < 4) return false;
+        const fb = preds.filter((n) => (n.prediction?.model_version ?? "").includes("fallback")).length;
+        return fb / preds.length >= 0.3;
+      })() && (
         <div className="rounded-xl border border-yellow-800 bg-yellow-950/40 p-4 text-sm text-yellow-300">
           ⚠ <strong>AI predikce jsou dočasně nedostupné</strong> (výpadek LLM API). Běží statistický
           workaround — pravděpodobnosti u části zpráv vycházejí z historických reakcí na podobné
