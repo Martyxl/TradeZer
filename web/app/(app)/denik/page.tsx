@@ -312,7 +312,14 @@ function AnalyzeModal({ isAdmin, onClose, onExtracted }: {
   const [url, setUrl] = useState("");
   const [imgB64, setImgB64] = useState<string | null>(null);
   const [imgName, setImgName] = useState<string>("");
-  const [engine, setEngine] = useState<"claude" | "spark">("claude");
+  const [engine, setEngineState] = useState<"claude" | "spark">(() => {
+    try { const v = localStorage.getItem("tz_denik_engine"); return v === "spark" ? "spark" : "claude"; }
+    catch { return "claude"; }
+  });
+  const setEngine = (k: "claude" | "spark") => {
+    setEngineState(k);
+    try { localStorage.setItem("tz_denik_engine", k); } catch { /* ignore */ }
+  };
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
