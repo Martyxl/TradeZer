@@ -24,6 +24,10 @@ class Settings(BaseSettings):
         default="claude-sonnet-4-6", alias="CLAUDE_VISION_MODEL"
     )
 
+    # FRED (St. Louis Fed) — zdarma actual hodnoty makro eventů pro outlook_eval.
+    # Klíč zdarma: https://fred.stlouisfed.org/docs/api/api_key.html
+    fred_api_key: str = Field(default="", alias="FRED_API_KEY")
+
     # News sources
     newsapi_key: str = Field(default="", alias="NEWSAPI_KEY")
     finnhub_api_key: str = Field(default="", alias="FINNHUB_API_KEY")

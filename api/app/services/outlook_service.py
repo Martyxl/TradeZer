@@ -235,7 +235,9 @@ async def evaluate_outlook(session) -> dict:
     import asyncio
     from datetime import datetime, timezone, timedelta
     from sqlalchemy import select
+    from app.config import settings
     from app.models import Ticker, OutlookEval
+    from app.sources.fred_adapter import get_event_actual
     from app.sources.yahoo_finance_adapter import YahooFinanceAdapter, _find_close_at
 
     now = datetime.now(timezone.utc)
@@ -252,14 +254,19 @@ async def evaluate_outlook(session) -> dict:
         cat = classify_event(e.get("title", ""))
         if cat is None:
             continue
-        actual = (e.get("actual") or "").strip()
-        if not actual:                       # ještě není výsledek
-            continue
         try:
             ev_dt = datetime.fromisoformat((e.get("time_utc") or "").replace("Z", "+00:00"))
         except ValueError:
             continue
         if (now - ev_dt).total_seconds() < 70 * 60:   # počkej na 1h cenových dat
+            continue
+        actual = (e.get("actual") or "").strip()
+        if not actual and settings.fred_api_key:       # FF actual nedorazil → zkus FRED (zdarma)
+            try:
+                actual = await get_event_actual(e.get("title", ""), ev_dt.date()) or ""
+            except Exception:  # noqa: BLE001
+                actual = ""
+        if not actual:                                 # ani FF ani FRED → přeskoč
             continue
         bucket = _realized_bucket(actual, e.get("forecast"))
         eval_date = ev_dt.date()
