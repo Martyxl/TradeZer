@@ -21,6 +21,10 @@ interface BiasStats {
   total: number; accuracy: number | null;
   directional_total: number; directional_accuracy: number | null;
 }
+interface GammaLite {
+  underlying: string; regime: "positive" | "negative";
+  flip: number | null; net_gex: number;
+}
 
 const DIR_META: Record<string, { label: string; color: string; Icon: typeof TrendingUp }> = {
   up: { label: "LONG", color: "#4ade80", Icon: TrendingUp },
@@ -48,9 +52,11 @@ function ProbRow({ b }: { b: { prob_down: number; prob_neutral: number; prob_up:
 export function BiasCard({ ticker }: { ticker: string }) {
   const [data, setData] = useState<BiasToday | null>(null);
   const [stats, setStats] = useState<BiasStats | null>(null);
+  const [gamma, setGamma] = useState<GammaLite | null>(null);
 
   useEffect(() => {
     setData(null);
+    setGamma(null);
     fetch(`/api/bias/today?ticker=${ticker}`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then(setData)
@@ -58,6 +64,11 @@ export function BiasCard({ ticker }: { ticker: string }) {
     fetch(`/api/bias/stats?ticker=${ticker}&days=30`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then(setStats)
+      .catch(() => {});
+    // Gamma režim jako doplňkový kontext (tichá degradace, když nejsou data).
+    fetch(`/api/gamma?ticker=${ticker}`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => setGamma(j?.instrument ?? null))
       .catch(() => {});
   }, [ticker]);
 
@@ -130,6 +141,26 @@ export function BiasCard({ ticker }: { ticker: string }) {
         )}
         {stats && stats.total === 0 && <span>Statistika úspěšnosti se začne tvořit od zítřka.</span>}
       </div>
+
+      {gamma && (
+        <div className="mt-2 flex items-start gap-2 rounded-lg border border-[#232735] bg-[#151823] px-2.5 py-1.5 text-[11px]">
+          <span className="text-indigo-400 font-medium shrink-0">Gamma režim:</span>
+          <span className="text-gray-400">
+            <span
+              className="font-semibold"
+              style={{ color: gamma.regime === "positive" ? "#4ade80" : "#f87171" }}
+            >
+              {gamma.regime === "positive" ? "Pozitivní" : "Negativní"} ({gamma.underlying})
+            </span>
+            {gamma.regime === "positive"
+              ? " → dealeři tlumí pohyby, trh spíš mean-revert/klidnější (výhodné pro fade extrémů)."
+              : " → dealeři pohyby zesilují, trh trendový/volatilní (pozor na breakouty)."}
+            {gamma.flip != null && (
+              <span className="text-gray-500"> Flip {gamma.flip}.</span>
+            )}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
