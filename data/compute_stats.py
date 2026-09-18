@@ -715,10 +715,16 @@ def compute(key: str, cfg: dict) -> dict:
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     keys = sys.argv[1:] or list(INSTRUMENTS)
+    ok, failed = 0, []
     for key in keys:
         cfg = INSTRUMENTS[key]
         print(f"== {key}: počítám…")
-        stats = compute(key, cfg)
+        try:
+            stats = compute(key, cfg)
+        except Exception as e:  # noqa: BLE001 — chybějící/neúplná data → přeskoč, zbytek dopočítej
+            print(f"   !! {key} přeskočen: {e}")
+            failed.append(key)
+            continue
 
         # Meziměsíční porovnání: předchozí stav ulož do "prev".
         # Při přepočtu nad stejnými daty (stejné meta.to) zachovej původní baseline.
@@ -734,6 +740,12 @@ def main() -> None:
 
         out_file.write_text(json.dumps(stats, ensure_ascii=False, indent=1), encoding="utf-8")
         print(f"   -> {out_file} ({stats['meta']['bars_m5']} barů, {stats['meta']['days']} dní)")
+        ok += 1
+
+    if failed:
+        print(f"Přeskočeno (chybí data): {failed}")
+    if ok == 0:
+        raise SystemExit("Žádný instrument se nespočítal — jsou vůbec nějaká data v data/raw/?")
 
 
 if __name__ == "__main__":
