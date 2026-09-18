@@ -8,6 +8,7 @@ import { NewsCard } from "@/components/NewsCard";
 import { MarketHoursBar } from "@/components/MarketHoursBar";
 import { BiasCard } from "@/components/BiasCard";
 import { EntryCard } from "@/components/EntryCard";
+import { GammaCard } from "@/components/GammaCard";
 import { OutlookCard } from "@/components/OutlookCard";
 import { api, type Ticker, type NewsItem, type DailySummary } from "@/lib/api";
 
@@ -160,6 +161,9 @@ export default function DashboardPage() {
 
       {/* Entry plán po NY open */}
       <EntryCard ticker={selectedTicker} />
+
+      {/* Gamma exposure (GEX) — režim + levely z options OI (skryje se bez dat) */}
+      <GammaCard ticker={selectedTicker} />
 
       {/* Pre-open výhled: dnešní eventy + scénáře dopadu */}
       <OutlookCard ticker={selectedTicker} />

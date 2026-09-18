@@ -24,6 +24,7 @@ from app.routers import (
     auth_router,
     journal_router,
     discovery_router,
+    gamma_router,
 )
 
 structlog.configure(
@@ -169,6 +170,7 @@ app.include_router(valuation_router)
 app.include_router(auth_router)
 app.include_router(journal_router)
 app.include_router(discovery_router)
+app.include_router(gamma_router)
 
 
 @app.get("/")

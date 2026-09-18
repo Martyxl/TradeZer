@@ -12,6 +12,7 @@ from app.models.news import (
 )
 from app.models.site import SiteCounter
 from app.models.discovery import DiscoverySnapshot
+from app.models.gamma import GammaSnapshot
 from app.models.bias import DailyBias
 from app.models.outlook import DailyOutlook, OutlookEval
 from app.models.user import User
@@ -22,6 +23,7 @@ from app.valuation import models as _valuation_models  # noqa: F401
 __all__ = [
     "SiteCounter",
     "DiscoverySnapshot",
+    "GammaSnapshot",
     "DailyBias",
     "DailyOutlook",
     "OutlookEval",
