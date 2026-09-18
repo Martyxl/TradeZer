@@ -554,12 +554,15 @@ export default function DenikPage() {
   const [draft, setDraft] = useState<Partial<FormState> | null>(null);
   const [lastMeta, setLastMeta] = useState<AnalysisMeta | null>(null);
 
+  // Bez setLoading(true) → refetch (po add/edit/delete/import) aktualizuje data
+  // v místě, neblikne skeletonem přes celou stránku. Skeleton jen při 1. načtení
+  // (loading init = true). Chyba refreshe nepřepisuje už zobrazená data.
   const reload = useCallback(async () => {
-    setLoading(true); setError(null);
     try {
       const [list, st] = await Promise.all([jFetch(""), jFetch("/stats")]);
       setEntries((list as { entries: Entry[] }).entries);
       setStats(st as Stats);
+      setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Načtení selhalo");
     } finally {
@@ -585,8 +588,15 @@ export default function DenikPage() {
   };
   const remove = async (e: Entry) => {
     if (!confirm(`Smazat obchod ${e.instrument} z ${fmtDate(e.traded_at)}?`)) return;
-    try { await jFetch(`/${e.id}`, { method: "DELETE" }); reload(); }
-    catch (err) { alert(err instanceof Error ? err.message : "Smazání selhalo"); }
+    const prev = entries;
+    setEntries((cur) => cur.filter((x) => x.id !== e.id)); // optimisticky — řádek zmizí hned
+    try {
+      await jFetch(`/${e.id}`, { method: "DELETE" });
+      reload(); // tiše dosynchronizuj statistiky (bez blikání)
+    } catch (err) {
+      setEntries(prev); // rollback při chybě
+      alert(err instanceof Error ? err.message : "Smazání selhalo");
+    }
   };
 
   const t = stats?.totals;
