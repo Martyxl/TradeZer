@@ -31,7 +31,9 @@ import time
 import urllib.error
 import urllib.request
 
-API = os.environ.get("TRADEZER_API", "https://tradezer.app").rstrip("/")
+# Default = backend PŘÍMO (ne přes frontend proxy tradezer.app) — interní worker
+# šetří requesty na frontend projektu (Vercel edge). Přepiš přes TRADEZER_API.
+API = os.environ.get("TRADEZER_API", "https://trade-zer.vercel.app").rstrip("/")
 TOKEN = os.environ.get("TRADEZER_TOKEN", "")
 if not TOKEN:
     raise SystemExit("Chybí TRADEZER_TOKEN env (interní API token).")
