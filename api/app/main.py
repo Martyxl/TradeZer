@@ -23,6 +23,7 @@ from app.routers import (
     stats_router,
     auth_router,
     journal_router,
+    discovery_router,
 )
 
 structlog.configure(
@@ -167,6 +168,7 @@ app.include_router(bias_router)
 app.include_router(valuation_router)
 app.include_router(auth_router)
 app.include_router(journal_router)
+app.include_router(discovery_router)
 
 
 @app.get("/")

@@ -8,12 +8,15 @@ interface DItem {
   ret_5d: number | null; ret_20d: number | null; rel_vol: number | null;
   from_high_pct: number | null; from_low_pct: number | null;
   above_sma20: boolean | null; above_sma50: boolean | null; score: number;
+  market_cap?: number | null; days_to_earnings?: number | null;
+  earnings_date?: string | null; last_surprise_pct?: number | null;
 }
 interface DData {
-  generated: string; universe_size: number; scanned: number; note: string; items: DItem[];
+  generated: string | null; universe_size: number; scanned: number;
+  note: string; items: DItem[]; catalysts?: boolean;
 }
 
-type SortKey = "score" | "ret_20d" | "rel_vol";
+type SortKey = "score" | "ret_20d" | "rel_vol" | "earnings";
 
 function pctColor(v: number | null | undefined): string {
   if (v === null || v === undefined) return "#9ca3af";
@@ -22,6 +25,12 @@ function pctColor(v: number | null | undefined): string {
 function fmtPct(v: number | null | undefined): string {
   if (v === null || v === undefined) return "—";
   return `${v > 0 ? "+" : ""}${v.toFixed(1)}%`;
+}
+function fmtCap(v: number | null | undefined): string {
+  if (v === null || v === undefined) return "—";
+  if (v >= 1e9) return `$${(v / 1e9).toFixed(1)}B`;
+  if (v >= 1e6) return `$${(v / 1e6).toFixed(0)}M`;
+  return `$${v.toFixed(0)}`;
 }
 
 export default function DiscoveryPage() {
@@ -33,10 +42,20 @@ export default function DiscoveryPage() {
   const [sort, setSort] = useState<SortKey>("score");
 
   useEffect(() => {
-    fetch("/discovery.json", { cache: "no-store" })
-      .then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
-      .then(setData)
-      .catch(() => setError("Discovery data nejsou k dispozici. Spusť data/discovery_scan.py."));
+    // Preferuj živý snapshot z backendu (push ze Sparku); fallback na statické JSON.
+    const load = async () => {
+      for (const url of ["/api/discovery", "/discovery.json"]) {
+        try {
+          const r = await fetch(url, { cache: "no-store" });
+          if (!r.ok) continue;
+          const j: DData = await r.json();
+          if (j && Array.isArray(j.items) && j.items.length > 0) { setData(j); return; }
+          if (url === "/api/discovery" && j) setData(j); // prázdný snapshot → zkus fallback dál
+        } catch { /* zkus další zdroj */ }
+      }
+      setError((prev) => prev ?? null);
+    };
+    load().catch(() => setError("Discovery data nejsou k dispozici. Spusť data/discovery_scan.py."));
   }, []);
 
   const rows = useMemo(() => {
@@ -46,7 +65,12 @@ export default function DiscoveryPage() {
       (i.ret_20d ?? -999) >= minRet20 &&
       (!onlyAbove || i.above_sma20)
     );
-    r = [...r].sort((a, b) => (b[sort] ?? -999) - (a[sort] ?? -999));
+    if (sort === "earnings") {
+      // Nejbližší earnings první; jména bez data až za nimi.
+      r = [...r].sort((a, b) => (a.days_to_earnings ?? 9999) - (b.days_to_earnings ?? 9999));
+    } else {
+      r = [...r].sort((a, b) => ((b[sort] as number) ?? -999) - ((a[sort] as number) ?? -999));
+    }
     return r;
   }, [data, minRelVol, minRet20, onlyAbove, sort]);
 
@@ -100,32 +124,42 @@ export default function DiscoveryPage() {
             <button onClick={() => setOnlyAbove(!onlyAbove)} className={chip(onlyAbove)}>nad SMA20</button>
             <div className="flex items-center gap-1.5 ml-auto">
               <span className="text-[10px] uppercase tracking-wider text-gray-500 mr-1">Řadit</span>
-              {(["score", "ret_20d", "rel_vol"] as SortKey[]).map((k) => (
+              {(["score", "ret_20d", "rel_vol", ...(data.catalysts ? ["earnings"] : [])] as SortKey[]).map((k) => (
                 <button key={k} onClick={() => setSort(k)} className={chip(sort === k)}>
-                  {k === "score" ? "Score" : k === "ret_20d" ? "20d" : "Rel. obj."}
+                  {k === "score" ? "Score" : k === "ret_20d" ? "20d" : k === "rel_vol" ? "Rel. obj." : "Earnings"}
                 </button>
               ))}
             </div>
           </div>
 
           <div className="text-xs text-gray-500">
-            {rows.length} z {data.scanned} kandidátů · univerzum {data.universe_size} · aktualizováno {new Date(data.generated).toLocaleString("cs")}
+            {rows.length} z {data.scanned} kandidátů · univerzum {data.universe_size}
+            {data.generated ? ` · aktualizováno ${new Date(data.generated).toLocaleString("cs")}` : ""}
+            {data.catalysts === false ? " · katalyzátory vypnuté (chybí FINNHUB_API_KEY)" : ""}
           </div>
+
+          {data.items.length === 0 && (
+            <div className="rounded-xl border border-yellow-800 bg-yellow-950/40 p-4 text-sm text-yellow-300">
+              Zatím žádný snapshot. Spusť <code className="text-yellow-200">py data/discovery_scan.py --push</code> z rezidenční IP.
+            </div>
+          )}
 
           <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm min-w-[760px]">
+              <table className="w-full text-sm min-w-[900px]">
                 <thead>
                   <tr className="text-gray-500 text-[10px] uppercase bg-[#181b26]">
                     <th className="text-left px-3 py-2.5">#</th>
                     <th className="text-left px-3 py-2.5">Ticker</th>
                     <th className="text-right px-3 py-2.5">Cena</th>
+                    <th className="text-right px-3 py-2.5">MCap</th>
                     <th className="text-right px-3 py-2.5">Den</th>
                     <th className="text-right px-3 py-2.5">5d</th>
                     <th className="text-right px-3 py-2.5">20d</th>
                     <th className="text-right px-3 py-2.5">Rel. obj.</th>
                     <th className="text-right px-3 py-2.5">od 52w high</th>
                     <th className="text-left px-3 py-2.5">SMA</th>
+                    <th className="text-left px-3 py-2.5">Earnings</th>
                     <th className="text-right px-3 py-2.5">Score</th>
                   </tr>
                 </thead>
@@ -138,6 +172,7 @@ export default function DiscoveryPage() {
                           className="font-semibold text-gray-100 hover:text-blue-400">{i.ticker}</a>
                       </td>
                       <td className="px-3 py-2.5 text-right text-gray-300 font-mono">{i.price}</td>
+                      <td className="px-3 py-2.5 text-right font-mono text-gray-400">{fmtCap(i.market_cap)}</td>
                       <td className="px-3 py-2.5 text-right font-mono" style={{ color: pctColor(i.chg_pct) }}>{fmtPct(i.chg_pct)}</td>
                       <td className="px-3 py-2.5 text-right font-mono" style={{ color: pctColor(i.ret_5d) }}>{fmtPct(i.ret_5d)}</td>
                       <td className="px-3 py-2.5 text-right font-mono font-semibold" style={{ color: pctColor(i.ret_20d) }}>{fmtPct(i.ret_20d)}</td>
@@ -148,6 +183,24 @@ export default function DiscoveryPage() {
                       <td className="px-3 py-2.5">
                         <span className={`text-[10px] px-1.5 py-0.5 rounded mr-1 ${i.above_sma20 ? "bg-green-950/60 text-green-300" : "bg-[#232735] text-gray-500"}`}>20</span>
                         <span className={`text-[10px] px-1.5 py-0.5 rounded ${i.above_sma50 ? "bg-green-950/60 text-green-300" : "bg-[#232735] text-gray-500"}`}>50</span>
+                      </td>
+                      <td className="px-3 py-2.5">
+                        {i.days_to_earnings != null ? (
+                          <span
+                            className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                              i.days_to_earnings <= 10 ? "bg-amber-950/60 text-amber-300 border border-amber-800/50" : "bg-[#232735] text-gray-400"}`}
+                            title={i.earnings_date ?? undefined}
+                          >
+                            📅 {i.days_to_earnings}d
+                            {i.last_surprise_pct != null && (
+                              <span className="ml-1" style={{ color: pctColor(i.last_surprise_pct) }}>
+                                ({fmtPct(i.last_surprise_pct)})
+                              </span>
+                            )}
+                          </span>
+                        ) : (
+                          <span className="text-gray-600 text-xs">—</span>
+                        )}
                       </td>
                       <td className="px-3 py-2.5 text-right">
                         <div className="inline-flex items-center gap-2">
@@ -160,7 +213,7 @@ export default function DiscoveryPage() {
                     </tr>
                   ))}
                   {rows.length === 0 && (
-                    <tr><td colSpan={10} className="px-3 py-8 text-center text-gray-500">Žádný kandidát nesplňuje filtry.</td></tr>
+                    <tr><td colSpan={12} className="px-3 py-8 text-center text-gray-500">Žádný kandidát nesplňuje filtry.</td></tr>
                   )}
                 </tbody>
               </table>
