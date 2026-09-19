@@ -11,6 +11,7 @@ from app.routers.auth import router as auth_router
 from app.routers.journal import router as journal_router
 from app.routers.discovery import router as discovery_router
 from app.routers.gamma import router as gamma_router
+from app.routers.smart_money import router as smart_money_router
 
 __all__ = [
     "bias_router",
@@ -19,6 +20,7 @@ __all__ = [
     "journal_router",
     "discovery_router",
     "gamma_router",
+    "smart_money_router",
     "tickers_router",
     "news_router",
     "summary_router",

@@ -13,6 +13,7 @@ from app.models.news import (
 from app.models.site import SiteCounter
 from app.models.discovery import DiscoverySnapshot
 from app.models.gamma import GammaSnapshot
+from app.models.smart_money import SmartMoneySnapshot
 from app.models.bias import DailyBias
 from app.models.outlook import DailyOutlook, OutlookEval
 from app.models.user import User
@@ -24,6 +25,7 @@ __all__ = [
     "SiteCounter",
     "DiscoverySnapshot",
     "GammaSnapshot",
+    "SmartMoneySnapshot",
     "DailyBias",
     "DailyOutlook",
     "OutlookEval",
