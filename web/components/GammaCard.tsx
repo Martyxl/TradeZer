@@ -26,7 +26,7 @@ function fmtGex(v: number): string {
 export function GammaCard({ ticker }: { ticker: string }) {
   const [d, setD] = useState<Instrument | null>(null);
   const [gen, setGen] = useState<string | null>(null);
-  const [state, setState] = useState<"loading" | "ready" | "empty">("loading");
+  const [state, setState] = useState<"loading" | "ready" | "empty" | "waiting">("loading");
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -37,14 +37,32 @@ export function GammaCard({ ticker }: { ticker: string }) {
       .then((j: Resp) => {
         if (!alive) return;
         if (j.instrument) { setD(j.instrument); setGen(j.generated); setState("ready"); }
-        else { setD(null); setState("empty"); }
+        else if (j.generated == null) { setState("waiting"); } // žádný snapshot vůbec → placeholder
+        else { setState("empty"); }                            // snapshot je, ale bez tohoto instrumentu → skryj
       })
       .catch(() => { if (alive) setState("empty"); });
     return () => { alive = false; };
   }, [ticker]);
 
-  // Instrument bez options proxy (nebo bez dat) — kartu nezobrazuj vůbec.
+  // Snapshot existuje, ale tenhle instrument nemá options proxy/data — kartu skryj.
   if (state === "empty") return null;
+
+  // Zatím žádný snapshot (sken ještě neběžel) — decentní placeholder místo zmizení.
+  if (state === "waiting") {
+    return (
+      <div className="rounded-xl border border-[#2a2d3a] bg-[#1a1d27] p-4">
+        <div className="flex items-center gap-2">
+          <Activity size={16} className="text-indigo-400" />
+          <h3 className="text-sm font-semibold text-white">Gamma (GEX)</h3>
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#232735] text-gray-500">čeká na data</span>
+        </div>
+        <p className="mt-2 text-[11px] text-gray-500">
+          Gamma exposure se doplní, jakmile poběží sken (<code className="text-gray-400">gamma_scan.py --push</code>
+          z rezidenční IP / Sparku). Ukáže režim trhu (tlumený vs. trendový) + flip, call/put wall.
+        </p>
+      </div>
+    );
+  }
 
   const positive = d?.regime === "positive";
   const accent = positive ? "#4ade80" : "#f87171";
