@@ -42,17 +42,17 @@ EARNINGS_SOON_DAYS = 10             # earnings do X dní = zvýrazněný katalyz
 # Fáze 2: širší pokrytí <$50B; skutečný market-cap filtr přidán ve `_metrics` (guard
 # proti přerostlým mega-capům) až dodáme fundamentální feed. Duplicity se deduplikují.
 UNIVERSE = [
-    # EV / doprava
-    "RIVN", "LCID", "CHPT", "BLNK", "EVGO", "GOEV", "NIO", "XPEV", "LI", "LYFT",
-    # Clean energy / solar
-    "PLUG", "ENPH", "RUN", "FSLR", "NOVA", "SEDG", "ARRY", "SHLS", "BE", "STEM",
+    # EV / doprava (GOEV odebrán — Canoo Ch.7 bankrot 2025, delistováno)
+    "RIVN", "LCID", "CHPT", "BLNK", "EVGO", "NIO", "XPEV", "LI", "LYFT",
+    # Clean energy / solar (NOVA odebrán — Sunnova Ch.11 bankrot 2025, delistováno)
+    "PLUG", "ENPH", "RUN", "FSLR", "SEDG", "ARRY", "SHLS", "BE", "STEM",
     # Crypto / miners
     "MARA", "RIOT", "CLSK", "HUT", "BITF", "CIFR", "WULF", "IREN", "COIN", "BTBT",
     # Fintech
     "SOFI", "AFRM", "UPST", "HOOD", "PYPL", "LC", "MQ", "DAVE", "OPFI", "BILL",
     # Software / AI
     "PLTR", "U", "PATH", "DOCN", "S", "AI", "SOUN", "BBAI", "GTLB", "SNOW",
-    "NET", "DDOG", "CFLR", "FROG", "ESTC", "CRWD", "ZS", "BRZE", "APP", "DUOL",
+    "NET", "DDOG", "CFLT", "FROG", "ESTC", "CRWD", "ZS", "BRZE", "APP", "DUOL",
     # Space / defense / drony
     "ASTS", "RKLB", "ACHR", "JOBY", "LUNR", "RDW", "KTOS", "AVAV", "PL", "SPCE",
     # Quantum / pokročilý compute
