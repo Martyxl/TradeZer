@@ -1,8 +1,8 @@
 """Gamma Exposure (GEX) screener — spočítá dealer gamma z options open interest.
 
 Pro hlavní instrumenty (proxy ETF: NQ→QQQ, ES→SPY, YM→DIA, XAUUSD→GLD, RTY→IWM)
-stáhne options chain z Yahoo, spočítá per-strike GEX (Black-Scholes gamma × OI ×
-100 × spot² × 1%, dealer konvence call +/put −), z toho:
+stáhne options chain z CBOE (delayed, zdarma, bez auth) — dává OI i gamma napřímo →
+per-strike GEX (gamma × OI × 100 × spot² × 1%, dealer konvence call +/put −), z toho:
   • net GEX (gamma index)  → pozitivní = mean-revert/tlumené, negativní = trendové/volatilní
   • gamma flip (zero-gamma level) = spot, kde net GEX mění znaménko
   • call wall = strike s max call gamma (rezistence), put wall = strike s max put gamma (support)
@@ -16,7 +16,7 @@ Spuštění:
     py data/gamma_scan.py --push        # + pushne na /api/gamma/ingest (Spark cron)
 
 Env (--push): TRADEZER_TOKEN, volitelně TRADEZER_BASE_URL (default https://tradezer.app).
-Pozn.: Yahoo blokuje datacentra → běžet z rezidenční IP (Martyho PC / Spark), NE z CI.
+Pozn.: CBOE cdn je veřejné (bez IP bloku) → sken jde odkudkoli (i z CI), držíme push-vzor.
 """
 from __future__ import annotations
 
@@ -25,7 +25,6 @@ import datetime as dt
 import json
 import math
 import os
-import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -34,8 +33,7 @@ OUT = Path(__file__).resolve().parent.parent / "web" / "public" / "gamma.json"
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/124 Safari/537.36")
 
-# Instrument → likvidní options proxy (ETF). Index options (^NDX/^SPX) mají na Yahoo
-# tenčí pokrytí, ETF je spolehlivější free zdroj.
+# Instrument → likvidní options proxy (ETF). CBOE má ETF chainy spolehlivě.
 UNDERLYINGS = {
     "NQ": "QQQ",
     "ES": "SPY",
@@ -44,20 +42,29 @@ UNDERLYINGS = {
     "RTY": "IWM",
 }
 
-RISK_FREE = 0.043          # konstantní r (gamma je na r málo citlivá)
-MAX_EXPIRIES = 6           # kolik nejbližších expirací sečíst
+RISK_FREE = 0.043          # konstantní r (pro BS gamma při flip skenu)
 MAX_EXPIRY_DAYS = 70       # ignoruj expirace dál než ~10 týdnů (šum)
 CONTRACT_MULT = 100        # 1 kontrakt = 100 akcií
 
 
-def _fetch(url: str) -> dict | None:
-    req = urllib.request.Request(url, headers={"User-Agent": UA})
+def _fetch_cboe(symbol: str) -> dict | None:
+    url = f"https://cdn.cboe.com/api/global/delayed_quotes/options/{symbol}.json"
+    req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "application/json"})
     try:
-        with urllib.request.urlopen(req, timeout=25) as r:
+        with urllib.request.urlopen(req, timeout=30) as r:
             return json.loads(r.read().decode())
     except (urllib.error.URLError, TimeoutError, ValueError) as e:
         print(f"  fetch fail {e}")
         return None
+
+
+def _parse_occ(sym: str) -> tuple[dt.date, str, float]:
+    """OCC symbol 'QQQ260921C00450000' → (expirace, 'call'/'put', strike)."""
+    tail = sym[-15:]
+    exp = dt.date(2000 + int(tail[0:2]), int(tail[2:4]), int(tail[4:6]))
+    kind = "call" if tail[6].upper() == "C" else "put"
+    strike = int(tail[7:15]) / 1000.0
+    return exp, kind, strike
 
 
 def _norm_pdf(x: float) -> float:
@@ -73,46 +80,46 @@ def _bs_gamma(S: float, K: float, T: float, iv: float) -> float:
 
 
 def _load_chain(symbol: str) -> tuple[float, list[dict]] | None:
-    """Vrátí (spot, contracts) kde contract = {K, oi, iv, T, kind}. None při chybě."""
-    base = f"https://query1.finance.yahoo.com/v7/finance/options/{symbol}"
-    root = _fetch(base)
+    """Vrátí (spot, contracts), contract = {K, oi, iv, T, kind, g}. `g` = CBOE gamma."""
+    d = _fetch_cboe(symbol)
     try:
-        res = root["optionChain"]["result"][0]
-    except (TypeError, KeyError, IndexError):
+        data = d["data"]
+    except (TypeError, KeyError):
         return None
-    spot = (res.get("quote") or {}).get("regularMarketPrice")
-    exps = res.get("expirationDates") or []
-    if not spot or not exps:
+    spot = data.get("current_price") or data.get("close")
+    opts = data.get("options") or []
+    if not spot or not opts:
         return None
-    now = dt.datetime.now(dt.timezone.utc)
-    horizon = now + dt.timedelta(days=MAX_EXPIRY_DAYS)
-    picked = [e for e in sorted(exps)
-              if now.timestamp() <= e <= horizon.timestamp()][:MAX_EXPIRIES]
+    today = dt.date.today()
+    horizon = today + dt.timedelta(days=MAX_EXPIRY_DAYS)
     contracts: list[dict] = []
-    for i, epoch in enumerate(picked):
-        data = res if i == 0 and picked[0] == sorted(exps)[0] else _fetch(f"{base}?date={epoch}")
-        if not data:
+    for o in opts:
+        oi = o.get("open_interest") or 0
+        if oi <= 0:
             continue
         try:
-            opt = data["optionChain"]["result"][0]["options"][0]
-        except (TypeError, KeyError, IndexError):
+            exp, kind, K = _parse_occ(o["option"])
+        except (KeyError, ValueError, IndexError):
             continue
-        exp_dt = dt.datetime.fromtimestamp(epoch, dt.timezone.utc)
-        T = max((exp_dt - now).total_seconds() / (365 * 86400), 1e-6)
-        for kind, legs in (("call", opt.get("calls", [])), ("put", opt.get("puts", []))):
-            for c in legs:
-                oi = c.get("openInterest") or 0
-                iv = c.get("impliedVolatility") or 0
-                K = c.get("strike")
-                if oi and iv and K:
-                    contracts.append({"K": float(K), "oi": int(oi), "iv": float(iv),
-                                      "T": T, "kind": kind})
-        time.sleep(0.25)
+        if exp < today or exp > horizon:
+            continue
+        T = max((exp - today).days / 365.0, 1e-6)
+        contracts.append({"K": K, "oi": int(oi), "iv": float(o.get("iv") or 0),
+                          "T": T, "kind": kind, "g": float(o.get("gamma") or 0)})
     return (float(spot), contracts) if contracts else None
 
 
+def _gex_now(spot: float, contracts: list[dict]) -> float:
+    """Net dealer GEX ($ na 1% pohyb) z CBOE gammy (snapshot při aktuálním spotu)."""
+    total = 0.0
+    for c in contracts:
+        sign = 1.0 if c["kind"] == "call" else -1.0
+        total += sign * c["g"] * c["oi"] * CONTRACT_MULT * spot * spot * 0.01
+    return total
+
+
 def _gex_at(S: float, contracts: list[dict]) -> float:
-    """Celkové dealer GEX ($ na 1% pohyb) při hypotetickém spotu S."""
+    """GEX při HYPOTETICKÉM spotu S (BS gamma přepočítaná) — pro flip sken."""
     total = 0.0
     for c in contracts:
         g = _bs_gamma(S, c["K"], c["T"], c["iv"])
@@ -144,15 +151,14 @@ def _analyze(symbol: str, spot: float, contracts: list[dict]) -> dict:
     put_by_strike: dict[float, float] = {}
     net_by_strike: dict[float, float] = {}
     for c in contracts:
-        g = _bs_gamma(spot, c["K"], c["T"], c["iv"])
-        gex = g * c["oi"] * CONTRACT_MULT * spot * spot * 0.01
+        gex = c["g"] * c["oi"] * CONTRACT_MULT * spot * spot * 0.01
         if c["kind"] == "call":
             call_by_strike[c["K"]] = call_by_strike.get(c["K"], 0) + gex
             net_by_strike[c["K"]] = net_by_strike.get(c["K"], 0) + gex
         else:
             put_by_strike[c["K"]] = put_by_strike.get(c["K"], 0) + gex
             net_by_strike[c["K"]] = net_by_strike.get(c["K"], 0) - gex
-    net = _gex_at(spot, contracts)
+    net = _gex_now(spot, contracts)
     call_wall = max(call_by_strike, key=call_by_strike.get) if call_by_strike else None
     put_wall = max(put_by_strike, key=put_by_strike.get) if put_by_strike else None  # max put gamma = support
     # Profil kolem spotu (±12 %), seřazený, pro mini-graf
