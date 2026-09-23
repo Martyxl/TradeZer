@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import json
 import math
-import statistics
 from datetime import date, datetime
 from typing import Any
 
@@ -114,16 +113,14 @@ def _reference_shares(facts: dict) -> float | None:
     return float(max(vals)) if vals else None
 
 
-def _shares_scale(ref: float | None, sh_vals: list[float]) -> float:
-    """Násobitel, který srovná zkrácenou škálu diluted akcií na absolutní (dle kotvy).
-    1.0 když je vše konzistentní; jinak nejbližší mocnina 10 (tisíce/miliony)."""
-    vals = [v for v in sh_vals if v]
-    if not ref or not vals:
-        return 1.0
-    med = statistics.median(vals)
-    if med <= 0 or ref / med < 100:   # stejný řád → žádná korekce
-        return 1.0
-    return float(10 ** round(math.log10(ref / med)))
+def _normalize_share(v: float | None, ref: float | None) -> float | None:
+    """Srovná JEDNU hodnotu diluted akcií na absolutní škálu dle kotvy. Nutné per-hodnotu,
+    protože fileři škálu MĚNÍ v čase (MCD: staré kvartály absolutně ~1.1 mld, nové v
+    milionech ~711) → globální faktor by medián rozhodil. Když je hodnota o ≥2 řády menší
+    než kotva, vynásob nejbližší mocninou 10; jinak nech beze změny."""
+    if not v or not ref or v >= ref / 100:
+        return v
+    return v * 10 ** round(math.log10(ref / v))
 
 
 def parse_companyfacts(facts: dict, max_quarters: int = 44) -> list[FinancialStatement]:
@@ -162,13 +159,13 @@ def parse_companyfacts(facts: dict, max_quarters: int = 44) -> list[FinancialSta
         if a_end not in sh_q and arow.get("val") is not None:
             sh_q[a_end] = {"val": arow["val"], "start": None, "end": a_end, "filed": arow["filed"]}
 
-    # Korekce škály: někteří fileři reportují WeightedAverage diluted v milionech/tisících
-    # (např. MCD = 713.5). Ukotvi na dei absolutní počet a doškáluj VŠECHNY periody stejně.
-    scale = _shares_scale(_reference_shares(facts), [r.get("val") for r in sh_q.values()])
-    if scale != 1.0:
+    # Korekce škály per hodnotu: fileři reportují WeightedAverage diluted v milionech/
+    # tisících (MCD = 711) a škálu v čase mění → každou hodnotu ukotvi zvlášť na dei.
+    ref = _reference_shares(facts)
+    if ref:
         for r in sh_q.values():
             if r.get("val") is not None:
-                r["val"] *= scale
+                r["val"] = _normalize_share(r["val"], ref)
 
     # množina období = konce, kde máme revenue nebo net_income
     periods = set(flow_q["revenue"]) | set(flow_q["net_income"])

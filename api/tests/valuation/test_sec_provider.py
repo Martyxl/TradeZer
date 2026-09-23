@@ -114,3 +114,19 @@ def test_shares_scale_noop_when_consistent():
     q1 = next(s for s in stmts if s.period_end == "2025-03-31")
     assert q1.shares_diluted == 1000
     assert abs(q1.eps_diluted - 20 / 1000) < 1e-6
+
+
+def test_shares_scale_mixed_per_value():
+    # MCD-styl: staré kvartály absolutně (1_000_000), nové v milionech (1.0) v JEDNÉ sérii.
+    # Per-hodnotová korekce musí doškálovat jen ty malé, absolutní nechat být.
+    f = _facts()
+    f["facts"]["us-gaap"]["WeightedAverageNumberOfDilutedSharesOutstanding"] = _shares([
+        (2025, "Q1", "2025-01-01", "2025-03-31", 1.0, "2025-05-01"),          # v milionech
+        (2025, "Q2", "2025-04-01", "2025-06-30", 1.0, "2025-08-01"),          # v milionech
+        (2025, "Q3", "2025-07-01", "2025-09-30", 1_000_000, "2025-11-01"),    # absolutně
+        (2025, "FY", "2025-01-01", "2025-12-31", 1.0, "2026-02-01"),
+    ])
+    stmts = parse_companyfacts(_with_dei(f, 1_000_000))
+    by = {s.period_end: s for s in stmts}
+    assert by["2025-03-31"].shares_diluted == 1_000_000   # 1.0 → ×1e6
+    assert by["2025-09-30"].shares_diluted == 1_000_000   # už absolutní → beze změny
