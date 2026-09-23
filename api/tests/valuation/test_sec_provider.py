@@ -85,3 +85,32 @@ def test_instant_balance_mapped():
 
 def test_empty_facts_no_crash():
     assert parse_companyfacts({"facts": {"us-gaap": {}}}) == []
+
+
+def _with_dei(facts, val):
+    facts["facts"]["dei"] = {"EntityCommonStockSharesOutstanding":
+        {"units": {"shares": [{"end": "2025-12-31", "val": val, "filed": "2026-02-01"}]}}}
+    return facts
+
+
+def test_shares_scale_corrected_from_dei():
+    # Filer reportuje diluted shares v MILIONECH (1.0), dei kotva = 1 000 000 → doškálovat ×1e6.
+    f = _facts()
+    f["facts"]["us-gaap"]["WeightedAverageNumberOfDilutedSharesOutstanding"] = _shares([
+        (2025, "Q1", "2025-01-01", "2025-03-31", 1.0, "2025-05-01"),
+        (2025, "Q2", "2025-04-01", "2025-06-30", 1.0, "2025-08-01"),
+        (2025, "Q3", "2025-07-01", "2025-09-30", 1.0, "2025-11-01"),
+        (2025, "FY", "2025-01-01", "2025-12-31", 1.0, "2026-02-01"),
+    ])
+    stmts = parse_companyfacts(_with_dei(f, 1_000_000))
+    q1 = next(s for s in stmts if s.period_end == "2025-03-31")
+    assert q1.shares_diluted == 1_000_000                       # 1.0 → ×1e6 (jádro fixu)
+    assert q1.eps_diluted == round(20 / 1_000_000, 4)           # EPS z korigovaných akcií (ne 20/1.0)
+
+
+def test_shares_scale_noop_when_consistent():
+    # dei stejného řádu jako diluted (1000) → žádná korekce.
+    stmts = parse_companyfacts(_with_dei(_facts(), 1000))
+    q1 = next(s for s in stmts if s.period_end == "2025-03-31")
+    assert q1.shares_diluted == 1000
+    assert abs(q1.eps_diluted - 20 / 1000) < 1e-6

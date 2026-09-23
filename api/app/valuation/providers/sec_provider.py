@@ -10,6 +10,8 @@ Chybějící hodnota → None (nikdy neimputovat).
 from __future__ import annotations
 
 import json
+import math
+import statistics
 from datetime import date, datetime
 from typing import Any
 
@@ -102,6 +104,28 @@ def _instant_by_end(facts: dict, names: list[str]) -> dict[str, dict]:
     return out
 
 
+def _reference_shares(facts: dict) -> float | None:
+    """Absolutní kotva počtu akcií z dei:EntityCommonStockSharesOutstanding (cover page,
+    prakticky vždy v plných kusech). Slouží k detekci škály u WeightedAverage diluted,
+    kterou někteří fileři (např. MCD) reportují v MILIONECH → jinak 1e6× podhodnocené
+    akcie → EPS nafouklé, market_cap směšně malý."""
+    dei = facts.get("facts", {}).get("dei", {}).get("EntityCommonStockSharesOutstanding", {})
+    vals = [f.get("val") for f in dei.get("units", {}).get("shares", []) if f.get("val")]
+    return float(max(vals)) if vals else None
+
+
+def _shares_scale(ref: float | None, sh_vals: list[float]) -> float:
+    """Násobitel, který srovná zkrácenou škálu diluted akcií na absolutní (dle kotvy).
+    1.0 když je vše konzistentní; jinak nejbližší mocnina 10 (tisíce/miliony)."""
+    vals = [v for v in sh_vals if v]
+    if not ref or not vals:
+        return 1.0
+    med = statistics.median(vals)
+    if med <= 0 or ref / med < 100:   # stejný řád → žádná korekce
+        return 1.0
+    return float(10 ** round(math.log10(ref / med)))
+
+
 def parse_companyfacts(facts: dict, max_quarters: int = 44) -> list[FinancialStatement]:
     """Sestaví kvartální výkazy z XBRL companyfacts (čistá funkce, testovatelná).
 
@@ -137,6 +161,14 @@ def parse_companyfacts(facts: dict, max_quarters: int = 44) -> list[FinancialSta
     for a_end, arow in sh_a.items():
         if a_end not in sh_q and arow.get("val") is not None:
             sh_q[a_end] = {"val": arow["val"], "start": None, "end": a_end, "filed": arow["filed"]}
+
+    # Korekce škály: někteří fileři reportují WeightedAverage diluted v milionech/tisících
+    # (např. MCD = 713.5). Ukotvi na dei absolutní počet a doškáluj VŠECHNY periody stejně.
+    scale = _shares_scale(_reference_shares(facts), [r.get("val") for r in sh_q.values()])
+    if scale != 1.0:
+        for r in sh_q.values():
+            if r.get("val") is not None:
+                r["val"] *= scale
 
     # množina období = konce, kde máme revenue nebo net_income
     periods = set(flow_q["revenue"]) | set(flow_q["net_income"])
