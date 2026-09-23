@@ -65,3 +65,28 @@ async def test_missing_ticker_does_not_crash(db_session):
     stats = await ingest_mod.ingest_all(db_session, tickers=["NOPE"])
     assert stats["failed"] == 0
     assert await _count(db_session, ValFinancials) == 0
+
+
+@pytest.mark.asyncio
+async def test_ingest_all_defaults_to_db_display_universe(db_session, monkeypatch):
+    # Bez explicitních tickerů + bez env override → bere in_display_universe z DB.
+    monkeypatch.delenv("VAL_INGEST_UNIVERSE", raising=False)
+    db_session.add(ValInstrument(ticker="AAPL", in_display_universe=True, in_peer_universe=True, active=True))
+    db_session.add(ValInstrument(ticker="MSFT", in_display_universe=False, in_peer_universe=True, active=True))
+    await db_session.commit()
+
+    stats = await ingest_mod.ingest_all(db_session)  # tickers=None
+    assert stats["total"] == 1  # jen AAPL (display), MSFT (non-display) vynechán
+    inst = await db_session.scalar(select(ValInstrument).where(ValInstrument.ticker == "AAPL"))
+    assert inst.name == "Apple Inc."
+
+
+@pytest.mark.asyncio
+async def test_env_override_beats_db(db_session, monkeypatch):
+    # VAL_INGEST_UNIVERSE override má přednost před DB display sadou.
+    monkeypatch.setenv("VAL_INGEST_UNIVERSE", "AAPL")
+    db_session.add(ValInstrument(ticker="MSFT", in_display_universe=True, in_peer_universe=True, active=True))
+    await db_session.commit()
+
+    stats = await ingest_mod.ingest_all(db_session)  # tickers=None → override AAPL
+    assert stats["total"] == 1

@@ -28,10 +28,10 @@ jobs:
           # SEC EDGAR = free výkazy (FMP free je paywallnul, 402). Ceny bere SEC provider z FMP free.
           MARKET_DATA_PROVIDER: sec
           FMP_API_KEY: ${{ secrets.FMP_API_KEY }}
-          # FMP free tier = 250 req/den. 194 firem × ~5 endpointů by kvótu přeteklo,
-          # proto na free ingestujeme jen zobrazovaných 10. Přepiš secretem VAL_INGEST_UNIVERSE
-          # (CSV) při placeném tarifu pro plné peer univerzum.
-          VAL_PEER_UNIVERSE: ${{ vars.VAL_INGEST_UNIVERSE || 'NVDA,MSFT,AAPL,AMZN,AVGO,META,GOOGL,TSLA,NFLX,COST' }}
+          # Ingestované firmy = automaticky všechny in_display_universe z DB (radar).
+          # Přidání firmy přes /instruments stačí — žádná ruční údržba GitHub proměnné.
+          # (Volitelný override existuje v kódu přes env VAL_INGEST_UNIVERSE, zde ho ale
+          #  vědomě NEnastavujeme, aby ingest zůstal sladěný s radarem.)
         run: python -m app.valuation.ingest
 
       - name: Compute metrics

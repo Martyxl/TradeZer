@@ -12,6 +12,7 @@ Pravidla (sekce 4 specu):
 from __future__ import annotations
 
 import asyncio
+import os
 from dataclasses import asdict
 from datetime import date, datetime, timedelta
 
@@ -249,10 +250,32 @@ async def ingest_ticker(session, provider, ticker: str, today: date, force: bool
     return result
 
 
+def _env_override() -> list[str] | None:
+    """Volitelný CSV override přes env VAL_INGEST_UNIVERSE (např. placený plný vzorek)."""
+    raw = os.environ.get("VAL_INGEST_UNIVERSE", "").strip()
+    if not raw:
+        return None
+    return [t.strip().upper() for t in raw.split(",") if t.strip()]
+
+
+async def _display_tickers(session) -> list[str]:
+    """Firmy zobrazované v radaru (in_display_universe) — zdroj pravdy pro denní ingest.
+    Díky tomu se ingestovaný vzorek automaticky drží s radarem (přidání přes /instruments
+    stačí), bez ruční údržby GitHub proměnné."""
+    rows = (await session.execute(
+        select(ValInstrument.ticker)
+        .where(ValInstrument.in_display_universe == True, ValInstrument.active == True)  # noqa: E712
+        .order_by(ValInstrument.ticker)
+    )).scalars().all()
+    return list(rows)
+
+
 async def ingest_all(session, tickers: list[str] | None = None, force: bool = False,
                      provider_name: str | None = None) -> dict:
     provider = get_provider(provider_name)
-    tickers = tickers or peer_universe()
+    if tickers is None:
+        # Priorita: explicitní env override > display firmy z DB > peer default (bootstrap).
+        tickers = _env_override() or await _display_tickers(session) or peer_universe()
     today = datetime.utcnow().date()
     stats = {"total": len(tickers), "fetched": 0, "cache": 0, "failed": 0, "provider": provider.name}
 
