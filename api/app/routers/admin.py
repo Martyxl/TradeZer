@@ -150,6 +150,37 @@ async def predict_pending(
     return {"status": "ok", "stats": stats}
 
 
+@router.post("/repredict/clear", dependencies=[Depends(_verify_token)])
+async def clear_prediction(
+    news_id: int | None = Query(default=None, description="ID zprávy; prázdné = poslední predikovaná"),
+    session: AsyncSession = Depends(get_session),
+):
+    """Smaže predikce dané (nebo poslední) zprávy → stane se 'nepredikovanou', takže ji
+    primární Spark worker znovu spočítá (gpt-oss). Ruční přepočet konkrétní zprávy."""
+    from sqlalchemy import select, delete, func as sqlfunc
+    from app.models import NewsItem, NewsPrediction
+
+    if news_id is None:
+        news_id = await session.scalar(
+            select(NewsPrediction.news_id)
+            .join(NewsItem, NewsItem.id == NewsPrediction.news_id)
+            .order_by(NewsItem.published_at.desc())
+            .limit(1)
+        )
+    if not news_id:
+        return {"status": "error", "detail": "žádná predikovaná zpráva k přepočtu"}
+
+    item = await session.get(NewsItem, news_id)
+    n = await session.scalar(
+        select(sqlfunc.count()).select_from(NewsPrediction).where(NewsPrediction.news_id == news_id)
+    )
+    await session.execute(delete(NewsPrediction).where(NewsPrediction.news_id == news_id))
+    await session.commit()
+    return {"status": "ok", "news_id": news_id,
+            "title": (item.title if item else None), "cleared": n,
+            "note": "Zpráva je nepredikovaná — Spark worker ji přepočítá při dalším pollu."}
+
+
 @router.post("/calibrate", dependencies=[Depends(_verify_token)])
 async def calibrate(
     session: AsyncSession = Depends(get_session),
