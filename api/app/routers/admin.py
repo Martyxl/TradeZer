@@ -136,10 +136,17 @@ async def public_visits(session: AsyncSession = Depends(get_session)):
 async def predict_pending(
     session: AsyncSession = Depends(get_session),
     max_predictions: int = Query(default=8, ge=1, le=30),
+    min_age_minutes: int = Query(default=0, ge=0, le=180,
+                                 description="Predikuj jen zprávy nepredikované déle než N min "
+                                             "(grace okno pro primární Spark worker; cloud cron dává 10)"),
 ):
-    """Spustí LLM predikce pro položky bez predikcí (bez RSS fetche — rychlejší)."""
+    """Spustí LLM predikce pro položky bez predikcí (bez RSS fetche — rychlejší).
+
+    Cloudový cron (Haiku) je fallback: s min_age_minutes>0 nechá čerstvé zprávy
+    primárnímu Spark workeru (gpt-oss, `local-heavy`) a sáhne jen na to, co zůstalo."""
     aggregator = NewsAggregator(session)
-    stats = await aggregator.predict_pending(max_predictions=max_predictions)
+    stats = await aggregator.predict_pending(max_predictions=max_predictions,
+                                             min_age_minutes=min_age_minutes)
     return {"status": "ok", "stats": stats}
 
 

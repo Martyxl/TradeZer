@@ -1,5 +1,5 @@
 """Integrační testy pro NewsRepository."""
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 
 import pytest
 import pytest_asyncio
@@ -42,6 +42,26 @@ async def test_create_and_retrieve_news_item(db_session, setup_data):
     retrieved = await repo.get_news_by_id(item.id)
     assert retrieved is not None
     assert retrieved.external_id == "test-001"
+
+
+@pytest.mark.asyncio
+async def test_unpredicted_min_age_filter(db_session, setup_data):
+    """min_age_minutes = grace okno: čerstvé zprávy vynechá (nechá Sparku), staré vrátí."""
+    _, source = setup_data
+    repo = NewsRepository(db_session)
+    await repo.create_news_item(source_id=source.id, external_id="fresh", title="Fresh",
+                                body="", url="u1", published_at=datetime.utcnow(), raw_payload={})
+    old = await repo.create_news_item(source_id=source.id, external_id="old", title="Old",
+                                      body="", url="u2", published_at=datetime.utcnow(), raw_payload={})
+    old.fetched_at = datetime.utcnow() - timedelta(minutes=30)
+    await db_session.commit()
+
+    # bez okna: obě nepredikované
+    all_items = await repo.get_unpredicted_items(limit=10)
+    assert {i.external_id for i in all_items} == {"fresh", "old"}
+    # grace okno 10 min: jen stará (fresh je čerstvá → primárně pro Spark worker)
+    aged = await repo.get_unpredicted_items(limit=10, min_age_minutes=10)
+    assert {i.external_id for i in aged} == {"old"}
 
 
 @pytest.mark.asyncio

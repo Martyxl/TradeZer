@@ -233,11 +233,16 @@ class NewsAggregator:
         log.info("News aggregator refresh complete", **stats)
         return stats
 
-    async def predict_pending(self, max_predictions: int = 8) -> dict[str, int]:
-        """Spustí LLM predikce jen pro položky bez predikcí — bez RSS fetche."""
-        log.info("Predict pending start", max_predictions=max_predictions)
+    async def predict_pending(self, max_predictions: int = 8,
+                              min_age_minutes: int = 0) -> dict[str, int]:
+        """Spustí LLM predikce jen pro položky bez predikcí — bez RSS fetche.
+
+        min_age_minutes: grace okno — predikuj jen zprávy nepredikované déle než N min
+        (cloudový Haiku fallback nechá čerstvé zprávy primárnímu Spark workeru)."""
+        log.info("Predict pending start", max_predictions=max_predictions, min_age_minutes=min_age_minutes)
         tickers = await self.ticker_repo.get_all_enabled()
-        items = await self.repo.get_unpredicted_items(limit=max_predictions + 5)
+        items = await self.repo.get_unpredicted_items(limit=max_predictions + 5,
+                                                      min_age_minutes=min_age_minutes)
 
         stats = {"pending": len(items), "predicted": 0, "errors": 0}
         engine = PredictionEngine(self.repo)
@@ -303,7 +308,7 @@ class NewsAggregator:
                     log.error("Predict pending error", news_id=item.id, ticker=ticker.symbol, error=str(e))
             await self.session.commit()
 
-        remaining = await self.repo.get_unpredicted_items(limit=1)
+        remaining = await self.repo.get_unpredicted_items(limit=1, min_age_minutes=min_age_minutes)
         stats["remaining"] = len(remaining)
         log.info("Predict pending complete", **stats)
         return stats

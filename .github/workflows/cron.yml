@@ -35,13 +35,16 @@ jobs:
     needs: refresh
     if: always() && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'predict' || github.event.inputs.job == 'all')))
     steps:
-      - name: POST /api/predict (up to 4 attempts)
+      # Haiku = FALLBACK. min_age_minutes=10 nechá čerstvé zprávy primárnímu Spark
+      # workeru (gpt-oss, model_version local-heavy); cron sáhne jen na >10 min staré,
+      # co Spark nestihl (např. když je Spark dole). Spark worker běží --watch/loop.
+      - name: POST /api/predict (fallback, up to 4 attempts)
         run: |
-          echo "Running predict at $(date -u)"
+          echo "Running predict (fallback, min_age=10) at $(date -u)"
           for i in 1 2 3 4; do
             curl -s -o /tmp/predict.json -w "\nHTTP %{http_code}\n" \
               --max-time 58 \
-              -X POST "$API_URL/api/predict" \
+              -X POST "$API_URL/api/predict?min_age_minutes=10" \
               -H "X-Internal-Token: $TOKEN" || true
             cat /tmp/predict.json || true
             REMAINING=$(grep -o '"remaining":[0-9]*' /tmp/predict.json 2>/dev/null | grep -o '[0-9]*$' || echo "1")

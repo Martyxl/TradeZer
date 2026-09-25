@@ -1,5 +1,5 @@
 """Repository pro NewsItem a příbuzné modely."""
-from datetime import datetime, date, timezone
+from datetime import datetime, date, timezone, timedelta
 from typing import Sequence
 
 from sqlalchemy import select, and_, or_, func, not_, exists
@@ -30,17 +30,27 @@ class NewsRepository:
         )
         return result is not None
 
-    async def get_unpredicted_items(self, limit: int = 20) -> Sequence[NewsItem]:
-        """Vrátí news_items bez jakékoli predikce — pro dávkové zpracování."""
+    async def get_unpredicted_items(self, limit: int = 20,
+                                    min_age_minutes: int = 0) -> Sequence[NewsItem]:
+        """Vrátí news_items bez jakékoli predikce — pro dávkové zpracování.
+
+        min_age_minutes > 0: jen položky vložené (fetched_at) dřív než před N minutami.
+        Slouží jako grace okno — cloudový cron (Haiku) tak nechá čerstvé zprávy
+        primárnímu Spark workeru (gpt-oss) a sáhne jen na ty, co zůstaly nepredikované.
+        """
+        conds = [
+            not_(exists(
+                select(NewsPrediction.news_id)
+                .where(NewsPrediction.news_id == NewsItem.id)
+                .correlate(NewsItem)
+            ))
+        ]
+        if min_age_minutes > 0:
+            cutoff = datetime.utcnow() - timedelta(minutes=min_age_minutes)
+            conds.append(NewsItem.fetched_at <= cutoff)
         stmt = (
             select(NewsItem)
-            .where(
-                not_(exists(
-                    select(NewsPrediction.news_id)
-                    .where(NewsPrediction.news_id == NewsItem.id)
-                    .correlate(NewsItem)
-                ))
-            )
+            .where(*conds)
             .options(selectinload(NewsItem.source))
             .order_by(NewsItem.published_at.desc())
             .limit(limit)
