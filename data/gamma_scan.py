@@ -33,13 +33,18 @@ OUT = Path(__file__).resolve().parent.parent / "web" / "public" / "gamma.json"
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/124 Safari/537.36")
 
-# Instrument → likvidní options proxy (ETF). CBOE má ETF chainy spolehlivě.
-UNDERLYINGS = {
-    "NQ": "QQQ",
-    "ES": "SPY",
-    "YM": "DIA",
-    "XAUUSD": "GLD",
-    "RTY": "IWM",
+# Instrument → (CBOE symbol, scale). Levely se násobí `scale`, aby vyšly ve stejné
+# cenové škále jako obchodovaný futures/instrument (ne ETF proxy).
+#   • NQ/ES/RTY: přímo INDEX opce (_NDX/_SPX/_RUT) → nativní body indexu = futures scale,
+#     scale 1.0. Index opce navíc drží reálné institucionální pozice (přesnější GEX).
+#   • YM: DIA (dobré OI) ×100 → DJIA body = YM scale (DIA ≈ DJIA/100).
+#   • XAUUSD: GLD ×~10.7 → přibližně spot gold (bez index opce; faktor lze doladit).
+UNDERLYINGS: dict[str, tuple[str, float]] = {
+    "NQ": ("_NDX", 1.0),
+    "ES": ("_SPX", 1.0),
+    "RTY": ("_RUT", 1.0),
+    "YM": ("DIA", 100.0),
+    "XAUUSD": ("GLD", 10.7),
 }
 
 RISK_FREE = 0.043          # konstantní r (pro BS gamma při flip skenu)
@@ -146,7 +151,7 @@ def _flip_level(spot: float, contracts: list[dict], net: float) -> float | None:
     return None
 
 
-def _analyze(symbol: str, spot: float, contracts: list[dict]) -> dict:
+def _analyze(symbol: str, spot: float, contracts: list[dict], scale: float = 1.0) -> dict:
     call_by_strike: dict[float, float] = {}
     put_by_strike: dict[float, float] = {}
     net_by_strike: dict[float, float] = {}
@@ -161,19 +166,24 @@ def _analyze(symbol: str, spot: float, contracts: list[dict]) -> dict:
     net = _gex_now(spot, contracts)
     call_wall = max(call_by_strike, key=call_by_strike.get) if call_by_strike else None
     put_wall = max(put_by_strike, key=put_by_strike.get) if put_by_strike else None  # max put gamma = support
+    flip = _flip_level(spot, contracts, net)
     # Profil kolem spotu (±12 %), seřazený, pro mini-graf
     lo, hi = spot * 0.88, spot * 1.12
-    profile = sorted(({"strike": k, "gex": round(v, 0)}
+    profile = sorted(({"strike": round(k * scale, 2), "gex": round(v, 0)}
                       for k, v in net_by_strike.items() if lo <= k <= hi),
                      key=lambda x: x["strike"])
+    # Cenové levely × scale → škála obchodovaného futures/instrumentu (GEX magnitudy
+    # počítané nativně z CBOE ceny; scale se aplikuje jen na zobrazené ceny).
+    def sc(v):
+        return round(v * scale, 2) if v is not None else None
     return {
-        "underlying": symbol,
-        "spot": round(spot, 2),
+        "underlying": symbol.lstrip("_"),
+        "spot": sc(spot),
         "net_gex": round(net, 0),
         "regime": "positive" if net >= 0 else "negative",
-        "flip": _flip_level(spot, contracts, net),
-        "call_wall": call_wall,
-        "put_wall": put_wall,
+        "flip": sc(flip),
+        "call_wall": sc(call_wall),
+        "put_wall": sc(put_wall),
         "profile": profile,
         "contracts": len(contracts),
     }
@@ -205,13 +215,13 @@ def main() -> None:
     args = ap.parse_args()
 
     instruments: dict[str, dict] = {}
-    for inst, sym in UNDERLYINGS.items():
-        print(f"GEX {inst} ({sym})…")
+    for inst, (sym, scale) in UNDERLYINGS.items():
+        print(f"GEX {inst} ({sym}, ×{scale:g})…")
         chain = _load_chain(sym)
         if not chain:
             print(f"  {sym}: chain nedostupný, přeskočeno")
             continue
-        instruments[inst] = _analyze(sym, *chain)
+        instruments[inst] = _analyze(sym, *chain, scale=scale)
         r = instruments[inst]
         print(f"  spot {r['spot']} · net GEX {r['net_gex']:,.0f} ({r['regime']}) · "
               f"flip {r['flip']} · call wall {r['call_wall']} · put wall {r['put_wall']}")
