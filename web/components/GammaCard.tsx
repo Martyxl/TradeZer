@@ -23,6 +23,33 @@ function fmtGex(v: number): string {
   return `${s}$${a.toFixed(0)}`;
 }
 
+// Dynamické čtení gamma k AKTUÁLNÍMU stavu — poskládá větu z živých hodnot.
+function readGamma(d: Instrument): { regime: string; flip: string; levels: string } {
+  const pos = d.regime === "positive";
+  const r = (v: number) => Math.round(v).toLocaleString("cs");
+  const flipDist = d.flip != null && d.spot ? ((d.spot - d.flip) / d.spot) * 100 : null;
+
+  const regime = pos
+    ? "Pozitivní gamma → trh spíš tlumený/rozsahový (mean-revert). Dipy se vykupují, breakouty spíš selhávají — sedí fadovat extrémy."
+    : "Negativní gamma → trh trendový/volatilní. Momentum funguje, breakouty utíkají — jít s momentem, širší stopy.";
+
+  let flip: string;
+  if (d.flip == null || flipDist == null) flip = "Flip se teď nepodařilo spočítat.";
+  else if (Math.abs(flipDist) < 0.3) flip = `Cena je těsně u flipu ${r(d.flip)} — režim na vážkách, hlídej průraz oběma směry.`;
+  else if (flipDist > 0) flip = `Cena je nad flipem ${r(d.flip)} (+${flipDist.toFixed(1)} %) → drží klidnější režim; průraz pod flip = přechod do trendu/volatility.`;
+  else flip = `Cena je pod flipem ${r(d.flip)} (${flipDist.toFixed(1)} %) → volatilní režim; návrat nad flip = zklidnění.`;
+
+  const walls = ([["call wall", d.call_wall], ["put wall", d.put_wall]] as [string, number | null][])
+    .filter((w): w is [string, number] => w[1] != null);
+  const above = walls.filter((w) => w[1] > d.spot).sort((a, b) => a[1] - b[1]);
+  const below = walls.filter((w) => w[1] <= d.spot).sort((a, b) => b[1] - a[1]);
+  const res = above.length ? `nad cenou rezistence ${r(above[0][1])} (${above[0][0]})` : "nad cenou žádná výrazná stěna (gamma řídne)";
+  const sup = below.length ? `pod cenou support ${r(below[0][1])} (${below[0][0]})` : "pod cenou žádná výrazná stěna";
+  const levels = `Úrovně: ${res}; ${sup}.`;
+
+  return { regime, flip, levels };
+}
+
 export function GammaCard({ ticker }: { ticker: string }) {
   const [d, setD] = useState<Instrument | null>(null);
   const [gen, setGen] = useState<string | null>(null);
@@ -156,6 +183,19 @@ export function GammaCard({ ticker }: { ticker: string }) {
               </div>
             ))}
           </div>
+
+          {(() => {
+            const g = readGamma(d);
+            return (
+              <div className="mb-4 rounded-lg border p-3 space-y-1.5 text-[12px] leading-relaxed"
+                   style={{ borderColor: accent + "44", backgroundColor: positive ? "rgba(74,222,128,0.06)" : "rgba(248,113,113,0.06)" }}>
+                <div className="text-[10px] uppercase tracking-wider text-gray-500">Čtení k aktuálnímu stavu</div>
+                <p className="text-gray-300">{g.regime}</p>
+                <p className="text-gray-400">{g.flip}</p>
+                <p className="text-gray-400">{g.levels}</p>
+              </div>
+            );
+          })()}
 
           {bars.length > 0 && (
             <div>
