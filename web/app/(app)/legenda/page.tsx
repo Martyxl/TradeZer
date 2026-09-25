@@ -244,6 +244,49 @@ function norm(s: string): string {
   return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 }
 
+// Praktický návod „jak číst gamma“ — highlight nad pojmy v gamma sekci (a na dashboardu v popoveru).
+function GammaGuide() {
+  return (
+    <div className="rounded-xl border border-indigo-900/50 bg-indigo-950/20 p-4 space-y-2.5 text-[13px] leading-relaxed text-gray-300">
+      <div className="font-semibold text-indigo-300">Jak číst gamma (kontext k setupu, ne signál)</div>
+      <p>
+        Gamma ti neříká „kup/prodej“ — říká, <b>jaký charakter dnes trh nejspíš má</b> a <b>kde jsou
+        klíčové úrovně</b>. Čti v tomto pořadí:
+      </p>
+      <p>
+        <b>1) Režim (nejdůležitější).</b>{" "}
+        <span className="text-green-400 font-medium">Pozitivní gamma</span> = dealeři pohyby tlumí →
+        trh rozsahový, mean-revert, klidnější; dipy se vykupují, breakouty spíš selhávají{" "}
+        (<i>styl: fadovat extrémy</i>).{" "}
+        <span className="text-red-400 font-medium">Negativní gamma</span> = dealeři pohyby zesilují →
+        trh trendový, volatilní; momentum funguje, breakouty utíkají (<i>styl: jít s momentem,
+        širší stopy</i>).
+      </p>
+      <p>
+        <b>2) Flip = přepínač a pivot.</b> Cena <b>nad flipem</b> = pozitivní/klid, <b>pod flipem</b> =
+        negativní/volatilita. Průraz flipu často mění charakter dne — hlídej ho jako klíčovou čáru.
+      </p>
+      <p>
+        <b>3) Walls = magnety.</b> <span className="text-green-300">Call wall</span> = strop/rezistence
+        (max call gamma), <span className="text-red-300">Put wall</span> = podlaha/support (max put
+        gamma). V pozitivním režimu k nim cena tíhne a zastavuje se.
+      </p>
+      <p>
+        <b>4) Net GEX = síla efektu.</b> Hodně pozitivní = silně „přišpendleno“/klid; kolem nuly nebo
+        záporné = nestabilní.
+      </p>
+      <p className="rounded-lg bg-[#0f1117] border border-[#232735] px-3 py-2 text-gray-400">
+        <b className="text-gray-300">Co si vzít:</b> „Jsem nad flipem → pozitivní gamma → dnes spíš
+        fadovat rozsah, ne honit breakouty. Klíčová čára je flip; pod ní se to zvrtne v trend/volatilitu,
+        u wallů čekej reakci.“
+      </p>
+      <p className="text-[11px] text-gray-500">
+        ⚠️ Model z opčního OI (přes den statický) + konvence dealer/customer — pravděpodobnost, ne jistota.
+      </p>
+    </div>
+  );
+}
+
 export default function LegendaPage() {
   const [q, setQ] = useState("");
   const [cat, setCat] = useState<string | null>(null);
@@ -321,6 +364,7 @@ export default function LegendaPage() {
           <h2 className="text-xs font-semibold uppercase tracking-wider text-sky-400/80 border-b border-[#2a2d3a] pb-1.5">
             {category}
           </h2>
+          {category === "Gamma (GEX)" && <GammaGuide />}
           <div className="grid gap-3 sm:grid-cols-2">
             {terms.map((t) => (
               <div key={t.term} className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-4">

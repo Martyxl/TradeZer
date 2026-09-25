@@ -96,12 +96,31 @@ export function GammaCard({ ticker }: { ticker: string }) {
       </div>
 
       {open && (
-        <div className="mb-3 rounded-lg border border-[#2a2d3a] bg-[#151823] p-3 text-[11px] text-gray-400 leading-relaxed">
-          <b className="text-gray-300">Model z options open interest, ne signál.</b> Pozitivní gamma
-          = dealeři tlumí pohyby (mean-revert, klidnější trh). Negativní gamma = dealeři pohyby
-          zesilují (trendové, volatilní). <b>Flip</b> = úroveň, kde se režim mění. <b>Call wall</b> =
-          strike s max call gamma (rezistence/magnet), <b>Put wall</b> = max put gamma (support).
-          OI je snapshot z předešlé noci — statické přes den.
+        <div className="mb-3 rounded-lg border border-[#2a2d3a] bg-[#151823] p-3 text-[11px] text-gray-400 leading-relaxed space-y-2">
+          <p className="text-gray-300 font-semibold">Jak číst gamma (kontext, ne signál):</p>
+          <p>
+            <span className="text-green-400 font-medium">🟢 Pozitivní gamma</span> = dealeři pohyby
+            <b> tlumí</b> → trh rozsahový, mean-revert, klidnější. Dipy se vykupují, breakouty spíš
+            selhávají. <i>Styl: fadovat extrémy v rozsahu.</i>
+          </p>
+          <p>
+            <span className="text-red-400 font-medium">🔴 Negativní gamma</span> = dealeři pohyby
+            <b> zesilují</b> → trh trendový, volatilní. Momentum funguje, breakouty utíkají.
+            <i> Styl: jít s momentem, širší stopy.</i>
+          </p>
+          <p>
+            <b>Flip</b> = přepínač režimů a pivot. Cena <b>nad flipem</b> = pozitivní/klid,
+            <b> pod flipem</b> = negativní/volatilita. Průraz flipu často mění charakter dne.
+          </p>
+          <p>
+            <b className="text-green-300">Call wall</b> = strop/rezistence (max call gamma, magnet
+            shora), <b className="text-red-300">Put wall</b> = podlaha/support (max put gamma). Net
+            GEX = síla efektu.
+          </p>
+          <p className="text-gray-500">
+            ⚠️ Model z opčního OI (přes den statický) + konvence dealer/customer — pravděpodobnost,
+            ne jistota.
+          </p>
         </div>
       )}
 
