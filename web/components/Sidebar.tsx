@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, History, BarChart3, Sunrise, Target, NotebookPen, Telescope, Landmark, User as UserIcon, LogOut, CreditCard, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, History, BarChart3, Sunrise, Target, NotebookPen, Telescope, Landmark, BookOpen, User as UserIcon, LogOut, CreditCard, ShieldCheck } from "lucide-react";
 import { SupportButton } from "@/components/SupportButton";
 import { useAuth } from "@/lib/auth";
 
@@ -15,6 +15,7 @@ const NAV_ITEMS = [
   { href: "/valuation", label: "Valuation Radar", icon: Target },
   { href: "/discovery", label: "Discovery", icon: Telescope },
   { href: "/smart-money", label: "Smart Money", icon: Landmark },
+  { href: "/legenda", label: "Legenda", icon: BookOpen },
 ];
 
 function PlanBadge({ plan, admin }: { plan: string; admin: boolean }) {
