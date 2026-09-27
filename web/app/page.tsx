@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { PLANS, ANNUAL_DISCOUNT, annualTotal } from "@/lib/plans";
 
 // ── Tradezer brand — Neon Candles (viz handoff/BRAND.md) ────────────────────
 const C = {
@@ -175,9 +176,9 @@ export default function Landing() {
           <svg width="20" height="14" viewBox="0 0 20 14"><path d={ARROW} fill="none" stroke={C.green} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
           tradezer
         </span>
-        <a href="#funkce" style={{ color: C.text, textDecoration: "none", fontSize: 14 }} className="tz-navlink">Co umím</a>
+        <Link href="/funkce" style={{ color: C.text, textDecoration: "none", fontSize: 14 }} className="tz-navlink">Co umím</Link>
         <a href="#ukazka" style={{ color: C.text, textDecoration: "none", fontSize: 14 }} className="tz-navlink">Ukázka</a>
-        <a href="#pristup" style={{ color: C.text, textDecoration: "none", fontSize: 14 }} className="tz-navlink">Přístup</a>
+        <a href="#pristup" style={{ color: C.text, textDecoration: "none", fontSize: 14 }} className="tz-navlink">Ceník</a>
         <Link href="/prihlaseni" style={{ color: C.muted, textDecoration: "none", fontSize: 14 }} className="tz-navlink">Přihlásit</Link>
         <button type="button" onClick={goRegister} style={primaryCta}>Získat výhodu</button>
       </nav>
@@ -256,6 +257,19 @@ export default function Landing() {
         <Feature first n="01" title="Zprávy čtu dřív než trh" body="Makro kalendář, zpravodajské feedy i tržní data z placených zdrojů stahuju každých pár minut a každou zprávu okamžitě klasifikuju. Zatímco ostatní čtou, co se stalo, ty už víš, co to pravděpodobně udělá s cenou." />
         <Feature n="02" title="Pravděpodobnosti, ne názory" body="Každá zpráva dostane pravděpodobnost směru — nahoru, dolů, neutrál — zkombinovanou s tím, jak trh na stejný typ zpráv reagoval historicky. Žádné „možná“. Když si nejsem jistý, uvidíš to v čísle." />
         <Feature n="03" title="Přesnost si ověříš sám" body="Každá predikce zůstává v historii vedle toho, co trh skutečně udělal. Denní souhrn pro tradery, dlouhodobé trendy a valuace pro investory — a moje úspěšnost černá na bílém, za 90 dní zpětně." />
+
+        <div style={{ paddingTop: 42, borderTop: "1px solid rgba(255,255,255,0.09)" }}>
+          <p style={{ fontSize: 13, letterSpacing: "0.06em", textTransform: "uppercase", color: "rgba(255,255,255,0.6)", margin: "0 0 16px" }}>Moduly na jednom místě</p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {["Dashboard", "Gamma (GEX)", "Obchodní deník", "ORB Radar", "Historie", "Statistiky", "Valuation Radar", "Discovery", "Smart Money"].map((t) => (
+              <span key={t} style={{ fontSize: 13, padding: "6px 12px", borderRadius: 6, background: C.surface, border: `1px solid ${C.border}`, color: C.text }}>{t}</span>
+            ))}
+          </div>
+          <Link href="/funkce" style={{ display: "inline-flex", alignItems: "center", gap: 8, marginTop: 22, color: C.green, textDecoration: "none", fontSize: 15 }} className="tz-navlink">
+            Zobrazit všechny funkce a ceník
+            <svg width="18" height="12" viewBox="0 0 18 12"><path d="M1 6 h15 M12 1 l5 5 l-5 5" fill="none" stroke={C.green} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          </Link>
+        </div>
       </section>
 
       {/* Jak myslím */}
@@ -284,10 +298,45 @@ export default function Landing() {
         <p style={{ fontSize: 15.5, color: "rgba(255,255,255,0.6)", margin: "28px 0 0" }}>— trader z uzavřené bety</p>
       </section>
 
-      {/* Přístup / registrace */}
+      {/* Ceník / přístup */}
       <section id="pristup" style={{ maxWidth: 1200, margin: "0 auto", padding: "70px clamp(20px,5vw,72px) 56px", borderTop: "1px solid rgba(255,255,255,0.09)" }}>
-        <h3 style={{ fontFamily: FONT, fontWeight: 500, fontSize: 24, margin: 0, color: C.text }}>Trh nečeká. Ty už nemusíš.</h3>
-        <p style={{ fontSize: 15.5, lineHeight: "28px", color: "rgba(255,255,255,0.78)", margin: "24px 0 0", maxWidth: "58ch" }}>Vytvoř si účet a od první minuty vidíš živé predikce, denní souhrn i moji úspěšnost. Feed platím já — ty jen sbíráš náskok.</p>
+        <span style={{ display: "block", fontSize: 13, letterSpacing: "0.06em", textTransform: "uppercase", color: C.green, marginBottom: 14 }}>Ceník</span>
+        <h3 style={{ fontFamily: FONT, fontWeight: 500, fontSize: 28, margin: 0, color: C.text }}>Zaplať jednou, sbírej náskok.</h3>
+        <p style={{ fontSize: 15.5, lineHeight: "28px", color: "rgba(255,255,255,0.78)", margin: "18px 0 0", maxWidth: "58ch" }}>
+          Začni zdarma — dashboard, deník, ORB Radar a historie. Za ${PLANS[1].priceUsd} odemkneš statistiky a Valuation Radar, za ${PLANS[2].priceUsd} i Discovery a Smart Money. Roční platba se slevou {Math.round(ANNUAL_DISCOUNT * 100)} %.
+        </p>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginTop: 32 }} className="tz-price">
+          {PLANS.map((p) => {
+            const free = p.priceUsd === 0;
+            return (
+              <div key={p.id} style={{ position: "relative", display: "flex", flexDirection: "column", padding: 22, borderRadius: 10, border: p.highlight ? `1px solid rgba(96,255,130,0.4)` : `1px solid ${C.border}`, background: p.highlight ? "rgba(96,255,130,0.05)" : C.surface }}>
+                {p.highlight && <span style={{ position: "absolute", top: -10, left: 22, fontSize: 10, fontWeight: 700, textTransform: "uppercase", padding: "3px 9px", borderRadius: 999, background: C.green, color: "#06120a" }}>Doporučeno</span>}
+                <div style={{ fontSize: 17, fontWeight: 600 }}>{p.name}</div>
+                <div style={{ fontSize: 12, color: C.faint, marginTop: 2 }}>{p.tagline}</div>
+                <div style={{ marginTop: 14 }}>
+                  <span style={{ fontSize: 34, fontWeight: 700 }}>${p.priceUsd}</span>
+                  {!free && <span style={{ fontSize: 14, color: C.faint }}> / měsíc</span>}
+                </div>
+                {!free && <div style={{ fontSize: 11, color: C.greenPale, marginTop: 2 }}>${annualTotal(p.priceUsd)} ročně (−{Math.round(ANNUAL_DISCOUNT * 100)} %)</div>}
+                {free && <div style={{ fontSize: 11, color: C.faint, marginTop: 2 }}>bez karty, napořád</div>}
+                <ul style={{ listStyle: "none", padding: 0, margin: "16px 0 0", display: "grid", gap: 8, flex: 1 }}>
+                  {p.features.map((f) => (
+                    <li key={f} style={{ display: "flex", gap: 8, fontSize: 13, lineHeight: "19px", color: "rgba(255,255,255,0.82)" }}>
+                      <span style={{ color: C.green, flex: "none" }}>✓</span> {f}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
+        </div>
+        <div style={{ marginTop: 14 }}>
+          <Link href="/funkce" style={{ color: C.green, textDecoration: "none", fontSize: 14 }} className="tz-navlink">Detailní přehled funkcí a plánů →</Link>
+        </div>
+
+        <h3 style={{ fontFamily: FONT, fontWeight: 500, fontSize: 22, margin: "56px 0 0", color: C.text }}>Trh nečeká. Ty už nemusíš.</h3>
+        <p style={{ fontSize: 15.5, lineHeight: "28px", color: "rgba(255,255,255,0.78)", margin: "16px 0 0", maxWidth: "58ch" }}>Vytvoř si účet a od první minuty vidíš živé predikce, denní souhrn i moji úspěšnost.</p>
         <form onSubmit={(e) => { e.preventDefault(); goRegister(); }} style={{ display: "flex", gap: 10, alignItems: "stretch", maxWidth: 480, marginTop: 24 }}>
           <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="tvuj@email.cz" aria-label="E-mail"
             style={{ flex: 1, minHeight: 46, padding: "6px 14px", fontSize: 15, color: C.text, background: C.surface, border: `1px solid rgba(255,255,255,0.16)`, borderRadius: 4, outline: "none" }} />
@@ -305,6 +354,7 @@ export default function Landing() {
           .tz-demo { grid-template-columns: 1fr !important; }
           .tz-stats { grid-template-columns: 1fr 1fr !important; }
           .tz-feat { grid-template-columns: 1fr !important; gap: 8px !important; }
+          .tz-price { grid-template-columns: 1fr !important; }
         }
       `}</style>
     </div>
