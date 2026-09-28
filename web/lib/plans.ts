@@ -5,12 +5,15 @@ export const ANNUAL_DISCOUNT = 0.15; // 15 % sleva při roční platbě
 
 export type TierId = "free" | "trader" | "pro";
 
+export type TierId2 = TierId | "elite";
+
 export interface Plan {
-  id: TierId;
+  id: TierId2;
   name: string;
   priceUsd: number;      // měsíční cena
   tagline: string;
   highlight?: boolean;   // zvýrazněná karta
+  soon?: boolean;        // ještě nespuštěno (např. živá data)
   features: string[];
 }
 
@@ -50,7 +53,34 @@ export const PLANS: Plan[] = [
       "Smart Money — insider aktivita ze SEC Form 4",
     ],
   },
+  {
+    id: "elite",
+    name: "Elite",
+    priceUsd: 49,
+    tagline: "Živá data v reálném čase",
+    soon: true,
+    features: [
+      "Vše z Pro",
+      "Živá (real-time) data místo zpožděných",
+      "Real-time options flow a gamma úrovně",
+      "Okamžité alerty na zprávy a klíčové úrovně",
+    ],
+  },
 ];
+
+// Hodnotová kotva — co by trader zaplatil za srovnatelné nástroje ZVLÁŠŤ.
+export interface CompareRow { category: string; tool: string; priceUsd: number; }
+export const COMPARISON: CompareRow[] = [
+  { category: "Gamma / GEX levely", tool: "SpotGamma", priceUsd: 67 },
+  { category: "Options flow + insider + congress", tool: "Unusual Whales", priceUsd: 50 },
+  { category: "Momentum screener", tool: "Trade Ideas", priceUsd: 86 },
+  { category: "Fundamentální valuace", tool: "Stock Rover", priceUsd: 29 },
+  { category: "Obchodní deník", tool: "TradeZella", priceUsd: 35 },
+  { category: "News / katalyzátory", tool: "Benzinga Pro", priceUsd: 37 },
+];
+export function comparisonTotal(): number {
+  return COMPARISON.reduce((s, r) => s + r.priceUsd, 0);
+}
 
 // Roční cena za měsíc (se slevou) a celkem za rok.
 export function annualPerMonth(priceUsd: number): number {

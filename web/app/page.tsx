@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { PLANS, ANNUAL_DISCOUNT, annualTotal } from "@/lib/plans";
+import { PLANS, ANNUAL_DISCOUNT, annualTotal, comparisonTotal } from "@/lib/plans";
 
 // ── Tradezer brand — Neon Candles (viz handoff/BRAND.md) ────────────────────
 const C = {
@@ -302,16 +302,20 @@ export default function Landing() {
       <section id="pristup" style={{ maxWidth: 1200, margin: "0 auto", padding: "70px clamp(20px,5vw,72px) 56px", borderTop: "1px solid rgba(255,255,255,0.09)" }}>
         <span style={{ display: "block", fontSize: 13, letterSpacing: "0.06em", textTransform: "uppercase", color: C.green, marginBottom: 14 }}>Ceník</span>
         <h3 style={{ fontFamily: FONT, fontWeight: 500, fontSize: 28, margin: 0, color: C.text }}>Zaplať jednou, sbírej náskok.</h3>
-        <p style={{ fontSize: 15.5, lineHeight: "28px", color: "rgba(255,255,255,0.78)", margin: "18px 0 0", maxWidth: "58ch" }}>
+        <p style={{ fontSize: 15.5, lineHeight: "28px", color: "rgba(255,255,255,0.78)", margin: "18px 0 0", maxWidth: "60ch" }}>
           Začni zdarma — dashboard, deník, ORB Radar a historie. Za ${PLANS[1].priceUsd} odemkneš statistiky a Valuation Radar, za ${PLANS[2].priceUsd} i Discovery a Smart Money. Roční platba se slevou {Math.round(ANNUAL_DISCOUNT * 100)} %.
         </p>
+        <p style={{ fontSize: 14, lineHeight: "24px", margin: "12px 0 0", maxWidth: "60ch", color: C.greenPale }}>
+          Nakoupit to samé zvlášť (gamma, options flow, screener, valuace, deník, news) vyjde jinde přes <b>${comparisonTotal()}/měs</b>. Tady máš vše na jednom místě od $0.
+        </p>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginTop: 32 }} className="tz-price">
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, marginTop: 32 }} className="tz-price">
           {PLANS.map((p) => {
             const free = p.priceUsd === 0;
             return (
-              <div key={p.id} style={{ position: "relative", display: "flex", flexDirection: "column", padding: 22, borderRadius: 10, border: p.highlight ? `1px solid rgba(96,255,130,0.4)` : `1px solid ${C.border}`, background: p.highlight ? "rgba(96,255,130,0.05)" : C.surface }}>
+              <div key={p.id} style={{ position: "relative", display: "flex", flexDirection: "column", padding: 22, borderRadius: 10, border: p.soon ? "1px solid rgba(245,180,60,0.4)" : p.highlight ? "1px solid rgba(96,255,130,0.4)" : `1px solid ${C.border}`, background: p.soon ? "rgba(245,180,60,0.05)" : p.highlight ? "rgba(96,255,130,0.05)" : C.surface }}>
                 {p.highlight && <span style={{ position: "absolute", top: -10, left: 22, fontSize: 10, fontWeight: 700, textTransform: "uppercase", padding: "3px 9px", borderRadius: 999, background: C.green, color: "#06120a" }}>Doporučeno</span>}
+                {p.soon && <span style={{ position: "absolute", top: -10, left: 22, fontSize: 10, fontWeight: 700, textTransform: "uppercase", padding: "3px 9px", borderRadius: 999, background: "#f5b43c", color: "#1a1200" }}>Brzy</span>}
                 <div style={{ fontSize: 17, fontWeight: 600 }}>{p.name}</div>
                 <div style={{ fontSize: 12, color: C.faint, marginTop: 2 }}>{p.tagline}</div>
                 <div style={{ marginTop: 14 }}>

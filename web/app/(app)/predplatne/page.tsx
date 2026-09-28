@@ -34,7 +34,7 @@ export default function PricingPage() {
         </button>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3 max-w-5xl">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {PLANS.map((p) => (
           <PlanCard key={p.id} plan={p} annual={annual} current={plan === p.id} loggedIn={!!user} />
         ))}
@@ -55,12 +55,18 @@ function PlanCard({ plan, annual, current, loggedIn }: {
   const free = plan.priceUsd === 0;
   const accent = plan.highlight;
   const price = free ? "$0" : annual ? `$${annualPerMonth(plan.priceUsd)}` : `$${plan.priceUsd}`;
+  const border = plan.soon ? "border-amber-500/40 bg-amber-500/[0.05]" : accent ? "border-[rgba(96,255,130,0.4)] bg-[#0c1a11]" : "border-[#2a2d3a] bg-[#151823]";
 
   return (
-    <div className={`relative rounded-2xl border p-5 flex flex-col ${accent ? "border-[rgba(96,255,130,0.4)] bg-[#0c1a11]" : "border-[#2a2d3a] bg-[#151823]"}`}>
+    <div className={`relative rounded-2xl border p-5 flex flex-col ${border}`}>
       {accent && (
         <span className="absolute -top-2.5 left-5 rounded-full bg-[#60ff82] px-2.5 py-0.5 text-[10px] font-bold uppercase text-[#06120a]">
           Doporučeno
+        </span>
+      )}
+      {plan.soon && (
+        <span className="absolute -top-2.5 left-5 rounded-full bg-amber-400 px-2.5 py-0.5 text-[10px] font-bold uppercase text-[#1a1200]">
+          Brzy
         </span>
       )}
       <div className="flex items-baseline justify-between">
@@ -87,7 +93,11 @@ function PlanCard({ plan, annual, current, loggedIn }: {
       </ul>
 
       <div className="mt-5">
-        {current ? (
+        {plan.soon ? (
+          <div className="w-full rounded-lg border border-amber-500/30 bg-amber-500/10 py-2.5 text-center text-sm font-medium text-amber-300">
+            Připravujeme
+          </div>
+        ) : current ? (
           <button disabled className="w-full rounded-lg border border-[#2a2d3a] py-2.5 text-sm text-gray-400 opacity-70 cursor-default">
             Máš aktivní
           </button>

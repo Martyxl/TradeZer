@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Activity, NotebookPen, Sunrise, History, BarChart3, Target,
   Telescope, Landmark, BookOpen, Check, ArrowLeft, type LucideIcon,
 } from "lucide-react";
-import { MODULES, PLANS, ANNUAL_DISCOUNT, annualPerMonth, annualTotal, type TierId } from "@/lib/plans";
+import { MODULES, PLANS, COMPARISON, comparisonTotal, ANNUAL_DISCOUNT, annualPerMonth, annualTotal, type TierId } from "@/lib/plans";
 
 const ICONS: Record<string, LucideIcon> = {
   LayoutDashboard, Activity, NotebookPen, Sunrise, History, BarChart3, Target, Telescope, Landmark, BookOpen,
@@ -70,6 +70,45 @@ export default function FunkcePage() {
         </div>
       </section>
 
+      {/* Hodnotová kotva — co zaplatíš jinde vs. vše na jednom místě */}
+      <section className="mx-auto max-w-6xl px-5 pb-14 sm:px-8">
+        <span className="text-[13px] uppercase tracking-[0.06em] text-[#60ff82]">Proč jedna appka</span>
+        <h2 className="mt-2 text-2xl font-medium sm:text-3xl">Jinde platíš za každý nástroj zvlášť</h2>
+        <p className="mt-3 max-w-2xl text-[14px] leading-relaxed text-white/65">
+          Abys dal dohromady to, co Tradezer nabízí na jednom místě, musel bys skládat několik
+          samostatných předplatných:
+        </p>
+        <div className="mt-6 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+          <div className="rounded-xl border border-white/10 bg-white/[0.03] overflow-hidden">
+            {COMPARISON.map((r) => (
+              <div key={r.tool} className="flex items-center justify-between gap-3 border-b border-white/5 px-4 py-2.5 last:border-0">
+                <div>
+                  <div className="text-[13px] text-white/85">{r.category}</div>
+                  <div className="text-[11px] text-white/40">{r.tool}</div>
+                </div>
+                <div className="font-mono text-sm text-white/70">${r.priceUsd}/měs</div>
+              </div>
+            ))}
+            <div className="flex items-center justify-between bg-white/[0.04] px-4 py-3">
+              <div className="text-sm font-semibold text-white">Celkem jinde</div>
+              <div className="font-mono text-lg font-bold text-red-400">${comparisonTotal()}+/měs</div>
+            </div>
+          </div>
+          <div className="flex flex-col justify-center rounded-xl border border-[#60ff82]/40 bg-[#60ff82]/[0.06] p-6 text-center">
+            <div className="text-[13px] uppercase tracking-wider text-white/60">Tradezer, vše na jednom místě</div>
+            <div className="mt-2 text-4xl font-bold text-[#7dffa0]">od $0</div>
+            <div className="mt-1 text-sm text-white/70">kompletní výbava už za <b className="text-white">$15</b>/měs</div>
+            <div className="mt-3 text-[12px] text-white/50">
+              Ušetříš přes <b className="text-[#8fffab]">${comparisonTotal() - 15}/měs</b> oproti nákupu nástrojů zvlášť.
+            </div>
+          </div>
+        </div>
+        <p className="mt-3 text-[11px] text-white/40">
+          Orientační ceny konkurence (měsíčně): SpotGamma, Unusual Whales, Trade Ideas, Stock Rover,
+          TradeZella, Benzinga Pro. Tradezer používá zpožděná/EOD data z veřejných zdrojů — proto ta cena.
+        </p>
+      </section>
+
       {/* Pricing */}
       <section id="cenik" className="mx-auto max-w-6xl px-5 pb-16 sm:px-8">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
@@ -87,14 +126,18 @@ export default function FunkcePage() {
           </div>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {PLANS.map((p) => {
             const free = p.priceUsd === 0;
             const price = free ? "$0" : annual ? `$${annualPerMonth(p.priceUsd)}` : `$${p.priceUsd}`;
+            const border = p.soon ? "border-amber-500/40 bg-amber-500/[0.05]" : p.highlight ? "border-[#60ff82]/40 bg-[#0c1a11]" : "border-white/10 bg-white/[0.03]";
             return (
-              <div key={p.id} className={`relative flex flex-col rounded-2xl border p-6 ${p.highlight ? "border-[#60ff82]/40 bg-[#0c1a11]" : "border-white/10 bg-white/[0.03]"}`}>
+              <div key={p.id} className={`relative flex flex-col rounded-2xl border p-6 ${border}`}>
                 {p.highlight && (
                   <span className="absolute -top-2.5 left-6 rounded-full bg-[#60ff82] px-2.5 py-0.5 text-[10px] font-bold uppercase text-[#06120a]">Doporučeno</span>
+                )}
+                {p.soon && (
+                  <span className="absolute -top-2.5 left-6 rounded-full bg-amber-400 px-2.5 py-0.5 text-[10px] font-bold uppercase text-[#1a1200]">Brzy</span>
                 )}
                 <h3 className="text-lg font-semibold">{p.name}</h3>
                 <p className="text-xs text-white/50">{p.tagline}</p>
@@ -115,12 +158,18 @@ export default function FunkcePage() {
                     </li>
                   ))}
                 </ul>
-                <Link href="/registrace"
-                  className={`mt-6 block rounded-lg py-2.5 text-center text-sm font-semibold ${
-                    p.highlight ? "bg-[#60ff82] text-[#06120a] hover:opacity-90" : "border border-white/20 bg-white/5 text-white hover:border-white/40"
-                  }`}>
-                  {free ? "Začít zdarma" : "Vyzkoušet"}
-                </Link>
+                {p.soon ? (
+                  <div className="mt-6 rounded-lg border border-amber-500/30 bg-amber-500/10 py-2.5 text-center text-sm font-medium text-amber-300">
+                    Připravujeme
+                  </div>
+                ) : (
+                  <Link href="/registrace"
+                    className={`mt-6 block rounded-lg py-2.5 text-center text-sm font-semibold ${
+                      p.highlight ? "bg-[#60ff82] text-[#06120a] hover:opacity-90" : "border border-white/20 bg-white/5 text-white hover:border-white/40"
+                    }`}>
+                    {free ? "Začít zdarma" : "Vyzkoušet"}
+                  </Link>
+                )}
               </div>
             );
           })}
