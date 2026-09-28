@@ -87,7 +87,7 @@ export function annualPerMonth(priceUsd: number): number {
   return Math.round(priceUsd * (1 - ANNUAL_DISCOUNT) * 100) / 100;
 }
 export function annualTotal(priceUsd: number): number {
-  return Math.round(priceUsd * 12 * (1 - ANNUAL_DISCOUNT) * 100) / 100;
+  return Math.round(priceUsd * 12 * (1 - ANNUAL_DISCOUNT)); // celé dolary
 }
 
 // ── Moduly (co všechno appka umí zobrazit) — pro /funkce a landing ──────────
