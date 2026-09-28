@@ -179,3 +179,5 @@ app.include_router(smart_money_router)
 async def root():
     return {"app": "Tradezer", "version": "1.2.0",
             "docs": None if _docs_off else "/docs"}
+
+# redeploy trigger 2026-09-29
