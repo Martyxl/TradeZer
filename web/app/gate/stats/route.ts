@@ -19,7 +19,8 @@ async function entitled(req: NextRequest, min = "trader"): Promise<number> {
   try {
     const r = await fetch(`${base}/api/auth/me`, { headers: { Authorization: auth }, cache: "no-store" });
     if (!r.ok) return 401;
-    const u = await r.json();
+    const j = await r.json();
+    const u = j.user ?? j; // /api/auth/me vrací {"user": {...}}
     if (u.is_admin) return 0;
     if ((RANK[(u.plan ?? "free").toLowerCase()] ?? 0) >= RANK[min]) return 0;
     return 403;
