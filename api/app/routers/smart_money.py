@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import get_session
 from app.models import SmartMoneySnapshot
 from app.routers.admin import _verify_token
+from app.routers.auth import require_plan
 
 router = APIRouter(prefix="/api/smart-money", tags=["smart-money"])
 log = structlog.get_logger(__name__)
@@ -26,7 +27,7 @@ _EMPTY = {"generated": None, "count": 0, "buys": 0, "sells": 0,
           "note": "Zatím žádný snapshot. Spusť data/smart_money_scan.py --push."}
 
 
-@router.get("")
+@router.get("", dependencies=[Depends(require_plan("pro"))])
 async def get_smart_money(session: AsyncSession = Depends(get_session)):
     """Poslední snapshot insider/congress aktivity (nikdy nespadne)."""
     row = await session.scalar(

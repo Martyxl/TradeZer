@@ -55,9 +55,10 @@ export default function AdminPage() {
       load();
     } catch (e) { setErr(e instanceof Error ? e.message : "Reset selhal"); } finally { setBusyId(null); }
   };
-  const togglePlan = async (u: Row) => {
+  const setPlan = async (u: Row, plan: string) => {
+    if (plan === u.plan) return;
     setBusyId(u.id);
-    try { await adminPost(`users/${u.id}/plan`, "POST", { plan: u.plan === "pro" ? "free" : "pro" }); load(); }
+    try { await adminPost(`users/${u.id}/plan`, "POST", { plan }); load(); }
     catch (e) { setErr(e instanceof Error ? e.message : "Změna selhala"); } finally { setBusyId(null); }
   };
   const delUser = async (u: Row) => {
@@ -134,7 +135,16 @@ export default function AdminPage() {
                     {u.reset_requested && <span className="ml-2 rounded bg-yellow-900/50 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-yellow-300">Reset?</span>}
                   </td>
                   <td className="px-3 py-2">
-                    <span className={`rounded px-1.5 py-0.5 text-[10px] uppercase ${u.plan === "pro" ? "bg-[rgba(96,255,130,0.14)] text-[#8fffab]" : "bg-[#2a2d3a] text-gray-400"}`}>{u.plan}</span>
+                    <select
+                      value={u.plan}
+                      onChange={(e) => setPlan(u, e.target.value)}
+                      disabled={busyId === u.id}
+                      className="rounded border border-[#2a2d3a] bg-[#151823] px-1.5 py-1 text-[11px] uppercase text-gray-200 focus:outline-none focus:border-[#2f3b55] disabled:opacity-50"
+                    >
+                      {["free", "trader", "pro", "elite"].map((p) => (
+                        <option key={p} value={p}>{p}</option>
+                      ))}
+                    </select>
                   </td>
                   <td className="px-3 py-2 text-gray-400">{u.created_at?.replace("T", " ") ?? "—"}</td>
                   <td className="px-3 py-2 text-gray-400">{u.last_login?.replace("T", " ") ?? "—"}</td>
@@ -142,7 +152,6 @@ export default function AdminPage() {
                   <td className="px-4 py-2">
                     <div className="flex items-center justify-end gap-1.5">
                       <ActionBtn title="Reset hesla" onClick={() => resetPw(u)} disabled={busyId === u.id}><KeyRound size={13} /></ActionBtn>
-                      <ActionBtn title={u.plan === "pro" ? "Přepnout na Free" : "Přepnout na Pro"} onClick={() => togglePlan(u)} disabled={busyId === u.id}><ArrowUpDown size={13} /></ActionBtn>
                       <ActionBtn title="Smazat účet" onClick={() => delUser(u)} disabled={busyId === u.id || u.id === user.id} danger><Trash2 size={13} /></ActionBtn>
                     </div>
                   </td>

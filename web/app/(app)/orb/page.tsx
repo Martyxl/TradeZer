@@ -243,7 +243,7 @@ export default function OrbPage() {
   useEffect(() => {
     Promise.allSettled(
       ["nq", "gold", "ym"].map((k) =>
-        fetch(`/stats/${k}.json`, { cache: "no-store" }).then((r) => {
+        fetch(`/orb/${k}.json`, { cache: "no-store" }).then((r) => {
           if (!r.ok) throw new Error(`${k}: ${r.status}`);
           return r.json().then((j: OrbData) => [k, j] as const);
         })

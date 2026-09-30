@@ -22,7 +22,10 @@ import pandas as pd
 ROOT = Path(__file__).parent
 RAW = ROOT / "raw"
 AGG = ROOT / "agg"
-OUT = ROOT.parent / "web" / "public" / "stats"
+# Statistiky = placený modul (Trader+): full JSON MIMO web/public (servíruje gated
+# route /gate/stats). ORB je zdarma → jen výřez orb_sessions do web/public/orb.
+OUT = ROOT.parent / "web" / "stats-src"
+ORB_OUT = ROOT.parent / "web" / "public" / "orb"
 
 DAY_SHIFT_H = 2  # posun: 22:00 UTC -> 00:00 "trading day"
 
@@ -714,6 +717,7 @@ def compute(key: str, cfg: dict) -> dict:
 
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
+    ORB_OUT.mkdir(parents=True, exist_ok=True)
     keys = sys.argv[1:] or list(INSTRUMENTS)
     ok, failed = 0, []
     for key in keys:
@@ -739,7 +743,10 @@ def main() -> None:
                 stats["prev"] = old
 
         out_file.write_text(json.dumps(stats, ensure_ascii=False, indent=1), encoding="utf-8")
-        print(f"   -> {out_file} ({stats['meta']['bars_m5']} barů, {stats['meta']['days']} dní)")
+        # ORB zdarma → jen výřez orb_sessions (bez placených statistik) do web/public/orb.
+        orb_only = {"meta": stats.get("meta"), "orb_sessions": stats.get("orb_sessions")}
+        (ORB_OUT / f"{key}.json").write_text(json.dumps(orb_only, ensure_ascii=False, indent=1), encoding="utf-8")
+        print(f"   -> {out_file} ({stats['meta']['bars_m5']} barů, {stats['meta']['days']} dní) + orb/{key}.json")
         ok += 1
 
     if failed:

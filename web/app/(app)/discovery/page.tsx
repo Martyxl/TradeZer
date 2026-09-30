@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Telescope, Info } from "lucide-react";
+import { PaywallGuard } from "@/components/PaywallGuard";
+import { authHeaders } from "@/lib/auth";
 
 interface DItem {
   ticker: string; price: number; chg_pct: number | null;
@@ -34,6 +36,14 @@ function fmtCap(v: number | null | undefined): string {
 }
 
 export default function DiscoveryPage() {
+  return (
+    <PaywallGuard tier="pro" name="Discovery">
+      <DiscoveryInner />
+    </PaywallGuard>
+  );
+}
+
+function DiscoveryInner() {
   const [data, setData] = useState<DData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [minRelVol, setMinRelVol] = useState(0);
@@ -42,20 +52,11 @@ export default function DiscoveryPage() {
   const [sort, setSort] = useState<SortKey>("score");
 
   useEffect(() => {
-    // Preferuj živý snapshot z backendu (push ze Sparku); fallback na statické JSON.
-    const load = async () => {
-      for (const url of ["/api/discovery", "/discovery.json"]) {
-        try {
-          const r = await fetch(url, { cache: "no-store" });
-          if (!r.ok) continue;
-          const j: DData = await r.json();
-          if (j && Array.isArray(j.items) && j.items.length > 0) { setData(j); return; }
-          if (url === "/api/discovery" && j) setData(j); // prázdný snapshot → zkus fallback dál
-        } catch { /* zkus další zdroj */ }
-      }
-      setError((prev) => prev ?? null);
-    };
-    load().catch(() => setError("Discovery data nejsou k dispozici. Spusť data/discovery_scan.py."));
+    // Jen gated backend snapshot (žádný statický fallback — obcházel by paywall).
+    fetch("/api/discovery", { cache: "no-store", headers: authHeaders() })
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((j: DData) => setData(j))
+      .catch(() => setError("Discovery data nejsou k dispozici."));
   }, []);
 
   const rows = useMemo(() => {

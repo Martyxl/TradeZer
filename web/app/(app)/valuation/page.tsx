@@ -5,13 +5,14 @@ import { Target, LayoutGrid, Table2, Info, Loader2 } from "lucide-react";
 import { BubbleMap, VERDICT_COLOR, type OverviewItem } from "@/components/valuation/BubbleMap";
 import { ValuationDetail } from "@/components/valuation/ValuationDetail";
 import { PaywallGuard } from "@/components/PaywallGuard";
+import { authHeaders } from "@/lib/auth";
 
 interface Group { key: string; label_cs: string; color_hex: string }
 
-// Placená záložka: gate před obsahem (flag teď vypnutý → otevřené).
+// Placená záložka (Trader+): server-side gate + UX upsell. Inner se mountuje jen když entitled.
 export default function ValuationPage() {
   return (
-    <PaywallGuard>
+    <PaywallGuard tier="trader" name="Valuation Radar">
       <ValuationInner />
     </PaywallGuard>
   );
@@ -27,14 +28,14 @@ function ValuationInner() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/valuation/groups", { cache: "no-store" })
+    fetch("/api/valuation/groups", { cache: "no-store", headers: authHeaders() })
       .then((r) => (r.ok ? r.json() : null)).then((d) => setGroups(d?.groups ?? [])).catch(() => {});
   }, []);
 
   useEffect(() => {
     setLoading(true);
     const q = group ? `?group=${group}` : "";
-    fetch(`/api/valuation/overview${q}`, { cache: "no-store" })
+    fetch(`/api/valuation/overview${q}`, { cache: "no-store", headers: authHeaders() })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => { setItems(d?.items ?? []); setAsOf(d?.meta?.as_of_date ?? null); })
       .catch(() => setItems([]))

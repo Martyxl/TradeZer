@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import get_session
 from app.models import DiscoverySnapshot
 from app.routers.admin import _verify_token
+from app.routers.auth import require_plan
 
 router = APIRouter(prefix="/api/discovery", tags=["discovery"])
 log = structlog.get_logger(__name__)
@@ -24,7 +25,7 @@ log = structlog.get_logger(__name__)
 _SNAPSHOT_NAME = "latest"
 
 
-@router.get("")
+@router.get("", dependencies=[Depends(require_plan("pro"))])
 async def get_discovery(session: AsyncSession = Depends(get_session)):
     """Poslední snapshot screeneru. Když ještě žádný neexistuje, vrátí prázdnou obálku
     (frontend zobrazí výzvu spustit sken) — nikdy nespadne."""

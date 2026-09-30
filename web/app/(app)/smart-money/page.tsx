@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Landmark, Info } from "lucide-react";
+import { PaywallGuard } from "@/components/PaywallGuard";
+import { authHeaders } from "@/lib/auth";
 
 interface Insider {
   date: string; person: string; role: string; ticker: string; issuer: string;
@@ -30,13 +32,21 @@ function fmtNum(v: number): string {
 }
 
 export default function SmartMoneyPage() {
+  return (
+    <PaywallGuard tier="pro" name="Smart Money">
+      <SmartMoneyInner />
+    </PaywallGuard>
+  );
+}
+
+function SmartMoneyInner() {
   const [data, setData] = useState<SMData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tx, setTx] = useState<TxFilter>("all");
   const [q, setQ] = useState("");
 
   useEffect(() => {
-    fetch("/api/smart-money", { cache: "no-store" })
+    fetch("/api/smart-money", { cache: "no-store", headers: authHeaders() })
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then(setData)
       .catch(() => setError("Smart Money data nejsou k dispozici."));

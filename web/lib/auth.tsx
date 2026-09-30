@@ -26,6 +26,12 @@ export function authToken(): string | null {
   return typeof window !== "undefined" ? localStorage.getItem(TOKEN_KEY) : null;
 }
 
+// Hlavička pro autorizovaná volání placených API (gate je server-side).
+export function authHeaders(): Record<string, string> {
+  const t = authToken();
+  return t ? { Authorization: `Bearer ${t}` } : {};
+}
+
 async function authFetch(path: string, body?: unknown, token?: string | null) {
   const res = await fetch(`/api/auth/${path}`, {
     method: body ? "POST" : "GET",

@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { Info, X, TrendingUp, Layers, Crosshair, LineChart, Target as TargetIcon, type LucideIcon } from "lucide-react";
+import { PaywallGuard } from "@/components/PaywallGuard";
+import { authHeaders } from "@/lib/auth";
 
 /* ---------------------------------------------------------------- typy */
 
@@ -305,6 +307,14 @@ function TradeSimCard({ dir, leg, unit }: { dir: "up" | "down"; leg: TradeSimLeg
 /* ----------------------------------------------------------------- page */
 
 export default function StatsPage() {
+  return (
+    <PaywallGuard tier="trader" name="Statistiky">
+      <StatsInner />
+    </PaywallGuard>
+  );
+}
+
+function StatsInner() {
   const [data, setData] = useState<Record<string, MarketStats>>({});
   const [selected, setSelected] = useState<string>("nq");
   const [error, setError] = useState<string | null>(null);
@@ -313,7 +323,7 @@ export default function StatsPage() {
   useEffect(() => {
     Promise.allSettled(
       ["nq", "gold", "ym"].map((k) =>
-        fetch(`/stats/${k}.json`, { cache: "no-store" }).then((r) => {
+        fetch(`/gate/stats?ticker=${k}`, { cache: "no-store", headers: authHeaders() }).then((r) => {
           if (!r.ok) throw new Error(`${k}: ${r.status}`);
           return r.json().then((j: MarketStats) => [k, j] as const);
         })

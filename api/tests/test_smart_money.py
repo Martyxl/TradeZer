@@ -11,6 +11,7 @@ from httpx import AsyncClient, ASGITransport
 from app.main import app
 from app.db.base import Base
 from app.db.engine import engine
+from tests._auth import auth_headers
 
 
 @pytest.fixture(autouse=True)
@@ -37,7 +38,8 @@ _PAYLOAD = {
 @pytest.mark.asyncio
 async def test_get_empty():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        resp = await client.get("/api/smart-money")
+        h = await auth_headers(client, "pro@t.cz", plan="pro")
+        resp = await client.get("/api/smart-money", headers=h)
     assert resp.status_code == 200
     assert resp.json()["insiders"] == []
 
@@ -55,7 +57,8 @@ async def test_roundtrip():
         ing = await client.post("/api/smart-money/ingest", json=_PAYLOAD,
                                 headers={"X-Internal-Token": "test-token"})
         assert ing.status_code == 200 and ing.json()["insiders"] == 1
-        got = await client.get("/api/smart-money")
+        h = await auth_headers(client, "pro@t.cz", plan="pro")
+        got = await client.get("/api/smart-money", headers=h)
     body = got.json()
     assert body["insiders"][0]["ticker"] == "SOFI"
     assert body["top_buys"][0]["buy_value"] == 250000

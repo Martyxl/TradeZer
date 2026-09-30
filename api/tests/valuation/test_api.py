@@ -25,6 +25,16 @@ async def client(db_session):
     app.dependency_overrides.clear()
 
 
+async def _trader_headers(client, db_session):
+    """Registruj uživatele (v db_session) a povyš na Trader — valuation je gated."""
+    from sqlalchemy import update
+    from app.models import User
+    r = await client.post("/api/auth/register", json={"email": "trader@t.cz", "password": "secret123"})
+    await db_session.execute(update(User).where(User.email == "trader@t.cz").values(plan="trader"))
+    await db_session.commit()
+    return {"Authorization": f"Bearer {r.json()['token']}"}
+
+
 async def _prepare(session):
     await seed_valuation(session)  # groups + universe
     # zúžíme na 2 display tickery s fixtures
@@ -41,7 +51,8 @@ async def _prepare(session):
 @pytest.mark.asyncio
 async def test_groups_endpoint(client, db_session):
     await _prepare(db_session)
-    r = await client.get("/api/valuation/groups")
+    h = await _trader_headers(client, db_session)
+    r = await client.get("/api/valuation/groups", headers=h)
     assert r.status_code == 200
     body = r.json()
     assert body["meta"]["disclaimer"]
@@ -51,7 +62,8 @@ async def test_groups_endpoint(client, db_session):
 @pytest.mark.asyncio
 async def test_overview_and_filters(client, db_session):
     await _prepare(db_session)
-    r = await client.get("/api/valuation/overview")
+    h = await _trader_headers(client, db_session)
+    r = await client.get("/api/valuation/overview", headers=h)
     assert r.status_code == 200
     items = r.json()["items"]
     tickers = {i["ticker"] for i in items}
@@ -60,14 +72,15 @@ async def test_overview_and_filters(client, db_session):
         assert "pctile_pe_fwd" in it and "composite_score" in it
 
     # min_confidence filtr vrací podmnožinu
-    r2 = await client.get("/api/valuation/overview?min_confidence=0.99")
+    r2 = await client.get("/api/valuation/overview?min_confidence=0.99", headers=h)
     assert len(r2.json()["items"]) <= len(items)
 
 
 @pytest.mark.asyncio
 async def test_detail_endpoint(client, db_session):
     await _prepare(db_session)
-    r = await client.get("/api/valuation/AAPL")
+    h = await _trader_headers(client, db_session)
+    r = await client.get("/api/valuation/AAPL", headers=h)
     assert r.status_code == 200
     d = r.json()
     assert d["ticker"] == "AAPL"
@@ -79,7 +92,8 @@ async def test_detail_endpoint(client, db_session):
 @pytest.mark.asyncio
 async def test_unknown_ticker_404(client, db_session):
     await _prepare(db_session)
-    r = await client.get("/api/valuation/ZZZZ")
+    h = await _trader_headers(client, db_session)
+    r = await client.get("/api/valuation/ZZZZ", headers=h)
     assert r.status_code == 404
 
 

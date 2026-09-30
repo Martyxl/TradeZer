@@ -45,3 +45,6 @@ web/tsconfig.tsbuildinfo
 
 # Spark workery — obsahují hardcoded LLM_API_KEY (lokální síť), nepatří do repa
 data/run_*_spark.bat
+
+.vercel
+.env*

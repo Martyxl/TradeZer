@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { X, Loader2 } from "lucide-react";
 import { VERDICT_COLOR } from "./BubbleMap";
+import { authHeaders } from "@/lib/auth";
 
 interface Driver { name: string; value: number | null; contribution: number | null }
 interface Detail {
@@ -46,7 +47,7 @@ export function ValuationDetail({ ticker, onClose }: { ticker: string; onClose: 
 
   useEffect(() => {
     setD(null); setErr(false);
-    fetch(`/api/valuation/${ticker}`, { cache: "no-store" })
+    fetch(`/api/valuation/${ticker}`, { cache: "no-store", headers: authHeaders() })
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then(setD).catch(() => setErr(true));
   }, [ticker]);

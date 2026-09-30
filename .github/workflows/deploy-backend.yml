@@ -1,0 +1,48 @@
+name: Deploy backend (Vercel CLI)
+
+# Vercel git-build pro projekt trade-zer je vypnutý (Ignored Build Step = exit 0),
+# protože @vercel/python git-builder míchá stale + čerstvé soubory (Frankenstein deploy).
+# Místo toho nasazujeme přes `vercel deploy` (source-upload = kompletní snapshot, spolehlivé).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "api/**"
+      - ".github/workflows/deploy-backend.yml"
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: true
+
+env:
+  VERCEL_ORG_ID: team_K4NnNTRAq6dsD6dgTAQOfkO3
+  VERCEL_PROJECT_ID: prj_YhOnsH7Y9ywS6FzzT9Ur8J8dhEqB
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Vercel CLI
+        run: npm i -g vercel@latest
+
+      - name: Deploy to production
+        run: vercel deploy --prod --yes --token=$VERCEL_TOKEN
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+      - name: Verify gating is live
+        run: |
+          set -e
+          sleep 5
+          ver=$(curl -s https://trade-zer.vercel.app/api/health | python3 -c "import sys,json;print(json.load(sys.stdin).get('version',''))" || echo "")
+          disc=$(curl -s -o /dev/null -w "%{http_code}" https://trade-zer.vercel.app/api/discovery)
+          echo "health version=$ver | discovery(no-token)=$disc"
+          test "$disc" = "401" || (echo "GATING ROZBITE: discovery vraci $disc misto 401" && exit 1)

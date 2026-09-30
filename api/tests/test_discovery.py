@@ -11,6 +11,7 @@ from httpx import AsyncClient, ASGITransport
 from app.main import app
 from app.db.base import Base
 from app.db.engine import engine
+from tests._auth import auth_headers
 
 
 @pytest.fixture(autouse=True)
@@ -25,7 +26,8 @@ async def setup_db():
 @pytest.mark.asyncio
 async def test_get_empty_returns_envelope():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        resp = await client.get("/api/discovery")
+        h = await auth_headers(client, "pro@t.cz", plan="pro")
+        resp = await client.get("/api/discovery", headers=h)
     assert resp.status_code == 200
     body = resp.json()
     assert body["items"] == []
@@ -56,7 +58,8 @@ async def test_ingest_then_get_roundtrip():
         assert ing.status_code == 200
         assert ing.json()["items"] == 1
 
-        got = await client.get("/api/discovery")
+        h = await auth_headers(client, "pro@t.cz", plan="pro")
+        got = await client.get("/api/discovery", headers=h)
     assert got.status_code == 200
     body = got.json()
     assert body["items"][0]["ticker"] == "SOFI"

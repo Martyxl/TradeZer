@@ -43,7 +43,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add web/public/stats/
+          git add web/stats-src/ web/public/orb/
           if git diff --cached --quiet; then
             echo "No changes"
           else

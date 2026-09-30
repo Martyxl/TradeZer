@@ -14,7 +14,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.db import get_session
 from app.routers.admin import _verify_token
+from app.routers.auth import require_plan
 from app.valuation import schemas as S
+
+# Placené moduly: Valuation Radar je od plánu Trader výš (server-side gate).
+_TRADER = [Depends(require_plan("trader"))]
 from app.valuation.models import (
     ValGroup, ValInstrument, ValScoreDaily, ValMetricsDaily,
     ValFinancials, ValEstimate, ValEarningsHistory, ValScoreRun, ValPriceDaily,
@@ -38,7 +42,7 @@ async def _latest_score_date(session: AsyncSession) -> date | None:
 
 # ---- static routes (před dynamickým /{ticker}) ------------------------------
 
-@router.get("/groups", response_model=S.GroupsResponse)
+@router.get("/groups", response_model=S.GroupsResponse, dependencies=_TRADER)
 async def groups(session: AsyncSession = Depends(get_session)):
     rows = (await session.execute(select(ValGroup).order_by(ValGroup.sort_order))).scalars().all()
     return S.GroupsResponse(
@@ -48,7 +52,7 @@ async def groups(session: AsyncSession = Depends(get_session)):
     )
 
 
-@router.get("/overview", response_model=S.OverviewResponse)
+@router.get("/overview", response_model=S.OverviewResponse, dependencies=_TRADER)
 async def overview(
     group: str | None = Query(default=None),
     min_confidence: float = Query(default=0.0, ge=0.0, le=1.0),
@@ -205,7 +209,7 @@ async def seed(session: AsyncSession = Depends(get_session)):
     return {"status": "ok", **stats}
 
 
-@router.get("/runs/{run_id}", response_model=S.RunOut)
+@router.get("/runs/{run_id}", response_model=S.RunOut, dependencies=_TRADER)
 async def get_run(run_id: int, session: AsyncSession = Depends(get_session)):
     run = await session.scalar(select(ValScoreRun).where(ValScoreRun.id == run_id))
     if not run:
@@ -218,7 +222,7 @@ async def get_run(run_id: int, session: AsyncSession = Depends(get_session)):
     )
 
 
-@router.get("/backtest")
+@router.get("/backtest", dependencies=_TRADER)
 async def backtest(session: AsyncSession = Depends(get_session)):
     """Skóre vs. budoucí výnos (1M/3M). Roste s historií skóre."""
     from app.valuation.backtest import run_backtest
@@ -228,7 +232,7 @@ async def backtest(session: AsyncSession = Depends(get_session)):
 
 # ---- dynamické routes -------------------------------------------------------
 
-@router.get("/{ticker}/summary")
+@router.get("/{ticker}/summary", dependencies=_TRADER)
 async def ticker_summary(ticker: str, session: AsyncSession = Depends(get_session)):
     """LLM shrnutí nad spočítanými čísly (cache 24 h). Prázdné, když LLM nedostupné."""
     from app.valuation.summary import get_summary
@@ -236,7 +240,7 @@ async def ticker_summary(ticker: str, session: AsyncSession = Depends(get_sessio
     return {"meta": _meta(None).model_dump(), **result}
 
 
-@router.get("/{ticker}/history", response_model=S.HistoryResponse)
+@router.get("/{ticker}/history", response_model=S.HistoryResponse, dependencies=_TRADER)
 async def ticker_history(
     ticker: str, days: int = Query(default=365, ge=1, le=1825),
     session: AsyncSession = Depends(get_session),
@@ -256,7 +260,7 @@ async def ticker_history(
     )
 
 
-@router.get("/{ticker}", response_model=S.ValuationDetail)
+@router.get("/{ticker}", response_model=S.ValuationDetail, dependencies=_TRADER)
 async def ticker_detail(ticker: str, session: AsyncSession = Depends(get_session)):
     ticker = ticker.upper()
     version = settings.val_model_version

@@ -44,6 +44,33 @@ async def current_user(
     return user
 
 
+# ── Plánové tiery + server-side gate placených modulů ───────────────────────
+PLAN_RANK = {"free": 0, "trader": 1, "pro": 2, "elite": 3}
+VALID_PLANS = tuple(PLAN_RANK.keys())
+
+
+def plan_rank(plan: str | None) -> int:
+    return PLAN_RANK.get((plan or "free").strip().lower(), 0)
+
+
+def require_plan(min_tier: str):
+    """Dependency: pustí jen uživatele s plánem >= min_tier (admin vždy). Vynucení
+    je SERVER-SIDE — data se bez dostatečného plánu vůbec nevrátí (403), nejde obejít
+    přímým voláním API. Kill-switch: settings.paywall_enabled=False odemkne vše."""
+    from app.config import settings as _s
+    min_rank = PLAN_RANK[min_tier]
+
+    async def _dep(user: User = Depends(current_user)) -> User:
+        if not _s.paywall_enabled or user.is_admin:
+            return user
+        if plan_rank(user.plan) < min_rank:
+            raise HTTPException(status_code=403,
+                                detail=f"Tato funkce vyžaduje plán {min_tier} nebo vyšší")
+        return user
+
+    return _dep
+
+
 @router.post("/register")
 async def register(payload: dict, session: AsyncSession = Depends(get_session)):
     email = (payload.get("email") or "").strip().lower()
@@ -237,8 +264,8 @@ async def admin_reset_password(user_id: int, _: User = Depends(require_admin),
 async def admin_set_plan(user_id: int, payload: dict, _: User = Depends(require_admin),
                          session: AsyncSession = Depends(get_session)):
     plan = (payload.get("plan") or "").strip().lower()
-    if plan not in ("free", "pro"):
-        raise HTTPException(status_code=400, detail="Plán musí být free nebo pro")
+    if plan not in VALID_PLANS:
+        raise HTTPException(status_code=400, detail=f"Plán musí být jeden z: {', '.join(VALID_PLANS)}")
     u = await session.get(User, user_id)
     if not u:
         raise HTTPException(status_code=404, detail="Uživatel nenalezen")
