@@ -181,6 +181,25 @@ async def clear_prediction(
             "note": "Zpráva je nepredikovaná — Spark worker ji přepočítá při dalším pollu."}
 
 
+@router.post("/users/bulk-plan", dependencies=[Depends(_verify_token)])
+async def bulk_set_plan(
+    plan: str = Query(..., description="free|trader|pro|elite"),
+    session: AsyncSession = Depends(get_session),
+):
+    """Hromadně nastaví plán VŠEM uživatelům (interní token). Použito jednorázově
+    pro přiřazení Pro stávajícím registrovaným účtům."""
+    from sqlalchemy import update
+    from app.models import User
+    from app.routers.auth import VALID_PLANS
+
+    plan = plan.strip().lower()
+    if plan not in VALID_PLANS:
+        raise HTTPException(status_code=400, detail=f"Plán musí být jeden z: {', '.join(VALID_PLANS)}")
+    result = await session.execute(update(User).values(plan=plan))
+    await session.commit()
+    return {"status": "ok", "plan": plan, "updated": result.rowcount}
+
+
 @router.post("/calibrate", dependencies=[Depends(_verify_token)])
 async def calibrate(
     session: AsyncSession = Depends(get_session),
@@ -899,4 +918,4 @@ async def debug_bars(
 
 @router.get("/health")
 async def health():
-    return {"status": "ok", "version": "1.1.0"}
+    return {"status": "ok", "version": "1.2.0-nocache"}
