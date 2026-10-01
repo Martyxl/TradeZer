@@ -49,6 +49,24 @@ class Settings(BaseSettings):
     refresh_interval_minutes: int = Field(default=5, alias="REFRESH_INTERVAL_MINUTES")
     internal_api_token: str = Field(default="", alias="INTERNAL_API_TOKEN")
 
+    # Stripe (Billing — předplatné). Secret key jen na backendu; publishable je
+    # veřejný (jde do frontendu). Webhook secret ověřuje podpis událostí.
+    stripe_secret_key: str = Field(default="", alias="STRIPE_SECRET_KEY")
+    stripe_publishable_key: str = Field(default="", alias="STRIPE_PUBLISHABLE_KEY")
+    stripe_webhook_secret: str = Field(default="", alias="STRIPE_WEBHOOK_SECRET")
+    # Price ID pro každý tier × interval (vytvoř v Stripe, vlož přes env).
+    stripe_price_trader_month: str = Field(default="", alias="STRIPE_PRICE_TRADER_MONTH")
+    stripe_price_trader_year: str = Field(default="", alias="STRIPE_PRICE_TRADER_YEAR")
+    stripe_price_pro_month: str = Field(default="", alias="STRIPE_PRICE_PRO_MONTH")
+    stripe_price_pro_year: str = Field(default="", alias="STRIPE_PRICE_PRO_YEAR")
+    stripe_price_elite_month: str = Field(default="", alias="STRIPE_PRICE_ELITE_MONTH")
+    stripe_price_elite_year: str = Field(default="", alias="STRIPE_PRICE_ELITE_YEAR")
+    # Stripe Tax (EU VAT). Zapni až po aktivaci Stripe Tax + nastavení origin adresy
+    # v dashboardu — jinak by Checkout s automatic_tax házel chybu.
+    stripe_tax_enabled: bool = Field(default=False, alias="STRIPE_TAX_ENABLED")
+    # Veřejná URL appky (success/cancel redirecty Checkoutu). Sdílí APP_URL s e-maily.
+    app_public_url: str = Field(default="https://tradezer.app", alias="APP_URL")
+
     # Feed
     feed_page_size: int = 25
 

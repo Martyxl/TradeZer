@@ -26,6 +26,7 @@ from app.routers import (
     discovery_router,
     gamma_router,
     smart_money_router,
+    billing_router,
 )
 
 structlog.configure(
@@ -78,6 +79,16 @@ async def _startup_db() -> None:
                 log.info("Migration: users login-tracking columns ensured")
             except Exception as e:
                 log.warning("Migration users skipped", error=str(e))
+            try:
+                await conn.execute(text(
+                    "ALTER TABLE users "
+                    "ADD COLUMN IF NOT EXISTS stripe_customer_id VARCHAR(64), "
+                    "ADD COLUMN IF NOT EXISTS subscription_status VARCHAR(32), "
+                    "ADD COLUMN IF NOT EXISTS subscription_period_end TIMESTAMP"
+                ))
+                log.info("Migration: users Stripe billing columns ensured")
+            except Exception as e:
+                log.warning("Migration users Stripe skipped", error=str(e))
 
     # Auto-seed: pokud je DB prázdná (žádné tickery), spusť seed automaticky
     async with engine.connect() as conn:
@@ -173,6 +184,7 @@ app.include_router(journal_router)
 app.include_router(discovery_router)
 app.include_router(gamma_router)
 app.include_router(smart_money_router)
+app.include_router(billing_router)
 
 
 @app.get("/")

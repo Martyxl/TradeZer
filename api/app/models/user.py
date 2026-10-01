@@ -20,3 +20,7 @@ class User(Base):
     last_login: Mapped[datetime | None] = mapped_column(DateTime)
     login_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     reset_requested: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # Stripe Billing — propojení účtu s předplatným (plán řídí webhook).
+    stripe_customer_id: Mapped[str | None] = mapped_column(String(64), index=True)
+    subscription_status: Mapped[str | None] = mapped_column(String(32))  # active|trialing|past_due|canceled|…
+    subscription_period_end: Mapped[datetime | None] = mapped_column(DateTime)
