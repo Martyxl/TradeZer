@@ -200,42 +200,6 @@ async def bulk_set_plan(
     return {"status": "ok", "plan": plan, "updated": result.rowcount}
 
 
-@router.post("/users/cleanup-test", dependencies=[Depends(_verify_token)])
-async def cleanup_test_users(
-    email_like: str = Query(..., description="SQL LIKE vzor, např. paywalltest%@example.com"),
-    confirm: bool = Query(False, description="False = dry-run (jen vypíše), True = smaže"),
-    session: AsyncSession = Depends(get_session),
-):
-    """Smaže testovací NE-admin účty podle email LIKE vzoru (interní token).
-    Dry-run bez confirm. Pojistky: admini se NIKDY nemažou, vzor musí být dost
-    specifický. Jednorázový cleanup po live testech paywallu."""
-    from sqlalchemy import select, delete
-    from app.models import User
-
-    pattern = email_like.strip()
-    if len(pattern.replace("%", "").replace("_", "")) < 5:
-        raise HTTPException(status_code=400, detail="Vzor je příliš obecný (min. 5 pevných znaků).")
-
-    matched = (await session.execute(
-        select(User.id, User.email, User.is_admin).where(User.email.like(pattern))
-    )).all()
-    targets = [{"id": r.id, "email": r.email} for r in matched if not r.is_admin]
-    protected = [r.email for r in matched if r.is_admin]
-
-    if not confirm:
-        return {"status": "dry-run", "pattern": pattern,
-                "would_delete": targets, "count": len(targets),
-                "skipped_admins": protected}
-
-    ids = [t["id"] for t in targets]
-    if ids:
-        await session.execute(delete(User).where(User.id.in_(ids)))
-        await session.commit()
-    return {"status": "deleted", "pattern": pattern,
-            "deleted": targets, "count": len(targets),
-            "skipped_admins": protected}
-
-
 @router.post("/calibrate", dependencies=[Depends(_verify_token)])
 async def calibrate(
     session: AsyncSession = Depends(get_session),
