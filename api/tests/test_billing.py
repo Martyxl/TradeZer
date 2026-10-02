@@ -12,6 +12,8 @@ os.environ["ANTHROPIC_API_KEY"] = "test-key"
 os.environ["INTERNAL_API_TOKEN"] = "test-token"
 # Žádný STRIPE_SECRET_KEY → endpoints musí bezpečně vracet 503, ne spadnout.
 os.environ.pop("STRIPE_SECRET_KEY", None)
+# Namapuj jeden price na tier pro test webhook logiky (_apply_subscription).
+os.environ["STRIPE_PRICE_PRO_MONTH"] = "price_test_pro_m"
 
 from httpx import AsyncClient, ASGITransport
 from app.main import app
@@ -72,3 +74,56 @@ async def test_webhook_503_when_unconfigured():
         r = await c.post("/api/billing/webhook", content=b"{}",
                          headers={"stripe-signature": "x"})
     assert r.status_code == 503
+
+
+@pytest.mark.asyncio
+async def test_apply_subscription_sets_plan():
+    """Regrese: webhook logika musí umět plain dict (ne StripeObject) a novou API
+    verzi (current_period_end v items) a nastavit plan dle price→tier."""
+    from app.routers.billing import _apply_subscription
+    from app.config import settings
+    from app.models import User
+    from app.db.session import session_context
+
+    settings.stripe_price_pro_month = "price_test_pro_m"  # price → tier mapa za běhu
+
+    # Uživatel s navázaným Stripe zákazníkem (jako po /checkout).
+    async with session_context() as s:
+        u = User(email="sub@example.com", password_hash="x", plan="free",
+                 stripe_customer_id="cus_test1")
+        s.add(u)
+        await s.commit()
+        uid = u.id
+
+    sub = {
+        "status": "active",
+        "items": {"data": [{"price": {"id": "price_test_pro_m"},
+                            "current_period_end": 1800000000}]},
+    }
+    await _apply_subscription(None, "cus_test1", sub)
+
+    async with session_context() as s:
+        u = await s.get(User, uid)
+        assert u.plan == "pro"
+        assert u.subscription_status == "active"
+        assert u.subscription_period_end is not None
+
+
+@pytest.mark.asyncio
+async def test_apply_subscription_canceled_downgrades():
+    from app.routers.billing import _apply_subscription
+    from app.models import User
+    from app.db.session import session_context
+
+    async with session_context() as s:
+        u = User(email="sub2@example.com", password_hash="x", plan="pro",
+                 stripe_customer_id="cus_test2")
+        s.add(u)
+        await s.commit()
+        uid = u.id
+
+    await _apply_subscription(None, "cus_test2", {"status": "canceled", "items": {"data": []}})
+
+    async with session_context() as s:
+        u = await s.get(User, uid)
+        assert u.plan == "free"

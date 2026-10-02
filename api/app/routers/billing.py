@@ -8,6 +8,7 @@ na našem serveru (PCI řeší Stripe). Stripe Tax (automatic_tax) kvůli EU VAT
 Chybějící/nenakonfigurovaný Stripe → 503 (nikdy neshodí zbytek backendu)."""
 from __future__ import annotations
 
+import json
 from datetime import datetime
 
 import structlog
@@ -146,7 +147,13 @@ async def create_portal(
 
 # ── Webhook ─────────────────────────────────────────────────────────────────
 def _period_end(sub: dict) -> datetime | None:
+    # API verze 2026-08-26+ přesunula current_period_end z top-levelu do items.
     ts = sub.get("current_period_end")
+    if ts is None:
+        try:
+            ts = sub["items"]["data"][0]["current_period_end"]
+        except (KeyError, IndexError, TypeError):
+            ts = None
     return datetime.utcfromtimestamp(ts) if ts else None
 
 
@@ -161,6 +168,9 @@ def _tier_from_subscription(sub: dict) -> str | None:
 
 async def _apply_subscription(stripe, customer_id: str, sub: dict, *, reference_user_id: str | None = None) -> None:
     """Promítne stav subscription do user.plan/status/period (idempotentní)."""
+    # Stripe SDK objekt → čistý dict (nemá .get). Z webhooku chodí už dict.
+    if hasattr(sub, "to_dict_recursive"):
+        sub = sub.to_dict_recursive()
     status = sub.get("status")
     tier = _tier_from_subscription(sub)
     # Aktivní/trialing = dej tier; jinak (canceled/unpaid/…) spadni na free.
@@ -201,13 +211,16 @@ async def stripe_webhook(request: Request):
     payload = await request.body()
     sig = request.headers.get("stripe-signature", "")
     try:
-        event = stripe.Webhook.construct_event(payload, sig, settings.stripe_webhook_secret)
+        stripe.Webhook.construct_event(payload, sig, settings.stripe_webhook_secret)
     except Exception as e:  # noqa: BLE001 — špatný podpis / neplatné tělo
         log.warning("Webhook: neplatný podpis", error=str(e))
         raise HTTPException(status_code=400, detail="Neplatný podpis")
 
-    etype = event["type"]
-    obj = event["data"]["object"]
+    # Podpis ověřen → dál pracuj se syrovým payloadem jako čistým JSON (StripeObject
+    # nemá .get a nová API verze mění strukturu — plain dict je spolehlivý).
+    data = json.loads(payload)
+    etype = data["type"]
+    obj = data["data"]["object"]
 
     if etype == "checkout.session.completed":
         customer_id = obj.get("customer")
