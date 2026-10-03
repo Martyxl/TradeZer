@@ -40,10 +40,14 @@ def _get_json(url: str):
 
 # Mapování suffixů na Yahoo burzovní kódy (uložený symbol zůstává původní).
 _YH_SUFFIX = {".NV": ".AS", ".NL": ".AS", ".SW": ".SW", ".LN": ".L", ".UK": ".L", ".GB": ".L"}
+# Přímé aliasy pro symboly, co přišly bez burzovního suffixu (XTB strhl .DE apod.).
+_YH_ALIAS = {"KWBE": "KWBE.DE"}  # KraneShares China Internet UCITS (Xetra, EUR)
 
 
 def _yahoo_sym(symbol: str) -> str:
     s = symbol.upper()
+    if s in _YH_ALIAS:
+        return _YH_ALIAS[s]
     if s.endswith(".US"):
         return s[:-3]  # US akcie na Yahoo bez suffixu
     for suf, rep in _YH_SUFFIX.items():
@@ -53,8 +57,9 @@ def _yahoo_sym(symbol: str) -> str:
 
 
 def _quote(symbol: str) -> dict | None:
-    """Aktuální cena + měna z Yahoo chart meta (symbol normalizovaný na Yahoo kód)."""
-    data = _get_json(f"https://query1.finance.yahoo.com/v8/finance/chart/{_yahoo_sym(symbol)}?range=1d&interval=1d")
+    """Aktuální cena + měna z Yahoo chart meta (symbol normalizovaný na Yahoo kód).
+    range=5d kvůli nelikvidním evropským listingům (na 1d někdy nevrátí cenu)."""
+    data = _get_json(f"https://query1.finance.yahoo.com/v8/finance/chart/{_yahoo_sym(symbol)}?range=5d&interval=1d")
     try:
         meta = data["chart"]["result"][0]["meta"]
         price = meta.get("regularMarketPrice")
