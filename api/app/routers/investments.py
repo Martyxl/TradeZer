@@ -345,6 +345,95 @@ async def portfolio(base: str = Query(DEFAULT_BASE), user: User = Depends(curren
     }
 
 
+# ── Daňový časový test (ČR: >3 roky držení → osvobození od daně z příjmu) ────
+TIMETEST_YEARS = 3
+
+
+def _add_years(d: datetime, years: int) -> datetime:
+    try:
+        return d.replace(year=d.year + years)
+    except ValueError:  # 29. února
+        return d.replace(year=d.year + years, day=28)
+
+
+@router.get("/timetest")
+async def tax_timetest(base: str = Query(DEFAULT_BASE), user: User = Depends(current_user),
+                       session: AsyncSession = Depends(get_session)):
+    """Český časový test: cenný papír držený >3 roky → zisk z prodeje osvobozen
+    od daně z příjmu. Pro každý zbývající nákupní lot (FIFO po odečtení prodejů)
+    spočítá datum osvobození (nákup + 3 roky) a kolik zbývá. NE daňové poradenství."""
+    base = base.strip().upper()[:8]
+    txs = (await session.execute(
+        select(InvestmentTx).where(InvestmentTx.user_id == user.id,
+                                   InvestmentTx.tx_type.in_(("buy", "sell")),
+                                   InvestmentTx.symbol.isnot(None))
+        .order_by(InvestmentTx.executed_at.asc().nullsfirst(), InvestmentTx.id.asc())
+    )).scalars().all()
+    quotes = {q.symbol: q for q in (await session.execute(select(InvestmentQuote))).scalars().all()}
+    fx = {s: q.price for s, q in quotes.items() if len(s) == 6 and s.isalpha()}
+
+    buys: dict[str, list[dict]] = {}
+    sold: dict[str, float] = {}
+    for t in txs:
+        if t.tx_type == "buy":
+            buys.setdefault(t.symbol, []).append({
+                "qty": t.quantity or 0, "price": t.price or 0, "fee": t.fee or 0,
+                "date": t.executed_at, "currency": t.currency or "USD", "name": t.name})
+        else:
+            sold[t.symbol] = sold.get(t.symbol, 0) + (t.quantity or 0)
+
+    today = datetime.utcnow()
+    lots = []
+    sum_free = sum_pending = 0.0  # v base měně (CZK)
+    complete = True
+    for sym, lot_list in buys.items():
+        remaining_to_sell = sold.get(sym, 0)
+        for lot in lot_list:  # FIFO: nejstarší nákupy se prodávají první
+            rem = lot["qty"]
+            if remaining_to_sell > 0:
+                take = min(rem, remaining_to_sell)
+                rem -= take
+                remaining_to_sell -= take
+            if rem <= 1e-9 or not lot["date"]:
+                continue
+            free_date = _add_years(lot["date"], TIMETEST_YEARS)
+            days = (free_date - today).days
+            ccy = lot["currency"]
+            cost = rem * lot["price"]
+            q = quotes.get(sym)
+            value = rem * q.price if q else None
+            base_amt = _to_base(value if value is not None else cost, ccy, base, fx)
+            if base_amt is None:
+                complete = False
+            elif days <= 0:
+                sum_free += base_amt
+            else:
+                sum_pending += base_amt
+            lots.append({
+                "symbol": sym, "name": lot["name"], "quantity": round(rem, 6),
+                "buy_date": lot["date"].date().isoformat(),
+                "free_date": free_date.date().isoformat(),
+                "days_remaining": days, "tax_free": days <= 0,
+                "currency": ccy, "cost": round(cost, 2),
+                "value": round(value, 2) if value is not None else None,
+            })
+
+    lots.sort(key=lambda x: x["days_remaining"])
+    upcoming = [l for l in lots if 0 < l["days_remaining"] <= 365]
+    return {
+        "base": base, "years": TIMETEST_YEARS, "today": today.date().isoformat(),
+        "lots": lots,
+        "upcoming_12m": upcoming,
+        "summary": {
+            "value_tax_free": round(sum_free, 2),
+            "value_pending": round(sum_pending, 2),
+            "complete": complete,
+            "n_tax_free": sum(1 for l in lots if l["tax_free"]),
+            "n_pending": sum(1 for l in lots if not l["tax_free"]),
+        },
+    }
+
+
 # ── Živé ceny (push z rezidenční IP) ────────────────────────────────────────
 @router.get("/symbols", dependencies=[Depends(_verify_token)])
 async def held_symbols(session: AsyncSession = Depends(get_session)):

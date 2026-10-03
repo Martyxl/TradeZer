@@ -106,6 +106,36 @@ async def test_portfolio_has_signal():
 
 
 @pytest.mark.asyncio
+async def test_tax_timetest():
+    from datetime import datetime
+    old = datetime.utcnow().replace(year=datetime.utcnow().year - 4).date().isoformat()  # >3 roky
+    recent = datetime.utcnow().date().isoformat()
+    async with _client() as c:
+        h = await auth_headers(c, "tax@example.com")
+        await c.post("/api/investments", json={"tx_type": "buy", "symbol": "AAPL", "quantity": 5, "price": 100, "currency": "USD", "executed_at": old}, headers=h)
+        await c.post("/api/investments", json={"tx_type": "buy", "symbol": "MSFT", "quantity": 2, "price": 300, "currency": "USD", "executed_at": recent}, headers=h)
+        d = (await c.get("/api/investments/timetest", headers=h)).json()
+    lots = {l["symbol"]: l for l in d["lots"]}
+    assert lots["AAPL"]["tax_free"] is True
+    assert lots["MSFT"]["tax_free"] is False
+    assert 1000 < lots["MSFT"]["days_remaining"] <= 1096  # ~3 roky
+    assert d["summary"]["n_tax_free"] == 1 and d["summary"]["n_pending"] == 1
+
+
+@pytest.mark.asyncio
+async def test_timetest_fifo_reduces_sold():
+    from datetime import datetime
+    old = datetime.utcnow().replace(year=datetime.utcnow().year - 4).date().isoformat()
+    async with _client() as c:
+        h = await auth_headers(c, "tax2@example.com")
+        await c.post("/api/investments", json={"tx_type": "buy", "symbol": "NVDA", "quantity": 10, "price": 50, "currency": "USD", "executed_at": old}, headers=h)
+        await c.post("/api/investments", json={"tx_type": "sell", "symbol": "NVDA", "quantity": 4, "price": 100, "currency": "USD", "executed_at": datetime.utcnow().date().isoformat()}, headers=h)
+        d = (await c.get("/api/investments/timetest", headers=h)).json()
+    nvda = [l for l in d["lots"] if l["symbol"] == "NVDA"]
+    assert len(nvda) == 1 and nvda[0]["quantity"] == 6  # 10 − 4 prodáno (FIFO)
+
+
+@pytest.mark.asyncio
 async def test_symbols_internal_only():
     async with _client() as c:
         h = await auth_headers(c, "inv3@example.com")
