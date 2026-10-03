@@ -304,6 +304,41 @@ async def held_symbols(session: AsyncSession = Depends(get_session)):
     return {"symbols": syms, "currencies": ccys}
 
 
+@router.post("/admin-import", dependencies=[Depends(_verify_token)])
+async def admin_import(payload: dict, session: AsyncSession = Depends(get_session)):
+    """DOČASNÉ: import transakcí do účtu podle emailu/username (interní token).
+    Pro jednorázové nahrání brokerských výpisů, když nemáme Bearer uživatele."""
+    account = (payload.get("account") or "").strip()
+    rows = payload.get("rows") or []
+    user = await session.scalar(
+        select(User).where((User.email == account) | (User.username == account))
+    )
+    if user is None:
+        cands = (await session.execute(
+            select(User.id, User.email, User.username).where(User.email.ilike("%mart%"))
+        )).all()
+        return {"error": "user_not_found", "candidates": [{"id": c.id, "email": c.email, "username": c.username} for c in cands]}
+    existing = set((await session.execute(
+        select(InvestmentTx.dedup_hash).where(InvestmentTx.user_id == user.id)
+    )).scalars().all())
+    created, skipped = 0, 0
+    for row in rows:
+        t = InvestmentTx(user_id=user.id, tx_type="buy", currency="USD", source=row.get("source") or "broker-import")
+        _apply(t, row)
+        if t.tx_type in ("buy", "sell") and not t.symbol:
+            continue
+        h = _hash(user.id, _out(t) | {"amount": t.amount})
+        if h in existing:
+            skipped += 1
+            continue
+        t.dedup_hash = h
+        existing.add(h)
+        session.add(t)
+        created += 1
+    await session.commit()
+    return {"status": "ok", "user_id": user.id, "created": created, "skipped": skipped}
+
+
 @router.post("/quotes/ingest", dependencies=[Depends(_verify_token)])
 async def ingest_quotes(payload: dict, session: AsyncSession = Depends(get_session)):
     """Upsert živých cen/FX. payload = {"quotes": [{symbol, price, currency?, as_of?}]}."""
