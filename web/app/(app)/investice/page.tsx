@@ -5,10 +5,15 @@ import { Wallet, Plus, Upload, Trash2, Loader2, TrendingUp, Calculator, RefreshC
 import { useAuth, authHeaders } from "@/lib/auth";
 
 // ── Typy ────────────────────────────────────────────────────────────────────
+interface Signal {
+  color: "green" | "amber" | "red"; reasons: string[]; action: string;
+  trim_qty: number | null; add_zone: number | null; pos_52w: number | null;
+}
 interface Holding {
   symbol: string; name: string | null; quantity: number; avg_cost: number;
   invested: number; currency: string; price: number | null; value: number | null;
   unrealized: number | null; unrealized_pct: number | null; price_as_of: string | null;
+  weight_pct: number | null; high_52w: number | null; low_52w: number | null; signal: Signal;
 }
 interface Portfolio {
   base: string; holdings: Holding[];
@@ -113,6 +118,7 @@ export default function InvesticePage() {
                   <th className="px-4 py-2 font-medium text-right">Cena</th>
                   <th className="px-4 py-2 font-medium text-right">Hodnota</th>
                   <th className="px-4 py-2 font-medium text-right">P/L</th>
+                  <th className="px-4 py-2 font-medium">Semafor</th>
                 </tr>
               </thead>
               <tbody>
@@ -126,10 +132,11 @@ export default function InvesticePage() {
                     <td className="px-4 py-2.5 text-right text-gray-300">{fmt(h.avg_cost, h.currency)}</td>
                     <td className="px-4 py-2.5 text-right text-gray-300">{fmt(h.invested, h.currency)}</td>
                     <td className="px-4 py-2.5 text-right text-gray-300">{h.price === null ? "—" : fmt(h.price, h.currency)}</td>
-                    <td className="px-4 py-2.5 text-right text-gray-200">{fmt(h.value, h.currency)}</td>
+                    <td className="px-4 py-2.5 text-right text-gray-200">{fmt(h.value, h.currency)}{h.weight_pct !== null && <div className="text-[10px] text-gray-500">{h.weight_pct}% portfolia</div>}</td>
                     <td className={`px-4 py-2.5 text-right ${pnlColor(h.unrealized)}`}>
                       {h.unrealized === null ? "—" : <>{fmt(h.unrealized, h.currency)}<div className="text-[11px]">{pct(h.unrealized_pct)}</div></>}
                     </td>
+                    <td className="px-4 py-2.5"><SignalCell h={h} /></td>
                   </tr>
                 ))}
               </tbody>
@@ -142,6 +149,9 @@ export default function InvesticePage() {
           </div>
         )}
       </div>
+
+      {/* Semafor — co zvážit */}
+      {pf?.holdings.length ? <SignalSummary holdings={pf.holdings} /> : null}
 
       {/* Kalkulačka výhledu */}
       <ProjectionCalculator startValue={bt?.value ?? 0} />
@@ -164,6 +174,70 @@ function realizedSummary(pf: Portfolio | null): string {
   const div = Object.entries(pf.dividends_by_currency).reduce((a, [, v]) => a + (v || 0), 0);
   if (!parts.length && !div) return "0";
   return parts.join(" · ") || "0";
+}
+
+const DOT: Record<string, string> = { red: "bg-[#ff5050]", amber: "bg-amber-400", green: "bg-[#60ff82]" };
+const SIG_LABEL: Record<string, string> = { red: "Zvážit odebrání", amber: "Držet", green: "Prostor dokupovat" };
+
+function SignalCell({ h }: { h: Holding }) {
+  const s = h.signal;
+  const tip = [
+    s.reasons.length ? "Důvody: " + s.reasons.join(", ") : "",
+    s.pos_52w !== null ? `Poloha v 52T rozpětí: ${s.pos_52w} %` : "",
+    s.add_zone !== null ? `Zóna k dokupu: ~${fmt(s.add_zone, h.currency)}` : "",
+  ].filter(Boolean).join("\n");
+  return (
+    <div className="flex items-start gap-2" title={tip}>
+      <span className={`mt-1 inline-block h-2.5 w-2.5 shrink-0 rounded-full ${DOT[s.color]}`} />
+      <div className="min-w-0">
+        <div className="text-[12px] text-gray-200">{s.action}</div>
+        {s.add_zone !== null && <div className="text-[10px] text-gray-500">dokup ~{fmt(s.add_zone, h.currency)}</div>}
+      </div>
+    </div>
+  );
+}
+
+function SignalSummary({ holdings }: { holdings: Holding[] }) {
+  const reds = holdings.filter((h) => h.signal.color === "red");
+  const greens = holdings.filter((h) => h.signal.color === "green");
+  if (!reds.length && !greens.length) return null;
+  return (
+    <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-5">
+      <h2 className="text-sm font-semibold text-white">Co zvážit (semafor)</h2>
+      <div className="mt-3 grid gap-3 md:grid-cols-2">
+        {reds.length > 0 && (
+          <div>
+            <div className="mb-1.5 flex items-center gap-2 text-[11px] uppercase text-[#ff8080]"><span className="h-2 w-2 rounded-full bg-[#ff5050]" /> Zvážit odebrání</div>
+            <ul className="space-y-1.5">
+              {reds.map((h) => (
+                <li key={h.symbol} className="text-[13px] text-gray-300">
+                  <span className="font-medium text-white">{h.symbol}</span> — {h.signal.action}
+                  {h.signal.reasons.length > 0 && <span className="text-gray-500"> ({h.signal.reasons.join(", ")})</span>}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {greens.length > 0 && (
+          <div>
+            <div className="mb-1.5 flex items-center gap-2 text-[11px] uppercase text-[#8fffab]"><span className="h-2 w-2 rounded-full bg-[#60ff82]" /> Prostor dokupovat</div>
+            <ul className="space-y-1.5">
+              {greens.map((h) => (
+                <li key={h.symbol} className="text-[13px] text-gray-300">
+                  <span className="font-medium text-white">{h.symbol}</span>
+                  {h.signal.add_zone !== null && <span className="text-gray-500"> — zóna ~{fmt(h.signal.add_zone, h.currency)}</span>}
+                  {h.signal.reasons.length > 0 && <span className="text-gray-500"> ({h.signal.reasons.join(", ")})</span>}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+      <p className="mt-3 text-[11px] text-gray-500">
+        Semafor je orientační pravidlový signál (zisk, váha v portfoliu, poloha v 52týdenním rozpětí), <strong>ne investiční doporučení</strong>. Rozhoduješ sám.
+      </p>
+    </div>
+  );
 }
 
 function SummaryCard({ label, value, sub, hint, color = "text-white" }: { label: string; value: string; sub?: string; hint?: string; color?: string }) {

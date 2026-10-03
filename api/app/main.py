@@ -90,6 +90,15 @@ async def _startup_db() -> None:
                 log.info("Migration: users Stripe billing columns ensured")
             except Exception as e:
                 log.warning("Migration users Stripe skipped", error=str(e))
+            try:
+                await conn.execute(text(
+                    "ALTER TABLE investment_quotes "
+                    "ADD COLUMN IF NOT EXISTS high_52w DOUBLE PRECISION, "
+                    "ADD COLUMN IF NOT EXISTS low_52w DOUBLE PRECISION"
+                ))
+                log.info("Migration: investment_quotes 52w columns ensured")
+            except Exception as e:
+                log.warning("Migration investment_quotes skipped", error=str(e))
 
     # Auto-seed: pokud je DB prázdná (žádné tickery), spusť seed automaticky
     async with engine.connect() as conn:

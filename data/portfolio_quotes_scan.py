@@ -38,16 +38,35 @@ def _get_json(url: str):
         return None
 
 
+# Mapování suffixů na Yahoo burzovní kódy (uložený symbol zůstává původní).
+_YH_SUFFIX = {".NV": ".AS", ".NL": ".AS", ".SW": ".SW", ".LN": ".L", ".UK": ".L", ".GB": ".L"}
+
+
+def _yahoo_sym(symbol: str) -> str:
+    s = symbol.upper()
+    if s.endswith(".US"):
+        return s[:-3]  # US akcie na Yahoo bez suffixu
+    for suf, rep in _YH_SUFFIX.items():
+        if s.endswith(suf):
+            return s[:-len(suf)] + rep
+    return s
+
+
 def _quote(symbol: str) -> dict | None:
-    """Aktuální cena + měna z Yahoo chart meta."""
-    data = _get_json(f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?range=1d&interval=1d")
+    """Aktuální cena + měna z Yahoo chart meta (symbol normalizovaný na Yahoo kód)."""
+    data = _get_json(f"https://query1.finance.yahoo.com/v8/finance/chart/{_yahoo_sym(symbol)}?range=1d&interval=1d")
     try:
         meta = data["chart"]["result"][0]["meta"]
         price = meta.get("regularMarketPrice")
         if price is None:
             return None
-        return {"symbol": symbol.upper(), "price": float(price),
-                "currency": meta.get("currency"), "source": "yahoo"}
+        q = {"symbol": symbol.upper(), "price": float(price),
+             "currency": meta.get("currency"), "source": "yahoo"}
+        if meta.get("fiftyTwoWeekHigh") is not None:
+            q["high_52w"] = float(meta["fiftyTwoWeekHigh"])
+        if meta.get("fiftyTwoWeekLow") is not None:
+            q["low_52w"] = float(meta["fiftyTwoWeekLow"])
+        return q
     except (KeyError, IndexError, TypeError):
         return None
 

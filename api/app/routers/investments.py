@@ -196,6 +196,51 @@ def _to_base(amount: float | None, ccy: str, base: str, fx: dict[str, float]) ->
     return None
 
 
+def _signal(h: dict, weight: float | None, raw_qty: float) -> dict:
+    """Pravidlový semafor pro pozici — transparentní, NE investiční doporučení.
+    Vstupy: nerealizovaný zisk %, váha v portfoliu, poloha v 52T rozpětí.
+    Výstup: barva (green/amber/red), důvody, návrh akce, zóna k dokupu."""
+    reasons: list[str] = []
+    score = 0  # + = spíš odebrat/trimovat, − = spíš držet/dokoupit
+    up = h.get("unrealized_pct")
+    price = h.get("price")
+    hi, lo = h.get("high_52w"), h.get("low_52w")
+    pos52 = None
+    if price and hi and lo and hi > lo:
+        pos52 = (price - lo) / (hi - lo)
+
+    if up is not None and up >= 60:
+        reasons.append(f"velký zisk +{up:.0f} %"); score += 1
+    if weight is not None and weight >= 15:
+        reasons.append(f"velká váha v portfoliu {weight:.0f} %"); score += 1
+    if pos52 is not None:
+        if pos52 >= 0.9:
+            reasons.append("blízko 52T maxima"); score += 1
+        elif pos52 <= 0.15:
+            reasons.append("blízko 52T minima"); score -= 1
+
+    color = "red" if score >= 2 else ("green" if score <= -1 else "amber")
+
+    action, trim_qty = "držet / sledovat", None
+    if color == "red":
+        if weight is not None and weight >= 15:
+            trim_qty = round(raw_qty * (1 - 10.0 / weight), 4)
+            action = f"zvážit odebrání ~{trim_qty} ks (snížit váhu k 10 %)"
+        else:
+            action = "zvážit postupné odebrání části zisku"
+    elif color == "green":
+        action = "prostor k případnému dokupu"
+
+    # Zóna k dokupu: třetina cesty od 52T minima k ceně, jinak ~−10 % od ceny.
+    add_zone = None
+    if price:
+        add_zone = round(lo + (price - lo) * 0.33, 2) if (lo and pos52 is not None) else round(price * 0.9, 2)
+
+    return {"color": color, "reasons": reasons, "action": action,
+            "trim_qty": trim_qty, "add_zone": add_zone,
+            "pos_52w": round(pos52 * 100, 1) if pos52 is not None else None}
+
+
 @router.get("/portfolio")
 async def portfolio(base: str = Query(DEFAULT_BASE), user: User = Depends(current_user),
                     session: AsyncSession = Depends(get_session)):
@@ -257,6 +302,8 @@ async def portfolio(base: str = Query(DEFAULT_BASE), user: User = Depends(curren
             "unrealized": round(unreal, 2) if unreal is not None else None,
             "unrealized_pct": round(unreal_pct, 2) if unreal_pct is not None else None,
             "price_as_of": q.as_of.isoformat() if (q and q.as_of) else None,
+            "high_52w": q.high_52w if q else None, "low_52w": q.low_52w if q else None,
+            "_bv": None, "_raw_qty": h["qty"],
         })
         tc = totals_ccy.setdefault(ccy, {"invested": 0.0, "value": 0.0, "has_value": True})
         tc["invested"] += invested
@@ -266,11 +313,19 @@ async def portfolio(base: str = Query(DEFAULT_BASE), user: User = Depends(curren
             tc["has_value"] = False
         bi = _to_base(invested, ccy, base, fx)
         bv = _to_base(cur_value, ccy, base, fx) if cur_value is not None else None
+        holdings[-1]["_bv"] = bv
         if bi is None or (cur_value is not None and bv is None):
             base_complete = False
         else:
             base_invested += bi
             base_value += bv if bv is not None else 0
+
+    # Semafor — druhý průchod (potřebuje celkovou hodnotu pro váhu pozice).
+    for hd in holdings:
+        weight = (hd.pop("_bv") / base_value * 100) if (base_value and hd.get("_bv")) else None
+        raw_qty = hd.pop("_raw_qty")
+        hd["weight_pct"] = round(weight, 2) if weight is not None else None
+        hd["signal"] = _signal(hd, weight, raw_qty)
 
     return {
         "base": base,
@@ -304,51 +359,6 @@ async def held_symbols(session: AsyncSession = Depends(get_session)):
     return {"symbols": syms, "currencies": ccys}
 
 
-@router.post("/admin-import", dependencies=[Depends(_verify_token)])
-async def admin_import(payload: dict, session: AsyncSession = Depends(get_session)):
-    """DOČASNÉ: import transakcí do účtu podle emailu/username (interní token).
-    Pro jednorázové nahrání brokerských výpisů, když nemáme Bearer uživatele."""
-    account = (payload.get("account") or "").strip()
-    rows = payload.get("rows") or []
-    user = await session.scalar(
-        select(User).where((User.email == account) | (User.username == account))
-    )
-    if user is None:
-        cands = (await session.execute(
-            select(User.id, User.email, User.username).where(
-                User.email.ilike("%mart%") | User.username.ilike("%mart%"))
-        )).all()
-        return {"error": "user_not_found", "candidates": [{"id": c.id, "email": c.email, "username": c.username} for c in cands]}
-
-    if payload.get("replace"):
-        await session.execute(delete(InvestmentTx).where(
-            InvestmentTx.user_id == user.id, InvestmentTx.broker.in_(["xtb", "etoro"])))
-        await session.commit()
-
-    existing = set((await session.execute(
-        select(InvestmentTx.dedup_hash).where(InvestmentTx.user_id == user.id)
-    )).scalars().all())
-    created, skipped = 0, 0
-    for row in rows:
-        t = InvestmentTx(user_id=user.id, tx_type="buy", currency="USD", source=row.get("source") or "broker-import")
-        _apply(t, row)
-        if t.tx_type in ("buy", "sell") and not t.symbol:
-            continue
-        # Dedup dle brokerského ref (ID pozice/operace) — stabilní přes re-import,
-        # nekoliduje u legitimně stejných per-lot dividend/frakčních nákupů.
-        ref = row.get("ref")
-        h = hashlib.sha256(f"{user.id}|{ref}".encode()).hexdigest()[:40] if ref else _hash(user.id, _out(t) | {"amount": t.amount})
-        if h in existing:
-            skipped += 1
-            continue
-        t.dedup_hash = h
-        existing.add(h)
-        session.add(t)
-        created += 1
-    await session.commit()
-    return {"status": "ok", "user_id": user.id, "created": created, "skipped": skipped}
-
-
 @router.post("/quotes/ingest", dependencies=[Depends(_verify_token)])
 async def ingest_quotes(payload: dict, session: AsyncSession = Depends(get_session)):
     """Upsert živých cen/FX. payload = {"quotes": [{symbol, price, currency?, as_of?}]}."""
@@ -368,6 +378,10 @@ async def ingest_quotes(payload: dict, session: AsyncSession = Depends(get_sessi
         q.price = price
         if it.get("currency"):
             q.currency = str(it["currency"]).strip().upper()[:8]
+        if _num(it.get("high_52w")) is not None:
+            q.high_52w = _num(it.get("high_52w"))
+        if _num(it.get("low_52w")) is not None:
+            q.low_52w = _num(it.get("low_52w"))
         q.as_of = _parse_dt(it.get("as_of")) or datetime.utcnow()
         q.source = (it.get("source") or "yahoo")[:40]
         n += 1

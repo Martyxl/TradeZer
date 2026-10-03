@@ -79,6 +79,32 @@ async def test_import_dedup():
         assert r2.json()["created"] == 0 and r2.json()["skipped"] == 1
 
 
+def test_signal_rules():
+    from app.routers.investments import _signal
+    # velký zisk + velká váha + blízko 52T maxima → red + návrh trim
+    red = _signal({"unrealized_pct": 80, "price": 100, "high_52w": 102, "low_52w": 50}, weight=20, raw_qty=10)
+    assert red["color"] == "red" and red["trim_qty"] is not None
+    # blízko 52T minima, malá váha → green + zóna dokupu
+    green = _signal({"unrealized_pct": -5, "price": 52, "high_52w": 150, "low_52w": 50}, weight=3, raw_qty=10)
+    assert green["color"] == "green" and green["add_zone"] is not None
+    # bez ceny (žádný quote) → amber, nic nepadá
+    amber = _signal({"unrealized_pct": None, "price": None, "high_52w": None, "low_52w": None}, weight=None, raw_qty=1)
+    assert amber["color"] == "amber"
+
+
+@pytest.mark.asyncio
+async def test_portfolio_has_signal():
+    async with _client() as c:
+        h = await auth_headers(c, "sig@example.com")
+        await c.post("/api/investments", json={"tx_type": "buy", "symbol": "TSLA", "quantity": 10, "price": 100, "currency": "USD"}, headers=h)
+        await c.post("/api/investments/quotes/ingest", json={"quotes": [
+            {"symbol": "TSLA", "price": 180, "currency": "USD", "high_52w": 185, "low_52w": 90}]}, headers=TOKEN)
+        d = (await c.get("/api/investments/portfolio", headers=h)).json()
+        sig = d["holdings"][0]["signal"]
+        assert sig["color"] in ("red", "amber", "green")
+        assert "pos_52w" in sig
+
+
 @pytest.mark.asyncio
 async def test_symbols_internal_only():
     async with _client() as c:

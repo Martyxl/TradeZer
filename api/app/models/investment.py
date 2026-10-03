@@ -44,6 +44,8 @@ class InvestmentQuote(Base):
     symbol: Mapped[str] = mapped_column(String(40), primary_key=True)  # AAPL | USDCZK | EURCZK
     price: Mapped[float] = mapped_column(Float, nullable=False)
     currency: Mapped[str | None] = mapped_column(String(8))
+    high_52w: Mapped[float | None] = mapped_column(Float)   # pro semafor (poloha v rozpětí)
+    low_52w: Mapped[float | None] = mapped_column(Float)
     as_of: Mapped[datetime | None] = mapped_column(DateTime)
     source: Mapped[str | None] = mapped_column(String(40))
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
