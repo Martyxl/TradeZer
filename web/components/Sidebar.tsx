@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, History, BarChart3, Sunrise, Target, NotebookPen, Telescope, Landmark, BookOpen, User as UserIcon, LogOut, CreditCard, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, History, BarChart3, Sunrise, Target, NotebookPen, Telescope, Landmark, BookOpen, User as UserIcon, LogOut, CreditCard, ShieldCheck, Wallet } from "lucide-react";
 import { SupportButton } from "@/components/SupportButton";
 import { useAuth } from "@/lib/auth";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/denik", label: "Deník", icon: NotebookPen },
+  { href: "/investice", label: "Investice", icon: Wallet },
   { href: "/history", label: "Historie", icon: History },
   { href: "/stats", label: "Statistiky", icon: BarChart3 },
   { href: "/orb", label: "ORB Radar", icon: Sunrise },
