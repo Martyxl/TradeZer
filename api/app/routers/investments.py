@@ -315,9 +315,16 @@ async def admin_import(payload: dict, session: AsyncSession = Depends(get_sessio
     )
     if user is None:
         cands = (await session.execute(
-            select(User.id, User.email, User.username).where(User.email.ilike("%mart%"))
+            select(User.id, User.email, User.username).where(
+                User.email.ilike("%mart%") | User.username.ilike("%mart%"))
         )).all()
         return {"error": "user_not_found", "candidates": [{"id": c.id, "email": c.email, "username": c.username} for c in cands]}
+
+    if payload.get("replace"):
+        await session.execute(delete(InvestmentTx).where(
+            InvestmentTx.user_id == user.id, InvestmentTx.broker.in_(["xtb", "etoro"])))
+        await session.commit()
+
     existing = set((await session.execute(
         select(InvestmentTx.dedup_hash).where(InvestmentTx.user_id == user.id)
     )).scalars().all())
@@ -327,7 +334,10 @@ async def admin_import(payload: dict, session: AsyncSession = Depends(get_sessio
         _apply(t, row)
         if t.tx_type in ("buy", "sell") and not t.symbol:
             continue
-        h = _hash(user.id, _out(t) | {"amount": t.amount})
+        # Dedup dle brokerského ref (ID pozice/operace) — stabilní přes re-import,
+        # nekoliduje u legitimně stejných per-lot dividend/frakčních nákupů.
+        ref = row.get("ref")
+        h = hashlib.sha256(f"{user.id}|{ref}".encode()).hexdigest()[:40] if ref else _hash(user.id, _out(t) | {"amount": t.amount})
         if h in existing:
             skipped += 1
             continue
