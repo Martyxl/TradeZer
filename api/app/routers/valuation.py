@@ -52,6 +52,18 @@ async def groups(session: AsyncSession = Depends(get_session)):
     )
 
 
+@router.get("/universe", dependencies=[Depends(_verify_token)])
+async def universe(session: AsyncSession = Depends(get_session)):
+    """Seznam display tickerů (interní token) — pro cenový backfill scanner na Sparku,
+    aby pokrýval všechny zobrazované firmy a percentil nestárl."""
+    rows = (await session.execute(
+        select(ValInstrument.ticker).where(
+            ValInstrument.in_display_universe == True,  # noqa: E712
+            ValInstrument.active == True)  # noqa: E712
+        .order_by(ValInstrument.ticker))).scalars().all()
+    return {"tickers": list(rows)}
+
+
 @router.get("/overview", response_model=S.OverviewResponse, dependencies=_TRADER)
 async def overview(
     group: str | None = Query(default=None),

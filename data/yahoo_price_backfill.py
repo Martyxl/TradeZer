@@ -14,7 +14,7 @@ Použití:
   TRADEZER_BASE=https://tradezer.app TRADEZER_TOKEN=... py data/yahoo_price_backfill.py
 """
 from __future__ import annotations
-import os, sys, time
+import argparse, os, sys, time
 import httpx
 
 # Windows konzole (cp1250) neumí unicode šipky apod. → vynuť UTF-8 výstup.
@@ -28,11 +28,22 @@ TOKEN = os.environ.get("TRADEZER_TOKEN", "")
 if not TOKEN:
     raise SystemExit("Chybí TRADEZER_TOKEN env (interní API token). Nastav ho a spusť znovu.")
 DEFAULT_TICKERS = ["LLY", "MRK", "AVGO", "AMGN", "VRTX", "OGN"]
+# Rozsah stahování: plné seedování historie = 10y; denní udržování (Spark) stačí
+# krátký (např. 1mo) → rychlé, jen doplní nejnovější bary (ingest je idempotentní).
+RANGE = os.environ.get("YH_RANGE", "10y")
 
 _UA = {"User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
                       "(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36")}
 _CHART = ("https://query1.finance.yahoo.com/v8/finance/chart/{t}"
-          "?range=10y&interval=1d&includeAdjustedClose=true")
+          "?range=" + RANGE + "&interval=1d&includeAdjustedClose=true")
+
+
+def fetch_universe() -> list[str]:
+    """Display tickery z backendu (interní token) — ať backfill pokryje vše."""
+    r = httpx.get(f"{BASE}/api/valuation/universe",
+                  headers={"X-Internal-Token": TOKEN}, timeout=30)
+    r.raise_for_status()
+    return r.json().get("tickers", [])
 
 
 def fetch_yahoo(ticker: str) -> list[dict]:
@@ -90,8 +101,7 @@ def recompute(tickers: list[str]) -> dict:
     return r.json()
 
 
-def main() -> None:
-    tickers = [a.upper() for a in sys.argv[1:]] or DEFAULT_TICKERS
+def run_once(tickers: list[str]) -> None:
     ok = []
     for t in tickers:
         try:
@@ -106,7 +116,34 @@ def main() -> None:
     if ok:
         rc = recompute(ok)
         st = rc.get("stages", {})
-        print(f"\nRecompute {ok}:\n  compute={st.get('compute')}\n  score={st.get('score')}")
+        print(f"Recompute {len(ok)} firem: compute={st.get('compute')} score={st.get('score')}")
+
+
+def _resolve_tickers(args) -> list[str]:
+    if args.tickers:
+        return [a.upper() for a in args.tickers]
+    # bez tickerů → všechny display firmy z backendu (fallback na default)
+    try:
+        u = fetch_universe()
+        if u:
+            return u
+    except Exception as e:  # noqa: BLE001
+        print(f"universe fetch fail: {e} — fallback na default")
+    return DEFAULT_TICKERS
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("tickers", nargs="*", help="konkrétní tickery; prázdné = všechny display firmy")
+    ap.add_argument("--loop", type=int, default=0, help="opakuj každých N minut (Spark: 1440 = denně)")
+    args = ap.parse_args()
+    while True:
+        tickers = _resolve_tickers(args)
+        print(f"[{time.strftime('%Y-%m-%d %H:%M')}] backfill {len(tickers)} firem (range={RANGE}) -> {BASE}")
+        run_once(tickers)
+        if args.loop <= 0:
+            break
+        time.sleep(args.loop * 60)
 
 
 if __name__ == "__main__":
