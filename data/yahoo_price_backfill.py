@@ -14,8 +14,10 @@ Použití:
   TRADEZER_BASE=https://tradezer.app TRADEZER_TOKEN=... py data/yahoo_price_backfill.py
 """
 from __future__ import annotations
-import argparse, os, sys, time
-import httpx
+import argparse, json, os, sys, time
+import urllib.error
+import urllib.parse
+import urllib.request
 
 # Windows konzole (cp1250) neumí unicode šipky apod. → vynuť UTF-8 výstup.
 try:
@@ -38,19 +40,28 @@ _CHART = ("https://query1.finance.yahoo.com/v8/finance/chart/{t}"
           "?range=" + RANGE + "&interval=1d&includeAdjustedClose=true")
 
 
+def _get(url: str, headers: dict, timeout: int = 45) -> dict:
+    req = urllib.request.Request(url, headers=headers)
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return json.loads(r.read().decode())
+
+
+def _post(url: str, payload: dict, headers: dict, timeout: int = 90) -> dict:
+    body = json.dumps(payload).encode()
+    req = urllib.request.Request(url, data=body, method="POST",
+                                 headers={**headers, "Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return json.loads(r.read().decode())
+
+
 def fetch_universe() -> list[str]:
     """Display tickery z backendu (interní token) — ať backfill pokryje vše."""
-    r = httpx.get(f"{BASE}/api/valuation/universe",
-                  headers={"X-Internal-Token": TOKEN}, timeout=30)
-    r.raise_for_status()
-    return r.json().get("tickers", [])
+    return _get(f"{BASE}/api/valuation/universe", {"X-Internal-Token": TOKEN}, 30).get("tickers", [])
 
 
 def fetch_yahoo(ticker: str) -> list[dict]:
     """Vrátí denní bary [{date, open, high, low, close, adj_close, volume}] ASC."""
-    r = httpx.get(_CHART.format(t=ticker), headers=_UA, timeout=45)
-    r.raise_for_status()
-    res = r.json()["chart"]["result"][0]
+    res = _get(_CHART.format(t=ticker), _UA, 45)["chart"]["result"][0]
     ts = res.get("timestamp") or []
     q = res["indicators"]["quote"][0]
     adj = (res["indicators"].get("adjclose") or [{}])[0].get("adjclose") or [None] * len(ts)
@@ -71,9 +82,7 @@ def _post_with_retry(url: str, payload: dict, headers: dict, tries: int = 3) -> 
     last_exc = None
     for attempt in range(tries):
         try:
-            r = httpx.post(url, headers=headers, json=payload, timeout=90)
-            r.raise_for_status()
-            return r.json()
+            return _post(url, payload, headers, 90)
         except Exception as e:  # noqa: BLE001
             last_exc = e
             time.sleep(2 * (attempt + 1))
@@ -94,11 +103,8 @@ def post_prices(ticker: str, bars: list[dict]) -> dict:
 
 
 def recompute(tickers: list[str]) -> dict:
-    r = httpx.post(f"{BASE}/api/valuation/refresh",
-                   params={"tickers": ",".join(tickers), "with_ingest": "false"},
-                   headers={"X-Internal-Token": TOKEN}, timeout=90)
-    r.raise_for_status()
-    return r.json()
+    qs = urllib.parse.urlencode({"tickers": ",".join(tickers), "with_ingest": "false"})
+    return _post(f"{BASE}/api/valuation/refresh?{qs}", {}, {"X-Internal-Token": TOKEN}, 90)
 
 
 def run_once(tickers: list[str]) -> None:
