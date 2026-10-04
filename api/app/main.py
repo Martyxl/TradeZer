@@ -28,6 +28,7 @@ from app.routers import (
     smart_money_router,
     billing_router,
     investments_router,
+    darkpool_router,
 )
 
 structlog.configure(
@@ -196,6 +197,7 @@ app.include_router(gamma_router)
 app.include_router(smart_money_router)
 app.include_router(billing_router)
 app.include_router(investments_router)
+app.include_router(darkpool_router)
 
 
 @app.get("/")
