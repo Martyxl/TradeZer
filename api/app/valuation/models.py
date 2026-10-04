@@ -42,6 +42,8 @@ class ValInstrument(Base):
     in_display_universe: Mapped[bool] = mapped_column(Boolean, default=False)
     in_peer_universe: Mapped[bool] = mapped_column(Boolean, default=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Kolikrát si firmu vyžádali uživatelé (přidání na přání) — co je „v kurzu".
+    request_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
 

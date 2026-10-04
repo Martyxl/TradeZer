@@ -5,17 +5,25 @@ meta (as_of_date, model_version, data_source, disclaimer).
 """
 from __future__ import annotations
 
+import json
+import time
+import urllib.request
 from datetime import date, timedelta
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.concurrency import run_in_threadpool
 
 from app.config import settings
 from app.db import get_session
+from app.models import InvestmentTx, User
 from app.routers.admin import _verify_token
-from app.routers.auth import require_plan
+from app.routers.auth import require_plan, current_user
 from app.valuation import schemas as S
+
+log = structlog.get_logger(__name__)
 
 # Placené moduly: Valuation Radar je od plánu Trader výš (server-side gate).
 _TRADER = [Depends(require_plan("trader"))]
@@ -38,6 +46,62 @@ async def _latest_score_date(session: AsyncSession) -> date | None:
         select(func.max(ValScoreDaily.as_of_date)).where(
             ValScoreDaily.model_version == settings.val_model_version)
     )
+
+
+_sec_tickers_cache: dict = {"data": None, "ts": 0.0}
+
+
+def _load_sec_tickers() -> dict:
+    """SEC mapa ticker→název (cache 24 h). Blokující — volat přes threadpool."""
+    now = time.time()
+    if _sec_tickers_cache["data"] and now - _sec_tickers_cache["ts"] < 86400:
+        return _sec_tickers_cache["data"]
+    try:
+        req = urllib.request.Request("https://www.sec.gov/files/company_tickers.json",
+                                     headers={"User-Agent": settings.sec_user_agent})
+        with urllib.request.urlopen(req, timeout=20) as r:
+            raw = json.loads(r.read().decode())
+        data = {str(v["ticker"]).upper(): (v.get("title") or "")
+                for v in raw.values() if v.get("ticker")}
+        _sec_tickers_cache.update(data=data, ts=now)
+        return data
+    except Exception as e:  # noqa: BLE001
+        log.warning("SEC tickers fetch fail", error=str(e))
+        return _sec_tickers_cache["data"] or {}
+
+
+def _resolve_ticker(query: str) -> tuple[str, str] | None:
+    """Z dotazu (ticker nebo název firmy) vrátí (ticker, název) přes SEC mapu."""
+    q = query.strip()
+    if not q:
+        return None
+    m = _load_sec_tickers()
+    up = q.upper()
+    if up in m:
+        return up, m[up]
+    ql = q.lower()
+    matches = [(t, n) for t, n in m.items() if ql in n.lower()]
+    if matches:
+        matches.sort(key=lambda x: len(x[1]))  # nejkratší název = nejpřesnější
+        return matches[0]
+    return None
+
+
+async def _held_tickers(session: AsyncSession, user_id: int) -> set[str]:
+    """Tickery, které uživatel reálně drží (net > 0), vč. base bez burz. suffixu."""
+    rows = (await session.execute(
+        select(InvestmentTx.symbol, InvestmentTx.tx_type, InvestmentTx.quantity).where(
+            InvestmentTx.user_id == user_id, InvestmentTx.symbol.isnot(None),
+            InvestmentTx.tx_type.in_(("buy", "sell"))))).all()
+    net: dict[str, float] = {}
+    for sym, tt, qty in rows:
+        net[sym] = net.get(sym, 0) + (qty or 0) * (1 if tt == "buy" else -1)
+    held = set()
+    for sym, v in net.items():
+        if v > 1e-9:
+            held.add(sym.upper())
+            held.add(sym.split(".")[0].upper())  # OGN.US → OGN (valuation má plain)
+    return held
 
 
 # ---- static routes (před dynamickým /{ticker}) ------------------------------
@@ -64,12 +128,64 @@ async def universe(session: AsyncSession = Depends(get_session)):
     return {"tickers": list(rows)}
 
 
-@router.get("/overview", response_model=S.OverviewResponse, dependencies=_TRADER)
+@router.post("/request")
+async def request_ticker(payload: dict, user: User = Depends(current_user),
+                         session: AsyncSession = Depends(get_session)):
+    """Přidání akcie na přání: zákazník zadá ticker/název → přidá se do seznamu
+    (community) + počítadlo požadavků + best-effort SEC výpočet (jinak dopočítá Spark)."""
+    query = (payload.get("query") or payload.get("ticker") or "").strip()
+    if not query:
+        raise HTTPException(status_code=400, detail="Zadej ticker nebo název firmy.")
+    resolved = await run_in_threadpool(_resolve_ticker, query)
+    if not resolved:
+        raise HTTPException(status_code=404, detail="Firma nenalezena. Zkus přesný ticker (např. AAPL).")
+    ticker, name = resolved
+
+    # zajisti community skupinu (FK)
+    if await session.scalar(select(ValGroup).where(ValGroup.key == "community")) is None:
+        session.add(ValGroup(key="community", label_cs="Na přání", label_en="Community",
+                             color_hex="#9184d9", sort_order=99))
+        await session.commit()
+
+    inst = await session.get(ValInstrument, ticker)
+    newly = inst is None
+    if inst is None:
+        inst = ValInstrument(ticker=ticker, name=name, group_key="community",
+                             in_display_universe=True, in_peer_universe=True, active=True, request_count=1)
+        session.add(inst)
+    else:
+        inst.request_count = (inst.request_count or 0) + 1
+        inst.in_display_universe = True
+        if not inst.name:
+            inst.name = name
+    await session.commit()
+
+    # Best-effort okamžitý výpočet (1 ticker se do 60 s vejde; chyba nevadí → dopočítá Spark).
+    computed = False
+    try:
+        from app.valuation.ingest import ingest_all
+        from app.valuation.compute import compute_all
+        from app.valuation.score import score_all
+        await ingest_all(session, tickers=[ticker], force=False, provider_name="sec")
+        await compute_all(session, tickers=[ticker])
+        r = await score_all(session, tickers=[ticker])
+        computed = bool(r.get("scored"))
+    except Exception as e:  # noqa: BLE001
+        log.warning("request ticker ingest best-effort fail", ticker=ticker, error=str(e))
+
+    return {"status": "ok", "ticker": ticker, "name": name, "newly_added": newly,
+            "computed": computed, "request_count": inst.request_count}
+
+
+@router.get("/overview", response_model=S.OverviewResponse)
 async def overview(
     group: str | None = Query(default=None),
     min_confidence: float = Query(default=0.0, ge=0.0, le=1.0),
+    portfolio: bool = Query(default=False, description="Jen tituly z portfolia uživatele"),
+    user: User = Depends(require_plan("trader")),
     session: AsyncSession = Depends(get_session),
 ):
+    held = await _held_tickers(session, user.id) if portfolio else None
     version = settings.val_model_version
     # NEJNOVĚJŠÍ skóre PER FIRMA (různé firmy skórované různé dny se nesmí schovávat).
     all_scores = (await session.execute(select(ValScoreDaily).where(
@@ -95,6 +211,8 @@ async def overview(
         inst = instruments.get(ticker)
         if inst is None:  # jen display univerzum
             continue
+        if held is not None and ticker.upper() not in held:
+            continue  # filtr: jen portfolio
         if group and inst.group_key != group:
             continue
         if (s.confidence or 0) < min_confidence:

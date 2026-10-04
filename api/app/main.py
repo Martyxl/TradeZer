@@ -100,6 +100,14 @@ async def _startup_db() -> None:
                 log.info("Migration: investment_quotes 52w columns ensured")
             except Exception as e:
                 log.warning("Migration investment_quotes skipped", error=str(e))
+            try:
+                await conn.execute(text(
+                    "ALTER TABLE val_instruments "
+                    "ADD COLUMN IF NOT EXISTS request_count INTEGER NOT NULL DEFAULT 0"
+                ))
+                log.info("Migration: val_instruments request_count ensured")
+            except Exception as e:
+                log.warning("Migration val_instruments skipped", error=str(e))
 
     # Auto-seed: pokud je DB prázdná (žádné tickery), spusť seed automaticky
     async with engine.connect() as conn:

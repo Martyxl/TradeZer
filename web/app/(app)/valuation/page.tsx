@@ -26,6 +26,11 @@ function ValuationInner() {
   const [selected, setSelected] = useState<string | null>(null);
   const [asOf, setAsOf] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [portfolio, setPortfolio] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [addQuery, setAddQuery] = useState("");
+  const [adding, setAdding] = useState(false);
+  const [addMsg, setAddMsg] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/valuation/groups", { cache: "no-store", headers: authHeaders() })
@@ -34,13 +39,41 @@ function ValuationInner() {
 
   useEffect(() => {
     setLoading(true);
-    const q = group ? `?group=${group}` : "";
-    fetch(`/api/valuation/overview${q}`, { cache: "no-store", headers: authHeaders() })
+    const p = new URLSearchParams();
+    if (group) p.set("group", group);
+    if (portfolio) p.set("portfolio", "true");
+    const qs = p.toString();
+    fetch(`/api/valuation/overview${qs ? "?" + qs : ""}`, { cache: "no-store", headers: authHeaders() })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => { setItems(d?.items ?? []); setAsOf(d?.meta?.as_of_date ?? null); })
       .catch(() => setItems([]))
       .finally(() => setLoading(false));
-  }, [group]);
+  }, [group, portfolio, refreshKey]);
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault();
+    const q = addQuery.trim();
+    if (!q) return;
+    setAdding(true); setAddMsg(null);
+    try {
+      const res = await fetch("/api/valuation/request", {
+        method: "POST", headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ query: q }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setAddMsg(`${d.ticker} (${d.name}) přidáno${d.computed ? " a spočítáno" : " — přepočítá se brzy"}.`);
+        setAddQuery("");
+        setRefreshKey((k) => k + 1);
+      } else {
+        setAddMsg(d.detail || "Nepodařilo se přidat.");
+      }
+    } catch {
+      setAddMsg("Chyba připojení.");
+    } finally {
+      setAdding(false);
+    }
+  }
 
   return (
     <div className="space-y-5">
@@ -83,7 +116,25 @@ function ValuationInner() {
             {g.label_cs}
           </button>
         ))}
+        <button onClick={() => setPortfolio((v) => !v)}
+          className={`ml-auto rounded-full px-3 py-1 text-xs border ${portfolio
+            ? "bg-[rgba(96,255,130,0.14)] text-[#8fffab] border-[rgba(96,255,130,0.4)]"
+            : "bg-[#151823] text-gray-400 border-[#2a2d3a] hover:text-white"}`}>
+          {portfolio ? "✓ " : ""}Jen moje portfolio
+        </button>
       </div>
+
+      {/* Přidat akcii na přání */}
+      <form onSubmit={handleAdd} className="flex flex-wrap items-center gap-2">
+        <input value={addQuery} onChange={(e) => setAddQuery(e.target.value)}
+          placeholder="Přidat akcii k výpočtu — ticker nebo název (např. AAPL / Palantir)"
+          className="min-w-[280px] flex-1 rounded-lg border border-[#2a2d3a] bg-[#0f1117] px-3 py-2 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-[#60ff82]" />
+        <button type="submit" disabled={adding || !addQuery.trim()}
+          className="flex items-center gap-1.5 rounded-lg border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.12)] px-4 py-2 text-sm font-medium text-[#8fffab] hover:bg-[rgba(96,255,130,0.18)] disabled:opacity-50">
+          {adding && <Loader2 size={14} className="animate-spin" />} Přidat
+        </button>
+        {addMsg && <span className="text-xs text-gray-400">{addMsg}</span>}
+      </form>
 
       {loading ? (
         <div className="flex h-[460px] flex-col items-center justify-center gap-3 rounded-xl border border-[#2a2d3a] bg-[#151823] text-gray-400">
@@ -96,8 +147,9 @@ function ValuationInner() {
       ) : items.length === 0 ? (
         <div className="rounded-xl border border-yellow-800 bg-yellow-950/40 p-6 text-center text-sm text-yellow-300">
           <Info size={18} className="inline mb-1" /><br />
-          Zatím nejsou k dispozici žádná skóre. Spusť ingest fundamentů a přepočet
-          (<code className="text-yellow-200">make ingest &amp;&amp; make score</code>, nebo POST /api/valuation/refresh).
+          {portfolio
+            ? "Žádný z tvých titulů zatím není ve výpočtu. Přidej ho výše polem nahoře (ticker nebo název firmy)."
+            : "Zatím nejsou k dispozici žádná skóre. Přidej akcii výše, nebo spusť přepočet (POST /api/valuation/refresh)."}
         </div>
       ) : view === "map" ? (
         <>
