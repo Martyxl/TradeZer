@@ -192,6 +192,20 @@ def _earnings(ticker: str) -> dict:
     return out
 
 
+def _news_7d(ticker: str) -> dict:
+    """News-flow katalyzátor: počet zpráv za 7 dní + poslední titulek (Finnhub)."""
+    today = dt.date.today()
+    data = _finnhub_get("/company-news", {
+        "symbol": ticker,
+        "from": (today - dt.timedelta(days=7)).isoformat(),
+        "to": today.isoformat(),
+    })
+    if isinstance(data, list) and data:
+        latest = max(data, key=lambda a: a.get("datetime", 0))
+        return {"news_7d": len(data), "news_headline": (latest.get("headline") or "")[:140]}
+    return {"news_7d": 0}
+
+
 def _scan(tickers: list[str]) -> list[dict]:
     """Yahoo momentum pass přes celé univerzum → seřazené items se score."""
     items = []
@@ -221,9 +235,10 @@ def _enrich(items: list[dict]) -> tuple[list[dict], int]:
             continue  # přerostlý mega-cap → mimo univerzum
         kept.append(it)
     top = kept[:CATALYST_TOP_N]
-    print(f"Finnhub: earnings pro top {len(top)}…")
+    print(f"Finnhub: earnings + news-flow pro top {len(top)}…")
     for it in top:
         it.update(_earnings(it["ticker"]))
+        it.update(_news_7d(it["ticker"]))
     return kept, dropped
 
 

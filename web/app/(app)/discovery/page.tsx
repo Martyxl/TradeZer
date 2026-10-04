@@ -12,6 +12,7 @@ interface DItem {
   above_sma20: boolean | null; above_sma50: boolean | null; score: number;
   market_cap?: number | null; days_to_earnings?: number | null;
   earnings_date?: string | null; last_surprise_pct?: number | null;
+  news_7d?: number | null; news_headline?: string | null;
 }
 interface DData {
   generated: string | null; universe_size: number; scanned: number;
@@ -171,6 +172,11 @@ function DiscoveryInner() {
                       <td className="px-3 py-2.5">
                         <a href={`https://www.tradingview.com/chart/?symbol=${i.ticker}`} target="_blank" rel="noopener noreferrer"
                           className="font-semibold text-gray-100 hover:text-blue-400">{i.ticker}</a>
+                        {i.news_7d != null && i.news_7d > 0 && (
+                          <span className="ml-1.5 text-[10px] px-1 py-0.5 rounded bg-blue-950/50 text-blue-300 border border-blue-900/40"
+                            title={i.news_headline ?? undefined}>📰 {i.news_7d}</span>
+                        )}
+                        {i.news_headline && <div className="text-[10px] text-gray-600 truncate max-w-[220px]">{i.news_headline}</div>}
                       </td>
                       <td className="px-3 py-2.5 text-right text-gray-300 font-mono">{i.price}</td>
                       <td className="px-3 py-2.5 text-right font-mono text-gray-400">{fmtCap(i.market_cap)}</td>
