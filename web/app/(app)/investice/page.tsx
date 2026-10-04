@@ -289,11 +289,14 @@ function ProjectionCalculator({ startValue }: { startValue: number }) {
         <Field label="Roky"><input type="number" className="inv-input" value={years} onChange={(e) => setYears(Math.max(1, Math.min(40, +e.target.value)))} /></Field>
       </div>
 
-      {/* Sloupcový graf */}
-      <div className="mt-5 flex items-end gap-2 h-40">
+      {/* Sloupcový graf — pevně-výšková kolej, uvnitř sloupec s % výškou */}
+      <div className="mt-5 flex items-end gap-2">
         {series.map((p) => (
-          <div key={p.year} className="flex flex-1 flex-col items-center justify-end gap-1" title={`Rok ${p.year}: ${fmt(Math.round(p.value))} CZK`}>
-            <div className="w-full rounded-t bg-gradient-to-t from-[#1e6b3a] to-[#60ff82]" style={{ height: `${(p.value / maxV) * 100}%` }} />
+          <div key={p.year} className="flex flex-1 flex-col items-center gap-1" title={`Rok ${p.year}: ${fmt(Math.round(p.value))} CZK`}>
+            <div className="flex h-36 w-full items-end">
+              <div className="w-full rounded-t bg-gradient-to-t from-[#1e6b3a] to-[#60ff82] transition-all"
+                style={{ height: `${Math.max(3, (p.value / maxV) * 100)}%` }} />
+            </div>
             <div className="text-[10px] text-gray-500">{p.year}r</div>
           </div>
         ))}
