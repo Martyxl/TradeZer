@@ -189,6 +189,24 @@ app.add_middleware(
     allow_headers=["Content-Type", "X-Internal-Token", "Authorization"],
 )
 
+# CDN cache pro VEŘEJNÉ read endpointy (free tier, stejná data pro všechny) — Vercel
+# edge je servíruje z cache a většina requestů vůbec nesáhne na funkci/DB → škáluje
+# do vysoké návštěvnosti. Placené/per-user endpointy (valuation, discovery, smart-money,
+# dark-pool, investments, auth, admin) tu NEJSOU — ty se cachovat nesmí (paywall/data).
+_CACHEABLE_PREFIXES = ("/api/bias", "/api/gamma", "/api/news", "/api/summary",
+                       "/api/stats", "/api/history", "/api/tickers", "/api/health")
+
+
+@app.middleware("http")
+async def _cdn_cache(request, call_next):
+    resp = await call_next(request)
+    if (request.method == "GET" and resp.status_code == 200
+            and request.url.path.startswith(_CACHEABLE_PREFIXES)
+            and "cache-control" not in (k.lower() for k in resp.headers.keys())):
+        resp.headers["Cache-Control"] = "public, s-maxage=60, stale-while-revalidate=600"
+    return resp
+
+
 app.include_router(tickers_router)
 app.include_router(news_router)
 app.include_router(summary_router)

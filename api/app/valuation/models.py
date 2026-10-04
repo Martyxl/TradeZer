@@ -237,3 +237,15 @@ class ValScoreRun(Base):
     tickers_ok: Mapped[int] = mapped_column(Integer, default=0)
     tickers_failed: Mapped[int] = mapped_column(Integer, default=0)
     notes: Mapped[str | None] = mapped_column(String(500))
+
+
+class ValOverviewSnapshot(Base):
+    """Předpočítaný overview (1 řádek, name='latest') — /overview čte tenhle blob
+    místo načítání celých tabulek skóre+metrik. Staví se při přepočtu skóre.
+    Filtry (group/portfolio/min_confidence) se aplikují nad malým seznamem v Pythonu."""
+    __tablename__ = "val_overview_snapshot"
+
+    name: Mapped[str] = mapped_column(String(20), primary_key=True)
+    as_of_date: Mapped[date | None] = mapped_column(Date)
+    payload: Mapped[dict] = mapped_column(JSONType, nullable=False, default=dict)  # {"items": [...]}
+    built_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())

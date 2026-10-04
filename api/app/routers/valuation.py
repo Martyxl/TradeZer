@@ -30,6 +30,7 @@ _TRADER = [Depends(require_plan("trader"))]
 from app.valuation.models import (
     ValGroup, ValInstrument, ValScoreDaily, ValMetricsDaily,
     ValFinancials, ValEstimate, ValEarningsHistory, ValScoreRun, ValPriceDaily,
+    ValOverviewSnapshot,
 )
 from app.valuation.scoring_config import CONF_UNRELIABLE
 
@@ -170,11 +171,63 @@ async def request_ticker(payload: dict, user: User = Depends(current_user),
         await compute_all(session, tickers=[ticker])
         r = await score_all(session, tickers=[ticker])
         computed = bool(r.get("scored"))
+        await build_overview_snapshot(session)  # nová firma hned v overview snapshotu
     except Exception as e:  # noqa: BLE001
         log.warning("request ticker ingest best-effort fail", ticker=ticker, error=str(e))
 
     return {"status": "ok", "ticker": ticker, "name": name, "newly_added": newly,
             "computed": computed, "request_count": inst.request_count}
+
+
+async def _compute_overview_rows(session: AsyncSession) -> tuple[date | None, list[dict]]:
+    """TĚŽKÝ výpočet (celé tabulky skóre+metrik) → plný seznam položek overview bez
+    filtrů. Volá se jen při stavbě snapshotu, NE v hot pathu requestu."""
+    version = settings.val_model_version
+    all_scores = (await session.execute(select(ValScoreDaily).where(
+        ValScoreDaily.model_version == version).order_by(ValScoreDaily.as_of_date.desc()))).scalars().all()
+    latest_score: dict[str, ValScoreDaily] = {}
+    for s in all_scores:
+        latest_score.setdefault(s.ticker, s)
+    if not latest_score:
+        return None, []
+    all_metrics = (await session.execute(select(ValMetricsDaily).where(
+        ValMetricsDaily.model_version == version).order_by(ValMetricsDaily.as_of_date.desc()))).scalars().all()
+    metrics: dict[str, dict] = {}
+    for mr in all_metrics:
+        metrics.setdefault(mr.ticker, mr.metrics)
+    instruments = {i.ticker: i for i in (await session.execute(
+        select(ValInstrument).where(ValInstrument.in_display_universe == True))).scalars().all()}  # noqa: E712
+    as_of = max(s.as_of_date for s in latest_score.values())
+    rows: list[dict] = []
+    for ticker, s in latest_score.items():
+        inst = instruments.get(ticker)
+        if inst is None:
+            continue
+        m = metrics.get(ticker, {})
+        rows.append({
+            "ticker": s.ticker, "name": inst.name, "group_key": inst.group_key,
+            "pctile_pe_fwd": m.get("pctile_pe_fwd"),
+            "eps_growth_ntm": m.get("eps_growth_ntm") if m.get("eps_growth_ntm") is not None else m.get("eps_yoy_ttm"),
+            "market_cap": m.get("market_cap"), "valuation_score": s.valuation_score,
+            "composite_score": s.composite_score, "valuation_verdict": s.valuation_verdict,
+            "horizon_verdict": s.horizon_verdict, "bubble_flag": s.bubble_flag, "confidence": s.confidence,
+        })
+    rows.sort(key=lambda x: (x["composite_score"] if x["composite_score"] is not None else -1), reverse=True)
+    return as_of, rows
+
+
+async def build_overview_snapshot(session: AsyncSession) -> int:
+    """Postaví/aktualizuje předpočítaný overview blob (name='latest'). Vrací počet položek."""
+    as_of, rows = await _compute_overview_rows(session)
+    snap = await session.get(ValOverviewSnapshot, "latest")
+    payload = {"items": rows}
+    if snap is None:
+        session.add(ValOverviewSnapshot(name="latest", as_of_date=as_of, payload=payload))
+    else:
+        snap.as_of_date = as_of
+        snap.payload = payload
+    await session.commit()
+    return len(rows)
 
 
 @router.get("/overview", response_model=S.OverviewResponse)
@@ -185,49 +238,27 @@ async def overview(
     user: User = Depends(require_plan("trader")),
     session: AsyncSession = Depends(get_session),
 ):
-    held = await _held_tickers(session, user.id) if portfolio else None
-    version = settings.val_model_version
-    # NEJNOVĚJŠÍ skóre PER FIRMA (různé firmy skórované různé dny se nesmí schovávat).
-    all_scores = (await session.execute(select(ValScoreDaily).where(
-        ValScoreDaily.model_version == version).order_by(ValScoreDaily.as_of_date.desc()))).scalars().all()
-    latest_score: dict[str, ValScoreDaily] = {}
-    for s in all_scores:
-        latest_score.setdefault(s.ticker, s)
-    if not latest_score:
+    # Hot path = čtení předpočítaného blobu (ne celé tabulky). Filtry v Pythonu nad
+    # malým seznamem. První běh / po deployi snapshot chybí → postaví se (fallback).
+    snap = await session.get(ValOverviewSnapshot, "latest")
+    if snap is None:
+        await build_overview_snapshot(session)
+        snap = await session.get(ValOverviewSnapshot, "latest")
+    if snap is None:
         return S.OverviewResponse(meta=_meta(None), items=[])
 
-    all_metrics = (await session.execute(select(ValMetricsDaily).where(
-        ValMetricsDaily.model_version == version).order_by(ValMetricsDaily.as_of_date.desc()))).scalars().all()
-    metrics: dict[str, dict] = {}
-    for mr in all_metrics:
-        metrics.setdefault(mr.ticker, mr.metrics)
-
-    instruments = {i.ticker: i for i in (await session.execute(
-        select(ValInstrument).where(ValInstrument.in_display_universe == True))).scalars().all()}  # noqa: E712
-    as_of = max(s.as_of_date for s in latest_score.values())
-
+    rows = (snap.payload or {}).get("items", [])
+    held = await _held_tickers(session, user.id) if portfolio else None
     items = []
-    for ticker, s in latest_score.items():
-        inst = instruments.get(ticker)
-        if inst is None:  # jen display univerzum
+    for r in rows:
+        if held is not None and (r.get("ticker") or "").upper() not in held:
             continue
-        if held is not None and ticker.upper() not in held:
-            continue  # filtr: jen portfolio
-        if group and inst.group_key != group:
+        if group and r.get("group_key") != group:
             continue
-        if (s.confidence or 0) < min_confidence:
+        if (r.get("confidence") or 0) < min_confidence:
             continue
-        m = metrics.get(ticker, {})
-        items.append(S.OverviewItem(
-            ticker=s.ticker, name=inst.name, group_key=inst.group_key,
-            pctile_pe_fwd=m.get("pctile_pe_fwd"),
-            eps_growth_ntm=m.get("eps_growth_ntm") if m.get("eps_growth_ntm") is not None else m.get("eps_yoy_ttm"),
-            market_cap=m.get("market_cap"), valuation_score=s.valuation_score,
-            composite_score=s.composite_score, valuation_verdict=s.valuation_verdict,
-            horizon_verdict=s.horizon_verdict, bubble_flag=s.bubble_flag, confidence=s.confidence,
-        ))
-    items.sort(key=lambda x: (x.composite_score or -1), reverse=True)
-    return S.OverviewResponse(meta=_meta(as_of), items=items)
+        items.append(S.OverviewItem(**r))
+    return S.OverviewResponse(meta=_meta(snap.as_of_date), items=items)
 
 
 @router.post("/refresh", response_model=S.RefreshResponse, dependencies=[Depends(_verify_token)])
@@ -253,6 +284,7 @@ async def refresh(
     stages["compute"] = await compute_all(session, tickers=tick_list)
     score_stats = await score_all(session, tickers=tick_list)
     stages["score"] = score_stats
+    stages["overview_snapshot"] = {"items": await build_overview_snapshot(session)}
     return S.RefreshResponse(meta=_meta(await _latest_score_date(session)),
                              status="ok", run_id=score_stats.get("run_id"), stages=stages)
 

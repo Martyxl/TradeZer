@@ -1,4 +1,6 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine
+from sqlalchemy.pool import NullPool
+
 from app.config import settings
 
 
@@ -15,17 +17,21 @@ def _build_engine() -> AsyncEngine:
         if "sslmode=" in url:
             url = url.split("?")[0]
             connect_args["ssl"] = True
+        # Vercel serverless + Neon pooler (PgBouncer): bez perzistentního poolu.
+        # NullPool = každá krátká funkce si vezme a vrátí spojení do PgBounceru,
+        # žádné hromadění idle spojení přes mnoho instancí → neteče do limitu Neonu.
+        # statement_cache_size=0 je nutné pro PgBouncer transaction mode (jinak
+        # kolidují pojmenované prepared statements asyncpg).
+        connect_args["statement_cache_size"] = 0
 
     if settings.is_sqlite:
         return create_async_engine(url, echo=settings.app_env == "development")
-    else:
-        return create_async_engine(
-            url,
-            echo=False,
-            pool_size=settings.db_pool_size,
-            max_overflow=settings.db_max_overflow,
-            connect_args=connect_args,
-        )
+    return create_async_engine(
+        url,
+        echo=False,
+        poolclass=NullPool,
+        connect_args=connect_args,
+    )
 
 
 engine: AsyncEngine = _build_engine()
