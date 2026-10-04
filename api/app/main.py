@@ -200,9 +200,9 @@ _CACHEABLE_PREFIXES = ("/api/bias", "/api/gamma", "/api/news", "/api/summary",
 @app.middleware("http")
 async def _cdn_cache(request, call_next):
     resp = await call_next(request)
+    # Přepiš (ne přeskoč) — výchozí 'max-age=0, must-revalidate' by cache zabil.
     if (request.method == "GET" and resp.status_code == 200
-            and request.url.path.startswith(_CACHEABLE_PREFIXES)
-            and "cache-control" not in (k.lower() for k in resp.headers.keys())):
+            and request.url.path.startswith(_CACHEABLE_PREFIXES)):
         resp.headers["Cache-Control"] = "public, s-maxage=60, stale-while-revalidate=600"
     return resp
 
