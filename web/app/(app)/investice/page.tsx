@@ -251,63 +251,121 @@ function SummaryCard({ label, value, sub, hint, color = "text-white" }: { label:
   );
 }
 
-// ── Kalkulačka 5/10letého výhledu (složené úročení) ─────────────────────────
+// ── Kalkulačka výhledu (složené úročení) ─────────────────────────────────────
+function projectSeries(start: number, monthly: number, ratePct: number, years: number) {
+  const r = ratePct / 100 / 12;
+  const pts: { year: number; value: number; contributed: number }[] = [];
+  let val = start, contributed = start;
+  for (let m = 1; m <= years * 12; m++) {
+    val = val * (1 + r) + monthly;
+    contributed += monthly;
+    if (m % 12 === 0) pts.push({ year: m / 12, value: val, contributed });
+  }
+  return pts;
+}
+
 function ProjectionCalculator({ startValue }: { startValue: number }) {
   const [start, setStart] = useState(Math.round(startValue) || 100000);
   const [monthly, setMonthly] = useState(5000);
   const [rate, setRate] = useState(7);
+  const [spread, setSpread] = useState(3);
   const [years, setYears] = useState(5);
+  const [hover, setHover] = useState<number | null>(null);
 
   useEffect(() => { if (startValue) setStart(Math.round(startValue)); }, [startValue]);
 
-  const series = useMemo(() => {
-    const r = rate / 100 / 12;
-    const pts: { year: number; value: number; contributed: number }[] = [];
-    let val = start;
-    let contributed = start;
-    for (let m = 1; m <= years * 12; m++) {
-      val = val * (1 + r) + monthly;
-      contributed += monthly;
-      if (m % 12 === 0) pts.push({ year: m / 12, value: val, contributed });
-    }
-    return pts;
-  }, [start, monthly, rate, years]);
+  const data = useMemo(() => {
+    const c = projectSeries(start, monthly, rate, years);
+    const lo = projectSeries(start, monthly, Math.max(0, rate - spread), years);
+    const hi = projectSeries(start, monthly, rate + spread, years);
+    return c.map((p, i) => ({
+      year: p.year, contributed: p.contributed, central: p.value,
+      pess: lo[i].value, opt: hi[i].value,
+    }));
+  }, [start, monthly, rate, spread, years]);
 
-  const final = series.length ? series[series.length - 1] : { value: start, contributed: start };
-  const gain = final.value - final.contributed;
-  const maxV = Math.max(...series.map((p) => p.value), start, 1);
+  const last = data[data.length - 1] ?? { contributed: start, central: start, pess: start, opt: start };
+  const maxV = Math.max(...data.map((d) => d.opt), start, 1);
+  const pctH = (v: number) => (v / maxV) * 100;
 
   return (
     <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-5">
       <h2 className="flex items-center gap-2 text-sm font-semibold text-white">
         <Calculator size={15} className="text-[#60ff82]" /> Výhled portfolia (složené úročení)
       </h2>
-      <div className="mt-4 grid gap-3 sm:grid-cols-4">
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <Field label="Počáteční (CZK)"><input type="number" className="inv-input" value={start} onChange={(e) => setStart(+e.target.value)} /></Field>
         <Field label="Měsíčně (CZK)"><input type="number" className="inv-input" value={monthly} onChange={(e) => setMonthly(+e.target.value)} /></Field>
         <Field label="Výnos ročně (%)"><input type="number" step="0.5" className="inv-input" value={rate} onChange={(e) => setRate(+e.target.value)} /></Field>
+        <Field label="Rozpětí ± %"><input type="number" step="0.5" min={0} className="inv-input" value={spread} onChange={(e) => setSpread(Math.max(0, +e.target.value))} /></Field>
         <Field label="Roky"><input type="number" className="inv-input" value={years} onChange={(e) => setYears(Math.max(1, Math.min(40, +e.target.value)))} /></Field>
       </div>
 
-      {/* Sloupcový graf — pevně-výšková kolej, uvnitř sloupec s % výškou */}
-      <div className="mt-5 flex items-end gap-2">
-        {series.map((p) => (
-          <div key={p.year} className="flex flex-1 flex-col items-center gap-1" title={`Rok ${p.year}: ${fmt(Math.round(p.value))} CZK`}>
-            <div className="flex h-36 w-full items-end">
-              <div className="w-full rounded-t bg-gradient-to-t from-[#1e6b3a] to-[#60ff82] transition-all"
-                style={{ height: `${Math.max(3, (p.value / maxV) * 100)}%` }} />
-            </div>
-            <div className="text-[10px] text-gray-500">{p.year}r</div>
-          </div>
-        ))}
+      {/* legenda */}
+      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-gray-400">
+        <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-[#60ff82]" /> výnos (úroky)</span>
+        <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm" style={{ background: "#39465f" }} /> vložený kapitál</span>
+        <span className="flex items-center gap-1.5"><span className="inline-block h-3 w-0.5 bg-amber-300/80" /> rozpětí scénářů (±{spread} %)</span>
       </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-3 text-sm">
-        <div><div className="text-[11px] uppercase text-gray-500">Za {years} let</div><div className="text-lg font-bold text-white">{fmt(Math.round(final.value))} CZK</div></div>
-        <div><div className="text-[11px] uppercase text-gray-500">Vloženo celkem</div><div className="text-lg font-bold text-gray-300">{fmt(Math.round(final.contributed))} CZK</div></div>
-        <div><div className="text-[11px] uppercase text-gray-500">Výnos (úroky)</div><div className="text-lg font-bold text-[#60ff82]">+{fmt(Math.round(gain))} CZK</div></div>
+      {/* Graf — stacked bar (kapitál + výnos) + fous rozpětí scénářů */}
+      <div className="mt-3 flex items-end gap-1.5 sm:gap-2">
+        {data.map((d, i) => {
+          const contribPct = pctH(d.contributed);
+          const retPct = pctH(d.central - d.contributed);
+          const pessPct = pctH(d.pess);
+          const optPct = pctH(d.opt);
+          const active = hover === i;
+          return (
+            <div key={d.year} className="relative h-52 flex-1"
+              onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
+              {/* vložený kapitál (spodek) */}
+              <div className="absolute inset-x-[16%] bottom-0 rounded-b-sm" style={{ height: `${contribPct}%`, background: "#39465f" }} />
+              {/* výnos (vršek) */}
+              <div className="absolute inset-x-[16%] rounded-t-sm bg-gradient-to-t from-[#1e6b3a] to-[#60ff82] transition-all"
+                style={{ bottom: `${contribPct}%`, height: `${Math.max(retPct, 0.5)}%` }} />
+              {/* fous rozpětí pess–opt */}
+              {spread > 0 && (
+                <div className="absolute left-1/2 w-px -translate-x-1/2 bg-amber-300/70"
+                  style={{ bottom: `${pessPct}%`, height: `${Math.max(optPct - pessPct, 0)}%` }}>
+                  <span className="absolute -left-1 top-0 h-px w-2 bg-amber-300/80" />
+                  <span className="absolute -left-1 bottom-0 h-px w-2 bg-amber-300/80" />
+                </div>
+              )}
+              {/* hover tooltip */}
+              {active && (
+                <div className="absolute bottom-full left-1/2 z-20 mb-1 -translate-x-1/2 whitespace-nowrap rounded-lg border border-[#2a2d3a] bg-[#0f1117] px-2.5 py-1.5 text-[11px] shadow-lg">
+                  <div className="font-semibold text-white">Rok {d.year}: {fmt(Math.round(d.central))} CZK</div>
+                  <div className="text-gray-400">vklady {fmt(Math.round(d.contributed))} + výnos <span className="text-[#8fffab]">{fmt(Math.round(d.central - d.contributed))}</span></div>
+                  <div className="text-amber-300/90">rozpětí {fmt(Math.round(d.pess))} – {fmt(Math.round(d.opt))}</div>
+                </div>
+              )}
+              <div className="absolute inset-x-0 -bottom-5 text-center text-[10px] text-gray-500">{d.year}r</div>
+            </div>
+          );
+        })}
       </div>
-      <p className="mt-3 text-[11px] text-gray-500">Zjednodušený model (konstantní výnos, měsíční vklad na konci měsíce). Není investiční doporučení.</p>
+
+      <div className="mt-8 grid gap-3 sm:grid-cols-3 text-sm">
+        <div>
+          <div className="text-[11px] uppercase text-gray-500">Za {years} let</div>
+          <div className="text-lg font-bold text-white">{fmt(Math.round(last.central))} CZK</div>
+          <div className="text-[11px] text-amber-300/80">rozpětí {fmt(Math.round(last.pess))} – {fmt(Math.round(last.opt))}</div>
+        </div>
+        <div>
+          <div className="text-[11px] uppercase text-gray-500">Vloženo celkem</div>
+          <div className="text-lg font-bold text-gray-300">{fmt(Math.round(last.contributed))} CZK</div>
+        </div>
+        <div>
+          <div className="text-[11px] uppercase text-gray-500">Výnos (úroky)</div>
+          <div className="text-lg font-bold text-[#60ff82]">+{fmt(Math.round(last.central - last.contributed))} CZK</div>
+        </div>
+      </div>
+      <p className="mt-3 text-[11px] text-gray-500">
+        <span className="text-gray-400">Jak funguje složené úročení:</span> zelená část (výnos) každý rok roste rychleji než ta předchozí —
+        úroky totiž vydělávají další úroky. Fous ukazuje, jak dopadneš při horším (−{spread} %) a lepším (+{spread} %) výnosu.
+        Zjednodušený model (konstantní výnos, vklad na konci měsíce). Není investiční doporučení.
+      </p>
     </div>
   );
 }
