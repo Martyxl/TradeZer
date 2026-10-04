@@ -9,6 +9,7 @@ interface Signal {
   color: "green" | "amber" | "red"; reasons: string[]; action: string;
   trim_qty: number | null; add_zone: number | null; pos_52w: number | null;
 }
+interface CurvePoint { date: string; invested: number; value: number; }
 interface Holding {
   symbol: string; name: string | null; quantity: number; avg_cost: number;
   invested: number; currency: string; price: number | null; value: number | null;
@@ -39,6 +40,8 @@ export default function InvesticePage() {
   const { user, loading: authLoading } = useAuth();
   const [pf, setPf] = useState<Portfolio | null>(null);
   const [txs, setTxs] = useState<Tx[]>([]);
+  const [curve, setCurve] = useState<CurvePoint[]>([]);
+  const [curveDays, setCurveDays] = useState(365);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [showImport, setShowImport] = useState(false);
@@ -57,6 +60,11 @@ export default function InvesticePage() {
     }
   }
   useEffect(() => { if (user) load(); /* eslint-disable-next-line */ }, [user]);
+  useEffect(() => {
+    if (!user) return;
+    fetch(`/api/investments/curve?days=${curveDays}&base=CZK`, { headers: authHeaders() })
+      .then((r) => (r.ok ? r.json() : null)).then((d) => setCurve(d?.points ?? [])).catch(() => setCurve([]));
+  }, [user, curveDays]);
 
   if (authLoading) return <div className="h-40 animate-pulse rounded-xl bg-[#1a1d27]" />;
   if (!user)
@@ -89,6 +97,12 @@ export default function InvesticePage() {
           </button>
         </div>
       </div>
+
+      {/* Co zvážit (semafor) — jako první */}
+      {pf?.holdings.length ? <SignalSummary holdings={pf.holdings} /> : null}
+
+      {/* Graf růstu portfolia */}
+      <PortfolioChart points={curve} txs={txs} holdings={pf?.holdings ?? []} days={curveDays} setDays={setCurveDays} />
 
       {/* Souhrnné karty (base CZK) */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -149,9 +163,6 @@ export default function InvesticePage() {
           </div>
         )}
       </div>
-
-      {/* Semafor — co zvážit */}
-      {pf?.holdings.length ? <SignalSummary holdings={pf.holdings} /> : null}
 
       {/* Kalkulačka výhledu */}
       <ProjectionCalculator startValue={bt?.value ?? 0} />
@@ -236,6 +247,104 @@ function SignalSummary({ holdings }: { holdings: Holding[] }) {
       <p className="mt-3 text-[11px] text-gray-500">
         Semafor je orientační pravidlový signál (zisk, váha v portfoliu, poloha v 52týdenním rozpětí), <strong>ne investiční doporučení</strong>. Rozhoduješ sám.
       </p>
+    </div>
+  );
+}
+
+function freeDate(iso: string): string {
+  const d = new Date(iso.slice(0, 10) + "T00:00:00");
+  d.setFullYear(d.getFullYear() + 3);
+  return d.toLocaleDateString("cs-CZ");
+}
+
+function PortfolioChart({ points, txs, holdings, days, setDays }: {
+  points: CurvePoint[]; txs: Tx[]; holdings: Holding[]; days: number; setDays: (d: number) => void;
+}) {
+  const [hoverTx, setHoverTx] = useState<number | null>(null);
+  const ranges = [
+    { d: 30, label: "1M" }, { d: 90, label: "3M" }, { d: 365, label: "1R" },
+    { d: 1095, label: "3R" }, { d: 3650, label: "Vše" },
+  ];
+  const toT = (s: string) => new Date(s.slice(0, 10) + "T00:00:00").getTime();
+  const hasData = points.length >= 2;
+  const tMin = hasData ? toT(points[0].date) : 0;
+  const tMax = hasData ? toT(points[points.length - 1].date) : 1;
+  const span = Math.max(tMax - tMin, 1);
+  const maxV = hasData ? Math.max(...points.map((p) => Math.max(p.value, p.invested)), 1) : 1;
+  const xPct = (t: number) => ((t - tMin) / span) * 100;
+  const yPct = (v: number) => 100 - (v / maxV) * 100;
+
+  const valuePts = points.map((p) => `${xPct(toT(p.date)).toFixed(2)},${yPct(p.value).toFixed(2)}`);
+  const invPts = points.map((p) => `${xPct(toT(p.date)).toFixed(2)},${yPct(p.invested).toFixed(2)}`);
+  const investedArea = hasData ? `M ${invPts.join(" L ")} L 100,100 L 0,100 Z` : "";
+  const profitArea = hasData ? `M ${valuePts.join(" L ")} L ${[...invPts].reverse().join(" L ")} Z` : "";
+  const valueLine = hasData ? `M ${valuePts.join(" L ")}` : "";
+
+  const markers = txs
+    .filter((t) => (t.tx_type === "buy" || t.tx_type === "sell") && t.executed_at)
+    .map((t, i) => ({ ...t, t: toT(t.executed_at as string), idx: i }))
+    .filter((m) => hasData && m.t >= tMin && m.t <= tMax);
+
+  const last = hasData ? points[points.length - 1] : null;
+  const profit = last ? last.value - last.invested : 0;
+
+  return (
+    <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-white"><TrendingUp size={15} className="text-[#60ff82]" /> Růst portfolia</h2>
+        <div className="flex gap-1 rounded-lg border border-[#2a2d3a] p-0.5">
+          {ranges.map((r) => (
+            <button key={r.d} onClick={() => setDays(r.d)}
+              className={`rounded px-2.5 py-1 text-xs ${days === r.d ? "bg-[#1e2536] text-white" : "text-gray-400 hover:text-white"}`}>{r.label}</button>
+          ))}
+        </div>
+      </div>
+
+      {!hasData ? (
+        <div className="py-10 text-center text-sm text-gray-500">
+          Zatím málo dat pro graf — potřebuje historii cen (ze skenu) a transakce.
+        </div>
+      ) : (
+        <>
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-gray-400">
+            <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm" style={{ background: "#39465f" }} /> vložený kapitál</span>
+            <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm" style={{ background: "rgba(96,255,130,0.35)" }} /> zisk</span>
+            <span className="text-gray-500">hodnota <b className="text-gray-200">{fmt(last!.value, "CZK")}</b> · vklad {fmt(last!.invested)} · zisk <b className={profit >= 0 ? "text-[#60ff82]" : "text-[#ff5050]"}>{profit >= 0 ? "+" : ""}{fmt(profit)}</b></span>
+          </div>
+
+          <div className="relative mt-3 h-56 w-full">
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="h-full w-full">
+              <path d={investedArea} fill="#39465f" opacity="0.55" />
+              <path d={profitArea} fill="#60ff82" opacity="0.18" />
+              <path d={valueLine} fill="none" stroke="#60ff82" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+            </svg>
+            {markers.map((m) => {
+              const buy = m.tx_type === "buy";
+              const active = hoverTx === m.idx;
+              const sig = holdings.find((h) => h.symbol === m.symbol)?.signal;
+              const free = m.executed_at ? freeDate(m.executed_at) : null;
+              return (
+                <div key={m.idx} className="absolute bottom-0 -translate-x-1/2" style={{ left: `${xPct(m.t)}%` }}
+                  onMouseEnter={() => setHoverTx(m.idx)} onMouseLeave={() => setHoverTx(null)}>
+                  <div className="absolute bottom-0 left-1/2 w-px -translate-x-1/2 bg-white/10" style={{ height: "14rem" }} />
+                  <div className={`relative z-10 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold ${buy ? "bg-[#60ff82] text-[#06120a]" : "bg-[#ff5050] text-white"}`}>{buy ? "B" : "S"}</div>
+                  {active && (
+                    <div className="absolute bottom-6 left-1/2 z-20 w-52 -translate-x-1/2 rounded-lg border border-[#2a2d3a] bg-[#0f1117] px-2.5 py-1.5 text-[11px] shadow-lg">
+                      <div className="font-semibold text-white">{buy ? "Nákup" : "Prodej"} {m.symbol}</div>
+                      <div className="text-gray-400">{fmt(m.quantity)} ks @ {fmt(m.price, m.currency)} · {m.executed_at?.slice(0, 10)}</div>
+                      {free && <div className="text-amber-300/90">bez daně od: {free}</div>}
+                      {sig && <div className={sig.color === "red" ? "text-[#ff8080]" : sig.color === "green" ? "text-[#8fffab]" : "text-gray-400"}>semafor: {sig.action}</div>}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <div className="mt-1 flex justify-between text-[10px] text-gray-600">
+            <span>{points[0].date}</span><span>{points[points.length - 1].date}</span>
+          </div>
+        </>
+      )}
     </div>
   );
 }
