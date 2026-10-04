@@ -7,8 +7,9 @@ nebo v broker_import službě). Dedup přes dedup_hash.
 """
 from __future__ import annotations
 
+import bisect
 import hashlib
-from datetime import datetime
+from datetime import datetime, date as date_cls, timedelta
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -16,7 +17,7 @@ from sqlalchemy import select, delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
-from app.models import User, InvestmentTx, InvestmentQuote
+from app.models import User, InvestmentTx, InvestmentQuote, InvestmentPriceDaily
 from app.routers.admin import _verify_token
 from app.routers.auth import current_user
 
@@ -476,3 +477,117 @@ async def ingest_quotes(payload: dict, session: AsyncSession = Depends(get_sessi
         n += 1
     await session.commit()
     return {"status": "ok", "updated": n}
+
+
+@router.post("/prices/history", dependencies=[Depends(_verify_token)])
+async def ingest_history(payload: dict, session: AsyncSession = Depends(get_session)):
+    """Upsert denní close historie symbolu (+ FX párů) pro křivku portfolia.
+    payload = {"symbol": "AAPL", "bars": [{"date": "2026-01-02", "close": 180.1}, ...]}."""
+    sym = (payload.get("symbol") or "").strip().upper()[:40]
+    bars = payload.get("bars") or []
+    if not sym or not isinstance(bars, list):
+        raise HTTPException(status_code=400, detail="symbol + bars povinné")
+    # existující datumy pro tento symbol (ať neinsertujeme duplicity)
+    existing = set((await session.execute(
+        select(InvestmentPriceDaily.date).where(InvestmentPriceDaily.symbol == sym)
+    )).scalars().all())
+    n = 0
+    for b in bars:
+        d = str(b.get("date") or "")[:10]
+        c = _num(b.get("close"))
+        if len(d) != 10 or c is None:
+            continue
+        if d in existing:
+            row = await session.get(InvestmentPriceDaily, {"symbol": sym, "date": d})
+            if row:
+                row.close = c
+        else:
+            session.add(InvestmentPriceDaily(symbol=sym, date=d, close=c))
+            existing.add(d)
+        n += 1
+    await session.commit()
+    return {"status": "ok", "symbol": sym, "upserted": n}
+
+
+@router.get("/curve")
+async def portfolio_curve(days: int = Query(365, ge=7, le=3650),
+                          base: str = Query(DEFAULT_BASE),
+                          user: User = Depends(current_user),
+                          session: AsyncSession = Depends(get_session)):
+    """Časová řada hodnoty portfolia (market value) a vloženého kapitálu (cost basis).
+    Pozn.: přepočet do base měny používá SOUČASNÝ FX (zjednodušení pro historii)."""
+    base = base.strip().upper()[:8]
+    txs = (await session.execute(
+        select(InvestmentTx).where(InvestmentTx.user_id == user.id,
+                                   InvestmentTx.tx_type.in_(("buy", "sell")),
+                                   InvestmentTx.symbol.isnot(None),
+                                   InvestmentTx.executed_at.isnot(None))
+        .order_by(InvestmentTx.executed_at.asc()))).scalars().all()
+    if not txs:
+        return {"base": base, "points": [], "complete": True}
+
+    symbols = {t.symbol for t in txs}
+    quotes = {q.symbol: q for q in (await session.execute(select(InvestmentQuote))).scalars().all()}
+    fx = {s: q.price for s, q in quotes.items() if len(s) == 6 and s.isalpha()}
+
+    # Historie close per symbol → seřazené (date_str, close) pro bisect lookup ≤ date.
+    hist_rows = (await session.execute(
+        select(InvestmentPriceDaily).where(InvestmentPriceDaily.symbol.in_(symbols))
+        .order_by(InvestmentPriceDaily.date.asc()))).scalars().all()
+    hist: dict[str, list[tuple[str, float]]] = {}
+    for r in hist_rows:
+        hist.setdefault(r.symbol, []).append((r.date, r.close))
+
+    def close_at(sym: str, dstr: str) -> float | None:
+        arr = hist.get(sym)
+        if not arr:
+            q = quotes.get(sym)  # fallback: aktuální cena (lepší než nic)
+            return q.price if q else None
+        i = bisect.bisect_right([a[0] for a in arr], dstr)
+        return arr[i - 1][1] if i > 0 else None
+
+    end = date_cls.today()
+    first = txs[0].executed_at.date()
+    start = max(end - timedelta(days=days), first)
+    span = (end - start).days or 1
+    step = 1 if span <= 180 else (7 if span <= 1460 else 30)
+
+    sample_dates: list[date_cls] = []
+    d = start
+    while d < end:
+        sample_dates.append(d)
+        d += timedelta(days=step)
+    sample_dates.append(end)
+
+    holdings: dict[str, dict] = {}
+    ti, n_tx = 0, len(txs)
+    points, complete = [], True
+    for sd in sample_dates:
+        while ti < n_tx and txs[ti].executed_at.date() <= sd:
+            t = txs[ti]; ti += 1
+            h = holdings.setdefault(t.symbol, {"qty": 0.0, "cost": 0.0, "ccy": t.currency or "USD"})
+            q, pr, fee = t.quantity or 0, t.price or 0, t.fee or 0
+            if t.tx_type == "buy":
+                h["qty"] += q; h["cost"] += q * pr + fee
+            else:
+                avg = (h["cost"] / h["qty"]) if h["qty"] else 0
+                h["cost"] -= avg * q; h["qty"] -= q
+        dstr = sd.isoformat()
+        invested = value = 0.0
+        for sym, h in holdings.items():
+            if h["qty"] <= 1e-9:
+                continue
+            rate = _to_base(1.0, h["ccy"], base, fx)
+            if rate is None:
+                complete = False
+                continue
+            invested += h["cost"] * rate
+            pr = close_at(sym, dstr)
+            if pr is None:
+                complete = False
+                continue
+            value += h["qty"] * pr * rate
+        points.append({"date": dstr, "invested": round(invested), "value": round(value)})
+
+    return {"base": base, "points": points, "complete": complete, "step_days": step,
+            "fx_note": "přepočet do CZK používá aktuální kurz"}

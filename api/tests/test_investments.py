@@ -136,6 +136,31 @@ async def test_timetest_fifo_reduces_sold():
 
 
 @pytest.mark.asyncio
+async def test_curve():
+    from datetime import date, timedelta
+    async with _client() as c:
+        h = await auth_headers(c, "curve@example.com")
+        buy_day = (date.today() - timedelta(days=10)).isoformat()
+        await c.post("/api/investments", json={"tx_type": "buy", "symbol": "AAPL", "quantity": 10, "price": 100, "currency": "USD", "executed_at": buy_day}, headers=h)
+        # historie close + FX
+        bars = [{"date": (date.today() - timedelta(days=d)).isoformat(), "close": 150} for d in range(12)]
+        await c.post("/api/investments/prices/history", json={"symbol": "AAPL", "bars": bars}, headers=TOKEN)
+        await c.post("/api/investments/quotes/ingest", json={"quotes": [{"symbol": "USDCZK", "price": 20}]}, headers=TOKEN)
+        d = (await c.get("/api/investments/curve?days=30&base=CZK", headers=h)).json()
+    assert d["points"], "žádné body"
+    last = d["points"][-1]
+    assert abs(last["invested"] - 10 * 100 * 20) < 50     # cost × FX
+    assert abs(last["value"] - 10 * 150 * 20) < 50        # qty × close × FX
+    assert d["complete"] is True
+
+
+@pytest.mark.asyncio
+async def test_curve_requires_auth():
+    async with _client() as c:
+        assert (await c.get("/api/investments/curve")).status_code == 401
+
+
+@pytest.mark.asyncio
 async def test_symbols_internal_only():
     async with _client() as c:
         h = await auth_headers(c, "inv3@example.com")

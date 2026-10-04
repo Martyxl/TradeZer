@@ -36,6 +36,16 @@ class InvestmentTx(Base):
     updated_at: Mapped[datetime | None] = mapped_column(DateTime, onupdate=func.now())
 
 
+class InvestmentPriceDaily(Base):
+    """Denní close historie držených symbolů + FX párů — pro křivku růstu portfolia.
+    Plní se push skenem z rezidenční IP (Yahoo), upsert (symbol, date)."""
+    __tablename__ = "investment_price_daily"
+
+    symbol: Mapped[str] = mapped_column(String(40), primary_key=True)
+    date: Mapped[str] = mapped_column(String(10), primary_key=True)  # YYYY-MM-DD
+    close: Mapped[float] = mapped_column(Float, nullable=False)
+
+
 class InvestmentQuote(Base):
     """Živá cena symbolu (nebo FX páru jako 'USDCZK'). Upsert dle symbol — držíme
     jen poslední hodnotu. Plní se push endpointem z rezidenční IP (Yahoo)."""

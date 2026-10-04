@@ -56,24 +56,29 @@ def _yahoo_sym(symbol: str) -> str:
     return s
 
 
-def _quote(symbol: str) -> dict | None:
-    """Aktuální cena + měna z Yahoo chart meta (symbol normalizovaný na Yahoo kód).
-    range=5d kvůli nelikvidním evropským listingům (na 1d někdy nevrátí cenu)."""
-    data = _get_json(f"https://query1.finance.yahoo.com/v8/finance/chart/{_yahoo_sym(symbol)}?range=5d&interval=1d")
+def _fetch(symbol: str) -> tuple[dict | None, list[dict]]:
+    """Jedním Yahoo dotazem (range=2y) vrátí (quote, historii denních close).
+    quote = aktuální cena + měna + 52T z meta; history = [{date, close}] pro křivku."""
+    data = _get_json(f"https://query1.finance.yahoo.com/v8/finance/chart/{_yahoo_sym(symbol)}?range=2y&interval=1d")
     try:
-        meta = data["chart"]["result"][0]["meta"]
+        res = data["chart"]["result"][0]
+        meta = res["meta"]
         price = meta.get("regularMarketPrice")
-        if price is None:
-            return None
-        q = {"symbol": symbol.upper(), "price": float(price),
-             "currency": meta.get("currency"), "source": "yahoo"}
-        if meta.get("fiftyTwoWeekHigh") is not None:
-            q["high_52w"] = float(meta["fiftyTwoWeekHigh"])
-        if meta.get("fiftyTwoWeekLow") is not None:
-            q["low_52w"] = float(meta["fiftyTwoWeekLow"])
-        return q
+        q = None
+        if price is not None:
+            q = {"symbol": symbol.upper(), "price": float(price),
+                 "currency": meta.get("currency"), "source": "yahoo"}
+            if meta.get("fiftyTwoWeekHigh") is not None:
+                q["high_52w"] = float(meta["fiftyTwoWeekHigh"])
+            if meta.get("fiftyTwoWeekLow") is not None:
+                q["low_52w"] = float(meta["fiftyTwoWeekLow"])
+        ts = res.get("timestamp") or []
+        closes = (res.get("indicators", {}).get("quote") or [{}])[0].get("close") or []
+        bars = [{"date": time.strftime("%Y-%m-%d", time.gmtime(t)), "close": float(c)}
+                for t, c in zip(ts, closes) if c is not None]
+        return q, bars
     except (KeyError, IndexError, TypeError):
-        return None
+        return None, []
 
 
 def held_symbols(base: str, token: str) -> tuple[list[str], list[str]]:
@@ -105,24 +110,41 @@ def push(base: str, token: str, quotes: list[dict]) -> None:
         print(f"  push fail {e}")
 
 
+def push_history(base: str, token: str, symbol: str, bars: list[dict]) -> None:
+    if not bars:
+        return
+    body = json.dumps({"symbol": symbol, "bars": bars}).encode()
+    req = urllib.request.Request(f"{base}/api/investments/prices/history", data=body,
+                                 method="POST", headers={"Content-Type": "application/json",
+                                 "X-Internal-Token": token, "User-Agent": UA})
+    try:
+        with urllib.request.urlopen(req, timeout=40) as r:
+            r.read()
+    except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as e:
+        print(f"  history push fail {symbol}: {e}")
+
+
 def run_once(base: str, token: str) -> None:
     symbols, currencies = held_symbols(base, token)
     print(f"drženo: {len(symbols)} symbolů, měny {currencies}")
     quotes = []
     for s in symbols:
-        q = _quote(s)
+        q, bars = _fetch(s)
         if q:
             quotes.append(q)
-            print(f"  {s} = {q['price']} {q['currency']}")
+            print(f"  {s} = {q['price']} {q['currency']} ({len(bars)} barů hist)")
+        push_history(base, token, s.upper(), bars)
         time.sleep(0.3)
-    # FX páry pro přepočet do BASE_FX (např. USDCZK, EURCZK)
+    # FX páry pro přepočet do BASE_FX (např. USDCZK, EURCZK) — i jejich historie
     for ccy in currencies:
         if ccy and ccy != BASE_FX:
-            fx = _quote(f"{ccy}{BASE_FX}=X")
+            fx, fx_bars = _fetch(f"{ccy}{BASE_FX}=X")
+            sym = f"{ccy}{BASE_FX}"
             if fx:
-                fx["symbol"] = f"{ccy}{BASE_FX}"  # ulož bez '=X'
+                fx["symbol"] = sym
                 quotes.append(fx)
-                print(f"  {ccy}{BASE_FX} = {fx['price']}")
+                print(f"  {sym} = {fx['price']} ({len(fx_bars)} barů hist)")
+            push_history(base, token, sym, fx_bars)
             time.sleep(0.3)
     if quotes:
         push(base, token, quotes)
