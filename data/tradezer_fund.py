@@ -428,16 +428,18 @@ def run(do_push: bool, dry: bool):
                 "investory, aby rozhodnutí fondu pochopil i laik. Bez úvah a bez uvozovek, jen 2–3 věty finálního textu.",
                 f"Fond {act_cs.get(action, action)} akcii {name or sym} ({sym}). Rozveď následující fakta do 2–3 "
                 f"poutavých vět — zachovej všechna čísla, vysvětli signály lidsky a co pro investora znamenají. "
-                f"Fakta: {base_reason}", max_tokens=340)
-            if out and len(out) > 25:
+                f"Fakta: {base_reason}", max_tokens=600)
+            # Použij LLM jen když vrátil DOKONČENÝ text (končí tečkou/…) — jinak nech
+            # bohatý rules-based důvod (gpt-oss občas utne výstup kvůli reasoningu).
+            if out and len(out) > 40 and out.rstrip()[-1] in ".!?%)":
                 con.execute("UPDATE trades SET reason=? WHERE id=?", (out, rid))
         con.commit()
         listing = "; ".join(f"{a} {s}" for a, s, q, r in trades_this_run)
         nt = llm_chat(
             "Jsi portfolio manažer AI fondu TRADEZER, píšeš česky pro zákazníky. Bez úvah, jen 2 věty.",
             f"Shrň dnešní tah fondu do 2 sebevědomých vět. Hodnota {equity:.0f} CZK "
-            f"({(equity-start_cap)/start_cap*100:+.1f} %). Dnešní obchody: {listing}.")
-        if nt:
+            f"({(equity-start_cap)/start_cap*100:+.1f} %). Dnešní obchody: {listing}.", max_tokens=400)
+        if nt and nt.rstrip()[-1:] in (".", "!", "?", "%", ")"):
             note = nt
     pos_out = []
     for sym, p in positions.items():
