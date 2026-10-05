@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, History, BarChart3, Sunrise, Target, NotebookPen, Telescope, Landmark, BookOpen, User as UserIcon, LogOut, CreditCard, ShieldCheck, Wallet, Receipt, Waves } from "lucide-react";
+import { LayoutDashboard, History, BarChart3, Sunrise, Target, NotebookPen, Telescope, Landmark, BookOpen, User as UserIcon, LogOut, CreditCard, ShieldCheck, Wallet, Receipt, Waves, Bot } from "lucide-react";
 import { SupportButton } from "@/components/SupportButton";
 import { useAuth } from "@/lib/auth";
 
@@ -18,6 +18,7 @@ const NAV_ITEMS = [
   { href: "/discovery", label: "Discovery", icon: Telescope },
   { href: "/smart-money", label: "Smart Money", icon: Landmark },
   { href: "/dark-pool", label: "Dark Pool", icon: Waves },
+  { href: "/fond", label: "TRADEZER investuje", icon: Bot },
   { href: "/legenda", label: "Legenda", icon: BookOpen },
 ];
 
