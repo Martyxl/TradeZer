@@ -15,6 +15,7 @@ from app.models.discovery import DiscoverySnapshot
 from app.models.gamma import GammaSnapshot
 from app.models.smart_money import SmartMoneySnapshot
 from app.models.darkpool import DarkPoolSnapshot
+from app.models.fund import FundState, FundPosition, FundTrade, FundSnapshot
 from app.models.bias import DailyBias
 from app.models.outlook import DailyOutlook, OutlookEval
 from app.models.user import User
@@ -29,6 +30,10 @@ __all__ = [
     "GammaSnapshot",
     "SmartMoneySnapshot",
     "DarkPoolSnapshot",
+    "FundState",
+    "FundPosition",
+    "FundTrade",
+    "FundSnapshot",
     "DailyBias",
     "DailyOutlook",
     "OutlookEval",
