@@ -48,3 +48,6 @@ data/run_*_spark.bat
 
 .vercel
 .env*
+
+# AI fond — lokální SQLite stav (autorita na Sparku)
+data/fund.db
