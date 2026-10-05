@@ -68,3 +68,4 @@ class FundSnapshot(Base):
     equity: Mapped[float] = mapped_column(Float, nullable=False)          # celková hodnota CZK
     cash: Mapped[float] = mapped_column(Float, nullable=False)
     invested: Mapped[float] = mapped_column(Float, nullable=False)        # hodnota pozic CZK
+    benchmark: Mapped[float | None] = mapped_column(Float)                # 1 mil. v S&P 500 (index return)

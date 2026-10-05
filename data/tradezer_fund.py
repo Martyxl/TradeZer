@@ -78,6 +78,66 @@ def yahoo_price(symbol: str):
         return None, None
 
 
+def gspc_history() -> list[tuple[str, float]]:
+    """(date, close) S&P 500 (^GSPC) za 2 roky — benchmark fondu. Seřazené ASC."""
+    try:
+        res = _get("https://query1.finance.yahoo.com/v8/finance/chart/%5EGSPC?range=2y&interval=1d")["chart"]["result"][0]
+        ts = res.get("timestamp") or []
+        closes = (res.get("indicators", {}).get("quote") or [{}])[0].get("close") or []
+        return [(time.strftime("%Y-%m-%d", time.gmtime(t)), float(c)) for t, c in zip(ts, closes) if c is not None]
+    except (urllib.error.URLError, urllib.error.HTTPError, KeyError, IndexError, TypeError, ValueError, TimeoutError):
+        return []
+
+
+def _close_le(arr: list[tuple[str, float]], d: str):
+    """Poslední close ≤ datum (arr seřazené ASC)."""
+    import bisect
+    i = bisect.bisect_right([a[0] for a in arr], d)
+    return arr[i - 1][1] if i > 0 else (arr[0][1] if arr else None)
+
+
+# ── LLM narativ (gpt-oss na Sparku přes gateway; bez LLM_BASE_URL → rules-based) ──
+def llm_available() -> bool:
+    return bool(os.environ.get("LLM_BASE_URL", "").strip())
+
+
+def llm_chat(system: str, user: str, max_tokens: int = 500) -> str | None:
+    base = os.environ.get("LLM_BASE_URL", "").rstrip("/")
+    if not base:
+        return None
+    body = json.dumps({
+        "model": os.environ.get("LLM_MODEL", "heavy"),
+        "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
+        "max_tokens": max_tokens, "temperature": 0.5,
+    }).encode()
+    req = urllib.request.Request(base + "/chat/completions", data=body, method="POST",
+                                 headers={"Content-Type": "application/json",
+                                          "Authorization": "Bearer " + os.environ.get("LLM_API_KEY", "")})
+    try:
+        with urllib.request.urlopen(req, timeout=150) as r:
+            txt = json.loads(r.read().decode())["choices"][0]["message"]["content"].strip()
+        # ořízni případné <think>…</think> nebo úvahové bloky
+        if "</think>" in txt:
+            txt = txt.split("</think>")[-1].strip()
+        return txt or None
+    except (urllib.error.URLError, urllib.error.HTTPError, KeyError, IndexError, TypeError, ValueError, TimeoutError) as e:
+        print(f"  LLM fail: {e}")
+        return None
+
+
+def _parse_numbered(text: str, n: int) -> dict:
+    """Rozparsuje očíslované řádky '1) …' → {index: text}."""
+    import re
+    out = {}
+    for line in text.splitlines():
+        m = re.match(r"\s*(\d+)[).\]]\s*(.+)", line)
+        if m:
+            i = int(m.group(1)) - 1
+            if 0 <= i < n:
+                out[i] = m.group(2).strip()
+    return out
+
+
 # ── Backend I/O ──────────────────────────────────────────────────────────────
 def fetch_signals():
     try:
@@ -347,6 +407,25 @@ def run(do_push: bool, dry: bool):
 
     # ── Zrcadlo do Neonu ──
     note = _build_note(trades_this_run, equity, start_cap)
+    # LLM narativ (gpt-oss na Sparku) — přepíše důvody do čtivé podoby + shrnutí dne
+    if trades_this_run and llm_available():
+        rows = con.execute("SELECT id,action,symbol,reason FROM trades WHERE ts=? ORDER BY id", (now,)).fetchall()
+        if rows:
+            listing = "\n".join(f"{i+1}) {r[1].upper()} {r[2]}: {r[3]}" for i, r in enumerate(rows))
+            enr = llm_chat(
+                "Jsi portfolio manažer AI fondu TRADEZER. Píšeš česky, stručně, sebevědomě, pro zákazníky. Žádné úvahy ani omáčka, jen finální text.",
+                f"Přepiš KAŽDÝ důvod obchodu do jedné čtivé věty (max 22 slov), zachovej fakta (ticker, čísla, konvikci). Vrať přesně {len(rows)} řádků, očíslovaných stejně:\n{listing}")
+            if enr:
+                parsed = _parse_numbered(enr, len(rows))
+                for i, row in enumerate(rows):
+                    if i in parsed:
+                        con.execute("UPDATE trades SET reason=? WHERE id=?", (parsed[i], row[0]))
+                con.commit()
+            nt = llm_chat(
+                "Jsi portfolio manažer AI fondu TRADEZER, píšeš česky pro zákazníky. Žádné úvahy, jen 2 věty.",
+                f"Shrň dnešní tah fondu do 2 vět (sebevědomě, lidsky). Hodnota {equity:.0f} CZK ({(equity-start_cap)/start_cap*100:+.1f} %). Dnešní obchody:\n{listing}")
+            if nt:
+                note = nt
     pos_out = []
     for sym, p in positions.items():
         if p["qty"] <= 1e-9:
@@ -363,8 +442,15 @@ def run(do_push: bool, dry: bool):
     # přejmenuj qty→quantity pro backend
     for t in trades_out:
         t["quantity"] = t.pop("qty")
-    snaps_out = [{"date": r[0], "equity": r[1], "cash": r[2], "invested": r[3]}
-                 for r in con.execute("SELECT date,equity,cash,invested FROM snapshots ORDER BY date")]
+    # benchmark: 1 mil. vložený do S&P 500 v den startu fondu (index return)
+    gspc = gspc_history()
+    snap_rows = con.execute("SELECT date,equity,cash,invested FROM snapshots ORDER BY date").fetchall()
+    gstart = _close_le(gspc, snap_rows[0][0]) if (gspc and snap_rows) else None
+    snaps_out = []
+    for d, eq, ca, inv in snap_rows:
+        gd = _close_le(gspc, d)
+        bench = round(start_cap * gd / gstart) if (gstart and gd) else None
+        snaps_out.append({"date": d, "equity": eq, "cash": ca, "invested": inv, "benchmark": bench})
     state_out = {"start_capital": start_cap, "cash": round(cash), "equity": round(equity),
                  "base": BASE_CCY, "as_of": now, "note": note}
     push_mirror(state_out, pos_out, trades_out, snaps_out)

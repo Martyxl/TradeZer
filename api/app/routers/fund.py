@@ -54,7 +54,8 @@ async def get_fund(session: AsyncSession = Depends(get_session)):
             "value_czk": t.value_czk, "realized_czk": t.realized_czk,
             "conviction": t.conviction, "reason": t.reason,
         } for t in trades],
-        "snapshots": [{"date": s.date, "equity": s.equity, "cash": s.cash, "invested": s.invested} for s in snaps],
+        "snapshots": [{"date": s.date, "equity": s.equity, "cash": s.cash,
+                       "invested": s.invested, "benchmark": s.benchmark} for s in snaps],
     }
 
 
@@ -141,6 +142,7 @@ async def ingest_fund(payload: dict = Body(...), session: AsyncSession = Depends
         row.equity = float(sn.get("equity", 0))
         row.cash = float(sn.get("cash", 0))
         row.invested = float(sn.get("invested", 0))
+        row.benchmark = sn.get("benchmark")
 
     await session.commit()
     return {"status": "ok", "positions": len(payload.get("positions") or []),
