@@ -184,13 +184,13 @@ def db():
 def _verdict_pts(v: str | None) -> tuple[float, str]:
     v = (v or "").upper()
     if "LEVN" in v or "VHODN" in v:
-        return 25, "valuace levná/vhodná k držbě"
+        return 25, "akcie je podle fundamentů levná a vhodná k držbě — obchoduje se pod svou férovou hodnotou"
     if "FÉR" in v or "FER" in v:
-        return 10, "valuace férová"
+        return 10, "valuace je férová (cena odpovídá fundamentům)"
     if "NAPJAT" in v:
-        return -10, "valuace napjatá"
+        return -10, "valuace je napjatá (spíš dráž)"
     if "PŘEPÁL" in v or "PREPAL" in v:
-        return -28, "valuace přepálená"
+        return -28, "valuace je přepálená (akcie je drahá vůči fundamentům)"
     return 0, ""
 
 
@@ -218,6 +218,9 @@ def score_candidates(sig: dict) -> dict:
             d["composite"] = comp
         if why:
             d["reasons"].append(why + (f" (fundamentální skóre {comp:.0f}/100)" if comp is not None else ""))
+        hz = v.get("horizon")
+        if hz:
+            d["reasons"].append(f"dlouhodobý výhled: {str(hz).lower()}")
 
     for it in sig.get("discovery", []):
         tk = (it.get("ticker") or "").upper()
@@ -229,26 +232,28 @@ def score_candidates(sig: dict) -> dict:
         r20 = it.get("ret_20d")
         if r20 and r20 > 0:
             d["score"] += min(r20 / 3.0, 10)
-            d["reasons"].append(f"momentum +{r20:.0f} % za 20 d")
+            d["reasons"].append(f"cena má vzestupné momentum (+{r20:.0f} % za 20 dní)")
         if (it.get("rel_vol") or 0) >= 1.8:
             d["score"] += 4
-            d["reasons"].append("zvýšený objem")
+            d["reasons"].append("zvýšený objem obchodování (zájem trhu)")
         if (it.get("news_7d") or 0) >= 2:
             d["score"] += 3
+            d["reasons"].append(f"aktivní newsflow ({it.get('news_7d')} zpráv za týden)")
         dte = it.get("days_to_earnings")
         if dte is not None and 0 <= dte <= 10:
-            d["reasons"].append(f"earnings za {dte} d")
+            d["reasons"].append(f"blíží se výsledky (earnings za {dte} dní)")
 
     buys = {(b.get("ticker") or "").upper() for b in sig.get("smart_money_top_buys", [])}
     for tk in buys:
         if tk:
-            d = ensure(tk); d["score"] += 15; d["reasons"].append("insideři nakupují (Smart Money)")
+            d = ensure(tk); d["score"] += 15
+            d["reasons"].append("insideři (vedení firmy) akcie sami nakupují — věří jí")
 
     dp = {(x.get("symbol") or "").upper() for x in sig.get("dark_pool", [])[:20]}
     for tk in dp:
         if tk in C:
             C[tk]["score"] += 4
-            C[tk]["reasons"].append("vysoký dark-pool objem")
+            C[tk]["reasons"].append("silný objem v dark pools = zájem velkých institucí")
 
     return C
 
@@ -373,9 +378,11 @@ def run(do_push: bool, dry: bool):
         qty = round(buy_czk / unit_czk, 4)
         if qty <= 0:
             continue
-        reasons = "; ".join(d["reasons"]) or "kompozitní skóre našich signálů"
-        reason = (f"Proč nakupuji: {reasons}. Celková konvikce {d['score']:.0f}/100 (čím vyšší, tím silnější "
-                  f"signál) → cílová váha {tgt_w*100:.0f} % portfolia, ~{buy_czk:.0f} Kč.")
+        frags = d["reasons"] or ["kompozitní skóre našich signálů je nadprůměrné"]
+        body = ". ".join(s[0].upper() + s[1:] for s in frags)
+        reason = (f"{body}. Celková konvikce {d['score']:.0f}/100 spojuje všechny tyto signály "
+                  f"(valuace, momentum, insideři, dark pool) — čím vyšší, tím silnější přesvědčení; "
+                  f"podle ní fond nastavil cílovou váhu {tgt_w*100:.0f} % portfolia (~{buy_czk:.0f} Kč).")
         log_trade("buy", tk, d["name"], qty, pr, cu, d["score"], reason)
         cost = to_czk(qty * pr, cu); cash -= cost
         if tk in positions:
@@ -410,25 +417,28 @@ def run(do_push: bool, dry: bool):
 
     # ── Zrcadlo do Neonu ──
     note = _build_note(trades_this_run, equity, start_cap)
-    # LLM narativ (gpt-oss na Sparku) — přepíše důvody do čtivé podoby + shrnutí dne
+    # LLM narativ (gpt-oss na Sparku) — ROZVEDE každý důvod do bohaté podoby (per-trade,
+    # spolehlivější než dávka) + 2větné shrnutí dne. Fallback = bohatý rules-based důvod.
     if trades_this_run and llm_available():
-        rows = con.execute("SELECT id,action,symbol,reason FROM trades WHERE ts=? ORDER BY id", (now,)).fetchall()
-        if rows:
-            listing = "\n".join(f"{i+1}) {r[1].upper()} {r[2]}: {r[3]}" for i, r in enumerate(rows))
-            enr = llm_chat(
-                "Jsi portfolio manažer AI fondu TRADEZER. Píšeš česky, stručně, sebevědomě, pro zákazníky. Žádné úvahy ani omáčka, jen finální text.",
-                f"Přepiš KAŽDÝ důvod obchodu do jedné čtivé věty (max 22 slov), zachovej fakta (ticker, čísla, konvikci). Vrať přesně {len(rows)} řádků, očíslovaných stejně:\n{listing}")
-            if enr:
-                parsed = _parse_numbered(enr, len(rows))
-                for i, row in enumerate(rows):
-                    if i in parsed:
-                        con.execute("UPDATE trades SET reason=? WHERE id=?", (parsed[i], row[0]))
-                con.commit()
-            nt = llm_chat(
-                "Jsi portfolio manažer AI fondu TRADEZER, píšeš česky pro zákazníky. Žádné úvahy, jen 2 věty.",
-                f"Shrň dnešní tah fondu do 2 vět (sebevědomě, lidsky). Hodnota {equity:.0f} CZK ({(equity-start_cap)/start_cap*100:+.1f} %). Dnešní obchody:\n{listing}")
-            if nt:
-                note = nt
+        act_cs = {"buy": "koupil", "sell": "prodal celou pozici", "trim": "odebral část pozice"}
+        rows = con.execute("SELECT id,action,symbol,name,reason FROM trades WHERE ts=? ORDER BY id", (now,)).fetchall()
+        for rid, action, sym, name, base_reason in rows:
+            out = llm_chat(
+                "Jsi zkušený portfolio manažer AI fondu TRADEZER. Píšeš česky, čtivě a sebevědomě pro drobné "
+                "investory, aby rozhodnutí fondu pochopil i laik. Bez úvah a bez uvozovek, jen 2–3 věty finálního textu.",
+                f"Fond {act_cs.get(action, action)} akcii {name or sym} ({sym}). Rozveď následující fakta do 2–3 "
+                f"poutavých vět — zachovej všechna čísla, vysvětli signály lidsky a co pro investora znamenají. "
+                f"Fakta: {base_reason}", max_tokens=340)
+            if out and len(out) > 25:
+                con.execute("UPDATE trades SET reason=? WHERE id=?", (out, rid))
+        con.commit()
+        listing = "; ".join(f"{a} {s}" for a, s, q, r in trades_this_run)
+        nt = llm_chat(
+            "Jsi portfolio manažer AI fondu TRADEZER, píšeš česky pro zákazníky. Bez úvah, jen 2 věty.",
+            f"Shrň dnešní tah fondu do 2 sebevědomých vět. Hodnota {equity:.0f} CZK "
+            f"({(equity-start_cap)/start_cap*100:+.1f} %). Dnešní obchody: {listing}.")
+        if nt:
+            note = nt
     pos_out = []
     for sym, p in positions.items():
         if p["qty"] <= 1e-9:
