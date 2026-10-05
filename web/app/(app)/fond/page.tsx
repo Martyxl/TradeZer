@@ -48,6 +48,10 @@ export default function FondPage() {
           Náš AI fond obchoduje <b className="text-gray-300">podle vlastních analýz</b> (valuace, momentum, insideři, dark pool).
           Sleduj každý pohyb i proč. Start 1 000 000 Kč, paper-trading.
         </p>
+        <p className="mt-2 inline-block rounded-lg border border-[#2a2d3a] bg-[#12141c] px-3 py-1.5 text-[11px] text-gray-400">
+          <b className="text-gray-300">Konvikce</b> = naše skóre přesvědčení o obchodu <b>0–100</b> (čím vyšší, tím silnější signál).
+          Skládá se z valuace, momentum, nákupů insiderů a dark-pool objemu.
+        </p>
       </div>
 
       {!s ? (
@@ -87,7 +91,7 @@ export default function FondPage() {
                       <th className="px-4 py-2 font-medium text-right">Hodnota</th>
                       <th className="px-4 py-2 font-medium text-right">Váha</th>
                       <th className="px-4 py-2 font-medium text-right">P/L</th>
-                      <th className="px-4 py-2 font-medium text-right">Konvikce</th>
+                      <th className="px-4 py-2 font-medium text-right" title="Skóre přesvědčení 0–100 (valuace + momentum + insideři + dark pool). Vyšší = silnější signál.">Konvikce ⓘ</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -110,7 +114,8 @@ export default function FondPage() {
 
           {/* trade log s důvody */}
           <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-5">
-            <h2 className="text-sm font-semibold text-white">Deník obchodů — co a proč</h2>
+            <h2 className="text-sm font-semibold text-white">Deník obchodů — co a proč to fond udělal</h2>
+            <p className="mt-0.5 text-[11px] text-gray-500">U každého obchodu je rozepsané, proč nakoupil/prodal a jak silná byla konvikce.</p>
             <div className="mt-3 space-y-2">
               {d.trades.length === 0 && <div className="text-sm text-gray-500">Zatím žádné obchody.</div>}
               {d.trades.map((t, i) => {
@@ -131,7 +136,8 @@ export default function FondPage() {
                         {t.realized_czk != null && <span className={`text-xs ${pnlC(t.realized_czk)}`}>· realizováno {t.realized_czk >= 0 ? "+" : ""}{fmt(t.realized_czk)} Kč</span>}
                         <span className="ml-auto text-[11px] text-gray-600">{t.ts.replace("T", " ").slice(0, 16)}</span>
                       </div>
-                      <div className="mt-0.5 text-[13px] text-gray-300">{t.reason}</div>
+                      <div className="mt-1 text-[13px] leading-relaxed text-gray-200">{t.reason}</div>
+                      {t.conviction != null && <div className="mt-0.5 text-[11px] text-gray-500">konvikce {Math.round(t.conviction)}/100</div>}
                     </div>
                   </div>
                 );

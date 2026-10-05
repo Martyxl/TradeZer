@@ -212,11 +212,12 @@ def score_candidates(sig: dict) -> dict:
         d["verdict"] = v.get("verdict")
         pts, why = _verdict_pts(v.get("verdict"))
         d["score"] += pts
-        if why:
-            d["reasons"].append(why)
         comp = v.get("composite")
         if comp is not None:
             d["score"] += (comp - 50) / 3.0  # ±~16
+            d["composite"] = comp
+        if why:
+            d["reasons"].append(why + (f" (fundamentální skóre {comp:.0f}/100)" if comp is not None else ""))
 
     for it in sig.get("discovery", []):
         tk = (it.get("ticker") or "").upper()
@@ -262,9 +263,10 @@ def run(do_push: bool, dry: bool):
                         "opened_at": r[5], "conviction": r[6]}
                  for r in con.execute("SELECT symbol,name,qty,avg_cost,currency,opened_at,conviction FROM positions")}
 
+    gspc = gspc_history()  # benchmark fetch brzy (než Yahoo throttlne po cenách)
     sig = fetch_signals()
     C = score_candidates(sig)
-    print(f"stav: cash {cash:.0f} CZK, {len(positions)} pozic | kandidátů {len(C)}")
+    print(f"stav: cash {cash:.0f} CZK, {len(positions)} pozic | kandidátů {len(C)} | ^GSPC barů {len(gspc)}")
 
     # Ceny + FX pro všechny relevantní tickery
     need = set(positions) | {tk for tk, d in C.items() if d["score"] >= BUY_TH}
@@ -322,8 +324,8 @@ def run(do_push: bool, dry: bool):
 
         # celý prodej: přepálená valuace / obrat konvikce
         if (verdict and ("PŘEPÁL" in verdict.upper() or "PREPAL" in verdict.upper())) or conv <= SELL_TH:
-            reason = (f"Prodej celé pozice: {'valuace přepálená' if verdict and 'PÁL' in verdict.upper() else 'obrat signálů'}"
-                      f", konvikce {conv:.0f}. Realizováno {realized:+.0f} CZK ({gain*100:+.0f} %).")
+            reason = (f"Proč prodávám celou pozici: {'valuace je přepálená (drahá)' if verdict and 'PÁL' in verdict.upper() else 'signály se obrátily proti'}"
+                      f", konvikce klesla na {conv:.0f}/100. Realizováno {realized:+.0f} Kč ({gain*100:+.0f} %).")
             log_trade("sell", sym, pos["name"], pos["qty"], pr, cu, conv, reason, realized)
             cash += val_czk
             del positions[sym]
@@ -371,8 +373,9 @@ def run(do_push: bool, dry: bool):
         qty = round(buy_czk / unit_czk, 4)
         if qty <= 0:
             continue
-        reasons = ", ".join(d["reasons"][:3]) or "kompozit našich signálů"
-        reason = (f"Nákup: {reasons}. Konvikce {d['score']:.0f} → cílová váha {tgt_w*100:.0f} %.")
+        reasons = "; ".join(d["reasons"]) or "kompozitní skóre našich signálů"
+        reason = (f"Proč nakupuji: {reasons}. Celková konvikce {d['score']:.0f}/100 (čím vyšší, tím silnější "
+                  f"signál) → cílová váha {tgt_w*100:.0f} % portfolia, ~{buy_czk:.0f} Kč.")
         log_trade("buy", tk, d["name"], qty, pr, cu, d["score"], reason)
         cost = to_czk(qty * pr, cu); cash -= cost
         if tk in positions:
@@ -443,7 +446,6 @@ def run(do_push: bool, dry: bool):
     for t in trades_out:
         t["quantity"] = t.pop("qty")
     # benchmark: 1 mil. vložený do S&P 500 v den startu fondu (index return)
-    gspc = gspc_history()
     snap_rows = con.execute("SELECT date,equity,cash,invested FROM snapshots ORDER BY date").fetchall()
     gstart = _close_le(gspc, snap_rows[0][0]) if (gspc and snap_rows) else None
     snaps_out = []
