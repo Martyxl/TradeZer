@@ -64,10 +64,10 @@ export default function FondPage() {
 
           {/* souhrn */}
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Card label="Hodnota portfolia" value={`${fmt(s.equity)} Kč`} big />
-            <Card label="Celkový výnos" value={`${s.pnl >= 0 ? "+" : ""}${fmt(s.pnl)} Kč`} sub={`${s.pnl_pct >= 0 ? "+" : ""}${s.pnl_pct} %`} color={pnlC(s.pnl)} big />
-            <Card label="Hotovost" value={`${fmt(s.cash)} Kč`} />
-            <Card label="Pozic" value={`${d.positions.length}`} sub={s.as_of ? `k ${new Date(s.as_of).toLocaleDateString("cs-CZ")}` : undefined} />
+            <Card label="Vklad (kapitál)" value={`${fmt(s.start_capital)} Kč`} />
+            <Card label="Hodnota pozic" value={`${fmt(s.equity - s.cash)} Kč`} sub={`${d.positions.length} ${d.positions.length === 1 ? "pozice" : d.positions.length < 5 ? "pozice" : "pozic"} · za kolik nakoupeno (tržní)`} />
+            <Card label="Hotovost" value={`${fmt(s.cash)} Kč`} sub="zatím neinvestováno" />
+            <Card label="Celková hodnota + výnos" value={`${fmt(s.equity)} Kč`} sub={`výnos ${s.pnl >= 0 ? "+" : ""}${fmt(s.pnl)} Kč (${s.pnl_pct >= 0 ? "+" : ""}${s.pnl_pct} %)`} color={pnlC(s.pnl)} big />
           </div>
 
           {/* equity křivka */}
@@ -162,7 +162,7 @@ function EquityChart({ snaps, start }: { snaps: Snap[]; start: number }) {
   if (snaps.length < 2) {
     return (
       <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-5">
-        <h2 className="flex items-center gap-2 text-sm font-semibold text-white"><TrendingUp size={15} className="text-[#60ff82]" /> Vývoj hodnoty portfolia</h2>
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-white"><TrendingUp size={15} className="text-[#60ff82]" /> Vývoj celkové hodnoty fondu</h2>
         <div className="py-8 text-center text-sm text-gray-500">Křivka se plní každý den — zatím {snaps.length === 1 ? "1 bod" : "0 bodů"}. Zítra přibude další.</div>
       </div>
     );
@@ -186,7 +186,7 @@ function EquityChart({ snaps, start }: { snaps: Snap[]; start: number }) {
     <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-5">
       <div className="flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-sm font-semibold text-white">
-          {up ? <TrendingUp size={15} className="text-[#60ff82]" /> : <TrendingDown size={15} className="text-[#ff5050]" />} Vývoj hodnoty portfolia
+          {up ? <TrendingUp size={15} className="text-[#60ff82]" /> : <TrendingDown size={15} className="text-[#ff5050]" />} Vývoj celkové hodnoty fondu
         </h2>
         <span className="text-[11px] text-gray-500">{snaps[0].date} → {last.date}</span>
       </div>
