@@ -12,7 +12,7 @@ interface Trade {
   ts: string; action: string; symbol: string; name: string | null; quantity: number; price: number;
   currency: string; value_czk: number | null; realized_czk: number | null; conviction: number | null; reason: string;
 }
-interface Snap { date: string; equity: number; cash: number; invested: number; }
+interface Snap { date: string; equity: number; cash: number; invested: number; benchmark?: number | null; }
 interface FundData {
   state: { start_capital: number; cash: number; equity: number; base: string; as_of: string | null;
            note: string | null; pnl: number; pnl_pct: number } | null;
@@ -169,14 +169,19 @@ function EquityChart({ snaps, start }: { snaps: Snap[]; start: number }) {
   }
   const toT = (s: string) => new Date(s + "T00:00:00").getTime();
   const tMin = toT(snaps[0].date), tMax = toT(snaps[snaps.length - 1].date), span = Math.max(tMax - tMin, 1);
-  const vals = snaps.map((s) => s.equity).concat([start]);
+  const hasBench = snaps.some((s) => s.benchmark != null);
+  const benchVals = hasBench ? snaps.map((s) => s.benchmark ?? start) : [];
+  const vals = snaps.map((s) => s.equity).concat([start], benchVals);
   const maxV = Math.max(...vals) * 1.02, minV = Math.min(...vals) * 0.98;
   const x = (t: number) => ((t - tMin) / span) * 100;
   const y = (v: number) => 100 - ((v - minV) / (maxV - minV)) * 100;
   const line = "M " + snaps.map((s) => `${x(toT(s.date)).toFixed(2)},${y(s.equity).toFixed(2)}`).join(" L ");
+  const benchLine = hasBench ? "M " + snaps.map((s) => `${x(toT(s.date)).toFixed(2)},${y(s.benchmark ?? start).toFixed(2)}`).join(" L ") : "";
   const startY = y(start).toFixed(2);
   const last = snaps[snaps.length - 1];
   const up = last.equity >= start;
+  const fundRet = (last.equity / start - 1) * 100;
+  const benchRet = hasBench && last.benchmark ? (last.benchmark / start - 1) * 100 : null;
   return (
     <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-5">
       <div className="flex items-center justify-between">
@@ -185,9 +190,17 @@ function EquityChart({ snaps, start }: { snaps: Snap[]; start: number }) {
         </h2>
         <span className="text-[11px] text-gray-500">{snaps[0].date} → {last.date}</span>
       </div>
+      {benchRet != null && (
+        <div className="mt-1 flex flex-wrap gap-x-4 text-[11px]">
+          <span className="flex items-center gap-1.5"><span className="inline-block h-0.5 w-3" style={{ background: up ? "#60ff82" : "#ff5050" }} /> Fond <b className={fundRet >= 0 ? "text-[#60ff82]" : "text-[#ff5050]"}>{fundRet >= 0 ? "+" : ""}{fundRet.toFixed(1)} %</b></span>
+          <span className="flex items-center gap-1.5"><span className="inline-block h-0.5 w-3 bg-gray-500" /> S&amp;P 500 <b className="text-gray-300">{benchRet >= 0 ? "+" : ""}{benchRet.toFixed(1)} %</b></span>
+          <span className={fundRet >= benchRet ? "text-[#60ff82]" : "text-[#ff8080]"}>{fundRet >= benchRet ? "poráží index" : "zaostává za indexem"} o {Math.abs(fundRet - benchRet).toFixed(1)} b.</span>
+        </div>
+      )}
       <div className="relative mt-3 h-52 w-full">
         <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="h-full w-full">
           <line x1="0" y1={startY} x2="100" y2={startY} stroke="#4b5563" strokeWidth="1" strokeDasharray="2 2" vectorEffect="non-scaling-stroke" />
+          {benchLine && <path d={benchLine} fill="none" stroke="#9ca3af" strokeWidth="1.3" strokeDasharray="3 2" vectorEffect="non-scaling-stroke" />}
           <path d={line} fill="none" stroke={up ? "#60ff82" : "#ff5050"} strokeWidth="1.8" vectorEffect="non-scaling-stroke" />
         </svg>
         <span className="absolute left-0 text-[10px] text-gray-600" style={{ top: `${startY}%` }}>start 1 mil.</span>
