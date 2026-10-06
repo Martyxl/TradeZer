@@ -172,6 +172,7 @@ def db():
     CREATE TABLE IF NOT EXISTS trades(id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT, action TEXT, symbol TEXT,
       name TEXT, qty REAL, price REAL, currency TEXT, value_czk REAL, realized_czk REAL, conviction REAL, reason TEXT);
     CREATE TABLE IF NOT EXISTS snapshots(date TEXT PRIMARY KEY, equity REAL, cash REAL, invested REAL);
+    CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT);
     """)
     row = con.execute("SELECT cash FROM state WHERE id=1").fetchone()
     if row is None:
@@ -437,10 +438,31 @@ def run(do_push: bool, dry: bool):
         listing = "; ".join(f"{a} {s}" for a, s, q, r in trades_this_run)
         nt = llm_chat(
             "Jsi portfolio manažer AI fondu TRADEZER, píšeš česky pro zákazníky. Bez úvah, jen 2 věty.",
-            f"Shrň dnešní tah fondu do 2 sebevědomých vět. Hodnota {equity:.0f} CZK "
-            f"({(equity-start_cap)/start_cap*100:+.1f} %). Dnešní obchody: {listing}.", max_tokens=400)
+            f"Shrň poslední tah fondu do 2 sebevědomých vět (nepoužívej slovo „dnes“, text se čte i další dny). "
+            f"Hodnota {equity:.0f} CZK ({(equity-start_cap)/start_cap*100:+.1f} %). Obchody tahu: {listing}.", max_tokens=400)
         if nt and nt.rstrip()[-1:] in (".", "!", "?", "%", ")"):
             note = nt
+    # poznámka posledního tahu si pamatujeme — přecenění ji pak znovu pushuje (nezestárne na „dnes")
+    _meta_set(con, "note", note)
+    _meta_set(con, "note_date", today)
+    _meta_set(con, "last_decision", now)
+    con.commit()
+    push_mirror(*_mirror(con, positions, prices, to_czk, cash, equity, start_cap, note, today, now, gspc))
+    con.close()
+
+
+def _meta_get(con, key, default=None):
+    r = con.execute("SELECT value FROM meta WHERE key=?", (key,)).fetchone()
+    return r[0] if r else default
+
+
+def _meta_set(con, key, value):
+    con.execute("INSERT OR REPLACE INTO meta(key,value) VALUES(?,?)", (key, value))
+
+
+def _mirror(con, positions, prices, to_czk, cash, equity, start_cap, note, note_date, now, gspc):
+    """Sestaví payload pro /api/fund/ingest. Poznámka nese datum tahu jako prefix
+    `YYYY-MM-DD|text` (frontend ho rozparsuje → „Poslední tah fondu (6. 10.)")."""
     pos_out = []
     for sym, p in positions.items():
         if p["qty"] <= 1e-9:
@@ -466,15 +488,74 @@ def run(do_push: bool, dry: bool):
         bench = round(start_cap * gd / gstart) if (gstart and gd) else None
         snaps_out.append({"date": d, "equity": eq, "cash": ca, "invested": inv, "benchmark": bench})
     state_out = {"start_capital": start_cap, "cash": round(cash), "equity": round(equity),
-                 "base": BASE_CCY, "as_of": now, "note": note}
-    push_mirror(state_out, pos_out, trades_out, snaps_out)
+                 "base": BASE_CCY, "as_of": now, "note": f"{note_date}|{note}" if note else note}
+    return state_out, pos_out, trades_out, snaps_out
+
+
+def mark(do_push: bool):
+    """Lehké PŘECENĚNÍ bez obchodování: nové ceny+FX držených pozic → equity/P&L, snapshot
+    dnešního dne (přepíše) a push zrcadla s uloženou poznámkou posledního tahu.
+    Cena = pár Yahoo dotazů (jen držené tituly), žádné LLM ani signály."""
+    if not TOKEN:
+        sys.exit("Chybí TRADEZER_TOKEN.")
+    con = db()
+    cash, start_cap = con.execute("SELECT cash,start_capital FROM state WHERE id=1").fetchone()
+    positions = {r[0]: {"name": r[1], "qty": r[2], "avg_cost": r[3], "currency": r[4],
+                        "opened_at": r[5], "conviction": r[6]}
+                 for r in con.execute("SELECT symbol,name,qty,avg_cost,currency,opened_at,conviction FROM positions")}
+    if not positions:
+        print("přecenění: žádné pozice"); con.close(); return
+    prices, fx = {}, {}
+    for tk in sorted(positions):
+        p, _ = yahoo_price(tk)
+        if p is not None:
+            prices[tk] = p
+        time.sleep(0.25)
+    for cu in {p["currency"] for p in positions.values()}:
+        if cu and cu != BASE_CCY:
+            fp, _ = yahoo_price(f"{cu}{BASE_CCY}=X")
+            if fp:
+                fx[cu] = fp
+            time.sleep(0.25)
+    missing = [s for s in positions if s not in prices]
+    if missing or any(positions[s]["currency"] not in fx and positions[s]["currency"] != BASE_CCY for s in positions):
+        # neúplná data by zkreslila equity (chybějící cena = nákupní cena, chybějící FX = 0) → raději nic
+        print(f"přecenění přeskočeno: chybí ceny {missing} / FX {sorted(fx)}"); con.close(); return
+
+    def to_czk(amount, cu):
+        return amount * (1.0 if cu == BASE_CCY else fx.get(cu, 0))
+    inv = sum(to_czk(p["qty"] * prices[s], p["currency"]) for s, p in positions.items())
+    equity = cash + inv
+    now = datetime.utcnow().isoformat(timespec="seconds")
+    today = date.today().isoformat()
+    con.execute("INSERT OR REPLACE INTO snapshots(date,equity,cash,invested) VALUES(?,?,?,?)",
+                (today, equity, cash, inv))
+    con.commit()
+    pnl = equity - start_cap
+    print(f"přecenění: equity {equity:.0f} CZK (P/L {pnl:+.0f} / {pnl/start_cap*100:+.2f} %), cash {cash:.0f}")
+    if do_push:
+        note, note_date = _meta_get(con, "note"), _meta_get(con, "note_date")
+        if not note:
+            note, note_date = _last_move(con, equity, start_cap)
+        gspc = gspc_history()
+        push_mirror(*_mirror(con, positions, prices, to_czk, cash, equity, start_cap, note,
+                             note_date or today, now, gspc))
     con.close()
 
 
+def _us_market_hours(now_utc: datetime) -> bool:
+    """Po–pá 13:30–21:30 UTC (US cash session + chvíle po zavíračce pro závěrečnou cenu)."""
+    if now_utc.weekday() >= 5:
+        return False
+    m = now_utc.hour * 60 + now_utc.minute
+    return 13 * 60 + 30 <= m <= 21 * 60 + 30
+
+
 def _build_note(trades, equity, start_cap) -> str:
+    # bez slova „dnes" — poznámka se zobrazuje i další dny s datem tahu (viz _mirror)
     pnl = equity - start_cap
     if not trades:
-        return f"Dnes bez obchodu — držím stávající pozice. Hodnota {equity:,.0f} CZK ({pnl/start_cap*100:+.1f} %).".replace(",", " ")
+        return f"Bez obchodu — držím stávající pozice. Hodnota {equity:,.0f} CZK ({pnl/start_cap*100:+.1f} %).".replace(",", " ")
     acts = {}
     for a, s, q, r in trades:
         acts.setdefault(a, []).append(s)
@@ -485,7 +566,16 @@ def _build_note(trades, equity, start_cap) -> str:
         parts.append("ořezal " + ", ".join(acts["trim"]))
     if acts.get("sell"):
         parts.append("prodal " + ", ".join(acts["sell"]))
-    return ("Dnes " + "; ".join(parts) + f". Hodnota {equity:,.0f} CZK ({pnl/start_cap*100:+.1f} %).").replace(",", " ")
+    return ("Fond " + "; ".join(parts) + f". Hodnota po tahu {equity:,.0f} CZK ({pnl/start_cap*100:+.1f} %).").replace(",", " ")
+
+
+def _last_move(con, equity, start_cap):
+    """(poznámka, datum) posledního tahu odvozené z DB — pro starou DB bez `meta`."""
+    r = con.execute("SELECT MAX(ts) FROM trades").fetchone()[0]
+    if not r:
+        return _build_note([], equity, start_cap), date.today().isoformat()
+    rows = con.execute("SELECT action,symbol,qty,reason FROM trades WHERE ts=? ORDER BY id", (r,)).fetchall()
+    return _build_note(rows, equity, start_cap), r[:10]
 
 
 def main():
@@ -493,7 +583,33 @@ def main():
     ap.add_argument("--push", action="store_true")
     ap.add_argument("--dry", action="store_true", help="jen spočítej, neukládej/nepushuj")
     ap.add_argument("--loop", type=int, default=0, help="opakuj každých N minut (Spark: 1440 = denně)")
+    ap.add_argument("--mark-every", type=int, default=0,
+                    help="s --loop: mezi rozhodovacími běhy přeceňuj pozice každých N minut "
+                         "(jen v obchodní době USA) a pushuj nové P/L")
+    ap.add_argument("--mark-now", action="store_true", help="jen jednorázové přecenění + push (bez obchodů)")
     args = ap.parse_args()
+    if args.mark_now:
+        mark(args.push)
+        return
+    if args.mark_every > 0 and args.loop > 0:
+        first = True
+        while True:
+            now = datetime.utcnow()
+            con = db()
+            last = _meta_get(con, "last_decision") or con.execute("SELECT MAX(ts) FROM trades").fetchone()[0]
+            con.close()
+            due = last is None or (now - datetime.fromisoformat(last)).total_seconds() >= args.loop * 60
+            try:
+                if due:
+                    print(f"[{time.strftime('%Y-%m-%d %H:%M')}] TRADEZER investuje (rozhodovací běh) -> {BASE}")
+                    run(args.push, args.dry)
+                elif first or _us_market_hours(now):
+                    print(f"[{time.strftime('%Y-%m-%d %H:%M')}] přecenění")
+                    mark(args.push)
+            except Exception as e:  # noqa: BLE001 — jeden špatný běh nesmí shodit službu
+                print(f"  chyba běhu: {e}")
+            first = False
+            time.sleep(args.mark_every * 60)
     while True:
         print(f"[{time.strftime('%Y-%m-%d %H:%M')}] TRADEZER investuje -> {BASE} (db {DB_PATH})")
         run(args.push, args.dry)

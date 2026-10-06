@@ -59,11 +59,25 @@ export default function FondPage() {
       ) : (
         <>
           {/* strategie / note */}
-          {s.note && (
-            <div className="rounded-xl border border-[rgba(96,255,130,0.25)] bg-[#0c1a11] px-4 py-3 text-sm text-[#cfeedd]">
-              <span className="text-[11px] uppercase tracking-wider text-[#8fffab]">Dnešní tah fondu</span>
-              <div className="mt-0.5">{s.note}</div>
-            </div>
+          {s.note && (() => {
+            // engine posílá poznámku jako "YYYY-MM-DD|text" (datum tahu); starší data bez prefixu
+            const m = s.note!.match(/^(\d{4})-(\d{2})-(\d{2})\|([\s\S]*)$/);
+            const when = m ? `${+m[3]}. ${+m[2]}.` : null;
+            const text = m ? m[4] : s.note;
+            return (
+              <div className="rounded-xl border border-[rgba(96,255,130,0.25)] bg-[#0c1a11] px-4 py-3 text-sm text-[#cfeedd]">
+                <span className="text-[11px] uppercase tracking-wider text-[#8fffab]">
+                  Poslední tah fondu{when ? ` · ${when}` : ""}
+                </span>
+                <div className="mt-0.5">{text}</div>
+              </div>
+            );
+          })()}
+          {s.as_of && (
+            <p className="-mt-3 text-[11px] text-gray-500">
+              Ceny přepočítány {new Date(/[zZ]$|[+-]\d\d:?\d\d$/.test(s.as_of) ? s.as_of : s.as_of + "Z").toLocaleString("cs-CZ", { day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" })}
+              {" "}· přecenění běží každou hodinu v obchodní době USA
+            </p>
           )}
 
           {/* souhrn */}
