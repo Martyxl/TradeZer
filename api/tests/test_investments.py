@@ -84,9 +84,18 @@ def test_signal_rules():
     # velký zisk + velká váha + blízko 52T maxima → red + návrh trim
     red = _signal({"unrealized_pct": 80, "price": 100, "high_52w": 102, "low_52w": 50}, weight=20, raw_qty=10)
     assert red["color"] == "red" and red["trim_qty"] is not None
-    # blízko 52T minima, malá váha → green + zóna dokupu
-    green = _signal({"unrealized_pct": -5, "price": 52, "high_52w": 150, "low_52w": 50}, weight=3, raw_qty=10)
+    # blízko 52T minima + valuace levná → green + zóna dokupu
+    low = {"unrealized_pct": -5, "price": 52, "high_52w": 150, "low_52w": 50}
+    green = _signal(low, weight=3, raw_qty=10, verdict="LEVNÁ")
     assert green["color"] == "green" and green["add_zone"] is not None
+    # samotná cena u minima BEZ ověření valuací = padající nůž → jen amber + varování
+    blind = _signal(low, weight=3, raw_qty=10)
+    assert blind["color"] == "amber" and any("bez ověření valuací" in r for r in blind["reasons"])
+    # přepálená valuace + blízko maxima → red
+    ov = _signal({"unrealized_pct": 20, "price": 100, "high_52w": 102, "low_52w": 50}, weight=5, raw_qty=1, verdict="PŘEPÁLENÁ")
+    assert ov["color"] == "red"
+    # přepálená valuace zruší „levné minimum“ (cena u dna nestačí) → amber
+    assert _signal(low, weight=3, raw_qty=10, verdict="PŘEPÁLENÁ")["color"] != "green"
     # bez ceny (žádný quote) → amber, nic nepadá
     amber = _signal({"unrealized_pct": None, "price": None, "high_52w": None, "low_52w": None}, weight=None, raw_qty=1)
     assert amber["color"] == "amber"

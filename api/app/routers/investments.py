@@ -197,10 +197,11 @@ def _to_base(amount: float | None, ccy: str, base: str, fx: dict[str, float]) ->
     return None
 
 
-def _signal(h: dict, weight: float | None, raw_qty: float) -> dict:
+def _signal(h: dict, weight: float | None, raw_qty: float, verdict: str | None = None) -> dict:
     """Pravidlový semafor pro pozici — transparentní, NE investiční doporučení.
-    Vstupy: nerealizovaný zisk %, váha v portfoliu, poloha v 52T rozpětí.
-    Výstup: barva (green/amber/red), důvody, návrh akce, zóna k dokupu."""
+    Vstupy: nerealizovaný zisk %, váha v portfoliu, poloha v 52T rozpětí a (je-li)
+    verdikt Valuation Radaru. Výstup: barva (green/amber/red), důvody, návrh akce,
+    zóna k dokupu."""
     reasons: list[str] = []
     score = 0  # + = spíš odebrat/trimovat, − = spíš držet/dokoupit
     up = h.get("unrealized_pct")
@@ -209,16 +210,27 @@ def _signal(h: dict, weight: float | None, raw_qty: float) -> dict:
     pos52 = None
     if price and hi and lo and hi > lo:
         pos52 = (price - lo) / (hi - lo)
+    v = (verdict or "").upper()
+    overvalued = "PŘEPÁL" in v or "PREPAL" in v
+    cheap = "LEVN" in v
 
     if up is not None and up >= 60:
         reasons.append(f"velký zisk +{up:.0f} %"); score += 1
     if weight is not None and weight >= 15:
         reasons.append(f"velká váha v portfoliu {weight:.0f} %"); score += 1
+    if overvalued:
+        reasons.append("valuace je podle Valuation Radaru přepálená"); score += 1
+    elif cheap:
+        reasons.append("valuace je podle Valuation Radaru levná"); score -= 1
     if pos52 is not None:
         if pos52 >= 0.9:
             reasons.append("blízko 52T maxima"); score += 1
         elif pos52 <= 0.15:
-            reasons.append("blízko 52T minima"); score -= 1
+            if verdict is None:
+                # sama cena u minima nic neříká o kvalitě firmy (může klesat dál) → bez valuace jen slabý signál
+                reasons.append("blízko 52T minima (bez ověření valuací — může jít o pokračující pokles)")
+            else:
+                reasons.append("blízko 52T minima"); score -= 1
 
     color = "red" if score >= 2 else ("green" if score <= -1 else "amber")
 
@@ -321,12 +333,23 @@ async def portfolio(base: str = Query(DEFAULT_BASE), user: User = Depends(curren
             base_invested += bi
             base_value += bv if bv is not None else 0
 
+    # Verdikty Valuation Radaru (předpočtený snapshot, jedno čtení) — ticker bez broker suffixu
+    verdicts: dict[str, str] = {}
+    try:
+        from app.valuation.models import ValOverviewSnapshot
+        snap = await session.get(ValOverviewSnapshot, "latest")
+        for it in ((snap.payload or {}).get("items", []) if snap else []):
+            if it.get("ticker") and it.get("valuation_verdict"):
+                verdicts[str(it["ticker"]).upper()] = it["valuation_verdict"]
+    except Exception as e:  # noqa: BLE001 — semafor funguje i bez valuací
+        log.warning("investments: valuation verdicts unavailable", error=str(e))
+
     # Semafor — druhý průchod (potřebuje celkovou hodnotu pro váhu pozice).
     for hd in holdings:
         weight = (hd.pop("_bv") / base_value * 100) if (base_value and hd.get("_bv")) else None
         raw_qty = hd.pop("_raw_qty")
         hd["weight_pct"] = round(weight, 2) if weight is not None else None
-        hd["signal"] = _signal(hd, weight, raw_qty)
+        hd["signal"] = _signal(hd, weight, raw_qty, verdicts.get(hd["symbol"].split(".")[0].upper()))
 
     return {
         "base": base,
