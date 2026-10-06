@@ -13,6 +13,9 @@ interface Entry {
   direction: "long" | "short";
   entry_price: number | null;
   exit_price: number | null;
+  stop_price: number | null;
+  target_price: number | null;
+  outcome: "win" | "loss" | "be" | null;
   size: number | null;
   r_result: number | null;
   pnl: number | null;
@@ -67,6 +70,10 @@ function rColor(v: number | null | undefined): string {
   return v > 0 ? "#4ade80" : v < 0 ? "#f87171" : "#9ca3af";
 }
 function outcomeOf(e: Entry): number | null {
+  // explicitní výsledek (Win/Loss přepínač) má přednost před znaménkem R/P&L
+  if (e.outcome === "win") return 1;
+  if (e.outcome === "loss") return -1;
+  if (e.outcome === "be") return 0;
   return e.r_result ?? e.pnl ?? null;
 }
 function fmtDate(s: string | null): string {
@@ -137,10 +144,25 @@ function BucketTable({ title, rows, nameMap }: { title: string; rows: Bucket[]; 
 
 const EMPTY = {
   instrument: "", direction: "long", traded_at: "", session: "",
-  entry_price: "", exit_price: "", size: "", r_result: "", pnl: "",
+  entry_price: "", exit_price: "", stop_price: "", target_price: "", outcome: "",
+  size: "", r_result: "", pnl: "",
   setup: "", notes: "", screenshot_url: "",
 };
 type FormState = typeof EMPTY;
+
+/** Z Entry/SL/TP a výsledku dopočítá Exit a R (win: exit=TP, R=|TP−entry|/|entry−SL|;
+ *  loss: exit=SL, R=−1). Chybí-li vstupy, vrátí prázdné — nic nevymýšlí. */
+function resultFromLevels(f: FormState, outcome: string): { exit_price: string; r_result: string } {
+  const n = (v: string) => (v.trim() === "" || isNaN(Number(v)) ? null : Number(v));
+  const entry = n(f.entry_price), sl = n(f.stop_price), tp = n(f.target_price);
+  if (outcome === "loss") return { exit_price: sl != null ? String(sl) : "", r_result: sl != null ? "-1" : "" };
+  if (outcome === "win") {
+    const r = entry != null && sl != null && tp != null && entry !== sl
+      ? String(Math.round((Math.abs(tp - entry) / Math.abs(entry - sl)) * 100) / 100) : "";
+    return { exit_price: tp != null ? String(tp) : "", r_result: r };
+  }
+  return { exit_price: f.exit_price, r_result: f.r_result };
+}
 
 function EntryForm({ initial, draft, meta, onClose, onSaved }: {
   initial: Entry | null; draft?: Partial<FormState> | null; meta?: AnalysisMeta | null;
@@ -153,6 +175,9 @@ function EntryForm({ initial, draft, meta, onClose, onSaved }: {
     session: initial.session ?? "",
     entry_price: initial.entry_price?.toString() ?? "",
     exit_price: initial.exit_price?.toString() ?? "",
+    stop_price: initial.stop_price?.toString() ?? "",
+    target_price: initial.target_price?.toString() ?? "",
+    outcome: initial.outcome ?? "",
     size: initial.size?.toString() ?? "",
     r_result: initial.r_result?.toString() ?? "",
     pnl: initial.pnl?.toString() ?? "",
@@ -164,6 +189,16 @@ function EntryForm({ initial, draft, meta, onClose, onSaved }: {
   const [err, setErr] = useState<string | null>(null);
 
   const set = (k: keyof FormState, v: string) => setF((p) => ({ ...p, [k]: v }));
+  // Přepnutí výsledku Win/Loss (znovu kliknutí = zrušit) přepočítá Exit a R ze SL/TP
+  const setOutcome = (o: string) => setF((p) => {
+    const next = p.outcome === o ? "" : o;
+    return { ...p, outcome: next, ...(next ? resultFromLevels(p, next) : {}) };
+  });
+  // Změna Entry/SL/TP při zvoleném výsledku přepočítá Exit/R (dokud je Win/Loss zapnuté)
+  const setLevel = (k: "entry_price" | "stop_price" | "target_price", v: string) => setF((p) => {
+    const q = { ...p, [k]: v };
+    return p.outcome ? { ...q, ...resultFromLevels(q, p.outcome) } : q;
+  });
 
   const submit = async () => {
     if (!f.instrument.trim()) { setErr("Instrument je povinný"); return; }
@@ -229,11 +264,36 @@ function EntryForm({ initial, draft, meta, onClose, onSaved }: {
 
           <div>
             <label className={lab}>Entry</label>
-            <input type="number" step="any" className={field} value={f.entry_price} onChange={(e) => set("entry_price", e.target.value)} />
+            <input type="number" step="any" className={field} value={f.entry_price} onChange={(e) => setLevel("entry_price", e.target.value)} />
           </div>
           <div>
-            <label className={lab}>Exit</label>
+            <label className={lab}>Exit (skutečný)</label>
             <input type="number" step="any" className={field} value={f.exit_price} onChange={(e) => set("exit_price", e.target.value)} />
+          </div>
+
+          <div>
+            <label className={lab}>SL (stop)</label>
+            <input type="number" step="any" className={field} value={f.stop_price} onChange={(e) => setLevel("stop_price", e.target.value)} />
+          </div>
+          <div>
+            <label className={lab}>TP (cíl)</label>
+            <input type="number" step="any" className={field} value={f.target_price} onChange={(e) => setLevel("target_price", e.target.value)} />
+          </div>
+
+          <div className="col-span-2">
+            <label className={lab}>Výsledek obchodu</label>
+            <div className="flex gap-1.5">
+              {([["win", "Win"], ["loss", "Loss"]] as const).map(([o, l]) => (
+                <button key={o} type="button" onClick={() => setOutcome(o)}
+                  className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium border transition-colors ${
+                    f.outcome === o
+                      ? o === "win" ? "bg-green-950/50 text-green-300 border-green-800" : "bg-red-950/50 text-red-300 border-red-800"
+                      : "bg-[#0f1117] text-gray-400 border-[#2a2d3a] hover:text-white"}`}>
+                  {l}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1 text-[10px] text-gray-600">Win → Exit = TP a R podle SL/TP; Loss → Exit = SL a −1R. Dalším kliknutím zrušíš.</p>
           </div>
 
           <div>
@@ -299,6 +359,9 @@ function extractedToForm(ex: Record<string, unknown>): Partial<FormState> {
     entry_price: s(ex.entry_price),
     exit_price: s(ex.exit_price),
     r_result: s(ex.r_result),
+    stop_price: s(ex.stop_price),
+    target_price: s(ex.target_price),
+    outcome: s(ex.outcome),
     // čas ENTRY z grafu (datetime-local); bez něj zůstane předvyplněný aktuální čas
     ...(s(ex.traded_at) ? { traded_at: s(ex.traded_at) } : {}),
     setup: s(ex.setup),
@@ -688,13 +751,14 @@ export default function DenikPage() {
           ) : (
             <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full text-sm min-w-[720px]">
+                <table className="w-full text-sm min-w-[820px]">
                   <thead>
                     <tr className="text-gray-500 text-[10px] uppercase bg-[#181b26]">
                       <th className="text-left px-3 py-2.5">Datum</th>
                       <th className="text-left px-3 py-2.5">Instrument</th>
                       <th className="text-left px-3 py-2.5">Směr</th>
-                      <th className="text-right px-3 py-2.5">R</th>
+                      <th className="text-right px-3 py-2.5">SL / TP</th>
+                      <th className="text-right px-3 py-2.5">Výsledek</th>
                       <th className="text-left px-3 py-2.5">Setup</th>
                       <th className="text-left px-3 py-2.5">Session</th>
                       <th className="text-left px-3 py-2.5">Pozn.</th>
@@ -713,8 +777,19 @@ export default function DenikPage() {
                               {e.direction === "long" ? "Long" : "Short"}
                             </span>
                           </td>
-                          <td className="px-3 py-2.5 text-right font-semibold" style={{ color: rColor(oc) }}>
-                            {e.r_result != null ? `${e.r_result > 0 ? "+" : ""}${e.r_result}R` : e.pnl != null ? `${e.pnl > 0 ? "+" : ""}${e.pnl}` : "—"}
+                          <td className="px-3 py-2.5 text-right text-xs text-gray-400 whitespace-nowrap">
+                            {e.stop_price != null || e.target_price != null
+                              ? <><span className="text-red-300">{e.stop_price ?? "—"}</span> / <span className="text-green-300">{e.target_price ?? "—"}</span></>
+                              : "—"}
+                          </td>
+                          <td className="px-3 py-2.5 text-right font-semibold whitespace-nowrap" style={{ color: rColor(oc) }}>
+                            {e.outcome && (
+                              <span className={`mr-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded ${
+                                e.outcome === "win" ? "bg-green-950/60 text-green-300" : e.outcome === "loss" ? "bg-red-950/60 text-red-300" : "bg-gray-800 text-gray-300"}`}>
+                                {e.outcome === "win" ? "WIN" : e.outcome === "loss" ? "LOSS" : "BE"}
+                              </span>
+                            )}
+                            {e.r_result != null ? `${e.r_result > 0 ? "+" : ""}${e.r_result}R` : e.pnl != null ? `${e.pnl > 0 ? "+" : ""}${e.pnl}` : e.outcome ? "" : "—"}
                           </td>
                           <td className="px-3 py-2.5 text-gray-300 max-w-[160px] truncate">{e.setup || "—"}</td>
                           <td className="px-3 py-2.5 text-gray-400">{e.session ? (SESSION_NAME[e.session] || e.session) : "—"}</td>

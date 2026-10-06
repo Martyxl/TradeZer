@@ -23,6 +23,9 @@ class JournalEntry(Base):
     entry_price: Mapped[float | None] = mapped_column(Float)
     exit_price: Mapped[float | None] = mapped_column(Float)
     size: Mapped[float | None] = mapped_column(Float)
+    stop_price: Mapped[float | None] = mapped_column(Float)    # SL (plánovaný stop)
+    target_price: Mapped[float | None] = mapped_column(Float)  # TP (plánovaný cíl)
+    outcome: Mapped[str | None] = mapped_column(String(10))    # win | loss | be (None = neurčeno)
     r_result: Mapped[float | None] = mapped_column(Float)   # výsledek v R (násobek rizika)
     pnl: Mapped[float | None] = mapped_column(Float)        # P/L v bodech/měně
     traded_at: Mapped[datetime | None] = mapped_column(DateTime, index=True)  # kdy obchod proběhl

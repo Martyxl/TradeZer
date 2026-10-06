@@ -29,6 +29,7 @@ router = APIRouter(prefix="/api/journal", tags=["journal"])
 
 DIRECTIONS = {"long", "short"}
 SESSIONS = {"asia", "london", "ny", "other"}
+OUTCOMES = {"win", "loss", "be"}
 
 
 def _out(e: JournalEntry) -> dict:
@@ -38,6 +39,9 @@ def _out(e: JournalEntry) -> dict:
         "direction": e.direction,
         "entry_price": e.entry_price,
         "exit_price": e.exit_price,
+        "stop_price": e.stop_price,
+        "target_price": e.target_price,
+        "outcome": e.outcome,
         "size": e.size,
         "r_result": e.r_result,
         "pnl": e.pnl,
@@ -90,11 +94,33 @@ def _apply(e: JournalEntry, p: dict) -> None:
     if "screenshot_url" in p:
         u = str(p.get("screenshot_url") or "").strip()
         e.screenshot_url = u[:500] if u.startswith("http") else None
-    for field in ("entry_price", "exit_price", "size", "r_result", "pnl"):
+    for field in ("entry_price", "exit_price", "stop_price", "target_price", "size", "r_result", "pnl"):
         if field in p:
             setattr(e, field, _num(p.get(field)))
+    if "outcome" in p:
+        o = str(p.get("outcome") or "").lower().strip()
+        e.outcome = o if o in OUTCOMES else None
     if "traded_at" in p:
         e.traded_at = _parse_dt(p.get("traded_at"))
+    _fill_result(e)
+
+
+def _fill_result(e: JournalEntry) -> None:
+    """Při známém výsledku (win/loss) dopočítá prázdné exit/R ze SL/TP/entry:
+    win → exit = TP, R = |TP−entry| / |entry−SL|; loss → exit = SL, R = −1.
+    Nikdy nepřepisuje hodnotu, kterou uživatel vyplnil sám."""
+    if e.outcome == "loss":
+        if e.exit_price is None and e.stop_price is not None:
+            e.exit_price = e.stop_price
+        if e.r_result is None and e.stop_price is not None:
+            e.r_result = -1.0
+    elif e.outcome == "win":
+        if e.exit_price is None and e.target_price is not None:
+            e.exit_price = e.target_price
+        if (e.r_result is None and None not in (e.entry_price, e.stop_price, e.target_price)
+                and e.entry_price != e.stop_price):
+            e.r_result = round(abs(e.target_price - e.entry_price)
+                               / abs(e.entry_price - e.stop_price), 2)
 
 
 @router.get("")
@@ -177,7 +203,10 @@ async def delete_entry(entry_id: int, user: User = Depends(current_user),
 
 
 def _outcome(e: JournalEntry) -> str | None:
-    """win / loss / be z r_result (priorita) nebo pnl; None = neznámé (chybí obojí)."""
+    """win / loss / be: explicitní `outcome` (priorita), jinak z r_result, jinak z pnl;
+    None = neznámé."""
+    if e.outcome in OUTCOMES:
+        return e.outcome
     v = e.r_result if e.r_result is not None else e.pnl
     if v is None:
         return None
@@ -334,6 +363,9 @@ def _map_extracted(data: dict, source_url: str | None) -> dict:
         "direction": direction,
         "entry_price": data.get("entry"),
         "exit_price": exit_price,
+        "stop_price": stop,
+        "target_price": target,
+        "outcome": outcome if outcome in ("win", "loss") else "",
         "r_result": r_result,
         "traded_at": data.get("traded_at") or "",
         "setup": setup[:80],

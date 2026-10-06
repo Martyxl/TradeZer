@@ -116,6 +116,16 @@ async def _startup_db() -> None:
                 log.info("Migration: fund_snapshots benchmark ensured")
             except Exception as e:
                 log.warning("Migration fund_snapshots skipped", error=str(e))
+            try:
+                await conn.execute(text(
+                    "ALTER TABLE journal_entries "
+                    "ADD COLUMN IF NOT EXISTS stop_price DOUBLE PRECISION, "
+                    "ADD COLUMN IF NOT EXISTS target_price DOUBLE PRECISION, "
+                    "ADD COLUMN IF NOT EXISTS outcome VARCHAR(10)"
+                ))
+                log.info("Migration: journal_entries SL/TP/outcome ensured")
+            except Exception as e:
+                log.warning("Migration journal_entries skipped", error=str(e))
 
     # Auto-seed: pokud je DB prázdná (žádné tickery), spusť seed automaticky
     async with engine.connect() as conn:

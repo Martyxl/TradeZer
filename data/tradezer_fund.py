@@ -554,8 +554,9 @@ def _us_market_hours(now_utc: datetime) -> bool:
 def _build_note(trades, equity, start_cap) -> str:
     # bez slova „dnes" — poznámka se zobrazuje i další dny s datem tahu (viz _mirror)
     pnl = equity - start_cap
+    eq = f"{equity:,.0f}".replace(",", " ")  # mezera jako oddělovač tisíců (jen v čísle, ne v seznamu tickerů)
     if not trades:
-        return f"Bez obchodu — držím stávající pozice. Hodnota {equity:,.0f} CZK ({pnl/start_cap*100:+.1f} %).".replace(",", " ")
+        return f"Bez obchodu — držím stávající pozice. Hodnota {eq} CZK ({pnl/start_cap*100:+.2f} %)."
     acts = {}
     for a, s, q, r in trades:
         acts.setdefault(a, []).append(s)
@@ -566,7 +567,7 @@ def _build_note(trades, equity, start_cap) -> str:
         parts.append("ořezal " + ", ".join(acts["trim"]))
     if acts.get("sell"):
         parts.append("prodal " + ", ".join(acts["sell"]))
-    return ("Fond " + "; ".join(parts) + f". Hodnota po tahu {equity:,.0f} CZK ({pnl/start_cap*100:+.1f} %).").replace(",", " ")
+    return "Fond " + "; ".join(parts) + f". Hodnota po tahu {eq} CZK ({pnl/start_cap*100:+.2f} %)."
 
 
 def _last_move(con, equity, start_cap):
