@@ -55,24 +55,54 @@ SYSTEM_PROMPT = (
     "Jsi asistent obchodního deníku. Uživatel pošle screenshot z TradingView s nakreslenou "
     "analýzou a obchodem. Vytěž strukturované informace. Klidně nejdřív stručně uvažuj, ale "
     "POSLEDNÍ částí odpovědi MUSÍ být validní JSON objekt dle tohoto schématu (za ním už nic):\n"
-    '{"instrument": string|null, "direction": "long"|"short"|null, "timeframe": string|null, '
-    '"entry": number|null, "stop": number|null, "target": number|null, "rr": number|null, '
-    '"setup": string|null, "notes": string|null}\n'
+    '{"instrument": string|null, "timeframe": string|null, '
+    '"tool_top_price": number|null, "tool_boundary_price": number|null, '
+    '"tool_bottom_price": number|null, "setup": string|null, "notes": string|null}\n'
     "Použij null u čehokoli, co není jasně vidět. NEVYMÝŠLEJ si čísla. Ceny jsou čistá čísla "
     "bez měny a oddělovačů tisíců. notes = 1–2 věty česky shrnující nakreslenou analýzu.\n"
-    "POZICE: na grafu je nakreslený position tool = obdélník se ZELENOU (cíl/profit) a "
-    "ČERVENOU (stop) zónou — tyto barvy platí pro OBA směry! NEPŘEDPOKLÁDEJ 'zelená=long'. "
-    "Směr urči podle VZÁJEMNÉ POLOHY zón: ZELENÁ zóna POD červenou → SHORT (cíl je dole); "
-    "ZELENÁ NAD červenou → LONG. stop = vzdálená hrana ČERVENÉ zóny, target = vzdálená hrana "
-    "ZELENÉ zóny, entry = hranice mezi zónami. Ceny vyplň tak, aby platilo: "
-    "SHORT → stop > entry > target; LONG → stop < entry < target.\n"
-    "POUZE NAKRESLENÝ OBCHOD: soustřeď se VÝHRADNĚ na position/order tool (obdélník se zelenou "
-    "a červenou zónou). IGNORUJ všechno ostatní — volume profil vpravo, VWAP, session čáry, "
-    "Fibonacci, indikátory dole i cenové štítky, které k toolu NEpatří (na grafu je hodně "
-    "rušivých prvků). Cenu KAŽDÉ ze 3 úrovní (entry = hranice zón, stop = vzdálená hrana "
-    "červené, target = vzdálená hrana zelené) odečti tak, že danou VODOROVNOU čáru sleduješ "
-    "doprava k CENOVÉ OSE a přečteš číslo tam. U vysokého RR i malá chyba mění výsledek."
+    "POZICE: na grafu je nakreslený position tool = svislá dvojice SOUVISLÝCH obdélníkových "
+    "bloků nad sebou (horní a dolní), které se stýkají ve vodorovné hranici. Jejich barvy jsou "
+    "u každého uživatele jiné (často zelená/červená, ale i modrá, fialová, šedá…) — BARVY "
+    "IGNORUJ, NEURČUJ podle nich směr ani role. Směr, stop i target NEURČUJ — jen přečti "
+    "TŘI ceny podle polohy:\n"
+    "  tool_top_price = cena HORNÍ vodorovné hrany horního bloku,\n"
+    "  tool_boundary_price = cena vodorovné hranice, kde se oba bloky stýkají,\n"
+    "  tool_bottom_price = cena DOLNÍ vodorovné hrany dolního bloku.\n"
+    "Musí platit tool_top_price > tool_boundary_price > tool_bottom_price.\n"
+    "POUZE NAKRESLENÝ OBCHOD: soustřeď se VÝHRADNĚ na position tool (dva bloky nad sebou). "
+    "IGNORUJ všechno ostatní — volume profil vpravo, VWAP, session čáry, Fibonacci, "
+    "indikátory dole i cenové štítky, které k toolu NEpatří (na grafu je hodně rušivých "
+    "prvků). Cenu KAŽDÉ ze 3 úrovní odečti tak, že danou VODOROVNOU hranu sleduješ doprava "
+    "k CENOVÉ OSE a přečteš číslo tam. U vysokého RR i malá chyba mění výsledek."
 )
+
+
+def resolve_position(ex: dict) -> dict:
+    """Z TŘÍ cen podle polohy (horní hrana / hranice / dolní hrana) deterministicky určí
+    entry/stop/target/direction/rr. Role nezávisí na barvách: MENŠÍ blok je strana stopu
+    (stop se obvykle dává blíž než target). Horní blok menší → SHORT (stop nahoře);
+    dolní menší → LONG (stop dole). Při remíze nebo chybějících cenách nic nedomýšlí."""
+    def num(k):
+        v = ex.pop(k, None)
+        try:
+            return float(v) if v is not None else None
+        except (TypeError, ValueError):
+            return None
+    top, mid, bot = num("tool_top_price"), num("tool_boundary_price"), num("tool_bottom_price")
+    if top is None or mid is None or bot is None or not (top > mid > bot):
+        return ex
+    upper, lower = top - mid, mid - bot
+    if abs(upper - lower) < 1e-9:
+        return ex  # remíza — nelze určit, nech na uživateli
+    entry = mid
+    if upper < lower:  # menší blok nahoře → SHORT
+        direction, stop, target = "short", top, bot
+    else:              # menší blok dole → LONG
+        direction, stop, target = "long", bot, top
+    risk = abs(entry - stop)
+    ex.update(direction=direction, entry=entry, stop=stop, target=target,
+              rr=round(abs(target - entry) / risk, 2) if risk else None)
+    return ex
 
 
 def http_json(url: str, method: str = "GET", body: dict | None = None,
@@ -136,7 +166,7 @@ def vision_extract(img: bytes, media: str) -> tuple[dict, dict]:
         raise RuntimeError(
             f"prázdná odpověď (done_reason={resp.get('done_reason')}); "
             f"resp={json.dumps(resp, ensure_ascii=False)[:400]}")
-    return _parse_json_obj(text), meta
+    return resolve_position(_parse_json_obj(text)), meta
 
 
 def _parse_json_obj(text: str) -> dict:
