@@ -307,16 +307,35 @@ def _map_extracted(data: dict, source_url: str | None) -> dict:
         setup = f"{setup} ({tf})"
     elif tf:
         setup = tf
-    notes = str(data.get("notes") or "").strip()
-    stop = data.get("stop")
-    if stop is not None and _num(stop) is not None:
-        notes = (notes + f" | Stop: {stop}").strip(" |")
+    stop, target, rr = _num(data.get("stop")), _num(data.get("target")), _num(data.get("rr"))
+    # Výsledek obchodu: plánované RR NENÍ výsledek. exit/R se vyplní jen když je znám
+    # (win = TP + plánované RR, loss = SL + −1R); "open"/neznámé → prázdné, ať to nevypadá jako výhra.
+    outcome = str(data.get("outcome") or "").lower().strip()
+    exit_price = r_result = None
+    if outcome == "win":
+        exit_price, r_result = target, rr
+    elif outcome == "loss":
+        exit_price, r_result = stop, -1.0
+    def fmt(x: float) -> str:  # bez ořezu platných číslic (:g by z 31167.22 udělalo 31167.2)
+        return f"{x:.4f}".rstrip("0").rstrip(".")
+    levels = []
+    if stop is not None:
+        levels.append(f"SL: {fmt(stop)}")
+    if target is not None:
+        levels.append(f"TP: {fmt(target)}")
+    if rr is not None:
+        levels.append(f"plán RR {fmt(rr)}")
+    levels.append({"win": "výsledek: WIN (cena dosáhla TP)",
+                   "loss": "výsledek: LOSS (cena dosáhla SL)"}.get(
+                       outcome, "výsledek: neurčen/běží — doplň ručně"))
+    notes = " | ".join(x for x in (str(data.get("notes") or "").strip(), *levels) if x)
     return {
         "instrument": str(data.get("instrument") or "").strip(),
         "direction": direction,
         "entry_price": data.get("entry"),
-        "exit_price": data.get("target"),
-        "r_result": data.get("rr"),
+        "exit_price": exit_price,
+        "r_result": r_result,
+        "traded_at": data.get("traded_at") or "",
         "setup": setup[:80],
         "notes": notes,
         "screenshot_url": source_url or "",

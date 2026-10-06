@@ -299,6 +299,8 @@ function extractedToForm(ex: Record<string, unknown>): Partial<FormState> {
     entry_price: s(ex.entry_price),
     exit_price: s(ex.exit_price),
     r_result: s(ex.r_result),
+    // čas ENTRY z grafu (datetime-local); bez něj zůstane předvyplněný aktuální čas
+    ...(s(ex.traded_at) ? { traded_at: s(ex.traded_at) } : {}),
     setup: s(ex.setup),
     notes: s(ex.notes),
     screenshot_url: s(ex.screenshot_url),
