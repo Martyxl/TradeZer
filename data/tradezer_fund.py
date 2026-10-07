@@ -460,18 +460,39 @@ def _meta_set(con, key, value):
     con.execute("INSERT OR REPLACE INTO meta(key,value) VALUES(?,?)", (key, value))
 
 
+def _cost_basis_czk(con) -> dict[str, float]:
+    """Zbývající pořizovací cena pozic v Kč z historie obchodů (kurz platný v den obchodu,
+    metoda průměrné ceny: prodej/ořez ubere poměrnou část nákladu)."""
+    qty: dict[str, float] = {}
+    cost: dict[str, float] = {}
+    for action, sym, q, v in con.execute("SELECT action,symbol,qty,value_czk FROM trades ORDER BY id"):
+        q, v = q or 0.0, v or 0.0
+        if action == "buy":
+            qty[sym] = qty.get(sym, 0.0) + q
+            cost[sym] = cost.get(sym, 0.0) + v
+        elif qty.get(sym, 0.0) > 1e-12:  # sell / trim
+            frac = min(1.0, q / qty[sym])
+            cost[sym] *= (1 - frac)
+            qty[sym] -= q
+    return {s: c for s, c in cost.items() if qty.get(s, 0.0) > 1e-9}
+
+
 def _mirror(con, positions, prices, to_czk, cash, equity, start_cap, note, note_date, now, gspc):
     """Sestaví payload pro /api/fund/ingest. Poznámka nese datum tahu jako prefix
     `YYYY-MM-DD|text` (frontend ho rozparsuje → „Poslední tah fondu (6. 10.)")."""
+    cost_czk = _cost_basis_czk(con)
     pos_out = []
     for sym, p in positions.items():
         if p["qty"] <= 1e-9:
             continue
         pr = prices.get(sym, p["avg_cost"]); cu = p["currency"]
         v = to_czk(p["qty"] * pr, cu)
+        # P/L v Kč = hodnota − skutečně zaplacené koruny (kurz v době nákupu) → součet pozic
+        # sedí s celkovým výnosem fondu (zahrnuje i pohyb kurzu USD/CZK). Fallback: cenový rozdíl.
+        unreal = v - cost_czk[sym] if sym in cost_czk else to_czk((pr - p["avg_cost"]) * p["qty"], cu)
         pos_out.append({"symbol": sym, "name": p["name"], "quantity": round(p["qty"], 4),
                         "avg_cost": round(p["avg_cost"], 4), "currency": cu, "last_price": pr,
-                        "value_czk": round(v), "unrealized_czk": round(to_czk((pr - p["avg_cost"]) * p["qty"], cu)),
+                        "value_czk": round(v), "unrealized_czk": round(unreal),
                         "weight_pct": round(v / equity * 100, 2) if equity else 0,
                         "opened_at": p.get("opened_at"), "conviction": round(p.get("conviction") or 0, 1)})
     trades_out = [dict(zip(["ts", "action", "symbol", "name", "qty", "price", "currency", "value_czk", "realized_czk", "conviction", "reason"], r))
