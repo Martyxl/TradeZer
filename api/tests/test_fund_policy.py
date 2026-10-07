@@ -120,6 +120,19 @@ def test_tension_only_strong_and_half_size(env):
     assert t[0][2] < 0.6 * calm_target * 1_000_000             # zhruba polovina cílové váhy
 
 
+def test_momentum_without_valuation_is_not_bought(env):
+    """3+ roky: čisté momentum (bez valuace) nebo drahá akcie se nekupuje, ani když má vysoké skóre."""
+    state, trades, _ = env
+    state["sig"] = {
+        "valuation": [{"ticker": "EXP", "name": "EXP", "verdict": "NAPJATÁ", "composite": 95}],
+        "discovery": [{"ticker": "MOM", "score": 100, "ret_20d": 40, "rel_vol": 2, "news_7d": 5},
+                      {"ticker": "EXP", "score": 100, "ret_20d": 40, "rel_vol": 2, "news_7d": 5}],
+    }
+    assert tf.score_candidates(state["sig"])["MOM"]["score"] > tf.BUY_TH   # skóre by stačilo…
+    tf.run(False, False)
+    assert trades() == []                                                   # …ale bez valuace/drahé = ne
+
+
 def test_falling_knife_waits_even_if_cheap(env):
     state, trades, _ = env
     state["regime"] = "tension"

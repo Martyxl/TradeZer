@@ -18,6 +18,7 @@ Strategie (rules-based, vysvětlitelná):
     napětí = jen nejsilnější příležitosti a po částech; panika = nenakupovat, počkat.
   • „Padající nůž": kandidát, který ještě padá (−8/−6/−4 % za 5 dní dle režimu), čeká na
     stabilizaci ceny — i když je levný.
+  • NÁKUP jen u firem s ověřenou valuací (levná/férová) — žádné honění momenta bez fundamentu.
   • PRODEJE JEN VÝJIMEČNĚ (daň ze zisku, časový test 3 roky): žádné fixování zisku ani běžné
     ořezy; prodá se jen při zlomu teze (přepálená valuace A obrat signálů, nebo tvrdý obrat) a
     nikdy v panice. Zisková pozice držená <3 roky se kvůli dani neprodává, leda při tvrdém obratu.
@@ -67,6 +68,13 @@ REGIME_POLICY = {
     "tension":    {"max_buys": 1,        "size": 0.5, "min_score": BUY_TH + 12, "knife_pct": 4.0},
     "panic":      {"max_buys": 0,        "size": 0.0, "min_score": 10_000,      "knife_pct": 0.0},
 }
+
+
+def fundamentally_ok(d: dict) -> bool:
+    """Horizont 3+ roky: kupujeme jen firmy s OVĚŘENOU valuací (levná / férová). Čistě momentová
+    jména bez valuace (nebo drahá, napjatá, přepálená) fond nekupuje, ani když má vysoké skóre."""
+    v = (d.get("verdict") or "").upper()
+    return "LEVN" in v or "FÉR" in v or "FER" in v
 
 
 def held_days(opened_at) -> int:
@@ -442,7 +450,8 @@ def run(do_push: bool, dry: bool):
 
     # ── NÁKUPY ──
     equity, _ = equity_now()
-    all_cand = sorted(([tk, d] for tk, d in C.items() if d["score"] >= BUY_TH and tk in prices),
+    all_cand = sorted(([tk, d] for tk, d in C.items()
+                       if d["score"] >= BUY_TH and tk in prices and fundamentally_ok(d)),
                       key=lambda x: x[1]["score"], reverse=True)
     cand = [c for c in all_cand if c[1]["score"] >= pol["min_score"]]
     buys_done = 0
