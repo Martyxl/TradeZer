@@ -120,6 +120,26 @@ def test_tension_only_strong_and_half_size(env):
     assert t[0][2] < 0.6 * calm_target * 1_000_000             # zhruba polovina cílové váhy
 
 
+def test_tranche_in_tension_is_topped_up_after_calm(env):
+    """„Přikoupit až po stabilizaci": v napětí půlka cílové váhy, v klidu se zbytek doplní."""
+    state, trades, _ = env
+    state["sig"] = _sig(("AAA", "LEVNÁ", 80))
+    state["regime"] = "tension"
+    tf.run(False, False)
+    first = trades()
+    assert [x[:2] for x in first] == [("buy", "AAA")]
+    state["regime"] = "calm"
+    tf.run(False, False)
+    second = trades()
+    assert [x[:2] for x in second] == [("buy", "AAA"), ("buy", "AAA")]    # doplnění
+    total = sum(x[2] for x in second)
+    target = (0.03 + (35 - tf.BUY_TH) / 38 * (tf.MAX_WEIGHT - 0.03)) * 1_000_000
+    assert 0.95 * target < total < 1.05 * target                           # celkem ≈ plná cílová váha
+    state["regime"] = "calm"
+    tf.run(False, False)
+    assert len(trades()) == 2                                              # a dál už nic (cíl splněn)
+
+
 def test_momentum_without_valuation_is_not_bought(env):
     """3+ roky: čisté momentum (bez valuace) nebo drahá akcie se nekupuje, ani když má vysoké skóre."""
     state, trades, _ = env
