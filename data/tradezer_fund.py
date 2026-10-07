@@ -10,9 +10,17 @@ Běh: TRADEZER_TOKEN=... py data/tradezer_fund.py --push   (--loop N minut)
 Strategie (rules-based, vysvětlitelná):
   Konvikce = valuace (verdikt+skóre) + momentum (discovery) + insideři (smart money)
              + institucionální objem (dark pool).
-  Nakupuje top konvikce (cílová váha dle konvikce, max 10 %, cash buffer 5 %),
-  prodává při PŘEPÁLENÉ valuaci / obratu, fixuje část zisku u napjaté valuace,
-  ořezává nadváhu. Max pár obchodů za běh, ať je log čitelný.
+  Nakupuje top konvikce (cílová váha dle konvikce, max 10 %, cash buffer 5 %).
+  Max pár obchodů za běh, ať je log čitelný.
+
+  FILOZOFIE (střednědobé příležitosti na 3+ let, ne splašené obchodování):
+  • REŽIM TRHU (risk_regime.py) řídí nákupy: klid = běžně; stabilizace = po částech (½ váhy);
+    napětí = jen nejsilnější příležitosti a po částech; panika = nenakupovat, počkat.
+  • „Padající nůž": kandidát, který ještě padá (−8/−6/−4 % za 5 dní dle režimu), čeká na
+    stabilizaci ceny — i když je levný.
+  • PRODEJE JEN VÝJIMEČNĚ (daň ze zisku, časový test 3 roky): žádné fixování zisku ani běžné
+    ořezy; prodá se jen při zlomu teze (přepálená valuace A obrat signálů, nebo tvrdý obrat) a
+    nikdy v panice. Zisková pozice držená <3 roky se kvůli dani neprodává, leda při tvrdém obratu.
 """
 import argparse
 import json
@@ -29,6 +37,8 @@ try:
 except Exception:
     pass
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # risk_regime.py leží vedle
+
 UA = "Mozilla/5.0 TradezerFund/1.0"
 BASE = os.environ.get("TRADEZER_BASE_URL", "https://tradezer.app").rstrip("/")
 TOKEN = os.environ.get("TRADEZER_TOKEN", "").strip()
@@ -41,9 +51,68 @@ MAX_WEIGHT = 0.10        # max 10 % equity na jednu pozici
 CASH_BUFFER = 0.05       # drž aspoň 5 % hotovosti
 BUY_TH = 22              # min konvikce pro nákup
 SELL_TH = -8             # pod tuto konvikci prodat
-TRIM_GAIN = 0.40         # zisk nad 40 % + napjatá valuace → fixovat část
 MAX_BUYS = 4             # max nových/doplněných nákupů za běh
 MIN_TRADE_CZK = 8000     # neobchoduj drobné
+
+# ── Ochrana před splašeným obchodováním (horizont 3+ roky, daně) ─────────────
+SELL_TAX_YEARS = 3                 # ČR: po 3 letech držení je zisk z prodeje osvobozen
+HARD_SELL_TH = SELL_TH - 20        # tvrdý zlom teze (konvikce hluboko pod prahem)
+OVERWEIGHT_TRIM = 2 * MAX_WEIGHT   # ořez nadváhy až při dvojnásobku povolené váhy
+
+# Politika nákupů dle režimu trhu: kolik nákupů, jak velká část cílové váhy, minimální
+# konvikce a práh „padajícího nože" (pokles za 5 dní, kdy kandidát počká na stabilizaci).
+REGIME_POLICY = {
+    "calm":       {"max_buys": MAX_BUYS, "size": 1.0, "min_score": BUY_TH,      "knife_pct": 8.0},
+    "recovering": {"max_buys": 2,        "size": 0.5, "min_score": BUY_TH,      "knife_pct": 6.0},
+    "tension":    {"max_buys": 1,        "size": 0.5, "min_score": BUY_TH + 12, "knife_pct": 4.0},
+    "panic":      {"max_buys": 0,        "size": 0.0, "min_score": 10_000,      "knife_pct": 0.0},
+}
+
+
+def held_days(opened_at) -> int:
+    try:
+        return (date.today() - date.fromisoformat(str(opened_at)[:10])).days
+    except (ValueError, TypeError):
+        return 0
+
+
+def sell_decision(conv: float, verdict: str | None, gain: float, days: int, state: str):
+    """Kdy VÝJIMEČNĚ prodat celou pozici. Vrací (akce, důvod): akce = 'sell' | 'hold_tax' |
+    'hold_regime' | None. Prodej jen při zlomu teze: přepálená valuace A obrat signálů
+    (konvikce ≤ SELL_TH), nebo tvrdý obrat (konvikce ≤ HARD_SELL_TH). Nikdy v panice;
+    v napětí jen tvrdý obrat; zisková pozice <3 roky se neprodává (daň) kromě tvrdého obratu."""
+    v = (verdict or "").upper()
+    overvalued = "PŘEPÁL" in v or "PREPAL" in v
+    hard = conv <= HARD_SELL_TH
+    thesis = overvalued and conv <= SELL_TH
+    if not (hard or thesis):
+        return None, ""
+    if state == "panic":
+        return "hold_regime", "režim PANIKA — ve stresu neprodáváme"
+    if state == "tension" and not hard:
+        return "hold_regime", "režim NAPĚTÍ — prodej kvůli valuaci počká na klidnější trh"
+    if gain > 0 and days < SELL_TAX_YEARS * 365 and not hard:
+        return "hold_tax", f"zisk {gain * 100:+.0f} %, držíme {days} dní (<3 roky) — prodej by byl zdaněný"
+    return "sell", ("tvrdý obrat signálů" if hard else "přepálená valuace + obrat signálů")
+
+
+def falling_knife(closes: list[float], thr_pct: float):
+    """(padá_ještě?, výnos 5 dní v %). Padá = −thr % za 5 obchodních dní, nebo nové 5denní
+    minimum při poklesu aspoň poloviny prahu. Levná, ale ještě padající akcie počká na stabilizaci."""
+    if thr_pct <= 0 or len(closes) < 7:
+        return False, None
+    ret5 = (closes[-1] / closes[-6] - 1) * 100
+    new_low = closes[-1] <= min(closes[-6:-1])
+    return (ret5 <= -thr_pct) or (new_low and ret5 <= -thr_pct / 2), ret5
+
+
+def daily_closes(symbol: str) -> list[float]:
+    try:
+        res = _get(f"https://query1.finance.yahoo.com/v8/finance/chart/{_yahoo_sym(symbol)}?range=1mo&interval=1d")["chart"]["result"][0]
+        return [float(c) for c in (res.get("indicators", {}).get("quote") or [{}])[0].get("close") or [] if c is not None]
+    except (urllib.error.URLError, urllib.error.HTTPError, KeyError, IndexError, TypeError, ValueError, TimeoutError):
+        return []
+
 
 # ── Yahoo ceny + FX ─────────────────────────────────────────────────────────
 _YH_ALIAS = {"KWBE": "KWBE.DE"}
@@ -274,6 +343,20 @@ def run(do_push: bool, dry: bool):
     C = score_candidates(sig)
     print(f"stav: cash {cash:.0f} CZK, {len(positions)} pozic | kandidátů {len(C)} | ^GSPC barů {len(gspc)}")
 
+    # Režim trhu (klid / stabilizace / napětí / panika) — řídí nákupy a brání prodejům ve stresu
+    try:
+        import risk_regime
+        rg = risk_regime.get_regime()
+    except Exception as e:  # noqa: BLE001 — bez režimu jedeme jako klid, ale nahlas
+        print(f"  režim trhu nedostupný ({e}) — předpokládám klid")
+        rg = None
+    state = (rg or {}).get("state") or "calm"
+    pol = REGIME_POLICY.get(state, REGIME_POLICY["calm"])
+    ctx = {"state": state, "label": (rg or {}).get("label", "Klid"), "reasons": (rg or {}).get("reasons", []),
+           "waiting": [], "watch": [], "tax_holds": [], "sell_deferred": [], "known": rg is not None}
+    print(f"režim trhu: {ctx['label']} → max nákupů {pol['max_buys']}, velikost {pol['size']:.0%}, "
+          f"min. konvikce {pol['min_score']}")
+
     # Ceny + FX pro všechny relevantní tickery
     need = set(positions) | {tk for tk, d in C.items() if d["score"] >= BUY_TH}
     prices, ccy = {}, {}
@@ -328,47 +411,58 @@ def run(do_push: bool, dry: bool):
         weight = val_czk / equity if equity else 0
         realized = to_czk((pr - pos["avg_cost"]) * pos["qty"], cu)
 
-        # celý prodej: přepálená valuace / obrat konvikce
-        if (verdict and ("PŘEPÁL" in verdict.upper() or "PREPAL" in verdict.upper())) or conv <= SELL_TH:
-            reason = (f"Proč prodávám celou pozici: {'valuace je přepálená (drahá)' if verdict and 'PÁL' in verdict.upper() else 'signály se obrátily proti'}"
-                      f", konvikce klesla na {conv:.0f}/100. Realizováno {realized:+.0f} Kč ({gain*100:+.0f} %).")
+        # PRODEJ JEN VÝJIMEČNĚ (daň ze zisku, horizont 3+ roky): zlom teze, nikdy v panice
+        days = held_days(pos.get("opened_at"))
+        action, why = sell_decision(conv, verdict, gain, days, state)
+        if action == "sell":
+            reason = (f"Výjimečný prodej celé pozice — {why}: konvikce klesla na {conv:.0f}/100"
+                      f"{f', valuace {verdict}' if verdict else ''}. Realizováno {realized:+.0f} Kč ({gain*100:+.0f} %). "
+                      f"Fond jinak neprodává (nechceme platit daň ze zisku), tady teze pro držení přestala platit.")
             log_trade("sell", sym, pos["name"], pos["qty"], pr, cu, conv, reason, realized)
             cash += val_czk
             del positions[sym]
             continue
-        # fixace části zisku: velký zisk + napjatá valuace
-        if gain >= TRIM_GAIN and verdict and "NAPJAT" in verdict.upper() and pos["qty"] > 0:
-            qsell = round(pos["qty"] * 0.4, 4)
-            if to_czk(qsell * pr, cu) >= MIN_TRADE_CZK:
-                rz = to_czk((pr - pos["avg_cost"]) * qsell, cu)
-                reason = (f"Prodej části (40 %): zisk +{gain*100:.0f} %, valuace napjatá — fixuji část zisku, "
-                          f"zbytek držím. Realizováno {rz:+.0f} CZK.")
-                log_trade("trim", sym, pos["name"], qsell, pr, cu, conv, reason, rz)
-                cash += to_czk(qsell * pr, cu); pos["qty"] -= qsell
-                continue
-        # ořez nadváhy
-        if weight > MAX_WEIGHT * 1.25:
+        if action == "hold_tax":
+            ctx["tax_holds"].append(f"{sym} ({why})")
+            continue
+        if action == "hold_regime":
+            ctx["sell_deferred"].append(f"{sym} ({why})")
+            continue
+        # ořez nadváhy jen EXTRÉMNÍ (≥ 2× povolená váha) a ne při zdaněném zisku
+        if weight > OVERWEIGHT_TRIM and not (gain > 0 and days < SELL_TAX_YEARS * 365):
             target_czk = MAX_WEIGHT * equity
             qsell = round((val_czk - target_czk) / (pr * (fx.get(cu, 1) if cu != BASE_CCY else 1)), 4)
             if qsell > 0 and to_czk(qsell * pr, cu) >= MIN_TRADE_CZK:
-                reason = f"Prodej části: váha vzrostla na {weight*100:.0f} %, snižuji k cílovým {MAX_WEIGHT*100:.0f} %."
+                reason = (f"Výjimečný ořez: váha vzrostla na {weight*100:.0f} % (limit {MAX_WEIGHT*100:.0f} %), "
+                          f"snižuji k cílovým {MAX_WEIGHT*100:.0f} %. Pozice je ve ztrátě nebo starší 3 let, takže se nezdaní.")
                 log_trade("trim", sym, pos["name"], qsell, pr, cu, conv, reason)
                 cash += to_czk(qsell * pr, cu); pos["qty"] -= qsell
+        elif weight > OVERWEIGHT_TRIM:
+            ctx["tax_holds"].append(f"{sym} (nadváha {weight*100:.0f} %, ale zisk by se zdanil)")
 
     # ── NÁKUPY ──
     equity, _ = equity_now()
-    cand = sorted(([tk, d] for tk, d in C.items() if d["score"] >= BUY_TH and tk in prices),
-                  key=lambda x: x[1]["score"], reverse=True)
+    all_cand = sorted(([tk, d] for tk, d in C.items() if d["score"] >= BUY_TH and tk in prices),
+                      key=lambda x: x[1]["score"], reverse=True)
+    cand = [c for c in all_cand if c[1]["score"] >= pol["min_score"]]
     buys_done = 0
+    bought = set()
     for tk, d in cand:
-        if buys_done >= MAX_BUYS:
+        if buys_done >= pol["max_buys"]:
             break
         if cash <= equity * CASH_BUFFER:
             break
         pr = prices[tk]; cu = ccy.get(tk, "USD")
-        # cílová váha dle konvikce (lineárně 22→60 na 3→10 %)
+        # „padající nůž": levná, ale ještě padající akcie počká na stabilizaci ceny
+        knife, ret5 = falling_knife(daily_closes(tk), pol["knife_pct"])
+        time.sleep(0.25)
+        if knife:
+            ctx["waiting"].append(f"{tk} ({ret5:+.0f} % za 5 dní)")
+            print(f"  ČEKÁ {tk}: konvikce {d['score']:.0f}, ale cena ještě padá ({ret5:+.1f} % za 5 dní)")
+            continue
+        # cílová váha dle konvikce (lineárně 22→60 na 3→10 %), v režimu napětí/stabilizace jen její část
         tgt_w = min(MAX_WEIGHT, 0.03 + (d["score"] - BUY_TH) / 38.0 * (MAX_WEIGHT - 0.03))
-        tgt_czk = tgt_w * equity
+        tgt_czk = tgt_w * equity * pol["size"]
         cur_czk = to_czk(positions.get(tk, {"qty": 0, "currency": cu})["qty"] * pr, cu) if tk in positions else 0
         buy_czk = min(tgt_czk - cur_czk, cash - equity * CASH_BUFFER)
         if buy_czk < MIN_TRADE_CZK:
@@ -384,7 +478,11 @@ def run(do_push: bool, dry: bool):
         reason = (f"{body}. Celková konvikce {d['score']:.0f}/100 spojuje všechny tyto signály "
                   f"(valuace, momentum, insideři, dark pool) — čím vyšší, tím silnější přesvědčení; "
                   f"podle ní fond nastavil cílovou váhu {tgt_w*100:.0f} % portfolia (~{buy_czk:.0f} Kč).")
+        if state != "calm":
+            reason += (f" Režim trhu je {ctx['label'].upper()}, proto fond vstupuje jen po částech "
+                       f"({pol['size']*100:.0f} % cílové váhy) a zbytek doplní, až se situace uklidní.")
         log_trade("buy", tk, d["name"], qty, pr, cu, d["score"], reason)
+        bought.add(tk)
         cost = to_czk(qty * pr, cu); cash -= cost
         if tk in positions:
             p0 = positions[tk]
@@ -395,6 +493,11 @@ def run(do_push: bool, dry: bool):
             positions[tk] = {"name": d["name"], "qty": qty, "avg_cost": pr, "currency": cu,
                              "opened_at": today, "conviction": d["score"]}
         buys_done += 1
+
+    # Silné příležitosti, které fond kvůli režimu nekoupil — sleduje je (do poznámky)
+    if state != "calm":
+        ctx["watch"] = [f"{tk} (konvikce {d['score']:.0f})" for tk, d in all_cand
+                        if tk not in bought and not any(w.startswith(tk + " ") for w in ctx["waiting"])][:5]
 
     # ── Ulož stav + snapshot ──
     con.execute("DELETE FROM positions")
@@ -417,7 +520,7 @@ def run(do_push: bool, dry: bool):
         con.close(); return
 
     # ── Zrcadlo do Neonu ──
-    note = _build_note(trades_this_run, equity, start_cap)
+    note = _build_note(trades_this_run, equity, start_cap, ctx)
     # LLM narativ (gpt-oss na Sparku) — ROZVEDE každý důvod do bohaté podoby (per-trade,
     # spolehlivější než dávka) + 2větné shrnutí dne. Fallback = bohatý rules-based důvod.
     if trades_this_run and llm_available():
@@ -441,7 +544,7 @@ def run(do_push: bool, dry: bool):
             f"Shrň poslední tah fondu do 2 sebevědomých vět (nepoužívej slovo „dnes“, text se čte i další dny). "
             f"Hodnota {equity:.0f} CZK ({(equity-start_cap)/start_cap*100:+.1f} %). Obchody tahu: {listing}.", max_tokens=400)
         if nt and nt.rstrip()[-1:] in (".", "!", "?", "%", ")"):
-            note = nt
+            note = (nt.rstrip() + " " + _ctx_text(ctx)).strip()
     # poznámka posledního tahu si pamatujeme — přecenění ji pak znovu pushuje (nezestárne na „dnes")
     _meta_set(con, "note", note)
     _meta_set(con, "note_date", today)
@@ -572,12 +675,41 @@ def _us_market_hours(now_utc: datetime) -> bool:
     return 13 * 60 + 30 <= m <= 21 * 60 + 30
 
 
-def _build_note(trades, equity, start_cap) -> str:
+_REGIME_LINE = {
+    "panic": "Fond nenakupuje a čeká na stabilizaci trhu; neprodává (nechceme platit daň ze zisku).",
+    "tension": "Nakupuje jen nejsilnější příležitosti a po částech.",
+    "recovering": "Po šoku se trh stabilizuje, fond nakupuje opatrně po částech.",
+}
+
+
+def _ctx_text(ctx: dict | None) -> str:
+    """Věta o režimu trhu a o tom, na co fond čeká / co kvůli dani nedělá."""
+    if not ctx:
+        return ""
+    out = []
+    if ctx.get("state") and ctx["state"] != "calm":
+        why = "; ".join((ctx.get("reasons") or [])[:2])
+        out.append(f"Režim trhu: {ctx.get('label', '')}{f' ({why})' if why else ''}. {_REGIME_LINE.get(ctx['state'], '')}")
+    if not ctx.get("known", True):
+        out.append("Režim trhu se nepodařilo zjistit, fond postupoval opatrně jako při klidu.")
+    if ctx.get("waiting"):
+        out.append("Čeká na stabilizaci ceny: " + ", ".join(ctx["waiting"]) + ".")
+    if ctx.get("watch"):
+        out.append("Sleduje příležitosti: " + ", ".join(ctx["watch"]) + ".")
+    if ctx.get("sell_deferred"):
+        out.append("Prodej odložen: " + ", ".join(ctx["sell_deferred"]) + ".")
+    if ctx.get("tax_holds"):
+        out.append("Neprodává kvůli dani: " + ", ".join(ctx["tax_holds"]) + ".")
+    return " ".join(out)
+
+
+def _build_note(trades, equity, start_cap, ctx=None) -> str:
     # bez slova „dnes" — poznámka se zobrazuje i další dny s datem tahu (viz _mirror)
     pnl = equity - start_cap
     eq = f"{equity:,.0f}".replace(",", " ")  # mezera jako oddělovač tisíců (jen v čísle, ne v seznamu tickerů)
+    extra = _ctx_text(ctx)
     if not trades:
-        return f"Bez obchodu — držím stávající pozice. Hodnota {eq} CZK ({pnl/start_cap*100:+.2f} %)."
+        return (f"Bez obchodu — držím stávající pozice. {extra} Hodnota {eq} CZK ({pnl/start_cap*100:+.2f} %).").replace("  ", " ")
     acts = {}
     for a, s, q, r in trades:
         acts.setdefault(a, []).append(s)
@@ -588,7 +720,7 @@ def _build_note(trades, equity, start_cap) -> str:
         parts.append("ořezal " + ", ".join(acts["trim"]))
     if acts.get("sell"):
         parts.append("prodal " + ", ".join(acts["sell"]))
-    return "Fond " + "; ".join(parts) + f". Hodnota po tahu {eq} CZK ({pnl/start_cap*100:+.2f} %)."
+    return ("Fond " + "; ".join(parts) + f". {extra} Hodnota po tahu {eq} CZK ({pnl/start_cap*100:+.2f} %).").replace("  ", " ")
 
 
 def _last_move(con, equity, start_cap):

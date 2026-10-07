@@ -1,5 +1,6 @@
 """News agregátor — orchestruje fetch ze všech zdrojů a ukládá do DB."""
 import asyncio
+import re
 from typing import Sequence
 
 import structlog
@@ -108,18 +109,37 @@ KEYWORD_TICKER_MAP: dict[str, list[str]] = {
 }
 
 
+# Geopolitika / válečné riziko / ropa — šoky, které hýbou celým trhem (zlato nahoru,
+# akcie dolů), ale neobsahují „gold" ani „wall street", takže je klíčová slova výše
+# zahazovala. Hranice slov (\b): jinak by „iran" chytilo i guvernéra Fedu Mirana.
+_GEO_RE = re.compile(
+    r"\b(iran(?:ian|ians)?|israel(?:i|is)?|gaza|hezbollah|hamas|houthis?|hormuz|red sea|"
+    r"nuclear|missiles?|airstrikes?|air strikes?|ceasefire|cease-fire|geopolit\w*|"
+    r"escalat\w*|sanctions?|invasion|invade[sd]?|taiwan|ukrain\w*|russia\w*|north korea|"
+    r"middle east|opec\+?|brent|crude)\b"
+)
+# Instrumenty, které geopolitický šok ovlivní (safe-haven + hlavní US indexy)
+GEO_TICKERS = ("XAUUSD", "NQ", "ES", "YM")
+
+
+def is_geopolitical(text: str) -> bool:
+    return bool(_GEO_RE.search(text.lower()))
+
+
 def _detect_tickers_by_keywords(
     title: str, body: str | None, all_tickers: list[Ticker]
 ) -> list[Ticker]:
     text = (title + " " + (body or "")).lower()
     enabled_symbols = {t.symbol for t in all_tickers}
+    geo = bool(_GEO_RE.search(text))
     # Žádný fallback — zpráva bez keyword shody se sledovaným tickerem se ignoruje.
     # (Dřívější default na EURUSD posílal veškerý nezařazený šum do LLM predikcí.)
     return [
         t for t in all_tickers
-        if t.symbol in KEYWORD_TICKER_MAP
-        and any(kw in text for kw in KEYWORD_TICKER_MAP[t.symbol])
-        and t.symbol in enabled_symbols
+        if t.symbol in enabled_symbols
+        and ((t.symbol in KEYWORD_TICKER_MAP
+              and any(kw in text for kw in KEYWORD_TICKER_MAP[t.symbol]))
+             or (geo and t.symbol in GEO_TICKERS))
     ]
 
 

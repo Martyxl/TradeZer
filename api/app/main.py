@@ -25,6 +25,7 @@ from app.routers import (
     journal_router,
     discovery_router,
     gamma_router,
+    regime_router,
     smart_money_router,
     billing_router,
     investments_router,
@@ -211,7 +212,7 @@ app.add_middleware(
 # edge je servíruje z cache a většina requestů vůbec nesáhne na funkci/DB → škáluje
 # do vysoké návštěvnosti. Placené/per-user endpointy (valuation, discovery, smart-money,
 # dark-pool, investments, auth, admin) tu NEJSOU — ty se cachovat nesmí (paywall/data).
-_CACHEABLE_PREFIXES = ("/api/bias", "/api/gamma", "/api/news", "/api/summary",
+_CACHEABLE_PREFIXES = ("/api/bias", "/api/gamma", "/api/regime", "/api/news", "/api/summary",
                        "/api/stats", "/api/history", "/api/tickers", "/api/health")
 
 
@@ -238,6 +239,7 @@ app.include_router(auth_router)
 app.include_router(journal_router)
 app.include_router(discovery_router)
 app.include_router(gamma_router)
+app.include_router(regime_router)
 app.include_router(smart_money_router)
 app.include_router(billing_router)
 app.include_router(investments_router)

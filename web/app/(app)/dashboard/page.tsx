@@ -9,6 +9,7 @@ import { MarketHoursBar } from "@/components/MarketHoursBar";
 import { BiasCard } from "@/components/BiasCard";
 import { EntryCard } from "@/components/EntryCard";
 import { GammaCard } from "@/components/GammaCard";
+import { RegimeCard } from "@/components/RegimeCard";
 import { OutlookCard } from "@/components/OutlookCard";
 import { api, type Ticker, type NewsItem, type DailySummary } from "@/lib/api";
 
@@ -155,6 +156,9 @@ export default function DashboardPage() {
           kategorie zpráv, ne z AI analýzy. Predikce s hodnotami 33/33/33 % neberte v úvahu.
         </div>
       )}
+
+      {/* Režim trhu (klid / napětí / panika) — skryje se bez dat */}
+      <RegimeCard />
 
       {/* Dnešní BIAS */}
       <BiasCard ticker={selectedTicker} />

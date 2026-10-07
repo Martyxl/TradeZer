@@ -13,6 +13,7 @@ from app.models.news import (
 from app.models.site import SiteCounter
 from app.models.discovery import DiscoverySnapshot
 from app.models.gamma import GammaSnapshot
+from app.models.regime import RegimeSnapshot
 from app.models.smart_money import SmartMoneySnapshot
 from app.models.darkpool import DarkPoolSnapshot
 from app.models.fund import FundState, FundPosition, FundTrade, FundSnapshot
@@ -28,6 +29,7 @@ __all__ = [
     "SiteCounter",
     "DiscoverySnapshot",
     "GammaSnapshot",
+    "RegimeSnapshot",
     "SmartMoneySnapshot",
     "DarkPoolSnapshot",
     "FundState",

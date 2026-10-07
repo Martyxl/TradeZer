@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { RegimeChip } from "@/components/RegimeCard";
 import { Bot, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Scissors } from "lucide-react";
 
 interface Pos {
@@ -43,6 +44,7 @@ export default function FondPage() {
             <Bot size={16} className="text-[#60ff82]" />
           </span>
           <h1 className="text-2xl font-bold text-white">TRADEZER investuje</h1>
+          <span className="ml-auto"><RegimeChip /></span>
         </div>
         <p className="mt-1 text-sm text-gray-400">
           Náš AI fond obchoduje <b className="text-gray-300">podle vlastních analýz</b> (valuace, momentum, insideři, dark pool).
