@@ -319,26 +319,30 @@ def process_once() -> int:
                           {"error": str(e)[:400]}, hdr)
             except Exception:  # noqa: BLE001
                 pass
-    return done
+    return len(pending)  # kolik zakázek se řešilo (řídí rychlost dotazování)
 
 
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--loop", type=int, default=0, help="interval smyčky v sekundách (0 = jeden průchod)")
+    ap.add_argument("--idle", type=int, default=60,
+                    help="interval v klidu (s): šetří volání Vercelu; po práci se 5 min dotazuje po --loop")
     args = ap.parse_args()
     print(f"Spark vision worker | API={API} | ollama={OLLAMA_URL} | model={OLLAMA_MODEL} | think=off")
     if args.loop <= 0:
         process_once()
         return
+    active_until = 0.0
     while True:
         try:
-            process_once()
+            if process_once():
+                active_until = time.time() + 300  # po zakázce chvíli rychle (další graf často hned)
         except KeyboardInterrupt:
             print("konec")
             sys.exit(0)
         except Exception as e:  # noqa: BLE001
             print(f"[loop] chyba: {e}")
-        time.sleep(args.loop)
+        time.sleep(args.loop if time.time() < active_until else max(args.loop, args.idle))
 
 
 if __name__ == "__main__":
