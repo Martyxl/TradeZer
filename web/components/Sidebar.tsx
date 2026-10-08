@@ -55,16 +55,16 @@ function NavLink({ item, accent, active, locked }: { item: NavItem; accent: stri
   return (
     <Link
       href={item.href}
-      className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
+      className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] transition-colors ${
         active
           ? "bg-[#1e2536] text-white border border-[#2f3b55]"
           : "text-gray-400 hover:text-white hover:bg-[#1a1d27] border border-transparent"
       }`}
     >
       <Icon size={16} style={active ? { color: accent } : undefined} />
-      <span className="flex-1 truncate">{item.label}</span>
+      <span className="flex-1 whitespace-nowrap">{item.label}</span>
       {item.tier !== "free" && (
-        <span className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase ${
+        <span className={`flex shrink-0 items-center gap-0.5 rounded px-1 py-0.5 text-[8px] font-semibold uppercase tracking-wide ${
           locked ? "bg-[#1c1f2b] text-gray-500" : "bg-[rgba(96,255,130,0.10)] text-[#8fffab]"}`}
           title={locked ? `Odemčeno v plánu ${TIER_CHIP[item.tier]}` : `Součást vašeho plánu`}>
           {locked && <Lock size={9} />}{TIER_CHIP[item.tier]}
@@ -112,7 +112,7 @@ export function Sidebar() {
   const myRank = user?.is_admin ? 99 : planRank(user?.plan);
 
   return (
-    <aside className="hidden md:flex flex-col w-56 shrink-0 border-r border-[#2a2d3a] bg-[#12141c] h-screen sticky top-0 self-start overflow-y-auto">
+    <aside className="hidden md:flex flex-col w-60 shrink-0 border-r border-[#2a2d3a] bg-[#12141c] h-screen sticky top-0 self-start overflow-y-auto">
       <Link href="/" className="flex items-center gap-2 px-5 py-5 border-b border-[#2a2d3a]">
         <div className="h-7 w-7 rounded-full bg-gradient-to-br from-green-400 to-blue-500" />
         <div>
@@ -121,7 +121,7 @@ export function Sidebar() {
         </div>
       </Link>
 
-      <nav className="flex flex-col gap-3 p-3">
+      <nav className="flex flex-col gap-3 p-2.5">
         {NAV_GROUPS.map((g) => (
           <section key={g.key}
             className={g.title ? "rounded-xl border border-[#23263a] bg-[#0f1119] p-1.5" : ""}
