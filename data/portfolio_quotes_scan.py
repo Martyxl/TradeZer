@@ -56,10 +56,10 @@ def _yahoo_sym(symbol: str) -> str:
     return s
 
 
-def _fetch(symbol: str) -> tuple[dict | None, list[dict]]:
-    """Jedním Yahoo dotazem (range=2y) vrátí (quote, historii denních close).
+def _fetch(symbol: str, rng: str = "2y") -> tuple[dict | None, list[dict]]:
+    """Jedním Yahoo dotazem vrátí (quote, historii denních close) za období `rng`.
     quote = aktuální cena + měna + 52T z meta; history = [{date, close}] pro křivku."""
-    data = _get_json(f"https://query1.finance.yahoo.com/v8/finance/chart/{_yahoo_sym(symbol)}?range=2y&interval=1d")
+    data = _get_json(f"https://query1.finance.yahoo.com/v8/finance/chart/{_yahoo_sym(symbol)}?range={rng}&interval=1d")
     try:
         res = data["chart"]["result"][0]
         meta = res["meta"]
@@ -110,9 +110,9 @@ def push(base: str, token: str, quotes: list[dict]) -> None:
         print(f"  push fail {e}")
 
 
-def push_history(base: str, token: str, symbol: str, bars: list[dict]) -> None:
+def push_history(base: str, token: str, symbol: str, bars: list[dict]) -> bool:
     if not bars:
-        return
+        return False
     body = json.dumps({"symbol": symbol, "bars": bars}).encode()
     req = urllib.request.Request(f"{base}/api/investments/prices/history", data=body,
                                  method="POST", headers={"Content-Type": "application/json",
@@ -120,32 +120,78 @@ def push_history(base: str, token: str, symbol: str, bars: list[dict]) -> None:
     try:
         with urllib.request.urlopen(req, timeout=40) as r:
             r.read()
+        return True
     except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as e:
         print(f"  history push fail {symbol}: {e}")
+        return False
+
+
+# Historie se NEposílá každou hodinu (dřív 2 roky × ~22 symbolů × 24×/den = tisíce zbytečných
+# volání, která žrala limity Vercelu i čas Neonu). Plán: nový symbol → 2y jednou; jinak jednou
+# denně poslední měsíc; ostatní hodiny jen živá cena (range=5d, bez historie).
+HIST_STATE = os.environ.get("PORTFOLIO_HIST_STATE",
+                            os.path.join(os.path.dirname(os.path.abspath(__file__)), "portfolio_hist_state.json"))
+
+
+def _load_state() -> dict:
+    try:
+        with open(HIST_STATE, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+
+def _save_state(st: dict) -> None:
+    try:
+        with open(HIST_STATE, "w", encoding="utf-8") as f:
+            json.dump(st, f)
+    except OSError as e:
+        print(f"  stav historie nezapsán: {e}")
+
+
+def history_plan(state: dict, symbol: str, today: str) -> tuple[str, bool]:
+    """(Yahoo range, poslat historii?) pro symbol."""
+    last = state.get(symbol)
+    if last is None:
+        return "2y", True
+    if last != today:
+        return "1mo", True
+    return "5d", False
 
 
 def run_once(base: str, token: str) -> None:
     symbols, currencies = held_symbols(base, token)
     print(f"drženo: {len(symbols)} symbolů, měny {currencies}")
     quotes = []
+    state, today = _load_state(), time.strftime("%Y-%m-%d")
+    pushed = 0
+
+    def handle(sym: str, yh: str) -> dict | None:
+        nonlocal pushed
+        rng, want_hist = history_plan(state, sym, today)
+        q, bars = _fetch(yh, rng)
+        if want_hist and push_history(base, token, sym, bars):
+            state[sym] = today
+            pushed += 1
+        print(f"  {sym} = {q['price'] if q else None} ({rng}, historie {'poslána' if want_hist else 'přeskočena'})")
+        return q
+
     for s in symbols:
-        q, bars = _fetch(s)
+        q = handle(s.upper(), s)
         if q:
             quotes.append(q)
-            print(f"  {s} = {q['price']} {q['currency']} ({len(bars)} barů hist)")
-        push_history(base, token, s.upper(), bars)
         time.sleep(0.3)
     # FX páry pro přepočet do BASE_FX (např. USDCZK, EURCZK) — i jejich historie
     for ccy in currencies:
         if ccy and ccy != BASE_FX:
-            fx, fx_bars = _fetch(f"{ccy}{BASE_FX}=X")
             sym = f"{ccy}{BASE_FX}"
+            fx = handle(sym, f"{sym}=X")
             if fx:
                 fx["symbol"] = sym
                 quotes.append(fx)
-                print(f"  {sym} = {fx['price']} ({len(fx_bars)} barů hist)")
-            push_history(base, token, sym, fx_bars)
             time.sleep(0.3)
+    if pushed:
+        _save_state(state)
     if quotes:
         push(base, token, quotes)
     else:

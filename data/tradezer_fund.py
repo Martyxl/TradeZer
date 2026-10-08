@@ -671,8 +671,10 @@ def mark(do_push: bool):
         if not note:
             note, note_date = _last_move(con, equity, start_cap)
         gspc = gspc_history()
-        push_mirror(*_mirror(con, positions, prices, to_czk, cash, equity, start_cap, note,
-                             note_date or today, now, gspc))
+        state_out, pos_out, _trades, snaps_out = _mirror(con, positions, prices, to_czk, cash, equity,
+                                                         start_cap, note, note_date or today, now, gspc)
+        # obchody se přecenením nemění → neposílat (backend je pak nepřepisuje, šetří Neon i Vercel)
+        push_mirror(state_out, pos_out, None, snaps_out)
     con.close()
 
 

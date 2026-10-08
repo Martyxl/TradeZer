@@ -121,15 +121,18 @@ async def ingest_fund(payload: dict = Body(...), session: AsyncSession = Depends
             weight_pct=p.get("weight_pct"), opened_at=(p.get("opened_at") or None),
             conviction=p.get("conviction")))
 
-    await session.execute(delete(FundTrade))
-    for t in (payload.get("trades") or [])[:600]:
-        session.add(FundTrade(
-            ts=str(t.get("ts"))[:19], action=(t.get("action") or "buy")[:8],
-            symbol=str(t.get("symbol"))[:24], name=(t.get("name") or None),
-            quantity=float(t.get("quantity", 0)), price=float(t.get("price", 0)),
-            currency=(t.get("currency") or "USD")[:8], value_czk=t.get("value_czk"),
-            realized_czk=t.get("realized_czk"), conviction=t.get("conviction"),
-            reason=str(t.get("reason") or "")))
+    # Obchody se přepisují jen když je Spark pošle (rozhodovací běh). Hodinové přecenění je
+    # vynechá (`trades: null`) — jinak by se každou hodinu mazalo a vkládalo až 600 řádků do Neonu.
+    if payload.get("trades") is not None:
+        await session.execute(delete(FundTrade))
+        for t in (payload.get("trades") or [])[:600]:
+            session.add(FundTrade(
+                ts=str(t.get("ts"))[:19], action=(t.get("action") or "buy")[:8],
+                symbol=str(t.get("symbol"))[:24], name=(t.get("name") or None),
+                quantity=float(t.get("quantity", 0)), price=float(t.get("price", 0)),
+                currency=(t.get("currency") or "USD")[:8], value_czk=t.get("value_czk"),
+                realized_czk=t.get("realized_czk"), conviction=t.get("conviction"),
+                reason=str(t.get("reason") or "")))
 
     for sn in payload.get("snapshots") or []:
         d = str(sn.get("date"))[:10]

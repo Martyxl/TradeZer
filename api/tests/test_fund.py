@@ -59,6 +59,26 @@ async def test_ingest_and_read():
 
 
 @pytest.mark.asyncio
+async def test_hourly_mark_without_trades_keeps_trades():
+    """Hodinové přecenění posílá `trades: null` → obchody se nepřepisují (šetří Neon/Vercel)."""
+    base = {"state": {"start_capital": 1000000, "cash": 920000, "equity": 1010000, "base": "CZK",
+                      "as_of": "2026-10-05T12:00:00", "note": "x"},
+            "positions": [], "snapshots": []}
+    trade = {"ts": "2026-10-05T12:00:00", "action": "buy", "symbol": "AAPL", "quantity": 1, "price": 1,
+             "currency": "USD", "reason": "r"}
+    async with _client() as c:
+        await c.post("/api/fund/ingest", json={**base, "trades": [trade]}, headers=TOKEN)
+        r = await c.post("/api/fund/ingest", json={**base, "trades": None,
+                                                   "state": {**base["state"], "equity": 1020000}}, headers=TOKEN)
+        assert r.status_code == 200
+        d = (await c.get("/api/fund")).json()
+        assert len(d["trades"]) == 1 and d["state"]["equity"] == 1020000   # obchody zůstaly, equity se aktualizovalo
+        # prázdný seznam = skutečné vymazání (Spark je zdroj pravdy)
+        await c.post("/api/fund/ingest", json={**base, "trades": []}, headers=TOKEN)
+        assert (await c.get("/api/fund")).json()["trades"] == []
+
+
+@pytest.mark.asyncio
 async def test_signals_token_only():
     async with _client() as c:
         assert (await c.get("/api/fund/signals")).status_code in (401, 403)

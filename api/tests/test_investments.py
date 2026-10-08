@@ -164,6 +164,26 @@ async def test_curve():
 
 
 @pytest.mark.asyncio
+async def test_history_ingest_is_idempotent_and_writes_only_changes():
+    async with _client() as c:
+        bars = [{"date": f"2026-09-{d:02d}", "close": 100 + d} for d in range(1, 11)]
+        r1 = (await c.post("/api/investments/prices/history", json={"symbol": "XYZ", "bars": bars}, headers=TOKEN)).json()
+        assert r1["upserted"] == 10
+        # stejná data podruhé → nic se nezapisuje (tohle se děje každou hodinu)
+        r2 = (await c.post("/api/investments/prices/history", json={"symbol": "XYZ", "bars": bars}, headers=TOKEN)).json()
+        assert r2["upserted"] == 0
+        # změněný poslední bar + jeden nový → zapíšou se právě 2
+        bars2 = bars[:-1] + [{"date": "2026-09-10", "close": 999}, {"date": "2026-09-11", "close": 111}]
+        r3 = (await c.post("/api/investments/prices/history", json={"symbol": "XYZ", "bars": bars2}, headers=TOKEN)).json()
+        assert r3["upserted"] == 2
+        # duplicitní datum uvnitř jednoho requestu nevytvoří dva řádky
+        r4 = (await c.post("/api/investments/prices/history",
+                           json={"symbol": "DUP", "bars": [{"date": "2026-09-01", "close": 1}, {"date": "2026-09-01", "close": 2}]},
+                           headers=TOKEN)).json()
+        assert r4["upserted"] == 2
+
+
+@pytest.mark.asyncio
 async def test_curve_requires_auth():
     async with _client() as c:
         assert (await c.get("/api/investments/curve")).status_code == 401

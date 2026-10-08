@@ -510,25 +510,28 @@ async def ingest_history(payload: dict, session: AsyncSession = Depends(get_sess
     bars = payload.get("bars") or []
     if not sym or not isinstance(bars, list):
         raise HTTPException(status_code=400, detail="symbol + bars povinné")
-    # existující datumy pro tento symbol (ať neinsertujeme duplicity)
-    existing = set((await session.execute(
-        select(InvestmentPriceDaily.date).where(InvestmentPriceDaily.symbol == sym)
-    )).scalars().all())
+    # Jedno načtení existujících řádků symbolu (dřív 1 dotaz NA KAŽDÝ BAR → ~500 dotazů na
+    # Neon na jeden request; to žralo čas funkce a držel Neon vzhůru). Zapisuje se jen změna.
+    by_date = {r.date: r for r in (await session.execute(
+        select(InvestmentPriceDaily).where(InvestmentPriceDaily.symbol == sym)
+    )).scalars().all()}
     n = 0
     for b in bars:
         d = str(b.get("date") or "")[:10]
         c = _num(b.get("close"))
         if len(d) != 10 or c is None:
             continue
-        if d in existing:
-            row = await session.get(InvestmentPriceDaily, {"symbol": sym, "date": d})
-            if row:
-                row.close = c
-        else:
-            session.add(InvestmentPriceDaily(symbol=sym, date=d, close=c))
-            existing.add(d)
-        n += 1
-    await session.commit()
+        row = by_date.get(d)
+        if row is None:
+            row = InvestmentPriceDaily(symbol=sym, date=d, close=c)
+            session.add(row)
+            by_date[d] = row
+            n += 1
+        elif row.close != c:
+            row.close = c
+            n += 1
+    if n:
+        await session.commit()
     return {"status": "ok", "symbol": sym, "upserted": n}
 
 
