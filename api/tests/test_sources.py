@@ -40,11 +40,32 @@ async def test_forex_factory_parse():
 
 
 @pytest.mark.asyncio
-async def test_forex_factory_filters_non_eur():
+async def test_forex_factory_filters_untracked_currencies():
+    """Sledujeme USD/EUR/CNY — ostatní měny (JPY, GBP…) se filtrují."""
     xml = """<?xml version="1.0" encoding="utf-8"?>
 <weeklyevents>
   <week>
     <event id="2">
+      <title>Japan Trade Balance</title>
+      <currency>JPY</currency>
+      <date>05-15-2026 02:00am</date>
+      <impact>Medium</impact>
+    </event>
+  </week>
+</weeklyevents>"""
+    adapter = ForexFactoryAdapter()
+    with patch.object(adapter, "_download_xml", new=AsyncMock(return_value=xml)):
+        items = await adapter.fetch()
+    assert len(items) == 0
+
+
+@pytest.mark.asyncio
+async def test_forex_factory_keeps_cny_for_gold_and_indices():
+    """CNY data (Čína) ovlivňují zlato a globální poptávku → jdou na XAUUSD + indexy."""
+    xml = """<?xml version="1.0" encoding="utf-8"?>
+<weeklyevents>
+  <week>
+    <event id="3">
       <title>Chinese Trade Balance</title>
       <currency>CNY</currency>
       <date>05-15-2026 02:00am</date>
@@ -55,7 +76,8 @@ async def test_forex_factory_filters_non_eur():
     adapter = ForexFactoryAdapter()
     with patch.object(adapter, "_download_xml", new=AsyncMock(return_value=xml)):
         items = await adapter.fetch()
-    assert len(items) == 0
+    assert len(items) == 1
+    assert "XAUUSD" in items[0].instruments_hint and "EURUSD" not in items[0].instruments_hint
 
 
 @pytest.mark.asyncio

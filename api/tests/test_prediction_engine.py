@@ -23,19 +23,22 @@ class TestPredictionEngineAlpha:
     def setup_method(self):
         self.engine = PredictionEngine(repo=MagicMock())
 
-    def test_alpha_starts_at_0_7(self):
-        assert self.engine._compute_alpha(0) == pytest.approx(0.7)
+    # Alpha = váha LLM vs. historie. Záměrně drží vysoko (historická data jsou zatím příliš
+    # neutral-biased): start 0.85, klesá o 0.01 na vzorek, minimum 0.6 (dosažené při 25 vzorcích).
+    def test_alpha_starts_at_0_85(self):
+        assert self.engine._compute_alpha(0) == pytest.approx(0.85)
 
     def test_alpha_decreases_with_history(self):
         alpha_5 = self.engine._compute_alpha(5)
         alpha_20 = self.engine._compute_alpha(20)
         assert alpha_5 > alpha_20
 
-    def test_alpha_minimum_is_0_3(self):
-        assert self.engine._compute_alpha(100) == pytest.approx(0.3)
+    def test_alpha_minimum_is_0_6(self):
+        assert self.engine._compute_alpha(100) == pytest.approx(0.6)
+        assert self.engine._compute_alpha(25) == pytest.approx(0.6)   # strop poklesu je u 25 vzorků
 
     def test_alpha_at_20_samples(self):
-        expected = max(0.3, 0.7 - 0.02 * 20)
+        expected = max(0.6, 0.85 - 0.01 * 20)
         assert self.engine._compute_alpha(20) == pytest.approx(expected)
 
 
