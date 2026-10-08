@@ -28,6 +28,19 @@ def _client():
 
 
 @pytest.mark.asyncio
+async def test_ai_analysis_is_admin_only():
+    """AI čtení grafu je zatím jen pro adminy — běžný uživatel dostane 403 (obojí engine)."""
+    async with _client() as c:
+        h = await auth_headers(c, "plain@example.com")
+        for engine in ("claude", "spark"):
+            r = await c.post("/api/journal/analyze",
+                             json={"engine": engine, "tradingview_url": "https://www.tradingview.com/x/abc/"}, headers=h)
+            assert r.status_code == 403, engine
+            assert "coming soon" in r.json()["detail"].lower()
+        assert (await c.post("/api/journal/analyze", json={})).status_code == 401   # bez přihlášení pořád 401
+
+
+@pytest.mark.asyncio
 async def test_sl_tp_outcome_roundtrip_and_stats():
     async with _client() as c:
         h = await auth_headers(c, "jr@example.com")

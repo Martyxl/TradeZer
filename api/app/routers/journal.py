@@ -378,7 +378,11 @@ def _map_extracted(data: dict, source_url: str | None) -> dict:
 async def analyze(payload: dict, user: User = Depends(current_user),
                   session: AsyncSession = Depends(get_session)):
     """AI extrakce obchodu z TradingView. engine=claude (synchronně → extracted hned)
-    nebo engine=spark (async job → worker na Sparku → poll GET /analyze/{id})."""
+    nebo engine=spark (async job → worker na Sparku → poll GET /analyze/{id}).
+    ZATÍM JEN PRO ADMINY (ostatním frontend ukazuje „Coming soon“) — vynuceno i tady, ať to nejde
+    obejít přímým voláním API."""
+    if not getattr(user, "is_admin", False):
+        raise HTTPException(status_code=403, detail="AI čtení grafu z TradingView připravujeme (coming soon).")
     engine = (payload.get("engine") or "claude").lower()
     if engine not in ("claude", "spark"):
         engine = "claude"

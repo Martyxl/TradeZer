@@ -684,10 +684,20 @@ export default function DenikPage() {
         </div>
         {user && (
           <div className="flex flex-wrap items-center gap-2">
-            <button onClick={() => setAnalyzeOpen(true)}
-              className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium bg-blue-600/90 text-white border border-blue-500 hover:bg-blue-500 transition-colors">
-              <Sparkles size={15} /> Z TradingView (AI)
-            </button>
+            {user.is_admin ? (
+              <button onClick={() => setAnalyzeOpen(true)}
+                className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium bg-blue-600/90 text-white border border-blue-500 hover:bg-blue-500 transition-colors">
+                <Sparkles size={15} /> Z TradingView (AI)
+              </button>
+            ) : (
+              // AI extrakce z grafu je zatím jen pro adminy (backend vrací 403) — ostatním coming soon
+              <button type="button" disabled aria-disabled="true"
+                title="AI čtení grafu z TradingView připravujeme"
+                className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium bg-[#151823] text-gray-500 border border-[#2a2d3a] cursor-not-allowed">
+                <Sparkles size={15} /> Z TradingView (AI)
+                <span className="ml-1 rounded bg-blue-950/60 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-300">Coming soon</span>
+              </button>
+            )}
             <button onClick={() => setImportOpen(true)}
               className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium bg-[#151823] text-gray-300 border border-[#2a2d3a] hover:text-white transition-colors">
               <Upload size={15} /> Import CSV
