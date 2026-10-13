@@ -214,14 +214,18 @@ app.add_middleware(
 # dark-pool, investments, auth, admin) tu NEJSOU — ty se cachovat nesmí (paywall/data).
 _CACHEABLE_PREFIXES = ("/api/bias", "/api/gamma", "/api/regime", "/api/news", "/api/summary",
                        "/api/stats", "/api/history", "/api/tickers", "/api/health")
+# Přesné cesty (NE prefix): veřejný showcase fondu. /api/fund/signals a /api/fund/ingest jsou
+# interní (token) a v CDN cache nesmí nikdy skončit.
+_CACHEABLE_EXACT = {"/api/fund"}
 
 
 @app.middleware("http")
 async def _cdn_cache(request, call_next):
     resp = await call_next(request)
     # Přepiš (ne přeskoč) — výchozí 'max-age=0, must-revalidate' by cache zabil.
+    path = request.url.path
     if (request.method == "GET" and resp.status_code == 200
-            and request.url.path.startswith(_CACHEABLE_PREFIXES)):
+            and (path.startswith(_CACHEABLE_PREFIXES) or path in _CACHEABLE_EXACT)):
         resp.headers["Cache-Control"] = "public, s-maxage=60, stale-while-revalidate=600"
     return resp
 

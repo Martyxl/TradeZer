@@ -84,3 +84,13 @@ async def test_signals_token_only():
         assert (await c.get("/api/fund/signals")).status_code in (401, 403)
         r = await c.get("/api/fund/signals", headers=TOKEN)
         assert r.status_code == 200 and "valuation" in r.json()
+
+
+@pytest.mark.asyncio
+async def test_public_fund_is_cdn_cacheable_but_internal_endpoints_are_not():
+    """/api/fund je veřejný showcase → CDN cache; /api/fund/signals (token) NESMÍ dostat public cache."""
+    async with _client() as c:
+        r = await c.get("/api/fund")
+        assert "s-maxage" in r.headers.get("cache-control", "")
+        s = await c.get("/api/fund/signals", headers=TOKEN)
+        assert "public" not in s.headers.get("cache-control", "")

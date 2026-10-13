@@ -470,19 +470,24 @@ class NewsRepository:
             "central_bank_minutes", "gdp", "surprise_beat", "surprise_miss",
             "ecb_speech", "fed_speech",
         }
+        # POZOR: žádné `.distinct()` — NewsItem má sloupec raw_payload typu JSON a PostgreSQL pro
+        # JSON nemá operátor rovnosti (`SELECT DISTINCT` → chyba, endpoint vracel 500 na Neonu,
+        # na SQLite v testech to prošlo). Duplicity (zpráva ve víc HIGH kategoriích) řeší IN-poddotaz.
+        high_ids = (
+            select(NewsItemCategory.news_id)
+            .join(NewsCategory, NewsCategory.id == NewsItemCategory.category_id)
+            .where(NewsCategory.name.in_(HIGH))
+        )
         stmt = (
             select(NewsItem)
-            .join(NewsItemCategory, NewsItemCategory.news_id == NewsItem.id)
-            .join(NewsCategory, NewsCategory.id == NewsItemCategory.category_id)
             .where(
-                NewsCategory.name.in_(HIGH),
+                NewsItem.id.in_(high_ids),
                 func.date(NewsItem.published_at) == today,
             )
             .options(
                 selectinload(NewsItem.categories).selectinload(NewsItemCategory.category),
                 selectinload(NewsItem.ticker_relevances),
             )
-            .distinct()
             .order_by(NewsItem.published_at)
         )
         result = await self.session.execute(stmt)
