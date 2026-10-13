@@ -16,5 +16,6 @@
       "dest": "app/main.py"
     }
   ],
+  "regions": ["fra1"],
   "crons": []
 }
