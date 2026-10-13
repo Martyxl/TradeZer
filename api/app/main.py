@@ -193,16 +193,28 @@ _CACHEABLE_PREFIXES = ("/api/bias", "/api/gamma", "/api/regime", "/api/dashboard
 # Přesné cesty (NE prefix): veřejný showcase fondu. /api/fund/signals a /api/fund/ingest jsou
 # interní (token) a v CDN cache nesmí nikdy skončit.
 _CACHEABLE_EXACT = {"/api/fund"}
+# Agregovaný dashboard: delší platnost (5 min čerstvé + až hodinu servírovat starší, zatímco se
+# na pozadí obnovuje). Data se mění nejvýš po cronu (30 min), cache udržuje v teple
+# `data/cache_warm.py` na Sparku → uživatel prakticky nikdy nečeká na studenou funkci.
+_CACHE_DEFAULT = "public, s-maxage=60, stale-while-revalidate=600"
+_CACHE_DASHBOARD = "public, s-maxage=300, stale-while-revalidate=3600"
+
+
+def _cache_header(path: str) -> str | None:
+    if path.startswith("/api/dashboard"):
+        return _CACHE_DASHBOARD
+    if path.startswith(_CACHEABLE_PREFIXES) or path in _CACHEABLE_EXACT:
+        return _CACHE_DEFAULT
+    return None
 
 
 @app.middleware("http")
 async def _cdn_cache(request, call_next):
     resp = await call_next(request)
     # Přepiš (ne přeskoč) — výchozí 'max-age=0, must-revalidate' by cache zabil.
-    path = request.url.path
-    if (request.method == "GET" and resp.status_code == 200
-            and (path.startswith(_CACHEABLE_PREFIXES) or path in _CACHEABLE_EXACT)):
-        resp.headers["Cache-Control"] = "public, s-maxage=60, stale-while-revalidate=600"
+    hdr = _cache_header(request.url.path)
+    if request.method == "GET" and resp.status_code == 200 and hdr:
+        resp.headers["Cache-Control"] = hdr
     return resp
 
 

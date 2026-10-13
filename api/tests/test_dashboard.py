@@ -88,3 +88,14 @@ async def test_failing_part_is_isolated(monkeypatch):
         d = (await c.get("/api/dashboard?ticker=NQ")).json()
         assert d["bias_today"] is None and any("bias_today" in e for e in d["errors"])
         assert d["tickers"] and d["bias_stats_30"] is not None      # ostatní části fungují dál
+
+
+def test_cache_headers_dashboard_longer_than_default():
+    from app.main import _cache_header
+    assert "s-maxage=300" in _cache_header("/api/dashboard") and "stale-while-revalidate=3600" in _cache_header("/api/dashboard")
+    assert "s-maxage=60" in _cache_header("/api/bias/today")
+    assert _cache_header("/api/fund") is not None
+    # interní a placené cesty se NIKDY necachují veřejně
+    for p in ("/api/fund/signals", "/api/fund/ingest", "/api/investments/portfolio", "/api/journal",
+              "/api/auth/me", "/api/valuation/overview", "/api/discovery"):
+        assert _cache_header(p) is None, p
