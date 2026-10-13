@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { TrendingUp, TrendingDown, MoveRight, Target, HelpCircle } from "lucide-react";
+import { dashFetch } from "@/lib/dashboardData";
 
 interface BiasSnapshot {
   prob_down: number; prob_neutral: number; prob_up: number;
@@ -57,16 +58,16 @@ export function BiasCard({ ticker }: { ticker: string }) {
   useEffect(() => {
     setData(null);
     setGamma(null);
-    fetch(`/api/bias/today?ticker=${ticker}`, { cache: "no-store" })
+    dashFetch(`/api/bias/today?ticker=${ticker}`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then(setData)
       .catch(() => {});
-    fetch(`/api/bias/stats?ticker=${ticker}&days=30`, { cache: "no-store" })
+    dashFetch(`/api/bias/stats?ticker=${ticker}&days=30`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then(setStats)
       .catch(() => {});
     // Gamma režim jako doplňkový kontext (tichá degradace, když nejsou data).
-    fetch(`/api/gamma?ticker=${ticker}`, { cache: "no-store" })
+    dashFetch(`/api/gamma?ticker=${ticker}`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => setGamma(j?.instrument ?? null))
       .catch(() => {});

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Activity, Info } from "lucide-react";
+import { dashFetch } from "@/lib/dashboardData";
 
 interface ProfilePoint { strike: number; gex: number }
 interface Instrument {
@@ -59,7 +60,7 @@ export function GammaCard({ ticker }: { ticker: string }) {
   useEffect(() => {
     let alive = true;
     setState("loading");
-    fetch(`/api/gamma?ticker=${ticker}`, { cache: "no-store" })
+    dashFetch(`/api/gamma?ticker=${ticker}`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((j: Resp) => {
         if (!alive) return;

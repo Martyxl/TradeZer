@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
+import { dashFetch } from "@/lib/dashboardData";
 
 const LOCAL_TZ = "Europe/Prague";
 
@@ -167,7 +168,7 @@ export function MarketHoursBar() {
   }, []);
 
   useEffect(() => {
-    fetch("/api/news/events/today")
+    dashFetch("/api/news/events/today")
       .then(r => r.ok ? r.json() : [])
       .then(setEvents)
       .catch(() => {});

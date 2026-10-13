@@ -1,11 +1,16 @@
 """Anthropic Claude klient pro news klasifikaci a daily doporučení."""
+from __future__ import annotations
+
 import json
 import re
 import uuid
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-import anthropic
 import structlog
+
+if TYPE_CHECKING:  # knihovna anthropic se načítá až při prvním volání LLM (~1 s z cold startu funkce)
+    import anthropic
 
 from app.config import settings
 
@@ -44,6 +49,7 @@ class AnthropicLLMClient:
         if self._client is None:
             if not settings.anthropic_api_key:
                 raise RuntimeError("ANTHROPIC_API_KEY není nastaven")
+            import anthropic  # lazy: jen endpointy, které opravdu volají Clauda, platí za import
             self._client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
         return self._client
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ShieldAlert } from "lucide-react";
+import { dashFetch } from "@/lib/dashboardData";
 
 export interface Regime {
   state: "calm" | "recovering" | "tension" | "panic" | null;
@@ -23,11 +24,11 @@ const TONE: Record<string, { box: string; dot: string; text: string }> = {
   panic:      { box: "border-[rgba(255,80,80,0.4)] bg-[#1c0c0c]",   dot: "#ff5050", text: "text-[#ff8f8f]" },
 };
 
-export function useRegime(): Regime | null {
+export function useRegime(viaDashboard = false): Regime | null {
   const [r, setR] = useState<Regime | null>(null);
   useEffect(() => {
     let alive = true;
-    fetch("/api/regime", { cache: "no-store" })
+    (viaDashboard ? dashFetch : fetch)("/api/regime", { cache: "no-store" })
       .then((x) => (x.ok ? x.json() : Promise.reject()))
       .then((j: Regime) => { if (alive && j.state) setR(j); })
       .catch(() => {});
@@ -61,7 +62,7 @@ export function RegimeChip() {
 
 /** Karta „Režim trhu" na dashboardu — skryje se, když nejsou data. */
 export function RegimeCard() {
-  const r = useRegime();
+  const r = useRegime(true);
   if (!r?.state) return null;
   const t = TONE[r.state];
   const i = r.indicators || {};

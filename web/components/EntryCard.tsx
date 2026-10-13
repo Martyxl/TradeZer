@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { LogIn, ArrowDownToLine, ArrowUpToLine, Clock, ChevronDown, ChevronUp } from "lucide-react";
+import { dashFetch } from "@/lib/dashboardData";
 
 interface EntryLeg {
   n: number; offset_pct: number; offset_p75_pct: number;
@@ -39,12 +40,12 @@ export function EntryCard({ ticker }: { ticker: string }) {
         .then((j) => setPlaybook(j?.ny_entry ?? null))
         .catch(() => {});
     }
-    fetch(`/api/bias/today?ticker=${ticker}`, { cache: "no-store" })
+    dashFetch(`/api/bias/today?ticker=${ticker}`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => setDirection(d?.snapshot?.direction ?? d?.live?.direction ?? null))
       .catch(() => {});
     setHistory([]);
-    fetch(`/api/bias/stats?ticker=${ticker}&days=90`, { cache: "no-store" })
+    dashFetch(`/api/bias/stats?ticker=${ticker}&days=90`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => { setPerf(d?.entry ?? null); setHistory(d?.history ?? []); })
       .catch(() => {});

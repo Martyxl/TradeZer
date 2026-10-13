@@ -1,3 +1,5 @@
+import { dashFetch } from "@/lib/dashboardData";
+
 const API_BASE = "";
 
 export interface Ticker {
@@ -118,7 +120,8 @@ export interface RefreshResult {
 }
 
 async function fetchJson<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, { cache: "no-store" });
+  // dashFetch: tickers/news/summary… obslouží z jedné agregované odpovědi dashboardu, ostatní cesty = běžný fetch
+  const res = await dashFetch(`${API_BASE}${path}`, { cache: "no-store" });
   if (!res.ok) throw new Error(`API error ${res.status}: ${path}`);
   return res.json() as Promise<T>;
 }

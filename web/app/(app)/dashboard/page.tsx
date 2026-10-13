@@ -12,6 +12,7 @@ import { GammaCard } from "@/components/GammaCard";
 import { RegimeCard } from "@/components/RegimeCard";
 import { OutlookCard } from "@/components/OutlookCard";
 import { api, type Ticker, type NewsItem, type DailySummary } from "@/lib/api";
+import { invalidateDashboard } from "@/lib/dashboardData";
 
 export default function DashboardPage() {
   const [tickers, setTickers] = useState<Ticker[]>([]);
@@ -63,6 +64,7 @@ export default function DashboardPage() {
         const n = result.new_items ?? 0;
         const p = result.predicted ?? 0;
         setRefreshMsg(n > 0 ? `+${n} zpráv, ${p} predikcí` : "Žádné nové zprávy");
+        invalidateDashboard(); // jinak by se vrátila sdílená (starší) odpověď
         await loadData(selectedTicker);
       }
     } catch {
