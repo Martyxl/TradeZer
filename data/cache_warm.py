@@ -1,7 +1,7 @@
 """Udržuje CDN cache a funkci v TEPLE — uživatel nikdy nečeká na studenou funkci (8–16 s).
 
 Běží na Sparku (v Česku = stejný edge region jako uživatelé; GitHub Actions z USA by zahřálo
-jiný region). Každých 5 min stáhne agregované dashboardy + veřejný fond. Díky
+jiný region). Každých 15 min (služba `--loop 900`; snížené kvůli Hobby limitu Active CPU) stáhne agregované dashboardy + veřejný fond. Díky
 `s-maxage=300, stale-while-revalidate=3600` zůstanou položky v cache čerstvé a návštěvník dostane
 odpověď z edge (~50–150 ms); funkce se probudí jen na pozadí (1 volání/URL/tick).
 
