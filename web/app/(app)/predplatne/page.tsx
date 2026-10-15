@@ -136,6 +136,12 @@ export default function PricingPage() {
         Platby zajišťuje Stripe — karty a fakturační údaje zadáváš u něj, Tradezer je nevidí.
         Roční platba = sleva {Math.round(ANNUAL_DISCOUNT * 100)} %. Předplatné lze kdykoli zrušit ve správě účtu.
       </p>
+      <p className="text-[11px] text-gray-500 max-w-2xl">
+        Předplatné se automaticky obnovuje. Spotřebitel může do 14 dnů od uzavření smlouvy odstoupit; při okamžitém zahájení
+        služby se hradí poměrná část ceny (viz{" "}
+        <Link href="/obchodni-podminky" className="text-[#60ff82] hover:underline">Obchodní podmínky</Link>). Tradezer není
+        investiční poradenství.
+      </p>
     </div>
   );
 }

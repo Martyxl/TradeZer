@@ -29,7 +29,7 @@ async def _trader_headers(client, db_session):
     """Registruj uživatele (v db_session) a povyš na Trader — valuation je gated."""
     from sqlalchemy import update
     from app.models import User
-    r = await client.post("/api/auth/register", json={"email": "trader@t.cz", "password": "secret123"})
+    r = await client.post("/api/auth/register", json={"email": "trader@t.cz", "password": "secret123", "accept_terms": True})
     await db_session.execute(update(User).where(User.email == "trader@t.cz").values(plan="trader"))
     await db_session.commit()
     return {"Authorization": f"Bearer {r.json()['token']}"}

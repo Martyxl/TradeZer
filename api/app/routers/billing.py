@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.db import get_session
 from app.db.session import session_context
+from app.legal import CHECKOUT_SUBMIT_MESSAGE
 from app.models import User
 from app.routers.auth import current_user, VALID_PLANS
 
@@ -112,6 +113,7 @@ async def create_checkout(
         allow_promotion_codes=True,
         metadata={"user_id": str(user.id), "tier": tier},
         subscription_data={"metadata": {"user_id": str(user.id), "tier": tier}},
+        custom_text={"submit": {"message": CHECKOUT_SUBMIT_MESSAGE}},
     )
     if settings.stripe_tax_enabled:
         # Vyžaduje aktivovaný Stripe Tax + origin adresu v dashboardu.

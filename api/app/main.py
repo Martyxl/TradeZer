@@ -64,6 +64,8 @@ _PG_MIGRATIONS: list[tuple[str, str]] = [
      'ALTER TABLE val_instruments ADD COLUMN IF NOT EXISTS request_count INTEGER NOT NULL DEFAULT 0'),
     ('fund_snapshots benchmark',
      'ALTER TABLE fund_snapshots ADD COLUMN IF NOT EXISTS benchmark DOUBLE PRECISION'),
+    ('users terms consent',
+     'ALTER TABLE users ADD COLUMN IF NOT EXISTS terms_accepted_at TIMESTAMP, ADD COLUMN IF NOT EXISTS terms_version VARCHAR(20)'),
     ('journal_entries SL/TP/outcome',
      'ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS stop_price DOUBLE PRECISION, ADD COLUMN IF NOT EXISTS target_price DOUBLE PRECISION, ADD COLUMN IF NOT EXISTS outcome VARCHAR(10)'),
 ]

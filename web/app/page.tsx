@@ -350,6 +350,15 @@ export default function Landing() {
 
       <footer style={{ maxWidth: 1200, margin: "0 auto", padding: "56px clamp(20px,5vw,72px)", fontSize: 13, lineHeight: "28px", color: "rgba(255,255,255,0.5)" }}>
         tradezer.app — AI, se kterou se nehádáš. Obchodování nese riziko; výhoda ho jen zmenšuje.
+        <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: "4px 18px" }}>
+          <a href="/obchodni-podminky" className="tz-navlink" style={{ color: "inherit" }}>Obchodní podmínky</a>
+          <a href="/ochrana-osobnich-udaju" className="tz-navlink" style={{ color: "inherit" }}>Ochrana osobních údajů</a>
+          <a href="/cookies" className="tz-navlink" style={{ color: "inherit" }}>Cookies</a>
+          <span>Martin Špatenka, IČO 88916219</span>
+        </div>
+        <div style={{ marginTop: 6, fontSize: 12 }}>
+          Tradezer není investiční poradenství ani doporučení ke koupi či prodeji investičních nástrojů.
+        </div>
       </footer>
 
       <style>{`

@@ -13,6 +13,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
+from app.legal import TERMS_VERSION
 from app.models import User
 from app.services.auth_service import (
     hash_password, verify_password, make_token, verify_token,
@@ -79,11 +80,16 @@ async def register(payload: dict, session: AsyncSession = Depends(get_session)):
         raise HTTPException(status_code=400, detail="Neplatný email")
     if len(password) < 6:
         raise HTTPException(status_code=400, detail="Heslo musí mít aspoň 6 znaků")
+    # Souhlas s VOP + Zásadami ochrany osobních údajů je podmínkou založení účtu (ukládá se čas + verze)
+    if payload.get("accept_terms") is not True:
+        raise HTTPException(status_code=400,
+                            detail="Pro vytvoření účtu je nutný souhlas s Obchodními podmínkami a Zásadami ochrany osobních údajů")
     try:
         exists = await session.scalar(select(User).where(User.email == email))
         if exists:
             raise HTTPException(status_code=409, detail="Účet s tímto emailem už existuje")
-        user = User(email=email, password_hash=hash_password(password), plan="free", is_admin=False)
+        user = User(email=email, password_hash=hash_password(password), plan="free", is_admin=False,
+                    terms_accepted_at=datetime.utcnow(), terms_version=TERMS_VERSION)
         session.add(user)
         await session.commit()
         await session.refresh(user)
@@ -136,6 +142,81 @@ async def change_password(
     user.password_hash = hash_password(new)
     await session.commit()
     return {"status": "ok"}
+
+
+# ── GDPR: export dat a smazání účtu (práva subjektu údajů, čl. 15/20 a 17) ───────
+def _row(obj) -> dict:
+    from fastapi.encoders import jsonable_encoder
+    return jsonable_encoder({c.name: getattr(obj, c.name) for c in obj.__table__.columns})
+
+
+@router.get("/export")
+async def export_my_data(user: User = Depends(current_user),
+                         session: AsyncSession = Depends(get_session)):
+    """Export VŠECH dat účtu v strojově čitelném formátu (JSON) — právo na přenositelnost.
+    Neobsahuje hash hesla ani interní tokeny."""
+    from fastapi.encoders import jsonable_encoder
+    from fastapi.responses import JSONResponse
+    from app.models import InvestmentTx
+    from app.models.journal import JournalAnalysisJob, JournalEntry
+
+    async def rows(model):
+        res = await session.execute(select(model).where(model.user_id == user.id))
+        return [_row(r) for r in res.scalars().all()]
+
+    account = {k: getattr(user, k) for k in (
+        "id", "email", "username", "plan", "is_admin", "created_at", "last_login", "login_count",
+        "subscription_status", "subscription_period_end", "terms_accepted_at", "terms_version")}
+    data = {
+        "exported_at": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+        "account": jsonable_encoder(account),
+        "stripe_customer_id": user.stripe_customer_id,
+        "journal_entries": await rows(JournalEntry),
+        "journal_analysis_jobs": await rows(JournalAnalysisJob),
+        "investment_transactions": await rows(InvestmentTx),
+    }
+    return JSONResponse(data, headers={
+        "Content-Disposition": 'attachment; filename="tradezer-moje-data.json"',
+        "Cache-Control": "no-store",
+    })
+
+
+@router.post("/delete-account")
+async def delete_my_account(payload: dict, user: User = Depends(current_user),
+                            session: AsyncSession = Depends(get_session)):
+    """Trvalé smazání účtu a všech jeho dat (právo na výmaz). Vyžaduje heslo. Aktivní předplatné
+    se ve Stripe ukončí OKAMŽITĚ (bez vrácení poměrné části); faktury/platební záznamy zůstávají
+    u Stripe a v účetnictví po dobu stanovenou zákonem (viz Zásady ochrany osobních údajů)."""
+    from sqlalchemy import delete
+    from app.models import InvestmentTx
+    from app.models.journal import JournalAnalysisJob, JournalEntry
+
+    if not verify_password(payload.get("password") or "", user.password_hash):
+        raise HTTPException(status_code=400, detail="Heslo nesedí")
+    if user.is_admin:
+        raise HTTPException(status_code=400, detail="Administrátorský účet nelze smazat z aplikace")
+
+    if user.stripe_customer_id:
+        # Bez zrušení předplatného by se po smazání účtu dál strhávaly peníze → při chybě NEMAZAT.
+        from app.routers.billing import _require_stripe
+        stripe = _require_stripe()
+        try:
+            subs = stripe.Subscription.list(customer=user.stripe_customer_id, status="all", limit=20)
+            for s in subs.get("data", []):
+                if s.get("status") in ("active", "trialing", "past_due", "unpaid", "incomplete"):
+                    stripe.Subscription.cancel(s["id"])
+        except Exception as e:  # noqa: BLE001
+            import structlog
+            structlog.get_logger().error("delete-account: Stripe cancel failed", error=str(e), user_id=user.id)
+            raise HTTPException(status_code=502,
+                                detail="Nepodařilo se ukončit předplatné ve Stripe. Účet nebyl smazán, zkus to prosím znovu nebo nás kontaktuj.")
+
+    uid = user.id
+    for model in (JournalAnalysisJob, JournalEntry, InvestmentTx):
+        await session.execute(delete(model).where(model.user_id == uid))
+    await session.delete(user)
+    await session.commit()
+    return {"status": "deleted"}
 
 
 @router.post("/request-reset")

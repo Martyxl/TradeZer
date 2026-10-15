@@ -6,7 +6,7 @@ from app.db.engine import engine
 
 
 async def auth_headers(client, email: str, plan: str = "free", admin: bool = False) -> dict:
-    r = await client.post("/api/auth/register", json={"email": email, "password": "secret123"})
+    r = await client.post("/api/auth/register", json={"email": email, "password": "secret123", "accept_terms": True})
     assert r.status_code == 200, r.text
     token = r.json()["token"]
     if plan != "free" or admin:

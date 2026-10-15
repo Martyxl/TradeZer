@@ -3,11 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { User as UserIcon, ShieldCheck, CreditCard, Loader2 } from "lucide-react";
+import { User as UserIcon, ShieldCheck, CreditCard, Loader2, Download, Trash2 } from "lucide-react";
 import { useAuth, authHeaders } from "@/lib/auth";
 
 export default function AccountPage() {
-  const { user, loading, changePassword } = useAuth();
+  const { user, loading, changePassword, logout } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -33,6 +33,7 @@ export default function AccountPage() {
 
       <SubscriptionCard plan={user.plan} isAdmin={user.is_admin} />
       <ChangePasswordCard onChange={changePassword} />
+      <PrivacyCard isAdmin={user.is_admin} onDeleted={() => { logout(); router.replace("/"); }} />
     </div>
   );
 }
@@ -124,6 +125,91 @@ function ChangePasswordCard({ onChange }: { onChange: (o: string, n: string) => 
         <button type="submit" disabled={busy} className="mt-1 min-h-9 rounded-lg border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.10)] text-sm font-medium text-[#8fffab] hover:bg-[rgba(96,255,130,0.18)] disabled:opacity-50">{busy ? "Ukládám…" : "Změnit heslo"}</button>
       </form>
       <style>{`.acc-input{min-height:36px;padding:6px 10px;font-size:14px;color:#e5e7eb;background:#0f1117;border:1px solid #2a2d3a;border-radius:8px;outline:none}.acc-input:focus{border-color:#60ff82}`}</style>
+    </div>
+  );
+}
+
+/** GDPR: export všech dat (čl. 20) a trvalé smazání účtu (čl. 17). */
+function PrivacyCard({ isAdmin, onDeleted }: { isAdmin: boolean; onDeleted: () => void }) {
+  const [busy, setBusy] = useState<"export" | "delete" | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const [pw, setPw] = useState("");
+
+  const exportData = async () => {
+    setErr(null); setBusy("export");
+    try {
+      const res = await fetch("/api/auth/export", { headers: { ...authHeaders() }, cache: "no-store" });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || "Export se nepodařil");
+      const blob = await res.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "tradezer-moje-data.json";
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Export se nepodařil");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const deleteAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErr(null); setBusy("delete");
+    try {
+      const res = await fetch("/api/auth/delete-account", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ password: pw }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.detail || "Smazání se nepodařilo");
+      onDeleted();
+    } catch (e2) {
+      setErr(e2 instanceof Error ? e2.message : "Smazání se nepodařilo");
+      setBusy(null);
+    }
+  };
+
+  return (
+    <div className="max-w-md rounded-xl border border-[#2a2d3a] bg-[#151823] p-5">
+      <h2 className="text-sm font-semibold text-white">Moje data a soukromí</h2>
+      <p className="mt-2 text-xs leading-5 text-gray-400">
+        Můžeš si stáhnout všechna svá data (účet, deník, investiční transakce) ve strojově čitelném formátu, nebo účet
+        i s daty trvale smazat. Více v <Link href="/ochrana-osobnich-udaju" className="text-[#8fffab] hover:underline">Zásadách ochrany osobních údajů</Link>.
+      </p>
+      {err && <p className="mt-3 text-sm text-red-400">{err}</p>}
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button onClick={exportData} disabled={busy !== null}
+          className="flex items-center gap-2 rounded-lg border border-[#2a2d3a] bg-[#1a1d27] px-4 py-2 text-sm text-gray-200 hover:border-gray-500 disabled:opacity-60">
+          {busy === "export" ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} Stáhnout moje data
+        </button>
+        {!isAdmin && !confirming && (
+          <button onClick={() => setConfirming(true)} disabled={busy !== null}
+            className="flex items-center gap-2 rounded-lg border border-red-500/40 bg-red-500/[0.06] px-4 py-2 text-sm text-red-300 hover:bg-red-500/[0.12] disabled:opacity-60">
+            <Trash2 size={14} /> Smazat účet
+          </button>
+        )}
+      </div>
+      {confirming && (
+        <form onSubmit={deleteAccount} className="mt-4 flex flex-col gap-3 rounded-lg border border-red-500/30 bg-red-500/[0.05] p-3">
+          <p className="text-xs leading-5 text-red-200">
+            Smazání je <b>nevratné</b>: odstraní se účet, deník i investiční transakce. Aktivní předplatné se okamžitě ukončí
+            bez vrácení poměrné části ceny. Pro potvrzení zadej heslo.
+          </p>
+          <input type="password" required value={pw} onChange={(e) => setPw(e.target.value)} placeholder="Heslo"
+            className="min-h-9 rounded-lg border border-[#2a2d3a] bg-[#0f1117] px-3 text-sm text-gray-100 outline-none focus:border-red-400" autoComplete="current-password" />
+          <div className="flex gap-2">
+            <button type="submit" disabled={busy !== null || !pw}
+              className="flex items-center gap-2 rounded-lg border border-red-500/50 bg-red-500/20 px-4 py-2 text-sm font-medium text-red-100 hover:bg-red-500/30 disabled:opacity-50">
+              {busy === "delete" && <Loader2 size={14} className="animate-spin" />} Trvale smazat
+            </button>
+            <button type="button" onClick={() => { setConfirming(false); setPw(""); setErr(null); }} disabled={busy !== null}
+              className="rounded-lg border border-[#2a2d3a] px-4 py-2 text-sm text-gray-300 hover:text-white">Zrušit</button>
+          </div>
+        </form>
+      )}
     </div>
   );
 }

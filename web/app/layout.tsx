@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth";
+import { CookieNotice } from "@/components/CookieNotice";
 
 const inter = Inter({ subsets: ["latin", "latin-ext"], variable: "--font-inter", display: "swap" });
 
@@ -16,6 +17,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="cs">
       <body className={`min-h-screen bg-[#0f1117] text-gray-100 antialiased ${inter.variable}`}>
         <AuthProvider>{children}</AuthProvider>
+        <CookieNotice />
       </body>
     </html>
   );

@@ -24,3 +24,6 @@ class User(Base):
     stripe_customer_id: Mapped[str | None] = mapped_column(String(64), index=True)
     subscription_status: Mapped[str | None] = mapped_column(String(32))  # active|trialing|past_due|canceled|…
     subscription_period_end: Mapped[datetime | None] = mapped_column(DateTime)
+    # Souhlas s Obchodními podmínkami + Zásadami ochrany osobních údajů (kdy a s jakou verzí).
+    terms_accepted_at: Mapped[datetime | None] = mapped_column(DateTime)
+    terms_version: Mapped[str | None] = mapped_column(String(20))

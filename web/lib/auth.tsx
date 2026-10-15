@@ -13,7 +13,7 @@ export interface User {
 interface AuthState {
   user: User | null;
   loading: boolean;
-  register: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string, acceptTerms: boolean) => Promise<void>;
   login: (identifier: string, password: string) => Promise<void>;
   logout: () => void;
   changePassword: (oldPassword: string, newPassword: string) => Promise<void>;
@@ -63,8 +63,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .finally(() => setLoading(false));
   }, []);
 
-  const register = useCallback(async (email: string, password: string) => {
-    const d = await authFetch("register", { email, password });
+  const register = useCallback(async (email: string, password: string, acceptTerms: boolean) => {
+    const d = await authFetch("register", { email, password, accept_terms: acceptTerms });
     localStorage.setItem(TOKEN_KEY, d.token);
     setUser(d.user);
   }, []);

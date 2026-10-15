@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Eye } from "lucide-react";
 import { SupportButton } from "@/components/SupportButton";
+import { LegalLinks } from "@/components/LegalLinks";
 
 export function Footer() {
   const [visits, setVisits] = useState<number | null>(null);
@@ -23,7 +24,8 @@ export function Footer() {
   return (
     <footer className="mt-12 border-t border-[#2a2d3a] py-5">
       <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-gray-500">
-        <span>© {new Date().getFullYear()} BigHead — Tradezer. Všechna práva vyhrazena.</span>
+        <span>© {new Date().getFullYear()} Tradezer. Všechna práva vyhrazena.</span>
+        <LegalLinks />
         <div className="flex items-center gap-4">
           <SupportButton variant="footer" />
           {visits !== null && (
