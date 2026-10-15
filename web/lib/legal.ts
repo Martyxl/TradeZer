@@ -10,11 +10,13 @@ export const LEGAL = {
   // TODO: kontaktní e-mail provozovatele (pro reklamace, odstoupení, GDPR žádosti). Prázdné = na webu
   // se zobrazí výrazná výzva „doplnit“, ať se na to nezapomene.
   email: "",
-  // TODO: true = plátce DPH, false = neplátce, null = ještě nevyplněno.
-  vatPayer: null as boolean | null,
+  // Plátce DPH (potvrzeno 2026-10-16). Po založení firmy přepsat údaje provozovatele níže.
+  vatPayer: true as boolean | null,
+  // TODO: DIČ provozovatele (plátce DPH ho uvádí na dokladech). U fyzické osoby NEMUSÍ být totéž co IČO.
+  dic: "",
   site: "tradezer.app",
   termsVersion: "2026-10-15",
   effectiveFrom: "15. 10. 2026",
 };
 
-export const termsPending = LEGAL.email === "" || LEGAL.vatPayer === null;
+export const termsPending = LEGAL.email === "" || LEGAL.vatPayer === null || (LEGAL.vatPayer && LEGAL.dic === "");

@@ -55,7 +55,7 @@ export function ContactEmail() {
 }
 
 export function VatNote() {
-  if (LEGAL.vatPayer === true) return <>Ceny jsou uvedeny včetně DPH, je-li stanovena zákonem.</>;
+  if (LEGAL.vatPayer === true) return <>Provozovatel je plátcem DPH. Ceny jsou uvedeny včetně DPH, je-li stanovena zákonem.</>;
   if (LEGAL.vatPayer === false) return <>Provozovatel není plátcem DPH, ceny jsou konečné.</>;
   return <mark className="rounded bg-amber-500/20 px-1.5 text-amber-300">[doplnit: plátce / neplátce DPH]</mark>;
 }
@@ -63,8 +63,11 @@ export function VatNote() {
 export function ProviderBlock() {
   return (
     <p>
-      <b className="text-white">{LEGAL.name}</b>, IČO {LEGAL.ico}, místo podnikání {LEGAL.address} (dále „Provozovatel“).
-      Kontakt: <ContactEmail />.
+      <b className="text-white">{LEGAL.name}</b>, IČO {LEGAL.ico}
+      {LEGAL.vatPayer && (LEGAL.dic
+        ? <>, DIČ {LEGAL.dic}</>
+        : <>, DIČ <mark className="rounded bg-amber-500/20 px-1.5 text-amber-300">[doplnit DIČ]</mark></>)}
+      , místo podnikání {LEGAL.address} (dále „Provozovatel“). Kontakt: <ContactEmail />.
     </p>
   );
 }

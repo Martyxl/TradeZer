@@ -37,6 +37,9 @@ describe("právní údaje", () => {
     if (LEGAL.vatPayer === null) {
       render(<VatNote />);
       expect(screen.getByText(/plátce \/ neplátce DPH/)).toBeInTheDocument();
+    } else if (LEGAL.vatPayer) {
+      render(<VatNote />);
+      expect(screen.getByText(/Provozovatel je plátcem DPH/)).toBeInTheDocument();
     }
   });
 });
