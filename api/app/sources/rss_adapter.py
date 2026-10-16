@@ -14,26 +14,44 @@ from app.sources.base import NewsSource, RawNewsItem
 log = structlog.get_logger(__name__)
 
 DEFAULT_FEEDS = [
-    # ── Původní zdroje ──────────────────────────────────────────────────────
+    # Seznam ověřen 2026-10-16 živou zkouškou Z PROSTŘEDÍ VERCELU (`POST /api/sources/check`).
+    # Kontrola zdrojů: `GET /api/sources/health` (kolik zpráv který zdroj uložil za 24 h; 0 = mrtvý).
+    # ODSTRANĚNO (trvale mrtvé): rss_reuters (feeds.reuters.com zanikl), rss_fxstreet_news/_gold
+    # (HTTP 403 — FXStreet blokuje IP Vercelu), rss_ecb/coindesk/actionforex (nesledované instrumenty).
+    # Google News RSS záměrně NENÍ (podmínky nejsou vhodné pro komerční službu). BLS feed = 403.
+    #
+    # instruments_hint: [] = relevanci určí klíčová slova (+ geopolitika); explicitní seznam = vše
+    # z feedu je relevantní pro tyto instrumenty (centrální banka, zlato).
+
+    # ── Centrální banka (vysoký dopad na všechny sledované instrumenty) ────────
     {
-        "name": "rss_reuters",
-        "url": "https://feeds.reuters.com/reuters/businessNews",
-        "source_weight": 0.5,
-        "instruments_hint": [],  # auto-detected from keywords
+        "name": "rss_fed_press",
+        "url": "https://www.federalreserve.gov/feeds/press_all.xml",
+        "source_weight": 0.95,
+        "instruments_hint": ["NQ", "ES", "YM", "XAUUSD"],
+        "max_items": 8,
     },
-    # rss_ecb odstraněn — EURUSD se nesleduje
     {
-        "name": "rss_fxstreet_gold",
-        "url": "https://www.fxstreet.com/rss/analysis/commodities",
-        "source_weight": 0.75,
-        "instruments_hint": ["XAUUSD"],
+        "name": "rss_fed_speeches",
+        "url": "https://www.federalreserve.gov/feeds/speeches.xml",
+        "source_weight": 0.90,
+        "instruments_hint": ["NQ", "ES", "YM", "XAUUSD"],
+        "max_items": 8,
     },
+    # ── Zlato ────────────────────────────────────────────────────────────────
     {
         "name": "rss_mining",
         "url": "https://www.mining.com/feed/",
         "source_weight": 0.65,
         "instruments_hint": ["XAUUSD"],
     },
+    {
+        "name": "rss_mining_gold",
+        "url": "https://www.mining.com/commodity/gold/feed/",
+        "source_weight": 0.70,
+        "instruments_hint": ["XAUUSD"],
+    },
+    # ── Trhy a makro (auto-detekce přes klíčová slova) ─────────────────────────
     {
         "name": "rss_cnbc_markets",
         "url": "https://www.cnbc.com/id/20910258/device/rss/rss.html",
@@ -46,32 +64,70 @@ DEFAULT_FEEDS = [
         "source_weight": 0.70,
         "instruments_hint": ["NQ"],
     },
-    # ── Nové zdroje ──────────────────────────────────────────────────────────
-    # Investinglive (dříve ForexLive) — rychlé breaking forex news
+    {
+        "name": "rss_cnbc_top",
+        "url": "https://www.cnbc.com/id/100003114/device/rss/rss.html",
+        "source_weight": 0.70,
+        "instruments_hint": [],
+    },
+    {
+        "name": "rss_cnbc_investing",
+        "url": "https://www.cnbc.com/id/15839069/device/rss/rss.html",
+        "source_weight": 0.70,
+        "instruments_hint": [],
+    },
+    # Investinglive (dříve ForexLive) — rychlé breaking news
     {
         "name": "rss_investinglive",
         "url": "https://investinglive.com/feed/news",
         "source_weight": 0.85,
-        "instruments_hint": [],  # pokrývá vše — auto-detect
-    },
-    # FXStreet — obecné FX zprávy (jiný feed než gold analysis)
-    {
-        "name": "rss_fxstreet_news",
-        "url": "https://www.fxstreet.com/rss/news",
-        "source_weight": 0.80,
         "instruments_hint": [],
     },
-    # rss_coindesk odstraněn — BTCUSD se nesleduje
-    # MarketPulse (OANDA) — forex, gold, akcie — 10 kvalitních článků
+    # MarketPulse (OANDA) — forex, zlato, akcie
     {
         "name": "rss_marketpulse",
         "url": "https://www.marketpulse.com/feed/",
         "source_weight": 0.80,
         "instruments_hint": [],
     },
-    # rss_actionforex odstraněn — čistě forexová analýza, forex se nesleduje
+    {
+        "name": "rss_marketwatch",
+        "url": "https://feeds.content.dowjones.io/public/rss/mw_topstories",
+        "source_weight": 0.75,
+        "instruments_hint": [],
+    },
+    {
+        "name": "rss_seekingalpha",
+        "url": "https://seekingalpha.com/market_currents.xml",
+        "source_weight": 0.65,
+        "instruments_hint": [],
+    },
+    {
+        "name": "rss_nasdaq",
+        "url": "https://www.nasdaq.com/feed/rssoutbound?category=Markets",
+        "source_weight": 0.70,
+        "instruments_hint": [],
+    },
+    {
+        "name": "rss_ft_markets",
+        "url": "https://www.ft.com/markets?format=rss",
+        "source_weight": 0.80,
+        "instruments_hint": [],
+    },
+    {
+        "name": "rss_nyt_business",
+        "url": "https://rss.nytimes.com/services/xml/rss/nyt/Business.xml",
+        "source_weight": 0.70,
+        "instruments_hint": [],
+    },
+    # Energie / ropa — geopolitický šok (Hormuz, OPEC…) se propíše do všech indexů i zlata
+    {
+        "name": "rss_oilprice",
+        "url": "https://oilprice.com/rss/main",
+        "source_weight": 0.60,
+        "instruments_hint": [],
+    },
 ]
-
 
 class RSSAdapter(NewsSource):
     name: str
