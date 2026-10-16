@@ -7,9 +7,9 @@ export const LEGAL = {
   name: "Martin Špatenka",
   ico: "88916219",
   address: "Kozomínská 611, Postřižín",
-  // TODO: kontaktní e-mail provozovatele (pro reklamace, odstoupení, GDPR žádosti). Prázdné = na webu
+  // Kontaktní e-mail (reklamace, odstoupení, GDPR žádosti) — příjem ověřen přes Resend (2026-10-16). Prázdné = na webu
   // se zobrazí výrazná výzva „doplnit“, ať se na to nezapomene.
-  email: "",
+  email: "info@tradezer.app",
   // Plátce DPH (potvrzeno 2026-10-16). Po založení firmy přepsat údaje provozovatele níže.
   vatPayer: true as boolean | null,
   // TODO: DIČ provozovatele (plátce DPH ho uvádí na dokladech). U fyzické osoby NEMUSÍ být totéž co IČO.
