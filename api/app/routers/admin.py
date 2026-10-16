@@ -354,6 +354,26 @@ async def list_sources():
     return {"sources": sources}
 
 
+@router.post("/sources/check", dependencies=[Depends(_verify_token)])
+async def check_sources(payload: dict | None = None):
+    """Živá zkouška feedů Z PROSTŘEDÍ BACKENDU (IP Vercelu — odtud např. FXStreet vrací 403).
+    Tělo `{"urls": [...]}` zkusí libovolné adresy (ověření kandidátů na nový zdroj); bez těla
+    zkusí všechny nakonfigurované. Max 25 URL."""
+    from app.services.source_health import probe_many
+    from app.sources.rss_adapter import DEFAULT_FEEDS
+    urls = (payload or {}).get("urls") or [f["url"] for f in DEFAULT_FEEDS]
+    urls = [u for u in urls if isinstance(u, str) and u.startswith("http")][:25]
+    return {"results": await probe_many(urls)}
+
+
+@router.get("/sources/health", dependencies=[Depends(_verify_token)])
+async def sources_health(hours: int = Query(default=24, ge=1, le=720),
+                         session: AsyncSession = Depends(get_session)):
+    """Přehled: kolik zpráv každý zdroj uložil do DB za posledních N hodin (mrtvé zdroje = 0)."""
+    from app.services.source_health import db_activity
+    return {"hours": hours, "sources": await db_activity(session, hours)}
+
+
 @router.get("/unpredicted", dependencies=[Depends(_verify_token)])
 async def list_unpredicted(
     limit: int = Query(default=10, ge=1, le=50),
