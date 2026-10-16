@@ -23,11 +23,15 @@ jobs:
       - name: POST /api/refresh
         run: |
           echo "Running refresh at $(date -u)"
-          curl -s -o /tmp/refresh.json -w "HTTP %{http_code}\n" \
+          code=$(curl -s -o /tmp/refresh.json -w "%{http_code}" \
             --max-time 30 \
             -X POST "$API_URL/api/refresh" \
-            -H "X-Internal-Token: $TOKEN"
+            -H "X-Internal-Token: $TOKEN")
+          echo "HTTP $code"
           cat /tmp/refresh.json
+          # Drive krok VZDY koncil success i pri HTTP 500 -> peti-denni vypadek stahovani zprav
+          # (od 11. 10. 2026) nebyl videt. Nyni pri chybe selze a GitHub posle upozorneni.
+          [ "$code" = "200" ] || { echo "::error::refresh vratil HTTP $code"; exit 1; }
 
   predict:
     name: Process predictions
