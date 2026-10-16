@@ -83,22 +83,22 @@ export default function DashboardPage() {
     loadData(selectedTicker);
   }, [selectedTicker, loadData]);
 
-  // SSE live updates
+  // Živé novinky: levné dotazování na CDN-keširovaný agregát (/api/dashboard) každých 5 min,
+  // jen když je záložka viditelná. DŘÍV tu byl SSE (/api/stream): na Vercelu držel funkci až
+  // 60 s při každém otevření dashboardu (a po vypršení se neobnovil) → spálené Active CPU.
   useEffect(() => {
-    const es = new EventSource(`/api/stream?ticker=${selectedTicker}`);
-    es.onmessage = (e) => {
+    const POLL_MS = 5 * 60 * 1000;
+    const id = setInterval(async () => {
+      if (document.visibilityState !== "visible") return;
       try {
-        const item = JSON.parse(e.data) as NewsItem;
-        setNews((prev) => {
-          if (prev.find((n) => n.id === item.id)) return prev;
-          return [item, ...prev.slice(0, 24)];
-        });
+        invalidateDashboard();
+        const fresh = await api.getNews(selectedTicker, undefined, 25);
+        setNews((prev) => (fresh.length && fresh[0].id !== prev[0]?.id ? fresh : prev));
       } catch {
-        // ignore malformed SSE frames
+        /* příští tik to zkusí znovu */
       }
-    };
-    es.onerror = () => es.close();
-    return () => es.close();
+    }, POLL_MS);
+    return () => clearInterval(id);
   }, [selectedTicker]);
 
   return (

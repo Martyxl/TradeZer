@@ -71,3 +71,14 @@ async def test_race_collision_is_skipped_not_fatal(agg, db_session, monkeypatch)
     stats = await agg.refresh()
     assert stats["new"] == 1 and stats["skipped"] == 1                  # b uložena, a přeskočena
     assert await db_session.scalar(select(func.count()).select_from(NewsItem)) == 2
+
+
+@pytest.mark.asyncio
+async def test_sse_stream_is_short_lived(db_session, monkeypatch):
+    """SSE nesmí držet funkci minutu — kvóta Active CPU/paměti. Generátor musí rychle skončit."""
+    import time
+    from app.routers import stream
+    monkeypatch.setattr(stream, "STREAM_MAX_SECONDS", 0.3)
+    t0 = time.monotonic()
+    chunks = [c async for c in stream._event_generator(1, db_session)]
+    assert time.monotonic() - t0 < 2 and chunks == []

@@ -13,10 +13,18 @@ from app.repositories import NewsRepository, TickerRepository
 router = APIRouter(prefix="/api/stream", tags=["stream"])
 
 
+# Max. doba jednoho spojení. Na Vercelu každá vteřina otevřeného streamu = čas funkce (kvóta Active CPU
+# / paměť). Frontend SSE už nepoužívá (dotazuje keširovaný /api/dashboard); endpoint zůstává jen pro
+# staré otevřené záložky a končí brzy.
+STREAM_MAX_SECONDS = 20
+
+
 async def _event_generator(ticker_id: int, session: AsyncSession):
+    import time
+    started = time.monotonic()
     repo = NewsRepository(session)
     last_id = 0
-    while True:
+    while time.monotonic() - started < STREAM_MAX_SECONDS:
         items = await repo.get_news_list(ticker_id=ticker_id, limit=5)
         if items:
             newest_id = max(i.id for i in items)
@@ -37,7 +45,7 @@ async def _event_generator(ticker_id: int, session: AsyncSession):
                         }
                         yield f"data: {json.dumps(data)}\n\n"
                 last_id = newest_id
-        await asyncio.sleep(30)
+        await asyncio.sleep(min(30, max(0.0, STREAM_MAX_SECONDS - (time.monotonic() - started))))
 
 
 @router.get("")
