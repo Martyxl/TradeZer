@@ -17,7 +17,8 @@ DEFAULT_FEEDS = [
     # Seznam ověřen 2026-10-16 živou zkouškou Z PROSTŘEDÍ VERCELU (`POST /api/sources/check`).
     # Kontrola zdrojů: `GET /api/sources/health` (kolik zpráv který zdroj uložil za 24 h; 0 = mrtvý).
     # ODSTRANĚNO (trvale mrtvé): rss_reuters (feeds.reuters.com zanikl), rss_fxstreet_news/_gold
-    # (HTTP 403 — FXStreet blokuje IP Vercelu), rss_ecb/coindesk/actionforex (nesledované instrumenty).
+    # (HTTP 403 — FXStreet blokuje IP Vercelu), rss_ecb/coindesk/actionforex (nesledované instrumenty),
+    # rss_seekingalpha (funguje, ale jde o zprávy k jednotlivým akciím → 0 relevantních položek).
     # Google News RSS záměrně NENÍ (podmínky nejsou vhodné pro komerční službu). BLS feed = 403.
     #
     # instruments_hint: [] = relevanci určí klíčová slova (+ geopolitika); explicitní seznam = vše
@@ -94,12 +95,6 @@ DEFAULT_FEEDS = [
         "name": "rss_marketwatch",
         "url": "https://feeds.content.dowjones.io/public/rss/mw_topstories",
         "source_weight": 0.75,
-        "instruments_hint": [],
-    },
-    {
-        "name": "rss_seekingalpha",
-        "url": "https://seekingalpha.com/market_currents.xml",
-        "source_weight": 0.65,
         "instruments_hint": [],
     },
     {
