@@ -4,6 +4,7 @@ import re
 from typing import Sequence
 
 import structlog
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Ticker
@@ -213,10 +214,16 @@ class NewsAggregator:
             known = await self.repo.get_known_external_ids(db_source.id, ext_ids)
             predicted_ids = await self.repo.get_predicted_news_ids(list(known.values()))
 
+            seen_in_batch: set[str] = set()  # duplicity UVNITŘ jedné dávky (known zná jen DB)
             for raw in raw_items:
                 if raw.external_id in known:
                     if known[raw.external_id] in predicted_ids:
                         stats["skipped"] += 1
+                elif raw.external_id in seen_in_batch:
+                    # Např. ForexFactory: dvě vystoupení téhož řečníka ve stejný den mají stejné ID.
+                    # Dřív druhý INSERT porušil uq_source_external a shodil CELÝ refresh → žádné nové
+                    # zprávy ze žádného zdroje (incident od 11. 10. 2026).
+                    stats["skipped"] += 1
                 else:
                     # Filtr už při ingestu: zpráva bez vztahu ke sledovanému
                     # tickeru se vůbec neukládá (šetří DB i LLM cally)
@@ -227,16 +234,25 @@ class NewsAggregator:
                     if not relevant:
                         stats["irrelevant"] += 1
                         continue
-                    await self.repo.create_news_item(
-                        source_id=db_source.id,
-                        external_id=raw.external_id,
-                        title=raw.title,
-                        body=raw.body,
-                        url=raw.url,
-                        published_at=raw.published_at,
-                        raw_payload=raw.raw_payload,
-                    )
-                    stats["new"] += 1
+                    seen_in_batch.add(raw.external_id)
+                    try:
+                        # Savepoint: jedna kolize (např. souběžný refresh z cronu a fast-refresh)
+                        # zruší jen tuto položku, ne celou dávku.
+                        async with self.session.begin_nested():
+                            await self.repo.create_news_item(
+                                source_id=db_source.id,
+                                external_id=raw.external_id,
+                                title=raw.title,
+                                body=raw.body,
+                                url=raw.url,
+                                published_at=raw.published_at,
+                                raw_payload=raw.raw_payload,
+                            )
+                        stats["new"] += 1
+                    except IntegrityError:
+                        log.warning("News item already exists (race), skipped",
+                                    source=source.name, external_id=raw.external_id)
+                        stats["skipped"] += 1
 
             await self.session.commit()
 
