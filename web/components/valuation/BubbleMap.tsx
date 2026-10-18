@@ -39,10 +39,44 @@ function radius(mc: number | null, maxMc: number): number {
   return 7 + Math.sqrt(mc / maxMc) * 27;
 }
 
+interface Placed { it: OverviewItem; cx: number; cy: number; r: number }
+
+// Jen vizuální rozsunutí překrývajících se bublin (max MAX_NUDGE px od skutečné polohy).
+const MAX_NUDGE = 16;
+export function spread(pts: Placed[]): Placed[] {
+  const out = pts.map((p) => ({ ...p, x0: p.cx, y0: p.cy }));
+  for (let iter = 0; iter < 40; iter++) {
+    for (let i = 0; i < out.length; i++) {
+      for (let j = i + 1; j < out.length; j++) {
+        const a = out[i], b = out[j];
+        let dx = b.cx - a.cx, dy = b.cy - a.cy;
+        let d = Math.hypot(dx, dy);
+        const min = Math.min(a.r, b.r) + Math.max(a.r, b.r) * 0.45; // povolíme částečný překryv
+        if (d >= min) continue;
+        if (d < 0.01) { dx = 1; dy = 0; d = 1; }
+        const push = (min - d) / 2;
+        a.cx -= (dx / d) * push; a.cy -= (dy / d) * push;
+        b.cx += (dx / d) * push; b.cy += (dy / d) * push;
+      }
+    }
+    for (const p of out) { // drž se blízko skutečné polohy
+      const ox = p.cx - p.x0, oy = p.cy - p.y0, od = Math.hypot(ox, oy);
+      if (od > MAX_NUDGE) { p.cx = p.x0 + (ox / od) * MAX_NUDGE; p.cy = p.y0 + (oy / od) * MAX_NUDGE; }
+    }
+  }
+  return out;
+}
+
 export function BubbleMap({ items, onSelect }: { items: OverviewItem[]; onSelect: (t: string) => void }) {
   const [hover, setHover] = useState<string | null>(null);
   const plotted = items.filter((i) => i.pctile_pe_fwd != null && i.eps_growth_ntm != null);
   const maxMc = Math.max(...plotted.map((i) => i.market_cap ?? 0), 1);
+  // velké dospod, malé nahoře (ať se neztratí); najetá bublina vždy úplně nahoře
+  const placed = spread(
+    plotted
+      .map((it) => ({ it, cx: xPos(it.pctile_pe_fwd!), cy: yPos(it.eps_growth_ntm!), r: radius(it.market_cap, maxMc) }))
+      .sort((a, b) => b.r - a.r),
+  ).sort((a, b) => (a.it.ticker === hover ? 1 : 0) - (b.it.ticker === hover ? 1 : 0));
 
   if (plotted.length === 0) {
     return (
@@ -79,9 +113,7 @@ export function BubbleMap({ items, onSelect }: { items: OverviewItem[]; onSelect
         ))}
 
         {/* bubliny */}
-        {plotted.map((it) => {
-          const cx = xPos(it.pctile_pe_fwd!), cy = yPos(it.eps_growth_ntm!);
-          const r = radius(it.market_cap, maxMc);
+        {placed.map(({ it, cx, cy, r }) => {
           const color = VERDICT_COLOR[it.valuation_verdict ?? ""] ?? "#64748b";
           const dim = it.confidence != null && it.confidence < 0.5;
           return (
@@ -92,7 +124,8 @@ export function BubbleMap({ items, onSelect }: { items: OverviewItem[]; onSelect
                       stroke={it.bubble_flag ? "#ef4444" : color}
                       strokeWidth={it.bubble_flag ? 2.5 : 1}
                       strokeDasharray={it.bubble_flag ? "3 2" : undefined} />
-              <text x={cx} y={cy + 3} fill="#e5e7eb" fontSize="10" textAnchor="middle" fontWeight="600">
+              <text x={cx} y={cy + 3} fill="#e5e7eb" fontSize="10" textAnchor="middle" fontWeight="600"
+                    stroke="#0b0e16" strokeWidth={2.5} paintOrder="stroke">
                 {it.ticker}
               </text>
               {it.bubble_flag && (
