@@ -29,7 +29,7 @@ interface OrbSessions {
   or15: Record<string, OrbSession>;
 }
 interface OrbData {
-  meta: { instrument: string; label: string; unit: string; from: string; to: string };
+  meta: { instrument: string; label: string; unit: string; from: string; to: string; note?: string | null };
   orb_sessions?: OrbSessions;
 }
 
@@ -231,6 +231,9 @@ function InfoModal({ onClose }: { onClose: () => void }) {
 
 /* ----------------------------------------------------------------- page */
 
+const KEYS: string[] = ["nq", "gold", "ym", "eurusd", "gbpusd", "usdjpy"];
+const KEY_LABEL: Record<string, string> = { nq: "NQ", gold: "GOLD", ym: "YM", eurusd: "EUR/USD", gbpusd: "GBP/USD", usdjpy: "USD/JPY" };
+
 export default function OrbPage() {
   const [data, setData] = useState<Record<string, OrbData>>({});
   const [selected, setSelected] = useState<string>("nq");
@@ -242,7 +245,7 @@ export default function OrbPage() {
 
   useEffect(() => {
     Promise.allSettled(
-      ["nq", "gold", "ym"].map((k) =>
+      KEYS.map((k) =>
         fetch(`/orb/${k}.json`, { cache: "no-store" }).then((r) => {
           if (!r.ok) throw new Error(`${k}: ${r.status}`);
           return r.json().then((j: OrbData) => [k, j] as const);
@@ -286,7 +289,7 @@ export default function OrbPage() {
 
       {/* Filtr instrumentu */}
       <div className="flex flex-wrap items-center gap-2 -mt-4">
-        {(["nq", "gold", "ym"] as const).map((k) => (
+        {KEYS.map((k) => (
           <button
             key={k}
             onClick={() => setSelected(k)}
@@ -297,7 +300,7 @@ export default function OrbPage() {
                 : "bg-[#151823] text-gray-400 border-[#2a2d3a] hover:text-white"
             }`}
           >
-            {k === "nq" ? "NQ" : k === "gold" ? "GOLD" : "YM"}
+            {KEY_LABEL[k]}
           </button>
         ))}
         {orb && (
@@ -306,6 +309,10 @@ export default function OrbPage() {
           </span>
         )}
       </div>
+
+      {stats?.meta?.note && (
+        <div className="rounded-xl border border-blue-900 bg-blue-950/30 p-3 text-xs text-blue-300">{stats?.meta?.note}</div>
+      )}
 
       {error && (
         <div className="rounded-xl border border-yellow-800 bg-yellow-950/40 p-4 text-sm text-yellow-300">{error}</div>

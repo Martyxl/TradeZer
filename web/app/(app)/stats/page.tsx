@@ -10,7 +10,7 @@ import { authHeaders } from "@/lib/auth";
 interface SessionSize { avg: number; median: number; min: number; max: number }
 interface StatsBody {
   meta: {
-    instrument: string; label: string; unit: string;
+    instrument: string; label: string; unit: string; volume?: boolean; note?: string | null;
     from: string; to: string; bars_m5: number; days: number; weeks: number;
   };
   session_sizes: Record<string, SessionSize>;
@@ -314,6 +314,9 @@ export default function StatsPage() {
   );
 }
 
+const KEYS: string[] = ["nq", "gold", "ym", "eurusd", "gbpusd", "usdjpy"];
+const KEY_LABEL: Record<string, string> = { nq: "NQ", gold: "GOLD", ym: "YM", eurusd: "EUR/USD", gbpusd: "GBP/USD", usdjpy: "USD/JPY" };
+
 function StatsInner() {
   const [data, setData] = useState<Record<string, MarketStats>>({});
   const [selected, setSelected] = useState<string>("nq");
@@ -322,7 +325,7 @@ function StatsInner() {
 
   useEffect(() => {
     Promise.allSettled(
-      ["nq", "gold", "ym"].map((k) =>
+      KEYS.map((k) =>
         fetch(`/gate/stats?ticker=${k}`, { cache: "no-store", headers: authHeaders() }).then((r) => {
           if (!r.ok) throw new Error(`${k}: ${r.status}`);
           return r.json().then((j: MarketStats) => [k, j] as const);
@@ -364,8 +367,8 @@ function StatsInner() {
       </div>
 
       {/* Filtr instrumentu */}
-      <div className="flex items-center gap-2 -mt-4">
-        {(["nq", "gold", "ym"] as const).map((k) => (
+      <div className="flex flex-wrap items-center gap-2 -mt-4">
+        {KEYS.map((k) => (
           <button
             key={k}
             onClick={() => setSelected(k)}
@@ -376,7 +379,7 @@ function StatsInner() {
                 : "bg-[#151823] text-gray-400 border-[#2a2d3a] hover:text-white"
             }`}
           >
-            {k === "nq" ? "NQ" : k === "gold" ? "GOLD" : "YM"}
+            {KEY_LABEL[k]}
           </button>
         ))}
         {m && (
@@ -386,6 +389,10 @@ function StatsInner() {
           </span>
         )}
       </div>
+
+      {m?.note && (
+        <div className="rounded-xl border border-blue-900 bg-blue-950/30 p-3 text-xs text-blue-300">{m?.note}</div>
+      )}
 
       {error && (
         <div className="rounded-xl border border-yellow-800 bg-yellow-950/40 p-4 text-sm text-yellow-300">{error}</div>
@@ -448,7 +455,9 @@ function StatsInner() {
             </Card>
 
             <HourChart title="Volatility by Hour" values={stats.by_hour.volatility} unit={`průměrný rozsah / hod v ${m.unit}`} />
-            <HourChart title="Volume by Hour" values={stats.by_hour.volume} unit="průměrný objem per 5m bar" />
+            {m.volume !== false && (
+              <HourChart title="Volume by Hour" values={stats.by_hour.volume} unit="průměrný objem per 5m bar" />
+            )}
           </Section>
 
           {/* ============ HIGHS & LOWS ============ */}

@@ -7,6 +7,8 @@ Obchodní den začíná 22:00 UTC (FX/Globex konvence).
 Sessions (UTC):
   NQ (futures):  Asia 00–07, London 07–12, NY 12–21, Close = zbytek
   GOLD (spot):   Asia 22–07, London 07–12, NY 12–21, Close = 21–22
+  FOREX (spot):  stejné jako GOLD; ceny se hned po načtení přepočtou na PIPY (scale), takže
+                 všechny absolutní metriky (rozsahy, ORB, POC bin) jsou v pipech.
 """
 from __future__ import annotations
 
@@ -24,8 +26,10 @@ RAW = ROOT / "raw"
 AGG = ROOT / "agg"
 # Statistiky = placený modul (Trader+): full JSON MIMO web/public (servíruje gated
 # route /gate/stats). ORB je zdarma → jen výřez orb_sessions do web/public/orb.
-OUT = ROOT.parent / "web" / "stats-src"
-ORB_OUT = ROOT.parent / "web" / "public" / "orb"
+import os  # noqa: E402
+
+OUT = Path(os.environ["STATS_OUT"]) / "stats-src" if os.environ.get("STATS_OUT") else ROOT.parent / "web" / "stats-src"
+ORB_OUT = Path(os.environ["STATS_OUT"]) / "orb" if os.environ.get("STATS_OUT") else ROOT.parent / "web" / "public" / "orb"
 
 DAY_SHIFT_H = 2  # posun: 22:00 UTC -> 00:00 "trading day"
 
@@ -53,16 +57,33 @@ INSTRUMENTS = {
     },
 }
 
+# Forex: scale = násobek převádějící cenu na pipy (EURUSD 0.0001 → ×10000, USDJPY 0.01 → ×100).
+_FX_SESSIONS = {"asia": (22, 7), "london": (7, 12), "ny": (12, 21)}
+_FX_RTH = (13.5, 21.0)
+_FX_NOTE = ("Data z Yahoo Finance (5m, ~60 obchodních dní, průběžně se kumulují; bez objemu → VWAP = TWAP). "
+            "Vzorek je zatím malý — statistiky ber orientačně.")  # shodné s NY open/close v bias_service (13:30 / 21:00 UTC)
+INSTRUMENTS.update({
+    "eurusd": {"file_glob": "eurusd-m5-*.csv", "label": "EUR/USD", "unit": "pipů",
+               "sessions": _FX_SESSIONS, "rth": _FX_RTH, "source": "yahoo", "note": _FX_NOTE, "scale": 10000.0},
+    "gbpusd": {"file_glob": "gbpusd-m5-*.csv", "label": "GBP/USD", "unit": "pipů",
+               "sessions": _FX_SESSIONS, "rth": _FX_RTH, "source": "yahoo", "note": _FX_NOTE, "scale": 10000.0},
+    "usdjpy": {"file_glob": "usdjpy-m5-*.csv", "label": "USD/JPY", "unit": "pipů",
+               "sessions": _FX_SESSIONS, "rth": _FX_RTH, "source": "yahoo", "note": _FX_NOTE, "scale": 100.0},
+})
+
 WEEKDAYS_CZ = ["Po", "Út", "St", "Čt", "Pá"]
 
 
-def load_m5(pattern: str) -> pd.DataFrame:
+def load_m5(pattern: str, scale: float = 1.0) -> pd.DataFrame:
     files = sorted(glob.glob(str(RAW / pattern)))
     if not files:
         raise FileNotFoundError(f"Chybí data: {pattern}")
     df = pd.concat([pd.read_csv(f) for f in files], ignore_index=True)
     df = df.drop_duplicates(subset="timestamp").sort_values("timestamp")
     df["ts"] = pd.to_datetime(df["timestamp"], unit="ms", utc=True)
+    if scale != 1.0:
+        for c in ("open", "high", "low", "close"):
+            df[c] = df[c] * scale
     if "volume" not in df.columns:
         df["volume"] = 1.0
     df["volume"] = df["volume"].fillna(0.0)
@@ -664,7 +685,12 @@ def orb_stats(df: pd.DataFrame, sessions: dict, months: int = 6,
 
 
 def compute(key: str, cfg: dict) -> dict:
-    df = load_m5(cfg["file_glob"])
+    scale = cfg.get("scale", 1.0)
+    df = load_m5(cfg["file_glob"], scale)
+    # Yahoo forex nemá objem → VWAP by dělil nulou. Rovnoměrné váhy (= TWAP) a příznak pro UI.
+    has_volume = bool(df["volume"].sum() > 0)
+    if not has_volume:
+        df["volume"] = 1.0
     daily = df.groupby("tday").agg(
         open=("open", "first"), high=("high", "max"),
         low=("low", "min"), close=("close", "last"), volume=("volume", "sum"),
@@ -672,8 +698,9 @@ def compute(key: str, cfg: dict) -> dict:
 
     # uložit agregované timeframy
     AGG.mkdir(parents=True, exist_ok=True)
-    for freq, tf in (("15min", "m15"), ("1h", "h1")):
-        aggregate(df, freq).to_csv(AGG / f"{key}-{tf}.csv", index=False)
+    if scale == 1.0:  # agg CSV používají jiné nástroje v původních jednotkách → pipové nezapisuj
+        for freq, tf in (("15min", "m15"), ("1h", "h1")):
+            aggregate(df, freq).to_csv(AGG / f"{key}-{tf}.csv", index=False)
 
     med_range = float((daily["high"] - daily["low"]).median())
     bin_width = max(med_range / 100.0, 1e-4)
@@ -691,6 +718,9 @@ def compute(key: str, cfg: dict) -> dict:
         "bars_m5": int(len(df)),
         "days": int(df["tday"].nunique()),
         "weeks": int(df["tweek"].nunique()),
+        "volume": has_volume,
+        "source": cfg.get("source"),
+        "note": cfg.get("note"),
     }
     return {
         "meta": meta,

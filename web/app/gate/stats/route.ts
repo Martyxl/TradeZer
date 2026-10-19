@@ -5,10 +5,13 @@ import { NextRequest, NextResponse } from "next/server";
 import nq from "@/stats-src/nq.json";
 import gold from "@/stats-src/gold.json";
 import ym from "@/stats-src/ym.json";
+import eurusd from "@/stats-src/eurusd.json";
+import gbpusd from "@/stats-src/gbpusd.json";
+import usdjpy from "@/stats-src/usdjpy.json";
 
 export const dynamic = "force-dynamic";
 
-const FILES: Record<string, unknown> = { nq, gold, ym };
+const FILES: Record<string, unknown> = { nq, gold, ym, eurusd, gbpusd, usdjpy };
 const RANK: Record<string, number> = { free: 0, trader: 1, pro: 2, elite: 3 };
 
 async function entitled(req: NextRequest, min = "trader"): Promise<number> {
