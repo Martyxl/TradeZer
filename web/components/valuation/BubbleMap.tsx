@@ -40,43 +40,39 @@ function radius(mc: number | null, maxMc: number): number {
 }
 
 interface Placed { it: OverviewItem; cx: number; cy: number; r: number }
+export interface Cluster { members: Placed[]; cx: number; cy: number; r: number }
 
-// Jen vizuální rozsunutí překrývajících se bublin (max MAX_NUDGE px od skutečné polohy).
-const MAX_NUDGE = 16;
-export function spread(pts: Placed[]): Placed[] {
-  const out = pts.map((p) => ({ ...p, x0: p.cx, y0: p.cy }));
-  for (let iter = 0; iter < 40; iter++) {
-    for (let i = 0; i < out.length; i++) {
-      for (let j = i + 1; j < out.length; j++) {
-        const a = out[i], b = out[j];
-        let dx = b.cx - a.cx, dy = b.cy - a.cy;
-        let d = Math.hypot(dx, dy);
-        const min = Math.min(a.r, b.r) + Math.max(a.r, b.r) * 0.45; // povolíme částečný překryv
-        if (d >= min) continue;
-        if (d < 0.01) { dx = 1; dy = 0; d = 1; }
-        const push = (min - d) / 2;
-        a.cx -= (dx / d) * push; a.cy -= (dy / d) * push;
-        b.cx += (dx / d) * push; b.cy += (dy / d) * push;
-      }
-    }
-    for (const p of out) { // drž se blízko skutečné polohy
-      const ox = p.cx - p.x0, oy = p.cy - p.y0, od = Math.hypot(ox, oy);
-      if (od > MAX_NUDGE) { p.cx = p.x0 + (ox / od) * MAX_NUDGE; p.cy = p.y0 + (oy / od) * MAX_NUDGE; }
+// Seskupí bubliny, které se výrazně překrývají (union-find nad skutečnými polohami).
+export function cluster(pts: Placed[], overlap = 0.55): Cluster[] {
+  const parent = pts.map((_, i) => i);
+  const find = (i: number): number => (parent[i] === i ? i : (parent[i] = find(parent[i])));
+  for (let i = 0; i < pts.length; i++) {
+    for (let j = i + 1; j < pts.length; j++) {
+      const d = Math.hypot(pts[i].cx - pts[j].cx, pts[i].cy - pts[j].cy);
+      if (d < (pts[i].r + pts[j].r) * overlap) parent[find(i)] = find(j);
     }
   }
-  return out;
+  const groups = new Map<number, Placed[]>();
+  pts.forEach((p, i) => groups.set(find(i), [...(groups.get(find(i)) ?? []), p]));
+  return [...groups.values()].map((members) => {
+    const cx = members.reduce((a, m) => a + m.cx, 0) / members.length;
+    const cy = members.reduce((a, m) => a + m.cy, 0) / members.length;
+    return { members, cx, cy, r: Math.max(...members.map((m) => m.r)) };
+  });
 }
 
 export function BubbleMap({ items, onSelect }: { items: OverviewItem[]; onSelect: (t: string) => void }) {
   const [hover, setHover] = useState<string | null>(null);
   const plotted = items.filter((i) => i.pctile_pe_fwd != null && i.eps_growth_ntm != null);
   const maxMc = Math.max(...plotted.map((i) => i.market_cap ?? 0), 1);
-  // velké dospod, malé nahoře (ať se neztratí); najetá bublina vždy úplně nahoře
-  const placed = spread(
+  const [open, setOpen] = useState<string | null>(null);
+  const clusters = cluster(
     plotted
       .map((it) => ({ it, cx: xPos(it.pctile_pe_fwd!), cy: yPos(it.eps_growth_ntm!), r: radius(it.market_cap, maxMc) }))
       .sort((a, b) => b.r - a.r),
-  ).sort((a, b) => (a.it.ticker === hover ? 1 : 0) - (b.it.ticker === hover ? 1 : 0));
+  ).sort((a, b) => b.r - a.r);
+  const clKey = (c: Cluster) => c.members.map((m) => m.it.ticker).sort().join(",");
+  const openCluster = clusters.find((c) => clKey(c) === open);
 
   if (plotted.length === 0) {
     return (
@@ -113,33 +109,72 @@ export function BubbleMap({ items, onSelect }: { items: OverviewItem[]; onSelect
         ))}
 
         {/* bubliny */}
-        {placed.map(({ it, cx, cy, r }) => {
-          const color = VERDICT_COLOR[it.valuation_verdict ?? ""] ?? "#64748b";
-          const dim = it.confidence != null && it.confidence < 0.5;
-          return (
-            <g key={it.ticker} style={{ cursor: "pointer" }}
-               onClick={() => onSelect(it.ticker)}
-               onMouseEnter={() => setHover(it.ticker)} onMouseLeave={() => setHover(null)}>
-              <circle cx={cx} cy={cy} r={r} fill={color} fillOpacity={dim ? 0.25 : 0.55}
-                      stroke={it.bubble_flag ? "#ef4444" : color}
-                      strokeWidth={it.bubble_flag ? 2.5 : 1}
-                      strokeDasharray={it.bubble_flag ? "3 2" : undefined} />
-              <text x={cx} y={cy + 3} fill="#e5e7eb" fontSize="10" textAnchor="middle" fontWeight="600"
-                    stroke="#0b0e16" strokeWidth={2.5} paintOrder="stroke">
-                {it.ticker}
-              </text>
-              {it.bubble_flag && (
-                <text x={cx + r + 2} y={cy - r} fill="#ef4444" fontSize="11">⚠</text>
-              )}
-              {hover === it.ticker && (
-                <text x={cx} y={cy - r - 5} fill="#e5e7eb" fontSize="10" textAnchor="middle">
-                  {it.name?.slice(0, 22)} · comp {it.composite_score?.toFixed(0) ?? "—"}
+        {clusters.map((c) => {
+          if (c.members.length === 1) {
+            const { it, cx, cy, r } = c.members[0];
+            const color = VERDICT_COLOR[it.valuation_verdict ?? ""] ?? "#64748b";
+            const dim = it.confidence != null && it.confidence < 0.5;
+            return (
+              <g key={it.ticker} style={{ cursor: "pointer" }}
+                 onClick={() => onSelect(it.ticker)}
+                 onMouseEnter={() => setHover(it.ticker)} onMouseLeave={() => setHover(null)}>
+                <circle cx={cx} cy={cy} r={r} fill={color} fillOpacity={dim ? 0.25 : 0.55}
+                        stroke={it.bubble_flag ? "#ef4444" : color}
+                        strokeWidth={it.bubble_flag ? 2.5 : 1}
+                        strokeDasharray={it.bubble_flag ? "3 2" : undefined} />
+                <text x={cx} y={cy + 3} fill="#e5e7eb" fontSize="10" textAnchor="middle" fontWeight="600"
+                      stroke="#0b0e16" strokeWidth={2.5} paintOrder="stroke">
+                  {it.ticker}
                 </text>
-              )}
+                {it.bubble_flag && (
+                  <text x={cx + r + 2} y={cy - r} fill="#ef4444" fontSize="11">⚠</text>
+                )}
+                {hover === it.ticker && (
+                  <text x={cx} y={cy - r - 5} fill="#e5e7eb" fontSize="10" textAnchor="middle">
+                    {it.name?.slice(0, 22)} · comp {it.composite_score?.toFixed(0) ?? "—"}
+                  </text>
+                )}
+              </g>
+            );
+          }
+          const k = clKey(c), sel = open === k;
+          return (
+            <g key={k} style={{ cursor: "pointer" }} data-testid="bubble-cluster"
+               onClick={() => setOpen(sel ? null : k)}>
+              <circle cx={c.cx} cy={c.cy} r={Math.max(c.r, 14)} fill="#64748b" fillOpacity={0.35}
+                      stroke={sel ? "#e5e7eb" : "#94a3b8"} strokeWidth={sel ? 2 : 1.5} strokeDasharray="4 3" />
+              <text x={c.cx} y={c.cy + 4} fill="#e5e7eb" fontSize="12" textAnchor="middle" fontWeight="700"
+                    stroke="#0b0e16" strokeWidth={2.5} paintOrder="stroke">
+                {c.members.length}×
+              </text>
             </g>
           );
         })}
       </svg>
+      {openCluster && (
+        <div className="mt-2 rounded-lg border border-[#2a2d3a] bg-[#10131c] p-3" data-testid="cluster-list">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-gray-400">
+              {openCluster.members.length} firem se překrývá — klikni na firmu pro detail
+            </span>
+            <button onClick={() => setOpen(null)} className="text-xs text-gray-500 hover:text-gray-300">zavřít ✕</button>
+          </div>
+          <ul className="grid gap-1 sm:grid-cols-2">
+            {[...openCluster.members].sort((a, b) => (b.it.composite_score ?? -1) - (a.it.composite_score ?? -1)).map(({ it }) => (
+              <li key={it.ticker}>
+                <button onClick={() => onSelect(it.ticker)}
+                  className="w-full flex items-center gap-2 rounded px-2 py-1 text-left text-xs hover:bg-[#1a1d27]">
+                  <span className="inline-block h-2 w-2 rounded-full"
+                        style={{ background: VERDICT_COLOR[it.valuation_verdict ?? ""] ?? "#64748b" }} />
+                  <span className="font-semibold text-white">{it.ticker}</span>
+                  <span className="truncate text-gray-400">{it.name}</span>
+                  <span className="ml-auto text-gray-500">{it.composite_score?.toFixed(0) ?? "—"}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
