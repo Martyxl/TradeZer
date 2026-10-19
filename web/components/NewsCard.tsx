@@ -23,6 +23,9 @@ const FEATURED: { symbol: string; label: string }[] = [
   { symbol: "ES",     label: "ES"  },
   { symbol: "NQ",     label: "NQ"  },
   { symbol: "YM",     label: "YM"  },
+  { symbol: "EURUSD", label: "EUR" },
+  { symbol: "GBPUSD", label: "GBP" },
+  { symbol: "USDJPY", label: "JPY" },
 ];
 
 const BADGE_STYLE: Record<"S" | "M" | "L", string> = {

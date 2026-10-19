@@ -6,7 +6,7 @@ jiný region). Každých 15 min (služba `--loop 900`; snížené kvůli Hobby l
 odpověď z edge (~50–150 ms); funkce se probudí jen na pozadí (1 volání/URL/tick).
 
 Použití:  python3 cache_warm.py --loop 300        (jednorázově bez --loop)
-Env:      TRADEZER_BASE_URL (default https://tradezer.app), WARM_TICKERS (default XAUUSD,ES,NQ,YM)
+Env:      TRADEZER_BASE_URL (default https://tradezer.app), WARM_TICKERS (default XAUUSD,ES,NQ,YM,EURUSD,GBPUSD,USDJPY)
 """
 import argparse
 import os
@@ -15,7 +15,7 @@ import urllib.error
 import urllib.request
 
 BASE = os.environ.get("TRADEZER_BASE_URL", "https://tradezer.app").rstrip("/")
-TICKERS = [t.strip().upper() for t in os.environ.get("WARM_TICKERS", "XAUUSD,ES,NQ,YM").split(",") if t.strip()]
+TICKERS = [t.strip().upper() for t in os.environ.get("WARM_TICKERS", "XAUUSD,ES,NQ,YM,EURUSD,GBPUSD,USDJPY").split(",") if t.strip()]
 UA = "Mozilla/5.0 TradezerCacheWarm/1.0"
 
 

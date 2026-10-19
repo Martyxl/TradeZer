@@ -41,13 +41,13 @@ async def test_forex_factory_parse():
 
 @pytest.mark.asyncio
 async def test_forex_factory_filters_untracked_currencies():
-    """Sledujeme USD/EUR/CNY — ostatní měny (JPY, GBP…) se filtrují."""
+    """Sledujeme USD/EUR/GBP/JPY/CNY — ostatní měny (CHF…) se filtrují."""
     xml = """<?xml version="1.0" encoding="utf-8"?>
 <weeklyevents>
   <week>
     <event id="2">
-      <title>Japan Trade Balance</title>
-      <currency>JPY</currency>
+      <title>Swiss Trade Balance</title>
+      <currency>CHF</currency>
       <date>05-15-2026 02:00am</date>
       <impact>Medium</impact>
     </event>

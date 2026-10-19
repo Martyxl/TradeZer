@@ -18,6 +18,11 @@ log = structlog.get_logger(__name__)
 # NQ (tech, dlouhá durace) reaguje nejvíc, YM (value/průmysl) nejmíň.
 INDEX_SENSITIVITY = {"NQ": 1.0, "ES": 0.8, "YM": 0.65}
 GOLD_SYMBOLS = {"XAUUSD", "GOLD"}
+# Forex páry: symbol → (cizí měna, USD je base měna?). EURUSD: USD je quote; USDJPY: USD je base.
+FX_PAIRS = {"EURUSD": ("EUR", False), "GBPUSD": ("GBP", False), "USDJPY": ("JPY", True)}
+# Kategorie → jak výsledek NAD forecastem mění sílu MĚNY, které se event týká (+ posiluje).
+_CCY_SIGN = {"inflation": 1, "wages": 1, "rates": 1, "jobs": 1, "claims": -1,
+             "unemployment_rate": -1, "growth": 1, "survey": 1}
 
 # Kategorie eventu → (znaménko pro indexy, znaménko pro gold) při výsledku NAD
 # forecastem (hot). Cool = opačné znaménko. + = nahoru, − = dolů, 0 = neutrálně.
@@ -82,12 +87,41 @@ def _intensity(sens: float, is_gold: bool) -> str:
     return "silně" if sens >= 0.9 else "středně" if sens >= 0.75 else "mírně"
 
 
-def scenario_for(category: str, ticker: str) -> dict | None:
+def _fx_scenario(cat_key: str, ticker: str, currency: str) -> dict | None:
+    """Scénáře pro forexový pár. Zajímají nás jen eventy USD a cizí měny páru; jiné → None."""
+    foreign, usd_is_base = FX_PAIRS[ticker]
+    if currency not in ("USD", foreign):
+        return None
+    s_ccy = _CCY_SIGN.get(cat_key)
+    if s_ccy is None:
+        return None
+    # Pohyb páru = síla base měny − síla quote měny.
+    base_ccy = "USD" if usd_is_base else foreign
+    pair_sign_hot = s_ccy if currency == base_ccy else -s_ccy
+    cat = _CATEGORIES[cat_key]
+
+    def leg(sign_mult: int, reason_key: str) -> dict:
+        ccy_dir = s_ccy * sign_mult
+        verb = "posiluje" if ccy_dir > 0 else "slábne"
+        d_sign = pair_sign_hot * sign_mult
+        d = "up" if d_sign > 0 else "down"
+        reason = cat[reason_key] if currency == "USD" else f"data {currency} {'nad' if sign_mult > 0 else 'pod'} forecastem"
+        return {"dir": d, "text": f"{reason} → {currency} {verb} → středně {_dir_word(d_sign)}"}
+
+    return {"hot": leg(1, "hot"), "cool": leg(-1, "cool"),
+            "inline": {"dir": "flat", "text": "výsledek dle očekávání → malý pohyb, trh to má v ceně"}}
+
+
+def scenario_for(category: str, ticker: str, currency: str | None = None) -> dict | None:
     """Vrátí scénáře {hot, inline, cool} pro daný instrument a kategorii eventu.
-    Každý scénář = {dir: 'up'|'down'|'flat', text}."""
+    Každý scénář = {dir: 'up'|'down'|'flat', text}. `currency` = měna eventu (jen forex)."""
     cat = _CATEGORIES.get(category)
     if cat is None:
         return None
+    if ticker.upper() in FX_PAIRS:
+        return _fx_scenario(category, ticker.upper(), (currency or "USD").upper())
+    if (currency or "").upper() in ("GBP", "JPY"):
+        return None  # britská/japonská data nejsou driver indexů ani zlata
     is_gold = ticker.upper() in GOLD_SYMBOLS
     base = cat["gold" if is_gold else "index"]
     sens = 1.0 if is_gold else INDEX_SENSITIVITY.get(ticker.upper(), 0.7)
@@ -129,7 +163,7 @@ async def build_outlook(ticker_symbol: str) -> dict:
         cat = classify_event(e.get("title", ""))
         if cat is None:
             continue
-        sc = scenario_for(cat, ticker_symbol)
+        sc = scenario_for(cat, ticker_symbol, e.get("currency"))
         if sc is None:
             continue
         # Pokud už je actual, urči který scénář nastal (vs forecast).
@@ -186,7 +220,7 @@ def _parse_event_values(body: str, title: str) -> tuple[str | None, str | None]:
             a if a and a not in ("?", "N/A") else None)
 
 
-EVAL_TICKERS = ["NQ", "ES", "YM", "XAUUSD"]
+EVAL_TICKERS = ["NQ", "ES", "YM", "XAUUSD", "EURUSD", "GBPUSD", "USDJPY"]
 
 
 async def compute_scenario_stats(session, ticker_symbol: str, days: int = 90) -> dict:

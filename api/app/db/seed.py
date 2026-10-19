@@ -11,9 +11,9 @@ from app.models import Ticker, NewsSource, NewsCategory
 
 
 TICKERS = [
-    {"symbol": "EURUSD", "name": "EUR/USD",          "asset_class": "forex",    "source_symbol_map": {"yahoo": "EURUSD=X", "cme": "6E"}, "neutral_threshold": 0.002, "enabled": True},
-    {"symbol": "GBPUSD", "name": "GBP/USD",          "asset_class": "forex",    "source_symbol_map": {"yahoo": "GBPUSD=X"},              "neutral_threshold": 0.002, "enabled": False},
-    {"symbol": "USDJPY", "name": "USD/JPY",          "asset_class": "forex",    "source_symbol_map": {"yahoo": "USDJPY=X"},              "neutral_threshold": 0.002, "enabled": False},
+    {"symbol": "EURUSD", "name": "EUR/USD",          "asset_class": "forex",    "source_symbol_map": {"yahoo": "EURUSD=X", "cme": "6E"}, "neutral_threshold": 0.0005, "enabled": True},
+    {"symbol": "GBPUSD", "name": "GBP/USD",          "asset_class": "forex",    "source_symbol_map": {"yahoo": "GBPUSD=X"},              "neutral_threshold": 0.0006, "enabled": True},
+    {"symbol": "USDJPY", "name": "USD/JPY",          "asset_class": "forex",    "source_symbol_map": {"yahoo": "USDJPY=X"},              "neutral_threshold": 0.0006, "enabled": True},
     {"symbol": "XAUUSD", "name": "XAU/USD",          "asset_class": "commodity","source_symbol_map": {"yahoo": "GC=F"},                  "neutral_threshold": 0.002, "enabled": True},
     {"symbol": "BTCUSD", "name": "BTC/USD",          "asset_class": "crypto",   "source_symbol_map": {"yahoo": "BTC-USD"},               "neutral_threshold": 0.005, "enabled": True},
     {"symbol": "ES",     "name": "E-mini S&P 500",   "asset_class": "futures",  "source_symbol_map": {"yahoo": "ES=F", "cme": "ES"},     "neutral_threshold": 0.002, "enabled": True},

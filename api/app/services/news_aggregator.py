@@ -25,6 +25,15 @@ log = structlog.get_logger(__name__)
 # Keywords mapped to ticker symbols — used when a source has no instruments_hint.
 # Pořadí je důležité: specifičtější tickery (NQ/ES) mají přednost před obecnými (EURUSD).
 # US makro data (PMI, NFP, CPI...) hýbou akciemi STEJNĚ SILNĚ jako forexem.
+# Americké makro / Fed — společné hnací síly všech USD párů.
+_USD_DRIVERS = [
+    "non-farm payroll", "nonfarm payroll", "re:\\bnfp\\b", "jobs report",
+    "fomc", "federal reserve", "fed rate", "re:\\bpowell\\b",
+    "core cpi", "core pce", "u.s. inflation", "us inflation",
+    "dollar index", "re:\\bdxy\\b", "u.s. dollar", "us dollar", "re:\\bgreenback\\b",
+    "treasury yields", "u.s. retail sales", "us retail sales", "ism manufacturing", "ism services",
+]
+
 KEYWORD_TICKER_MAP: dict[str, list[str]] = {
     "XAUUSD": [
         "gold", "xau", "bullion", "precious metal", "precious metals",
@@ -92,21 +101,26 @@ KEYWORD_TICKER_MAP: dict[str, list[str]] = {
         "tariff", "trade war", "manufacturing",
     ],
 
-    # Forex
+    # Forex. Prefix "re:" = regulární výraz s hranicemi slov (jinak by "boe" chytlo Boeing
+    # a "pound" slovo "compound"). Ostatní položky = prostá podřetězcová shoda.
+    # USD makro (NFP, CPI, Fed) hýbe všemi USD páry → _USD_DRIVERS u každého z nich.
     "EURUSD": [
-        "european central bank", "ecb ", "eurozone", "euro area",
-        "lagarde", "eur/usd", "euro/dollar",
+        "european central bank", "re:\\becb\\b", "eurozone", "euro area",
+        "lagarde", "eur/usd", "euro/dollar", "re:\\beuro\\b", "re:\\beur\\b",
         "eurozone pmi", "eurozone manufacturing", "eurozone services",
         "german", "france gdp", "italy gdp",
-    ],
+    ] + _USD_DRIVERS,
     "GBPUSD": [
-        "bank of england", "boe", "gbp/usd", "pound", "sterling",
-        "uk inflation", "uk gdp", "uk pmi", "uk manufacturing",
-    ],
+        "bank of england", "re:\\bboe\\b", "gbp/usd", "re:\\bgbp\\b", "re:\\bsterling\\b",
+        "re:\\bgilts?\\b", "re:\\bbailey\\b", "uk inflation", "uk gdp", "uk pmi",
+        "uk manufacturing", "uk retail sales", "uk unemployment", "uk economy", "u.k. economy",
+        "britain's economy", "british economy",
+    ] + _USD_DRIVERS,
     "USDJPY": [
-        "bank of japan", "boj", "yen", "usd/jpy", "japan gdp",
-        "japan inflation", "japan pmi",
-    ],
+        "bank of japan", "re:\\bboj\\b", "re:\\byen\\b", "re:\\bjpy\\b", "usd/jpy", "re:\\bueda\\b",
+        "japan gdp", "japan inflation", "japan pmi", "japanese economy", "japan's economy",
+        "re:\\bjgbs?\\b", "japanese government bond", "re:\\bnikkei\\b",
+    ] + _USD_DRIVERS,
 }
 
 
@@ -127,6 +141,10 @@ def is_geopolitical(text: str) -> bool:
     return bool(_GEO_RE.search(text.lower()))
 
 
+def _kw_hit(kw: str, text: str) -> bool:
+    return bool(re.search(kw[3:], text)) if kw.startswith("re:") else kw in text
+
+
 def _detect_tickers_by_keywords(
     title: str, body: str | None, all_tickers: list[Ticker]
 ) -> list[Ticker]:
@@ -139,7 +157,7 @@ def _detect_tickers_by_keywords(
         t for t in all_tickers
         if t.symbol in enabled_symbols
         and ((t.symbol in KEYWORD_TICKER_MAP
-              and any(kw in text for kw in KEYWORD_TICKER_MAP[t.symbol]))
+              and any(_kw_hit(kw, text) for kw in KEYWORD_TICKER_MAP[t.symbol]))
              or (geo and t.symbol in GEO_TICKERS))
     ]
 

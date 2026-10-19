@@ -8,6 +8,10 @@ UP = ticker price rises. DOWN = ticker price falls. NEUTRAL = minimal move.
 ## Ticker guide
 - XAUUSD (gold): geopolitical risk, inflation, weaker USD -> UP. Risk-on, strong USD, higher real rates -> DOWN. News about individual mining companies has low relevance (< 0.2).
 - ES / NQ (US equity index futures): strong US data, earnings beats, dovish Fed, geopolitical de-escalation -> UP. Hot inflation, hawkish Fed, geopolitical escalation, tariffs -> DOWN. NQ is more volatile and more rate-sensitive than ES. If the signal is clear, do NOT default to neutral.
+- EURUSD / GBPUSD / USDJPY (forex; UP = the FIRST currency strengthens, DOWN = it weakens; USD is the quote in EURUSD/GBPUSD and the base in USDJPY):
+  strong US data, hawkish Fed, higher US yields -> EURUSD/GBPUSD DOWN, USDJPY UP. Hawkish ECB / BoE, strong Eurozone / UK data, weaker USD -> EURUSD/GBPUSD UP.
+  Hawkish BoJ, MoF yen-support intervention, risk-off (JPY is a safe haven), falling US yields -> USDJPY DOWN. Judge actual vs forecast from the point of view of the CURRENCY the data belongs to
+  (higher inflation/wages/employment = stronger currency; higher unemployment/claims = weaker), then translate to the pair. Data of a currency not in the pair has low relevance (< 0.2). Pairs move less than indices: small news = NEUTRAL.
 - Actual > Forecast = positive surprise; Actual < Forecast = negative surprise. Bigger gap = stronger signal.
 - In a strong bull trend, negative noise has SMALLER impact than usual (already priced in).
 

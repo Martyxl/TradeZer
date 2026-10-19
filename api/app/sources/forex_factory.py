@@ -24,9 +24,9 @@ log = structlog.get_logger(__name__)
 # Mirror na faireconomy.media je spolehlivý veřejný zrcadlový server.
 FF_XML_URL = "https://nfs.faireconomy.media/ff_calendar_thisweek.xml"
 
-# Zachycujeme pouze US, EU a China makro data
-# GBP/JPY/CHF mají výrazně menší vliv na naše instrumenty (ES, NQ, XAUUSD)
-TRACKED_CURRENCIES = {"USD", "EUR", "CNY"}
+# Zachycujeme US, EU, UK, Japonsko a Čínu. GBP/JPY jsou potřeba pro páry GBPUSD/USDJPY
+# (BoE, BoJ, UK/JP inflace…); CHF a ostatní měny nesledujeme.
+TRACKED_CURRENCIES = {"USD", "EUR", "GBP", "JPY", "CNY"}
 
 # Filtrujeme pouze medium a high impact (low = příliš šumu)
 HIGH_MEDIUM_IMPACTS = {"high", "medium"}
@@ -36,7 +36,7 @@ HIGH_MEDIUM_IMPACTS = {"high", "medium"}
 
 
 async def get_upcoming_events(window_before_min: int = 120, window_after_min: int = 60) -> list[dict]:
-    """Vrátí USD/EUR/CNY high/medium impact eventy v časovém okně kolem 'teď'.
+    """Vrátí USD/EUR/GBP/JPY/CNY high/medium impact eventy v časovém okně kolem 'teď'.
 
     Používá se pro smart cron scheduling — zjistí jestli má cenu spouštět LLM predikce.
     Vrátí seznam eventů s UTC časem, měnou, dopadem a forecastem.
@@ -174,12 +174,16 @@ class ForexFactoryAdapter(NewsSource):
         """
         if currency == "EUR":
             return ["EURUSD", "XAUUSD"]
+        elif currency == "GBP":
+            return ["GBPUSD"]
+        elif currency == "JPY":
+            return ["USDJPY"]
         elif currency == "USD":
             return ["EURUSD", "GBPUSD", "USDJPY", "ES", "NQ", "YM", "XAUUSD"]
         elif currency == "CNY":
             # Čínská makro data (PMI, GDP, trade balance) ovlivňují zlato a indexy
             return ["XAUUSD", "ES", "NQ", "YM"]
-        return ["EURUSD"]
+        return []
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
     async def _download_xml(self) -> str:

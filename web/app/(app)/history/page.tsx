@@ -13,7 +13,7 @@ const DIR_COLORS: Record<string, string> = {
   down: "#ef4444",
 };
 
-const TICKERS = ["EURUSD", "XAUUSD", "BTCUSD", "ES", "NQ"];
+const TICKERS = ["EURUSD", "GBPUSD", "USDJPY", "XAUUSD", "ES", "NQ", "YM"];
 
 // ── Confusion matrix helper ─────────────────────────────────────────────────
 type Matrix = Record<string, Record<string, number>>;
