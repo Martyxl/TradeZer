@@ -246,10 +246,13 @@ export default function OrbPage() {
   useEffect(() => {
     Promise.allSettled(
       KEYS.map((k) =>
-        fetch(`/orb/${k}.json`, { cache: "no-store" }).then((r) => {
-          if (!r.ok) throw new Error(`${k}: ${r.status}`);
-          return r.json().then((j: OrbData) => [k, j] as const);
-        })
+        // Čerstvá data z DB (publikuje Spark); fallback na statický JSON z buildu.
+        fetch(`/api/marketstats/orb/${k}`, { cache: "no-store" })
+          .then((r) => (r.ok ? r : fetch(`/orb/${k}.json`, { cache: "no-store" })))
+          .then((r) => {
+            if (!r.ok) throw new Error(`${k}: ${r.status}`);
+            return r.json().then((j: OrbData) => [k, j] as const);
+          })
       )
     ).then((results) => {
       const ok = Object.fromEntries(

@@ -18,12 +18,14 @@ from app.routers.billing import router as billing_router
 from app.routers.investments import router as investments_router
 from app.routers.darkpool import router as darkpool_router
 from app.routers.fund import router as fund_router
+from app.routers.marketstats import router as marketstats_router
 
 __all__ = [
     "billing_router",
     "investments_router",
     "darkpool_router",
     "fund_router",
+    "marketstats_router",
     "bias_router",
     "valuation_router",
     "auth_router",

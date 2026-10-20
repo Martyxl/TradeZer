@@ -38,6 +38,15 @@ export async function GET(req: NextRequest) {
   if (!data) return NextResponse.json({ error: "unknown ticker" }, { status: 404 });
   const gate = await entitled(req, "trader");
   if (gate !== 0) return NextResponse.json({ error: "forbidden" }, { status: gate });
+  // Čerstvá data publikuje Spark do DB (backend gate Trader+ znovu ověří plán). Při výpadku nebo
+  // chybějícím blobu spadneme na statický JSON zabalený v buildu.
+  try {
+    const base = process.env.API_URL || "http://localhost:8000";
+    const r = await fetch(`${base}/api/marketstats/stats/${ticker}`, {
+      headers: { Authorization: req.headers.get("authorization") || "" }, cache: "no-store",
+    });
+    if (r.ok) return NextResponse.json(await r.json());
+  } catch { /* fallback níže */ }
   return NextResponse.json(data);
 }
 

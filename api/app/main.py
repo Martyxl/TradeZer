@@ -32,6 +32,7 @@ from app.routers import (
     investments_router,
     darkpool_router,
     fund_router,
+    marketstats_router,
 )
 
 structlog.configure(
@@ -191,7 +192,9 @@ app.add_middleware(
 # do vysoké návštěvnosti. Placené/per-user endpointy (valuation, discovery, smart-money,
 # dark-pool, investments, auth, admin) tu NEJSOU — ty se cachovat nesmí (paywall/data).
 _CACHEABLE_PREFIXES = ("/api/bias", "/api/gamma", "/api/regime", "/api/dashboard", "/api/news", "/api/summary",
-                       "/api/stats", "/api/history", "/api/tickers", "/api/health")
+                       "/api/stats", "/api/history", "/api/tickers", "/api/health",
+                       # JEN ORB (zdarma). /api/marketstats/stats/* je placené → do CDN nesmí.
+                       "/api/marketstats/orb/")
 # Přesné cesty (NE prefix): veřejný showcase fondu. /api/fund/signals a /api/fund/ingest jsou
 # interní (token) a v CDN cache nesmí nikdy skončit.
 _CACHEABLE_EXACT = {"/api/fund"}
@@ -240,6 +243,7 @@ app.include_router(billing_router)
 app.include_router(investments_router)
 app.include_router(darkpool_router)
 app.include_router(fund_router)
+app.include_router(marketstats_router)
 
 
 @app.get("/")
