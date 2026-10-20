@@ -22,8 +22,21 @@ from app.db import session_context
 log = structlog.get_logger(__name__)
 
 
+async def _ensure_schema() -> None:
+    """Spark může běžet dřív, než backend na Vercelu (při studeném startu) provede migraci."""
+    from sqlalchemy import text
+    from app.config import settings
+    from app.db import engine
+    if settings.is_sqlite:
+        return
+    async with engine.begin() as conn:
+        await conn.execute(text(
+            "ALTER TABLE market_reactions ADD COLUMN IF NOT EXISTS skip_reason VARCHAR(24)"))
+
+
 async def run_calibrate() -> dict:
     from app.services.calibration_service import CalibrationService
+    await _ensure_schema()
     async with session_context() as session:
         return await CalibrationService(session).run()
 

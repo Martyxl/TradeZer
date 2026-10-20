@@ -23,7 +23,7 @@ async def setup_db():
 @pytest.mark.asyncio
 async def test_calibrate_on_empty_db():
     r = await jobs.run_calibrate()
-    assert r == {"checked": 0, "recorded": 0, "failed": 0, "skipped": 0}
+    assert r == {"checked": 0, "recorded": 0, "failed": 0, "skipped": 0, "unresolvable": 0}
 
 
 @pytest.mark.asyncio

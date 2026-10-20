@@ -105,6 +105,9 @@ class MarketReaction(Base):
     realized_direction: Mapped[str | None] = mapped_column(
         Enum(DirectionEnum), nullable=True
     )
+    # Trvalý důvod, proč se reakce NEDÁ určit (too_old = Yahoo 5m nesahá tak daleko, no_data/no_price =
+    # trh byl zavřený). Kalibrace takové predikce už nezkouší znovu. NULL = normální / ještě čeká.
+    skip_reason: Mapped[str | None] = mapped_column(String(24), nullable=True)
     recorded_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     news_item: Mapped["NewsItem"] = relationship(back_populates="market_reactions")

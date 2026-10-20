@@ -1,7 +1,7 @@
 """Kalibrační servis — stahuje tržní data a ukládá market reactions."""
 import asyncio
 from collections import defaultdict
-from datetime import timezone
+from datetime import datetime, timezone
 
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +12,13 @@ from app.sources.yahoo_finance_adapter import YahooFinanceAdapter, _find_close_a
 from datetime import timedelta
 
 log = structlog.get_logger(__name__)
+
+# Yahoo 5m svíčky sahají jen ~60 dní zpět → starší zprávy se nikdy nezkalibrují.
+MAX_NEWS_AGE_DAYS = 58
+# Reakce počítáme až když uplynulo okno 1 h (jinak by se uložila bez price_1h a už se nedoplnila).
+MIN_NEWS_AGE_MINUTES = 65
+# Po této době už chybějící cena = trh byl zavřený (ne zpožděná data) → označ trvale.
+GIVE_UP_AFTER = timedelta(hours=3)
 
 
 class CalibrationService:
@@ -37,12 +44,22 @@ class CalibrationService:
 
     async def run(self) -> dict[str, int]:
         log.info("Calibration job start")
-        stats = {"checked": 0, "recorded": 0, "failed": 0, "skipped": 0}
+        stats = {"checked": 0, "recorded": 0, "failed": 0, "skipped": 0, "unresolvable": 0}
+        now = datetime.now(timezone.utc)
 
-        predictions = await self.repo.get_predictions_without_reactions(older_than_minutes=30)
+        predictions = await self.repo.get_predictions_without_reactions(
+            older_than_minutes=30, news_older_than_minutes=MIN_NEWS_AGE_MINUTES)
         if not predictions:
             log.info("No predictions to calibrate")
             return stats
+
+        async def mark(pred, reason: str) -> None:
+            """Trvale označí predikci jako nevyhodnotitelnou (už se nebude zkoušet)."""
+            await self.repo.save_market_reaction(
+                news_id=pred.news_id, ticker_id=pred.ticker_id, price_at_news=None, price_15m=None,
+                price_1h=None, price_1d=None, pct_change_15m=None, pct_change_1h=None,
+                pct_change_1d=None, realized_direction=None, price_series=None, skip_reason=reason)
+            stats["unresolvable"] += 1
 
         # Seskupení predikcí: ticker_symbol → date → [predictions]
         groups: dict[str, dict] = defaultdict(lambda: defaultdict(list))
@@ -56,6 +73,9 @@ class CalibrationService:
                 continue
             ticker_map[ticker.id] = ticker
             news_utc = self._to_utc(pred.news_item.published_at)
+            if now - news_utc > timedelta(days=MAX_NEWS_AGE_DAYS):
+                await mark(pred, "too_old")  # bez stahování — Yahoo tak staré 5m svíčky nemá
+                continue
             groups[ticker.symbol][news_utc.date()].append((pred, news_utc))
 
         # Stažení cen per ticker × datum (jeden HTTP request = celý den)
@@ -73,16 +93,22 @@ class CalibrationService:
                     log.info("Bars fetched", symbol=symbol, date=str(for_date), count=len(bars))
                 except Exception as e:
                     log.warning("Bar fetch failed", symbol=symbol, date=str(for_date), error=str(e))
-                    bar_cache[cache_key] = []
+                    bar_cache[cache_key] = None  # chyba sítě/Yahoo ≠ prázdná data → zkusí se příště
 
         # Zápis reakcí z cache
         for symbol, date_map in groups.items():
             for for_date, preds in date_map.items():
                 bars = bar_cache.get((symbol, for_date), [])
+                if bars is None:  # stažení selhalo — nic neoznačuj, zkusí se při dalším běhu
+                    stats["skipped"] += len(preds)
+                    continue
                 if not bars:
                     log.warning("No bars for ticker/date", symbol=symbol, date=str(for_date))
-                    for pred, _ in preds:
-                        stats["skipped"] += 1
+                    for pred, news_utc in preds:
+                        if now - news_utc > GIVE_UP_AFTER:
+                            await mark(pred, "no_data")  # víkend/svátek: Yahoo vrací prázdno
+                        else:
+                            stats["skipped"] += 1
                     continue
 
                 for pred, news_utc in preds:
@@ -91,7 +117,10 @@ class CalibrationService:
                     at_news = _find_close_at(bars, news_utc)
                     if at_news is None:
                         log.debug("No price at news time", symbol=symbol, news_time=str(news_utc))
-                        stats["skipped"] += 1
+                        if now - news_utc > GIVE_UP_AFTER:
+                            await mark(pred, "no_price")  # v čase zprávy byl trh zavřený
+                        else:
+                            stats["skipped"] += 1
                         continue
 
                     def _pct(p):
@@ -135,10 +164,14 @@ class CalibrationService:
                         "initial_dir": ("up" if dir_5m > 0 else ("down" if dir_5m < 0 else "flat")),
                     }
 
+                    # Cena v čase zprávy je, ale 30min cena chybí a už je pozdě → trh se zavřel
+                    # dřív než uplynulo okno; dál to nezkoušej.
+                    skip = "no_30m" if (realized is None and now - news_utc > timedelta(days=1)) else None
                     try:
                         await self.repo.save_market_reaction(
                             news_id=pred.news_id,
                             ticker_id=pred.ticker_id,
+                            skip_reason=skip,
                             price_at_news=at_news,
                             price_15m=price_30m,   # sloupec price_15m = 30min okno
                             price_1h=price_1h,

@@ -207,13 +207,19 @@ class NewsRepository:
         )
 
     async def get_predictions_without_reactions(
-        self, older_than_minutes: int = 15
+        self, older_than_minutes: int = 15, news_older_than_minutes: int = 0
     ) -> Sequence[NewsPrediction]:
-        """Predikce bez záznamu MarketReaction NEBO s reakcí ale null realized_direction."""
+        """Predikce bez záznamu MarketReaction NEBO s reakcí ale null realized_direction.
+
+        news_older_than_minutes: zpráva musí být publikovaná aspoň tak dávno (jinak ještě nemá
+        z čeho se spočítat reakce — typicky předem vydané eventy z kalendáře „Upcoming“).
+        Predikce s trvalým skip_reason se nevracejí (nedají se vyhodnotit, zkoušet znovu nemá smysl)."""
         import datetime as dt
-        cutoff = datetime.utcnow() - dt.timedelta(minutes=older_than_minutes)
+        now = datetime.utcnow()
+        cutoff = now - dt.timedelta(minutes=older_than_minutes)
         stmt = (
             select(NewsPrediction)
+            .join(NewsItem, NewsItem.id == NewsPrediction.news_id)
             .outerjoin(
                 MarketReaction,
                 and_(
@@ -226,7 +232,9 @@ class NewsRepository:
                     MarketReaction.id.is_(None),
                     MarketReaction.realized_direction.is_(None),
                 ),
+                MarketReaction.skip_reason.is_(None),
                 NewsPrediction.created_at <= cutoff,
+                NewsItem.published_at <= now - dt.timedelta(minutes=news_older_than_minutes),
             )
             .options(selectinload(NewsPrediction.news_item), selectinload(NewsPrediction.ticker))
         )
@@ -246,6 +254,7 @@ class NewsRepository:
         pct_change_1d: float | None,
         realized_direction: str | None,
         price_series: dict | None = None,
+        skip_reason: str | None = None,
     ) -> MarketReaction:
         # Upsert — aktualizuj existující reakci nebo vytvoř novou
         existing = await self.session.scalar(
@@ -264,6 +273,7 @@ class NewsRepository:
             existing.pct_change_1d = pct_change_1d
             existing.price_series = price_series
             existing.realized_direction = realized_direction
+            existing.skip_reason = skip_reason
             await self.session.flush()
             return existing
         reaction = MarketReaction(
@@ -278,6 +288,7 @@ class NewsRepository:
             pct_change_1d=pct_change_1d,
             price_series=price_series,
             realized_direction=realized_direction,
+            skip_reason=skip_reason,
         )
         self.session.add(reaction)
         await self.session.flush()
