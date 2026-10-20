@@ -146,6 +146,13 @@ class YahooFinanceAdapter:
         period2 = int(day_end.timestamp())
         return _fetch_chart(yahoo_sym, period1, period2, interval="5m")
 
+    def fetch_range_bars(self, ticker_symbol: str, start: date, end: date) -> list[dict]:
+        """5min bary pro rozsah [start, end) — pro gap reakci na zprávy při zavřeném trhu."""
+        yahoo_sym = SYMBOL_MAP.get(ticker_symbol, ticker_symbol)
+        p1 = int(datetime(start.year, start.month, start.day, tzinfo=timezone.utc).timestamp())
+        p2 = int(datetime(end.year, end.month, end.day, tzinfo=timezone.utc).timestamp())
+        return _fetch_chart(yahoo_sym, p1, p2, interval="5m")
+
     def get_prices_for_reaction(
         self, ticker_symbol: str, news_time: datetime
     ) -> dict[str, Optional[float]]:

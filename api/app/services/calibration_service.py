@@ -42,6 +42,42 @@ class CalibrationService:
             return dt.replace(tzinfo=timezone.utc)
         return dt.astimezone(timezone.utc)
 
+    async def _gap_context(self, symbol: str, news_utc: datetime, cache: dict):
+        """Zpráva přišla při ZAVŘENÉM trhu (víkend, noc, svátek): reakce = gap při znovuotevření.
+
+        Referenční cena = poslední close před zprávou (např. páteční), okno se měří od prvního baru po
+        znovuotevření (ne od času zprávy). Vrací dict, "retry" (trh se ještě neotevřel / chyba sítě)
+        nebo None (nejde určit)."""
+        key = (symbol, news_utc.date())
+        if key not in cache:
+            try:
+                cache[key] = await asyncio.to_thread(
+                    self.yahoo.fetch_range_bars, symbol,
+                    news_utc.date() - timedelta(days=3), news_utc.date() + timedelta(days=5))
+            except Exception as e:  # noqa: BLE001
+                log.warning("Gap bars fetch failed", symbol=symbol, error=str(e))
+                cache[key] = None
+        bars = cache[key]
+        if bars is None:
+            return "retry"
+        if not bars:
+            return None  # Yahoo k tomu týdnu nemá vůbec nic → nejde určit
+        ts = news_utc.timestamp()
+        prev = [b for b in bars if b["t"] <= ts]
+        nxt = [b for b in bars if b["t"] > ts]
+        if not nxt:
+            # Trh se ještě neotevřel (čerstvá zpráva) → počkej. Starší zpráva bez dalšího baru = nejde určit.
+            return "retry" if datetime.now(timezone.utc) - news_utc < timedelta(days=4) else None
+        if not prev:
+            return None
+        first = nxt[0]
+        if ts - prev[-1]["t"] > 5 * 86400 or first["t"] - ts > 4 * 86400:
+            return None
+        reopen = datetime.fromtimestamp(first["t"], tz=timezone.utc)
+        if datetime.now(timezone.utc) - reopen < timedelta(minutes=MIN_NEWS_AGE_MINUTES):
+            return "retry"  # ještě neuplynula hodina od otevření
+        return {"ref": prev[-1]["close"], "reopen": reopen, "bars": bars}
+
     async def run(self) -> dict[str, int]:
         log.info("Calibration job start")
         stats = {"checked": 0, "recorded": 0, "failed": 0, "skipped": 0, "unresolvable": 0}
@@ -80,6 +116,7 @@ class CalibrationService:
 
         # Stažení cen per ticker × datum (jeden HTTP request = celý den)
         bar_cache: dict[tuple, list] = {}  # (symbol, date) → bars
+        gap_cache: dict[tuple, list] = {}  # (symbol, date) → bary okolo víkendu/zavřeného trhu
 
         for symbol, date_map in groups.items():
             for for_date in date_map:
@@ -102,26 +139,25 @@ class CalibrationService:
                 if bars is None:  # stažení selhalo — nic neoznačuj, zkusí se při dalším běhu
                     stats["skipped"] += len(preds)
                     continue
-                if not bars:
-                    log.warning("No bars for ticker/date", symbol=symbol, date=str(for_date))
-                    for pred, news_utc in preds:
-                        if now - news_utc > GIVE_UP_AFTER:
-                            await mark(pred, "no_data")  # víkend/svátek: Yahoo vrací prázdno
-                        else:
-                            stats["skipped"] += 1
-                    continue
-
                 for pred, news_utc in preds:
                     ticker = ticker_map[pred.ticker_id]
 
+                    use_bars, anchor, gap = bars, news_utc, False
                     at_news = _find_close_at(bars, news_utc)
                     if at_news is None:
-                        log.debug("No price at news time", symbol=symbol, news_time=str(news_utc))
-                        if now - news_utc > GIVE_UP_AFTER:
-                            await mark(pred, "no_price")  # v čase zprávy byl trh zavřený
-                        else:
+                        # Trh byl při zprávě zavřený → změř gap při znovuotevření (víkendové zprávy
+                        # ovlivní pondělní/nedělní otevření, nejsou „bez dopadu").
+                        g = await self._gap_context(symbol, news_utc, gap_cache)
+                        if g == "retry":
                             stats["skipped"] += 1
-                        continue
+                            continue
+                        if g is None:
+                            if now - news_utc > GIVE_UP_AFTER:
+                                await mark(pred, "no_price")
+                            else:
+                                stats["skipped"] += 1
+                            continue
+                        at_news, anchor, use_bars, gap = g["ref"], g["reopen"], g["bars"], True
 
                     def _pct(p):
                         if p is not None and at_news and at_news != 0:
@@ -129,11 +165,11 @@ class CalibrationService:
                         return None
 
                     # Primární okno: 30 min (uloženo do sloupce price_15m / pct_change_15m)
-                    price_5m  = _find_close_at(bars, news_utc + timedelta(minutes=5), tolerance_minutes=6)
-                    price_10m = _find_close_at(bars, news_utc + timedelta(minutes=10), tolerance_minutes=6)
-                    price_30m = _find_close_at(bars, news_utc + timedelta(minutes=30))
-                    price_1h  = _find_close_at(bars, news_utc + timedelta(hours=1))
-                    price_1d  = _find_close_at(bars, news_utc + timedelta(days=1), tolerance_minutes=60)
+                    price_5m  = _find_close_at(use_bars, anchor + timedelta(minutes=5), tolerance_minutes=6)
+                    price_10m = _find_close_at(use_bars, anchor + timedelta(minutes=10), tolerance_minutes=6)
+                    price_30m = _find_close_at(use_bars, anchor + timedelta(minutes=30))
+                    price_1h  = _find_close_at(use_bars, anchor + timedelta(hours=1))
+                    price_1d  = _find_close_at(use_bars, anchor + timedelta(days=1), tolerance_minutes=60)
 
                     pct_5m  = _pct(price_5m)
                     pct_10m = _pct(price_10m)
@@ -153,7 +189,7 @@ class CalibrationService:
                     dir_5m  = _dir(pct_5m, thr)
                     dir_30m = _dir(pct_30m, thr)
                     # Grab = jasný pohyb v 5min OPAČNÝM směrem než finální 30min pohyb
-                    liquidity_grab = (dir_5m != 0 and dir_30m != 0 and dir_5m != dir_30m)
+                    liquidity_grab = (not gap) and (dir_5m != 0 and dir_30m != 0 and dir_5m != dir_30m)
 
                     price_series = {
                         "pct_5m":  round(pct_5m * 100, 5) if pct_5m is not None else None,
@@ -161,6 +197,7 @@ class CalibrationService:
                         "pct_30m": round(pct_30m * 100, 5) if pct_30m is not None else None,
                         "pct_1h":  round(pct_1h * 100, 5) if pct_1h is not None else None,
                         "liquidity_grab": liquidity_grab,
+                        "gap": gap,  # True = reakce na zprávu při zavřeném trhu (gap při otevření)
                         "initial_dir": ("up" if dir_5m > 0 else ("down" if dir_5m < 0 else "flat")),
                     }
 

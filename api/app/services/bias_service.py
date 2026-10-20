@@ -45,7 +45,11 @@ def _trading_day(now: datetime) -> date:
 
 
 def _day_start_utc(tday: date) -> datetime:
-    return datetime.combine(tday - timedelta(days=1), time(22, 0), tzinfo=None)
+    """Začátek okna zpráv pro obchodní den. Pondělí počítá od PÁTEČNÍHO close (22:00 UTC) —
+    zprávy o víkendu ovlivní, kde se trh v neděli večer / v pondělí otevře, takže patří do
+    pondělního biasu (dřív se počítaly až od neděle 22:00 a všechny víkendové zprávy se ztratily)."""
+    back = 3 if tday.weekday() == 0 else 1
+    return datetime.combine(tday - timedelta(days=back), time(22, 0), tzinfo=None)
 
 
 async def compute_bias(session: AsyncSession, ticker: Ticker, tday: date,

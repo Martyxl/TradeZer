@@ -68,8 +68,9 @@ async def test_weekend_no_bars_marked_but_network_error_retried(db_session, worl
     weekend = await _pred(db_session, world, "weekend", timedelta(days=2))
     svc = CalibrationService(db_session)
     svc.yahoo.fetch_day_bars = lambda *a, **k: []          # Yahoo: prázdno (trh zavřený)
+    svc.yahoo.fetch_range_bars = lambda *a, **k: []        # ani okolo víkendu nic → nejde určit
     assert (await svc.run())["unresolvable"] == 1
-    assert (await _reaction(db_session, weekend.id)).skip_reason == "no_data"
+    assert (await _reaction(db_session, weekend.id)).skip_reason == "no_price"
 
     err = await _pred(db_session, world, "neterr", timedelta(days=2))
     svc2 = CalibrationService(db_session)
@@ -77,6 +78,7 @@ async def test_weekend_no_bars_marked_but_network_error_retried(db_session, worl
     def boom(*a, **k):
         raise RuntimeError("yahoo down")
     svc2.yahoo.fetch_day_bars = boom
+    svc2.yahoo.fetch_range_bars = boom
     s = await svc2.run()
     assert s["unresolvable"] == 0 and s["skipped"] == 1       # chyba sítě → nic se neoznačí
     assert await _reaction(db_session, err.id) is None
@@ -92,3 +94,43 @@ async def test_normal_news_is_recorded(db_session, world):
     assert stats["recorded"] == 1 and stats["unresolvable"] == 0
     r = await _reaction(db_session, item.id)
     assert r.skip_reason is None and r.realized_direction is not None and r.price_at_news is not None
+
+
+@pytest.mark.asyncio
+async def test_weekend_news_measured_as_gap_at_reopen(db_session, world):
+    """Zpráva v sobotu: reference = páteční close, okno se měří od nedělního znovuotevření."""
+    # sobota 12:00 UTC před ~12 dny
+    now = datetime.utcnow()
+    sat = (now - timedelta(days=12))
+    sat = sat - timedelta(days=(sat.weekday() - 5) % 7)
+    sat = sat.replace(hour=12, minute=0, second=0, microsecond=0)
+    item = await _pred(db_session, world, "weekend-gap", now - sat)
+    sat_ts = int(sat.replace(tzinfo=timezone.utc).timestamp())
+    fri_close_ts = sat_ts - 15 * 3600            # pátek 21:00
+    reopen_ts = sat_ts + 34 * 3600               # neděle 22:00
+    bars = [{"t": fri_close_ts - 300 * i, "close": 100.0} for i in range(0, 6)][::-1]
+    bars += [{"t": reopen_ts + 300 * i, "close": 101.0 + 0.01 * i} for i in range(0, 20)]
+    svc = CalibrationService(db_session)
+    svc.yahoo.fetch_day_bars = lambda *a, **k: [b for b in bars if abs(b["t"] - sat_ts) < 86400]
+    svc.yahoo.fetch_range_bars = lambda *a, **k: bars
+    stats = await svc.run()
+    assert stats["recorded"] == 1 and stats["unresolvable"] == 0
+    r = await _reaction(db_session, item.id)
+    assert r.price_at_news == 100.0                          # páteční close
+    assert r.price_15m is not None and r.pct_change_15m > 0.009   # gap ≈ +1 % od pátku
+    assert r.realized_direction == "up" or str(r.realized_direction).endswith("UP")
+    assert r.price_series["gap"] is True and r.skip_reason is None
+
+
+@pytest.mark.asyncio
+async def test_gap_waits_when_market_not_reopened(db_session, world):
+    now = datetime.utcnow()
+    item = await _pred(db_session, world, "closed-now", timedelta(hours=4))
+    pub_ts = int((now - timedelta(hours=4)).replace(tzinfo=timezone.utc).timestamp())
+    bars = [{"t": pub_ts - 3600 - 300 * i, "close": 100.0} for i in range(6)]   # jen starší bary
+    svc = CalibrationService(db_session)
+    svc.yahoo.fetch_day_bars = lambda *a, **k: bars
+    svc.yahoo.fetch_range_bars = lambda *a, **k: bars
+    stats = await svc.run()
+    assert stats["unresolvable"] == 0 and stats["skipped"] == 1   # čeká na znovuotevření
+    assert await _reaction(db_session, item.id) is None
