@@ -6,10 +6,11 @@ měsíční stahování přestalo fungovat. Yahoo dává 5m data jen ~60 dní zp
 PRAVIDELNĚ a data NAKUMULUJE do CSV (dedup podle timestampu) — historie tak roste každý den.
 
 Výstup (formát shodný s Dukascopy CSV, který čte compute_stats.load_m5):
-  <out>/<key>-m5-yahoo.csv   sloupce: timestamp(ms),open,high,low,close,volume
+  <out>/<stem>-m5-yahoo.csv  sloupce: timestamp(ms),open,high,low,close,volume
+  (stem = eurusd/gbpusd/usdjpy, u futures usatechidxusd/xauusd/usa30idxusd — viz STEM)
 
 Použití:  python3 yahoo_m5_collector.py [--out DIR] [--loop MINUT] [klíč ...]
-Default klíče: eurusd gbpusd usdjpy (forex). Další: nq gold ym (futures, viz SYMBOLS).
+Default klíče: všech 6 (forex + nq gold ym). Zlato = futures GC=F (Yahoo nemá spot) → malá báze vůči Dukascopy spotu.
 Yahoo chart API blokuje cloud/CI → spouštět z domácí IP (Spark).
 """
 from __future__ import annotations
@@ -27,7 +28,10 @@ SYMBOLS = {
     "eurusd": "EURUSD=X", "gbpusd": "GBPUSD=X", "usdjpy": "USDJPY=X",
     "nq": "NQ=F", "gold": "GC=F", "ym": "YM=F",
 }
-DEFAULT_KEYS = ["eurusd", "gbpusd", "usdjpy"]
+# Název souboru musí odpovídat file_glob v compute_stats.INSTRUMENTS (<stem>-m5-*.csv).
+# Futures (nq/gold/ym) navazují na historii stažené dříve z Dukascopy (stejné stemy).
+STEM = {"nq": "usatechidxusd", "gold": "xauusd", "ym": "usa30idxusd"}
+DEFAULT_KEYS = ["eurusd", "gbpusd", "usdjpy", "nq", "gold", "ym"]
 
 
 def fetch_m5(symbol: str, rng: str = "60d") -> list[tuple]:
@@ -72,7 +76,7 @@ def run_once(out: Path, keys: list[str]) -> int:
     for k in keys:
         try:
             rows = fetch_m5(SYMBOLS[k])
-            total, new = merge_into(out / f"{k}-m5-yahoo.csv", rows)
+            total, new = merge_into(out / f"{STEM.get(k, k)}-m5-yahoo.csv", rows)
             print(f"{k}: staženo {len(rows)} svíček, nových {new}, celkem {total}", flush=True)
         except Exception as e:  # noqa: BLE001
             bad += 1

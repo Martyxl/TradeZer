@@ -1,9 +1,9 @@
 name: Monthly Market Stats Refresh
 
+# VYPNUTO (2026-10-20): Dukascopy datafeed vrací 429, stahování z Actions (od 8/2026) selhává.
+# Statistiky teď počítá Spark z Yahoo 5m dat (data/yahoo_m5_collector.py + data/compute_stats.py).
+# Ruční spuštění ponecháno pro případ, že Dukascopy zase začne fungovat.
 on:
-  schedule:
-    # 1. den v měsíci, 06:00 UTC — stáhne nová data a přepočítá /stats
-    - cron: "0 6 1 * *"
   workflow_dispatch: {}
 
 permissions:

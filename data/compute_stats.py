@@ -78,9 +78,29 @@ def load_m5(pattern: str, scale: float = 1.0) -> pd.DataFrame:
     files = sorted(glob.glob(str(RAW / pattern)))
     if not files:
         raise FileNotFoundError(f"Chybí data: {pattern}")
-    df = pd.concat([pd.read_csv(f) for f in files], ignore_index=True)
+    frames = []
+    for f in files:
+        part = pd.read_csv(f)
+        part["_yahoo"] = "yahoo" in Path(f).name
+        frames.append(part)
+    df = pd.concat(frames, ignore_index=True)
     df = df.drop_duplicates(subset="timestamp").sort_values("timestamp")
     df["ts"] = pd.to_datetime(df["timestamp"], unit="ms", utc=True)
+    # Navázání Yahoo dat na Dukascopy historii: sjednoť objem (jiná jednotka / chybí) s Dukascopy
+    # mediánem, jinak by průměr objemu po hodinách a VWAP skákaly.
+    if "volume" not in df.columns:
+        df["volume"] = 1.0
+    df["volume"] = df["volume"].fillna(0.0)
+    y = df["_yahoo"]
+    if y.any() and (~y).any():
+        duk_v = df.loc[~y & (df["volume"] > 0), "volume"]
+        yah_v = df.loc[y & (df["volume"] > 0), "volume"]
+        if len(duk_v):
+            med_d = float(duk_v.median())
+            if len(yah_v):
+                df.loc[y, "volume"] = df.loc[y, "volume"] * (med_d / float(yah_v.median()))
+            df.loc[y & (df["volume"] <= 0), "volume"] = med_d
+    df = df.drop(columns="_yahoo")
     if scale != 1.0:
         for c in ("open", "high", "low", "close"):
             df[c] = df[c] * scale

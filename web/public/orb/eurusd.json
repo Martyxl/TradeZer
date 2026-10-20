@@ -4,8 +4,8 @@
   "label": "EUR/USD",
   "unit": "pipů",
   "from": "2026-07-27",
-  "to": "2026-10-19",
-  "bars_m5": 17055,
+  "to": "2026-10-20",
+  "bars_m5": 17161,
   "days": 61,
   "weeks": 13,
   "volume": false,
@@ -66,17 +66,17 @@
      },
      "sess": {
       "days": 61,
-      "both": 75.4,
+      "both": 77.0,
       "high_only": 16.4,
       "low_only": 6.6,
-      "neither": 1.6,
-      "high_taken": 91.8,
-      "low_taken": 82.0,
-      "break_rate": 98.4,
+      "neither": 0.0,
+      "high_taken": 93.4,
+      "low_taken": 83.6,
+      "break_rate": 100.0,
       "one_sided": 23.0,
       "order": {
-       "high_to_low": 63.0,
-       "low_to_high": 37.0
+       "high_to_low": 61.7,
+       "low_to_high": 38.3
       }
      }
     },
@@ -723,17 +723,17 @@
      },
      "sess": {
       "days": 61,
-      "both": 72.1,
+      "both": 73.8,
       "high_only": 18.0,
       "low_only": 8.2,
-      "neither": 1.6,
-      "high_taken": 90.1,
-      "low_taken": 80.3,
-      "break_rate": 98.4,
+      "neither": 0.0,
+      "high_taken": 91.8,
+      "low_taken": 82.0,
+      "break_rate": 100.0,
       "one_sided": 26.2,
       "order": {
-       "high_to_low": 61.4,
-       "low_to_high": 38.6
+       "high_to_low": 60.0,
+       "low_to_high": 40.0
       }
      }
     },

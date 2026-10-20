@@ -4,8 +4,8 @@
   "label": "USD/JPY",
   "unit": "pipů",
   "from": "2026-07-27",
-  "to": "2026-10-19",
-  "bars_m5": 16988,
+  "to": "2026-10-20",
+  "bars_m5": 17094,
   "days": 61,
   "weeks": 13,
   "volume": false,
@@ -66,17 +66,17 @@
      },
      "sess": {
       "days": 61,
-      "both": 85.2,
-      "high_only": 9.8,
+      "both": 86.9,
+      "high_only": 8.2,
       "low_only": 4.9,
       "neither": 0.0,
-      "high_taken": 95.0,
-      "low_taken": 90.1,
+      "high_taken": 95.1,
+      "low_taken": 91.8,
       "break_rate": 100.0,
-      "one_sided": 14.7,
+      "one_sided": 13.1,
       "order": {
-       "high_to_low": 61.5,
-       "low_to_high": 38.5
+       "high_to_low": 62.3,
+       "low_to_high": 37.7
       }
      }
     },
@@ -723,17 +723,17 @@
      },
      "sess": {
       "days": 61,
-      "both": 75.4,
-      "high_only": 11.5,
+      "both": 77.0,
+      "high_only": 9.8,
       "low_only": 13.1,
       "neither": 0.0,
-      "high_taken": 86.9,
-      "low_taken": 88.5,
+      "high_taken": 86.8,
+      "low_taken": 90.1,
       "break_rate": 100.0,
-      "one_sided": 24.6,
+      "one_sided": 22.9,
       "order": {
-       "high_to_low": 52.2,
-       "low_to_high": 47.8
+       "high_to_low": 53.2,
+       "low_to_high": 46.8
       }
      }
     },
