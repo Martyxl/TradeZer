@@ -45,3 +45,45 @@ def test_context_mentions_inverse_and_verdict():
     c = release_context("US initial jobless claims 194K vs 200K estimate")
     assert "inverse" in c and "STRONGER" in c and "USD" in c
     assert release_context("US NAHB housing market index 29 vs 31 prior") is None   # prior ≠ forecast
+
+
+from app.services.release_parser import format_actual, match_release  # noqa: E402
+
+IL = [
+    "US initial jobless claims 194K vs 200K estimate. Better than expected.",
+    "US retails sales for September 0.8% MoM vs 0.3% estimate. Prior month 1.3%",
+    "US September non-farm payrolls +29K vs +90K expected",
+    "US October UMich prelim consumer sentiment 46.3 vs 47.8 expected",
+    "US September ISM manufacturing 54.5 vs 55.0 expected",
+    "Germany September PPI +1.9% vs +1.5% m/m expected",
+    "Canada September CPI 3.1% y/y vs 3.2% expected",
+]
+CANDS = [(t, parse_release(t)) for t in IL]
+
+
+@pytest.mark.parametrize("ff_title,ccy,expect_actual", [
+    ("Unemployment Claims", "USD", 194),
+    ("Retail Sales m/m", "USD", 0.8),
+    ("Non-Farm Employment Change", "USD", 29),
+    ("Prelim UoM Consumer Sentiment", "USD", 46.3),
+    ("ISM Manufacturing PMI", "USD", 54.5),
+    ("German PPI m/m", "EUR", 1.9),
+])
+def test_match_calendar_event_to_release(ff_title, ccy, expect_actual):
+    r = match_release(ff_title, ccy, CANDS)
+    assert r is not None and r.actual == expect_actual, ff_title
+
+
+@pytest.mark.parametrize("ff_title,ccy", [
+    ("Unemployment Claims", "EUR"),          # jiná měna
+    ("Core CPI m/m", "USD"),                 # nic odpovídajícího
+    ("German PPI y/y", "EUR"),               # jiné období (m/m ≠ y/y)
+    ("Building Permits", "USD"),
+])
+def test_no_false_matches(ff_title, ccy):
+    assert match_release(ff_title, ccy, CANDS) is None
+
+
+def test_format_actual_like_forecast():
+    assert format_actual(parse_release(IL[0]), "200K") == "194K"
+    assert format_actual(parse_release(IL[1]), "0.3%") == "0.8%"

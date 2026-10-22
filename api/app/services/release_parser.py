@@ -135,3 +135,72 @@ def release_anchor(title: str, published: datetime) -> datetime:
         return published
     q = published.replace(minute=(published.minute // 15) * 15, second=0, microsecond=0)
     return q if published - q <= timedelta(minutes=8) else published
+
+
+# ---------------------------------------------------------------------------------------------
+# Párování události z kalendáře (ForexFactory) s vydáním z investingLive → skutečná hodnota.
+_PERIOD_TAG = re.compile(r"\b(m/m|y/y|q/q|mom|yoy|qoq)\b", re.IGNORECASE)
+_PERIOD_NORM = {"mom": "m/m", "yoy": "y/y", "qoq": "q/q"}
+_SYN = [  # (regex, kanonický token) — sjednocení názvů FF vs. investingLive
+    (r"non-?farm (employment change|payrolls?)|\bnfp\b", " nonfarm "),
+    (r"(unemployment|jobless|initial) claims", " claims "),
+    (r"continuing claims", " contclaims "),
+    (r"\b(uom|umich|michigan)\b", " umich "),
+    (r"\bism\b", " ism "),
+    (r"retails? sales", " retailsales "),
+    (r"consumer price index", " cpi "),
+    (r"producer price index", " ppi "),
+    (r"personal consumption expenditures?", " pce "),
+    (r"average (hourly )?earnings", " earnings "),
+    (r"(manufacturing|mfg)", " manufacturing "),
+]
+_DROP = {"us", "u.s.", "usa", "the", "for", "of", "in", "and", "vs", "prelim", "preliminary", "final",
+         "flash", "advance", "revised", "index", "change", "rate", "report", "data", "week", "weekly",
+         "january", "february", "march", "april", "may", "june", "july", "august", "september",
+         "october", "november", "december", "q1", "q2", "q3", "q4", "germany", "german", "eurozone",
+         "uk", "japan", "canada", "china", "france", "italy", "national", "sa", "nsa"}
+# „rate" vyhazujeme jen jako šum; míra nezaměstnanosti se rozliší tokenem „unemployment".
+
+
+def _period(t: str) -> str | None:
+    m = _PERIOD_TAG.search(t or "")
+    return _PERIOD_NORM.get(m.group(1).lower(), m.group(1).lower()) if m else None
+
+
+def _tokens(t: str) -> set[str]:
+    s = " " + (t or "").lower() + " "
+    for pat, rep in _SYN:
+        s = re.sub(pat, rep, s)
+    s = _PERIOD_TAG.sub(" ", s)
+    return {w for w in re.findall(r"[a-z][a-z0-9/]+", s) if w not in _DROP and len(w) > 1}
+
+
+def match_release(event_title: str, event_currency: str, candidates: list[tuple[str, Release]]) -> Release | None:
+    """Najde vydání, které odpovídá události z kalendáře. candidates = [(titulek, Release)].
+
+    Konzervativní: stejná měna, pokrytí slov názvu události ≥ 60 %, shodné období (m/m vs y/y),
+    jen vydání vůči očekávání. Při nejistotě None (radši žádná hodnota než špatná)."""
+    want = _tokens(event_title)
+    if not want:
+        return None
+    ep = _period(event_title)
+    best, best_score = None, 0.0
+    for title, r in candidates:
+        if r.currency != event_currency or not r.is_forecast:
+            continue
+        rp = _period(title)
+        if ep and rp and ep != rp:
+            continue
+        score = len(want & _tokens(r.desc)) / len(want)
+        if score > best_score:
+            best, best_score = r, score
+    return best if best_score >= 0.6 else None
+
+
+def format_actual(r: Release, like: str | None = None) -> str:
+    """Hodnota ve formátu jako forecast z kalendáře (např. '0.4%', '194K')."""
+    v = f"{r.actual:g}"
+    unit = r.unit
+    if like and like.strip().endswith("%") and unit != "%":
+        unit = "%"
+    return f"{v}{unit}"

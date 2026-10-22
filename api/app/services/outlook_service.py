@@ -270,9 +270,20 @@ async def evaluate_outlook(session) -> dict:
     from datetime import datetime, timezone, timedelta
     from sqlalchemy import select
     from app.config import settings
-    from app.models import Ticker, OutlookEval
+    from app.models import Ticker, OutlookEval, NewsItem, NewsSource
+    from app.services.release_parser import format_actual, match_release, parse_release
     from app.sources.fred_adapter import get_event_actual
-    from app.sources.yahoo_finance_adapter import YahooFinanceAdapter, _find_close_at
+    from app.sources.yahoo_finance_adapter import YahooFinanceAdapter, _close_before
+
+    async def _released_candidates(ev_dt):
+        """Vydání z investingLive kolem času události (titulky s „actual vs expected“)."""
+        lo = (ev_dt - timedelta(minutes=2)).replace(tzinfo=None)
+        hi = (ev_dt + timedelta(minutes=20)).replace(tzinfo=None)
+        titles = (await session.execute(
+            select(NewsItem.title).join(NewsSource, NewsSource.id == NewsItem.source_id)
+            .where(NewsSource.name == "rss_investinglive", NewsItem.published_at >= lo,
+                   NewsItem.published_at <= hi))).scalars().all()
+        return [(t, r) for t in titles if (r := parse_release(t or "")) is not None]
 
     now = datetime.now(timezone.utc)
     raw = await get_upcoming_events(window_before_min=60, window_after_min=1440)  # posledních ~24h
@@ -295,7 +306,13 @@ async def evaluate_outlook(session) -> dict:
         if (now - ev_dt).total_seconds() < 70 * 60:   # počkej na 1h cenových dat
             continue
         actual = (e.get("actual") or "").strip()
-        if not actual and settings.fred_api_key:       # FF actual nedorazil → zkus FRED (zdarma)
+        if not actual:
+            # Mirror ForexFactory `actual` nedává → přesná čísla z investingLive (vydání do pár minut).
+            rel = match_release(e.get("title", ""), (e.get("currency") or "").upper(),
+                                await _released_candidates(ev_dt))
+            if rel is not None:
+                actual = format_actual(rel, e.get("forecast"))
+        if not actual and settings.fred_api_key:       # ani investingLive → zkus FRED (zdarma)
             try:
                 actual = await get_event_actual(e.get("title", ""), ev_dt.date()) or ""
             except Exception:  # noqa: BLE001
@@ -312,13 +329,13 @@ async def evaluate_outlook(session) -> dict:
                 OutlookEval.event_title == title))
             if exists:
                 continue
-            sc = scenario_for(cat, t.symbol)
+            sc = scenario_for(cat, t.symbol, e.get("currency"))
             pred = sc[bucket]["dir"] if (sc and bucket in ("hot", "cool", "inline")) else None
             move = adir = None
             try:
                 bars = await asyncio.to_thread(yahoo.fetch_day_bars, t.symbol, eval_date)
-                p0 = _find_close_at(bars, ev_dt, 15)
-                p1 = _find_close_at(bars, ev_dt + timedelta(minutes=60), 15)
+                p0 = _close_before(bars, ev_dt)                            # cena těsně PŘED vydáním
+                p1 = _close_before(bars, ev_dt + timedelta(minutes=60), 15)
                 if p0 and p1:
                     move = (p1 - p0) / p0
                     thr = t.neutral_threshold
