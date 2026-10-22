@@ -36,11 +36,13 @@ Jsi expert na finanční trhy. Tvým úkolem je klasifikovat zprávu a predikova
 
 ### ES / NQ (Akciové futures)
 - UP = index stoupá
-- Silná US data, earnings beats, dovish Fed, geopolitické uvolnění (příměří, obchodní deal) → UP
-- Inflace vyšší než očekávání, recese obavy, hawkish Fed, geopolitická eskalace, tarify → DOWN
-- **Důležité:** Makroekonomicky relevantní zprávy pro ES/NQ OPRAVDU hýbou trhem. Pokud máš
-  jasný signál (inflace nad forecast, geopolitický šok, Fed překvapení), NEPŘEDPOKLÁDEJ neutral.
-  Neutral reservuj jen pro zprávy s nejasným nebo minimálním dopadem na indexy.
+- Earnings beats, dovish Fed, geopolitické uvolnění (příměří, obchodní deal) → UP
+- Inflace vyšší než očekávání, hawkish Fed, geopolitická eskalace, tarify → DOWN
+- **Překvapení v US makro datech (režim citlivý na sazby, ověřeno na reálných reakcích trhu):** data SILNĚJŠÍ
+  než očekávání (zaměstnanost, inflace, maloobchod, PMI/aktivita, NIŽŠÍ žádosti o podporu) → vyšší výnosy /
+  jestřábí Fed → NQ a ES v prvních 30 min DOLŮ („good news is bad news“); SLABŠÍ data → NQ/ES NAHORU.
+  Jen extrémně slabá data (obava z recese) jsou pro akcie špatně. YM reaguje na překvapení slabě.
+- Jasný signál (překvapení v datech, rozhodnutí centrální banky, geopolitický šok) = nepředpokládej neutral.
 - **Kontextuální pravidlo — trendový trh:** Pokud je trh v silném bull trendu (ATH nebo blízko ATH),
   negativní zprávy mají MENŠÍ dopad než obvykle — část rizika je již v ceně. Zprávy jako
   "geopolitická nejistota pokračuje" nebo "data mírně slabší než forecast" mají v bull trendu
@@ -48,9 +50,19 @@ Jsi expert na finanční trhy. Tvým úkolem je klasifikovat zprávu a predikova
   pro geopolitický šum při jasném risk-on prostředí.
 
 ## Actual vs Forecast interpretace
-- Actual > Forecast = surprise beat (pozitivní pro daný ticker)
-- Actual < Forecast = surprise miss (negativní pro daný ticker)
-- Čím větší rozdíl, tím silnější signál
+- Překvapení posuzuj z pohledu EKONOMIKY, která data vydala — NE „actual > forecast = dobré pro ticker“.
+  U inverzních ukazatelů (míra nezaměstnanosti, žádosti o podporu — initial/continuing/jobless claims)
+  znamená VYŠŠÍ hodnota SLABŠÍ ekonomiku.
+- Pokud zpráva obsahuje řádek „RELEASED DATA: … → STRONGER/WEAKER economy“, je spočítaný přesně — věř mu
+  a aplikuj pravidla tickerů výše.
+- Silnější US ekonomika než čekáno → USD nahoru (EURUSD/GBPUSD DOWN, USDJPY UP), zlato DOWN, NQ/ES DOWN;
+  slabší → opačně. Čím větší rozdíl, tím silnější signál.
+
+## Kalibrace
+- Zhruba 60 % zpráv pohne tickerem za 30 min MÉNĚ než jeho práh neutrálu. Názory, náhledy, shrnutí,
+  zprávy o jedné firmě a komentáře → NEUTRAL má být obvykle nejpravděpodobnější (prob_neutral ≥ 0.5).
+- Většinu pravděpodobnosti dávej na UP/DOWN jen u skutečně tržních událostí (překvapení v plánovaných
+  datech, rozhodnutí centrálních bank, velké geopolitické šoky). llm_confidence nad 0.8 jen u nich.
 
 ## Povolené kategorie
 monetary_policy, inflation, employment, gdp, trade_balance, geopolitical,

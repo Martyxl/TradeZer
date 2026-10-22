@@ -48,9 +48,12 @@ def http_json(url: str, method: str = "GET", body: dict | None = None,
         return json.loads(resp.read())
 
 
-def classify(title: str, body: str, tickers: list[str]) -> dict | None:
-    """Jeden call lokálního modelu pro všechny tickery zprávy."""
+def classify(title: str, body: str, tickers: list[str], context: str | None = None) -> dict | None:
+    """Jeden call lokálního modelu pro všechny tickery zprávy. context = předpočítaný řádek
+    „RELEASED DATA: … → STRONGER/WEAKER economy“ z backendu (jen u vydaných makro dat)."""
     user = f"Tickers: {', '.join(tickers)}\n\nNews:\nTitle: {title}\n"
+    if context:
+        user += context + "\n"
     if body:
         user += f"Content: {body[:2000]}"
     try:
@@ -97,7 +100,7 @@ def run_once() -> int:
     for item in items:
         tickers = item["tickers"]
         print(f"[{item['news_id']}] {item['title'][:70]} -> {tickers}")
-        result = classify(item["title"], item.get("body", ""), tickers)
+        result = classify(item["title"], item.get("body", ""), tickers, item.get("context"))
         if not result:
             continue
         for t in tickers:

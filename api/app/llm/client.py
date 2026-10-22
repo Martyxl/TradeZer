@@ -72,7 +72,11 @@ class AnthropicLLMClient:
         request_id = str(uuid.uuid4())[:8]
         log.info("LLM classify start", request_id=request_id, tickers=tickers)
 
+        from app.services.release_parser import release_context
         user_content = f"Tickery: {', '.join(tickers)}\n\nZpráva:\nTitulek: {title}\n"
+        ctx = release_context(title)
+        if ctx:
+            user_content += ctx + "\n"
         if body:
             user_content += f"Obsah: {body[:2000]}"
 

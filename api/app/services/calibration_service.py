@@ -8,7 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import DirectionEnum
 from app.repositories import NewsRepository, TickerRepository
-from app.sources.yahoo_finance_adapter import YahooFinanceAdapter, _find_close_at
+from app.services.release_parser import release_anchor
+from app.sources.yahoo_finance_adapter import YahooFinanceAdapter, _close_before, _find_close_at
 from datetime import timedelta
 
 log = structlog.get_logger(__name__)
@@ -108,7 +109,8 @@ class CalibrationService:
                 stats["skipped"] += 1
                 continue
             ticker_map[ticker.id] = ticker
-            news_utc = self._to_utc(pred.news_item.published_at)
+            # U vydání makro dat měř od plánovaného času vydání, ne od času titulku.
+            news_utc = release_anchor(pred.news_item.title or "", self._to_utc(pred.news_item.published_at))
             if now - news_utc > timedelta(days=MAX_NEWS_AGE_DAYS):
                 await mark(pred, "too_old")  # bez stahování — Yahoo tak staré 5m svíčky nemá
                 continue
@@ -143,7 +145,7 @@ class CalibrationService:
                     ticker = ticker_map[pred.ticker_id]
 
                     use_bars, anchor, gap = bars, news_utc, False
-                    at_news = _find_close_at(bars, news_utc)
+                    at_news = _close_before(bars, news_utc)  # cena PŘED zprávou
                     if at_news is None:
                         # Trh byl při zprávě zavřený → změř gap při znovuotevření (víkendové zprávy
                         # ovlivní pondělní/nedělní otevření, nejsou „bez dopadu").
@@ -165,11 +167,12 @@ class CalibrationService:
                         return None
 
                     # Primární okno: 30 min (uloženo do sloupce price_15m / pct_change_15m)
-                    price_5m  = _find_close_at(use_bars, anchor + timedelta(minutes=5), tolerance_minutes=6)
-                    price_10m = _find_close_at(use_bars, anchor + timedelta(minutes=10), tolerance_minutes=6)
-                    price_30m = _find_close_at(use_bars, anchor + timedelta(minutes=30))
-                    price_1h  = _find_close_at(use_bars, anchor + timedelta(hours=1))
-                    price_1d  = _find_close_at(use_bars, anchor + timedelta(days=1), tolerance_minutes=60)
+                    # Okna = cena platná přesně N min po zprávě (svíčka končící v anchor+N).
+                    price_5m  = _close_before(use_bars, anchor + timedelta(minutes=5), tolerance_minutes=5)
+                    price_10m = _close_before(use_bars, anchor + timedelta(minutes=10), tolerance_minutes=5)
+                    price_30m = _close_before(use_bars, anchor + timedelta(minutes=30), tolerance_minutes=10)
+                    price_1h  = _close_before(use_bars, anchor + timedelta(hours=1), tolerance_minutes=15)
+                    price_1d  = _close_before(use_bars, anchor + timedelta(days=1), tolerance_minutes=60)
 
                     pct_5m  = _pct(price_5m)
                     pct_10m = _pct(price_10m)

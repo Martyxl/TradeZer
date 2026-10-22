@@ -115,6 +115,25 @@ def _fetch_chart(symbol: str, period1: int, period2: int, interval: str = "5m") 
     return bars
 
 
+BAR_SECONDS = 300  # 5min bary; Yahoo timestamp = ZAČÁTEK svíčky
+
+
+def _close_before(bars: list[dict], target_utc: datetime, tolerance_minutes: int = 10) -> Optional[float]:
+    """Cena PLATNÁ v čase target = close poslední svíčky, která skončila nejpozději v target.
+
+    Dřív se brala svíčka nejblíž target podle jejího ZAČÁTKU → její close je až 5 min PO target, takže
+    „cena v čase zprávy“ už obsahovala první reakci (u vydání makro dat celý skok)."""
+    if not bars:
+        return None
+    target = target_utc.timestamp()
+    best_t, best = None, None
+    for bar in bars:
+        end = bar["t"] + BAR_SECONDS
+        if end <= target and target - end <= tolerance_minutes * 60 and (best_t is None or bar["t"] > best_t):
+            best_t, best = bar["t"], bar["close"]
+    return best
+
+
 def _find_close_at(bars: list[dict], target_utc: datetime, tolerance_minutes: int = 30) -> Optional[float]:
     """Z načteného seznamu barů najde Close nejblíže target_utc."""
     if not bars:

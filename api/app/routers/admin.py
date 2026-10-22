@@ -381,6 +381,7 @@ async def list_unpredicted(
 ):
     """Nepredikované zprávy s relevantními tickery — pro lokálního LLM workera."""
     from app.repositories import NewsRepository, TickerRepository
+    from app.services.release_parser import release_context
 
     repo = NewsRepository(session)
     ticker_repo = TickerRepository(session)
@@ -397,6 +398,8 @@ async def list_unpredicted(
         out.append({
             "news_id": item.id,
             "title": item.title,
+            # předpočítané „skutečnost vs. očekávání“ pro vydání dat (lokální model na Sparku)
+            "context": release_context(item.title or ""),
             "body": (item.body or "")[:2000],
             "source_weight": item.source.source_weight if item.source else 0.5,
             "tickers": [t.symbol for t in relevant],
