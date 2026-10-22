@@ -31,6 +31,13 @@ _FORECAST_KINDS = {"expected", "exp", "exp.", "estimate", "estimates", "estimate
 _INVERSE = ("unemployment", "jobless", "initial claims", "continuing claims", "claimant count",
             "layoffs", "challenger")
 
+# Ukazatele, které vydávají jen USA (titulek často zemi neuvádí: „JOLTS job openings…“).
+_US_ONLY = ("umich", "jolts", "ism ", "adp", "non-farm", "nonfarm", "caseshiller", "case-shiller",
+            "conference board", "nahb", "philly fed", "empire", "chicago pmi", "gdpnow", "challenger")
+_INFLATION = ("cpi", "ppi", "pce", "inflation", "deflator", "wage", "earnings")
+_LABOR = ("payroll", "non-farm", "nonfarm", "claims", "adp", "unemployment", "jolts", "employment",
+          "job openings", "jobs")
+
 _COUNTRIES = {
     "us": "USD", "u.s.": "USD", "united states": "USD", "atlanta fed": "USD", "philly fed": "USD",
     "empire": "USD", "eurozone": "EUR", "euro area": "EUR", "germany": "EUR", "german": "EUR",
@@ -66,6 +73,16 @@ class Release:
         return self.surprise / base
 
     @property
+    def category(self) -> str:
+        """inflation | labor | growth — jiná logika reakce trhu (viz prompty)."""
+        d = self.desc.lower()
+        if any(k in d for k in _INFLATION) and "house price" not in d and "home price" not in d:
+            return "inflation"
+        if any(k in d for k in _LABOR):
+            return "labor"
+        return "growth"
+
+    @property
     def strength(self) -> int:
         """+1 = data silnější než čekáno (silnější ekonomika/měna), −1 slabší, 0 v souladu."""
         if abs(self.surprise_rel) < 0.005:
@@ -90,6 +107,8 @@ def _currency(desc: str) -> str | None:
     for key, ccy in sorted(_COUNTRIES.items(), key=lambda x: -len(x[0])):
         if re.search(rf"(^|\W){re.escape(key)}(\W|$)", d):
             return ccy
+    if any(k in d + " " for k in _US_ONLY):
+        return "USD"
     return None
 
 
@@ -122,8 +141,8 @@ def release_context(title: str) -> str | None:
     else:
         verdict = ("STRONGER economy than expected" if r.strength > 0 else "WEAKER economy than expected")
     pol = " (inverse indicator: HIGHER value = WEAKER economy)" if r.inverse else ""
-    return (f"RELEASED DATA: {r.desc} — actual {r.actual:g}{r.unit} vs forecast {r.compare:g}{r.unit}"
-            f"{pol} → {verdict} for {r.currency or 'the issuing economy'}.")
+    return (f"RELEASED DATA [{r.category} data]: {r.desc} — actual {r.actual:g}{r.unit} vs forecast "
+            f"{r.compare:g}{r.unit}{pol} → {verdict} for {r.currency or 'the issuing economy'}.")
 
 
 def release_anchor(title: str, published: datetime) -> datetime:

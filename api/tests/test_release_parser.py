@@ -87,3 +87,17 @@ def test_no_false_matches(ff_title, ccy):
 def test_format_actual_like_forecast():
     assert format_actual(parse_release(IL[0]), "200K") == "194K"
     assert format_actual(parse_release(IL[1]), "0.3%") == "0.8%"
+
+
+@pytest.mark.parametrize("title,cat,ccy", [
+    ("US July core PCE 3.0% y/y vs 3.3% expected", "inflation", "USD"),
+    ("US September non-farm payrolls +29K vs +90K expected", "labor", "USD"),
+    ("JOLTS job openings 7.079M vs 7.225M estimate", "labor", "USD"),
+    ("September final UMich consumer sentiment 48.1 vs 47.6 expected", "growth", "USD"),
+    ("US July CaseShiller 20-city house price index +2.5% vs 2.2% expected", "growth", "USD"),
+    ("US September ISM manufacturing 54.5 vs 55.0 expected", "growth", "USD"),
+])
+def test_category_and_us_only_indicators(title, cat, ccy):
+    r = parse_release(title)
+    assert (r.category, r.currency) == (cat, ccy)
+    assert f"[{cat} data]" in release_context(title)
