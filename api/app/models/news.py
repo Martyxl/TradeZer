@@ -6,7 +6,7 @@ from sqlalchemy import (
     ForeignKey, UniqueConstraint, JSON, Enum
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.sql import func
+from sqlalchemy.sql import func, false
 import enum
 
 from app.db.base import Base
@@ -108,6 +108,9 @@ class MarketReaction(Base):
     # Trvalý důvod, proč se reakce NEDÁ určit (too_old = Yahoo 5m nesahá tak daleko, no_data/no_price =
     # trh byl zavřený). Kalibrace takové predikce už nezkouší znovu. NULL = normální / ještě čeká.
     skip_reason: Mapped[str | None] = mapped_column(String(24), nullable=True)
+    # True = reakce na zprávu při ZAVŘENÉM trhu (gap při znovuotevření, ne 30min pohyb). Jiné měřítko →
+    # statistiky přesnosti i paměť vzorů pro predikce je drží odděleně od běžných reakcí.
+    is_gap: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=false())
     recorded_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     news_item: Mapped["NewsItem"] = relationship(back_populates="market_reactions")

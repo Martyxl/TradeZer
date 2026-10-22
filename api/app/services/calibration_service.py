@@ -209,6 +209,7 @@ class CalibrationService:
                             news_id=pred.news_id,
                             ticker_id=pred.ticker_id,
                             skip_reason=skip,
+                            is_gap=gap,
                             price_at_news=at_news,
                             price_15m=price_30m,   # sloupec price_15m = 30min okno
                             price_1h=price_1h,

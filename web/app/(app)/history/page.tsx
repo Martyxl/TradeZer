@@ -86,13 +86,13 @@ function ConfusionMatrix({ data }: { data: HistoryPoint[] }) {
 }
 
 // ── Multi-ticker overview ───────────────────────────────────────────────────
-function MultiTickerBar({ days }: { days: number }) {
+function MultiTickerBar({ days, gap }: { days: number; gap: boolean }) {
   const [tickerStats, setTickerStats] = useState<Record<string, AccuracyStats | null>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
-    Promise.allSettled(TICKERS.map(t => api.getStats(t, days))).then(results => {
+    Promise.allSettled(TICKERS.map(t => api.getStats(t, days, gap))).then(results => {
       const map: Record<string, AccuracyStats | null> = {};
       TICKERS.forEach((t, i) => {
         map[t] = results[i].status === "fulfilled" ? results[i].value : null;
@@ -100,7 +100,7 @@ function MultiTickerBar({ days }: { days: number }) {
       setTickerStats(map);
       setLoading(false);
     });
-  }, [days]);
+  }, [days, gap]);
 
   if (loading) return <div className="h-24 rounded-xl bg-[#1a1d27] animate-pulse border border-[#2a2d3a]" />;
 
@@ -215,18 +215,20 @@ export default function HistoryPage() {
   const [stats, setStats] = useState<AccuracyStats | null>(null);
   const [ticker, setTicker] = useState("ES");
   const [days, setDays] = useState(90);
+  // false = běžné 30min reakce, true = reakce na zprávy při zavřeném trhu (gap při otevření)
+  const [gap, setGap] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
     Promise.allSettled([
-      api.getHistory(ticker, days),
-      api.getStats(ticker, days),
+      api.getHistory(ticker, days, gap),
+      api.getStats(ticker, days, gap),
     ]).then(([histRes, statsRes]) => {
       setData(histRes.status === "fulfilled" ? histRes.value : []);
       setStats(statsRes.status === "fulfilled" ? statsRes.value : null);
     }).finally(() => setLoading(false));
-  }, [ticker, days]);
+  }, [ticker, days, gap]);
 
   const accuracy = data.length > 0
     ? (data.filter((d) => d.accuracy).length / data.length) * 100
@@ -270,7 +272,15 @@ export default function HistoryPage() {
       {/* Header */}
       <div className="flex flex-wrap items-center gap-4">
         <h1 className="text-xl font-bold text-white">Historie predikcí</h1>
-        <div className="ml-auto flex gap-3">
+        <div className="ml-auto flex flex-wrap gap-3">
+          <div className="flex rounded-lg border border-[#2a2d3a] overflow-hidden text-sm" role="group" aria-label="Druh reakce">
+            {([[false, "Běžné reakce"], [true, "Gap (víkend / zavřený trh)"]] as const).map(([g, label]) => (
+              <button key={label} onClick={() => setGap(g)}
+                className={`px-3 py-1.5 ${gap === g ? "bg-[#1e2536] text-white" : "bg-[#1a1d27] text-gray-400 hover:text-white"}`}>
+                {label}
+              </button>
+            ))}
+          </div>
           <select
             value={ticker}
             onChange={(e) => setTicker(e.target.value)}
@@ -293,7 +303,15 @@ export default function HistoryPage() {
       </div>
 
       {/* Multi-ticker overview */}
-      <MultiTickerBar days={days} />
+      {gap && (
+        <p className="rounded-xl border border-blue-900 bg-blue-950/30 p-3 text-xs text-blue-300">
+          Zprávy vydané při zavřeném trhu (víkend, noc, svátek). Reakce se měří jako gap od posledního close
+          po 30 minut po znovuotevření, ne jako běžný 30min pohyb — proto se hodnotí odděleně a jejich
+          počet je menší. Jedna víkendová událost může vyvolat více zpráv, které sdílejí stejný gap.
+        </p>
+      )}
+
+      <MultiTickerBar days={days} gap={gap} />
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

@@ -32,7 +32,9 @@ def test_fingerprint_changes_when_a_model_column_is_added():
 def test_all_known_migrations_are_idempotent_alters():
     assert len(m._PG_MIGRATIONS) >= 8
     for name, sql in m._PG_MIGRATIONS:
-        assert sql.startswith("ALTER TABLE") and "IF NOT EXISTS" in sql, name
+        idempotent_alter = sql.startswith("ALTER TABLE") and "IF NOT EXISTS" in sql
+        guarded_update = sql.startswith("UPDATE") and " WHERE " in sql  # opakovatelný backfill
+        assert idempotent_alter or guarded_update, name
 
 
 def test_anthropic_not_imported_at_startup():

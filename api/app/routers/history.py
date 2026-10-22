@@ -16,6 +16,7 @@ router = APIRouter(prefix="/api/history", tags=["history"])
 async def get_history(
     ticker: str = Query(default="EURUSD"),
     days: int = Query(default=90, le=365),
+    gap: bool = Query(default=False, description="True = reakce na zprávy při zavřeném trhu (gap)"),
     session: AsyncSession = Depends(get_session),
 ):
     ticker_repo = TickerRepository(session)
@@ -40,6 +41,7 @@ async def get_history(
             MarketReaction.ticker_id == ticker_obj.id,
             NewsPrediction.ticker_id == ticker_obj.id,
             MarketReaction.realized_direction.isnot(None),
+            MarketReaction.is_gap == gap,
             func.date(NewsItem.published_at) >= cutoff,
         )
         .order_by(func.date(NewsItem.published_at).desc())

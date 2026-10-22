@@ -41,16 +41,17 @@ async def calendar_active(
 async def get_stats(
     ticker: str = Query(default="EURUSD"),
     days: int = Query(default=90, le=365),
+    gap: bool = Query(default=False, description="True = jen reakce na zprávy při zavřeném trhu (gap)"),
     session: AsyncSession = Depends(get_session),
 ):
-    """Agregované statistiky přesnosti predikcí — celkem + per kategorie."""
+    """Agregované statistiky přesnosti predikcí — celkem + per kategorie (běžné vs. gap odděleně)."""
     ticker_repo = TickerRepository(session)
     ticker_obj = await ticker_repo.get_by_symbol(ticker)
     if not ticker_obj:
         return {"error": "ticker not found"}
 
     repo = NewsRepository(session)
-    stats = await repo.get_accuracy_stats(ticker_obj.id, days=days)
+    stats = await repo.get_accuracy_stats(ticker_obj.id, days=days, gap=gap)
     return {
         "ticker": ticker,
         "days": days,

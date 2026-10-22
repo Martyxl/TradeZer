@@ -69,6 +69,10 @@ _PG_MIGRATIONS: list[tuple[str, str]] = [
      'ALTER TABLE users ADD COLUMN IF NOT EXISTS terms_accepted_at TIMESTAMP, ADD COLUMN IF NOT EXISTS terms_version VARCHAR(20)'),
     ('market_reactions skip_reason',
      'ALTER TABLE market_reactions ADD COLUMN IF NOT EXISTS skip_reason VARCHAR(24)'),
+    ('market_reactions is_gap',
+     'ALTER TABLE market_reactions ADD COLUMN IF NOT EXISTS is_gap BOOLEAN NOT NULL DEFAULT FALSE'),
+    ('market_reactions is_gap backfill',
+     "UPDATE market_reactions SET is_gap = TRUE WHERE is_gap = FALSE AND price_series::text LIKE '%\"gap\": true%'"),
     ('journal_entries SL/TP/outcome',
      'ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS stop_price DOUBLE PRECISION, ADD COLUMN IF NOT EXISTS target_price DOUBLE PRECISION, ADD COLUMN IF NOT EXISTS outcome VARCHAR(10)'),
 ]

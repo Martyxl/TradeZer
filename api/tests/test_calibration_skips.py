@@ -94,6 +94,7 @@ async def test_normal_news_is_recorded(db_session, world):
     assert stats["recorded"] == 1 and stats["unresolvable"] == 0
     r = await _reaction(db_session, item.id)
     assert r.skip_reason is None and r.realized_direction is not None and r.price_at_news is not None
+    assert r.is_gap is False
 
 
 @pytest.mark.asyncio
@@ -120,6 +121,7 @@ async def test_weekend_news_measured_as_gap_at_reopen(db_session, world):
     assert r.price_15m is not None and r.pct_change_15m > 0.009   # gap ≈ +1 % od pátku
     assert r.realized_direction == "up" or str(r.realized_direction).endswith("UP")
     assert r.price_series["gap"] is True and r.skip_reason is None
+    assert r.is_gap is True
 
 
 @pytest.mark.asyncio

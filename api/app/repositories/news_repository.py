@@ -255,6 +255,7 @@ class NewsRepository:
         realized_direction: str | None,
         price_series: dict | None = None,
         skip_reason: str | None = None,
+        is_gap: bool = False,
     ) -> MarketReaction:
         # Upsert — aktualizuj existující reakci nebo vytvoř novou
         existing = await self.session.scalar(
@@ -274,6 +275,7 @@ class NewsRepository:
             existing.price_series = price_series
             existing.realized_direction = realized_direction
             existing.skip_reason = skip_reason
+            existing.is_gap = is_gap
             await self.session.flush()
             return existing
         reaction = MarketReaction(
@@ -289,6 +291,7 @@ class NewsRepository:
             price_series=price_series,
             realized_direction=realized_direction,
             skip_reason=skip_reason,
+            is_gap=is_gap,
         )
         self.session.add(reaction)
         await self.session.flush()
@@ -322,8 +325,11 @@ class NewsRepository:
         categories: list[str],
         days: int = 180,
         min_samples: int = 3,
+        gap: bool = False,
     ) -> list[dict]:
-        """Pro každou kategorii vrátí statistiky historického pohybu ceny (pattern memory)."""
+        """Pro každou kategorii vrátí statistiky historického pohybu ceny (pattern memory).
+        gap=False (výchozí) = jen běžné 30min reakce — to používá predikční engine; gap reakce
+        mají jiné měřítko a predikce by zkreslily."""
         from datetime import timedelta
         cutoff = datetime.utcnow() - timedelta(days=days)
 
@@ -344,6 +350,7 @@ class NewsRepository:
                     NewsCategory.name == cat_name,
                     MarketReaction.realized_direction.isnot(None),
                     MarketReaction.pct_change_15m.isnot(None),
+                    MarketReaction.is_gap == gap,
                     NewsItem.published_at >= cutoff,
                 )
             )
@@ -407,6 +414,7 @@ class NewsRepository:
                 NewsCategory.name == category_name,
                 MarketReaction.ticker_id == ticker_id,
                 MarketReaction.realized_direction.isnot(None),
+                MarketReaction.is_gap.is_(False),  # prior predikcí jen z běžných reakcí
             )
             .group_by(MarketReaction.realized_direction)
         )
@@ -513,9 +521,10 @@ class NewsRepository:
         )
 
     async def get_accuracy_stats(
-        self, ticker_id: int, days: int = 90
+        self, ticker_id: int, days: int = 90, gap: bool = False
     ) -> dict:
-        """Celková přesnost + per-kategorie za posledních N dní."""
+        """Celková přesnost + per-kategorie za posledních N dní. gap=True = jen reakce na zprávy při
+        zavřeném trhu (víkend/noc, měřeno jako gap při otevření), jinak jen běžné 30min reakce."""
         from datetime import timedelta
         cutoff = datetime.utcnow() - timedelta(days=days)
 
@@ -529,6 +538,7 @@ class NewsRepository:
             .where(
                 MarketReaction.ticker_id == ticker_id,
                 MarketReaction.realized_direction.isnot(None),
+                MarketReaction.is_gap == gap,
                 MarketReaction.recorded_at >= cutoff,
             )
         )
@@ -551,6 +561,7 @@ class NewsRepository:
             .where(
                 MarketReaction.ticker_id == ticker_id,
                 MarketReaction.realized_direction.isnot(None),
+                MarketReaction.is_gap == gap,
                 MarketReaction.recorded_at >= cutoff,
             )
         )
@@ -582,6 +593,7 @@ class NewsRepository:
             .where(
                 MarketReaction.ticker_id == ticker_id,
                 MarketReaction.realized_direction.isnot(None),
+                MarketReaction.is_gap == gap,
                 MarketReaction.recorded_at >= cutoff,
             )
         )
@@ -603,6 +615,7 @@ class NewsRepository:
                 by_cat[cat]["correct"] += 1
 
         return {
+            "gap": gap,
             "total": total,
             "correct": correct,
             "accuracy": round(correct / total, 4) if total > 0 else None,

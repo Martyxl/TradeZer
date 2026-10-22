@@ -147,11 +147,11 @@ export const api = {
     return fetchJson<DailySummary>(`/api/summary/daily?${params}`);
   },
 
-  getHistory: (ticker: string, days = 90) =>
-    fetchJson<HistoryPoint[]>(`/api/history?ticker=${ticker}&days=${days}`),
+  getHistory: (ticker: string, days = 90, gap = false) =>
+    fetchJson<HistoryPoint[]>(`/api/history?ticker=${ticker}&days=${days}${gap ? "&gap=true" : ""}`),
 
-  getStats: (ticker: string, days = 90) =>
-    fetchJson<AccuracyStats>(`/api/stats?ticker=${ticker}&days=${days}`),
+  getStats: (ticker: string, days = 90, gap = false) =>
+    fetchJson<AccuracyStats>(`/api/stats?ticker=${ticker}&days=${days}${gap ? "&gap=true" : ""}`),
 
   getPatterns: (ticker: string, days = 180) =>
     fetchJson<PatternsResponse>(`/api/stats/patterns?ticker=${ticker}&days=${days}`),

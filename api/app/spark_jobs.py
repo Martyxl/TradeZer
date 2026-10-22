@@ -32,6 +32,8 @@ async def _ensure_schema() -> None:
     async with engine.begin() as conn:
         await conn.execute(text(
             "ALTER TABLE market_reactions ADD COLUMN IF NOT EXISTS skip_reason VARCHAR(24)"))
+        await conn.execute(text(
+            "ALTER TABLE market_reactions ADD COLUMN IF NOT EXISTS is_gap BOOLEAN NOT NULL DEFAULT FALSE"))
 
 
 async def run_calibrate() -> dict:
