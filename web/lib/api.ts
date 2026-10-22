@@ -86,6 +86,11 @@ export interface AccuracyStats {
   total: number;
   correct: number;
   accuracy: number | null;
+  baseline_accuracy?: number | null;     // přesnost „vždy tipuj nejčastější výsledek“
+  directional_total?: number;            // model tipl směr a trh se opravdu pohnul
+  directional_hits?: number;
+  directional_hit_rate?: number | null;
+  ic?: number | null;                    // korelace signálu s 30min pohybem
   by_category: Record<string, CategoryStat>;
 }
 

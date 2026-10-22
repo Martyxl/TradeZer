@@ -107,8 +107,9 @@ function MultiTickerBar({ days, gap }: { days: number; gap: boolean }) {
   const bars = TICKERS
     .map(t => ({
       ticker: t,
-      accuracy: tickerStats[t]?.accuracy ?? null,
-      total: tickerStats[t]?.total ?? 0,
+      hit: tickerStats[t]?.directional_hit_rate ?? null,
+      ic: tickerStats[t]?.ic ?? null,
+      total: tickerStats[t]?.directional_total ?? 0,
     }))
     .filter(b => b.total > 0);
 
@@ -116,11 +117,14 @@ function MultiTickerBar({ days, gap }: { days: number; gap: boolean }) {
 
   return (
     <div className="rounded-xl border border-[#2a2d3a] bg-[#1a1d27] p-5">
-      <h2 className="text-sm font-semibold text-gray-300 mb-4">Přesnost podle tickeru</h2>
+      <h2 className="text-sm font-semibold text-gray-300 mb-1">Trefa směru podle tickeru</h2>
+      <p className="text-[11px] text-gray-500 mb-4">
+        Kolikrát model trefil směr, když ho tipl a trh se opravdu pohnul. Náhoda = 50 %. V závorce počet případů a korelace s pohybem (IC).
+      </p>
       <div className="space-y-3">
-        {bars.map(({ ticker, accuracy, total }) => {
+        {bars.map(({ ticker, hit: accuracy, ic, total }) => {
           const pct = accuracy != null ? accuracy * 100 : 0;
-          const color = pct >= 60 ? "#22c55e" : pct >= 45 ? "#eab308" : "#ef4444";
+          const color = pct >= 55 ? "#22c55e" : pct >= 50 ? "#eab308" : "#ef4444";
           return (
             <div key={ticker} className="flex items-center gap-3">
               <span className="w-16 text-xs font-mono text-gray-300 shrink-0">{ticker}</span>
@@ -130,9 +134,9 @@ function MultiTickerBar({ days, gap }: { days: number; gap: boolean }) {
                   style={{ width: `${pct}%`, backgroundColor: color + "99", border: `1px solid ${color}` }}
                 />
               </div>
-              <span className="w-20 text-xs text-right shrink-0" style={{ color }}>
+              <span className="w-36 text-xs text-right shrink-0" style={{ color }}>
                 {accuracy != null ? `${pct.toFixed(0)}%` : "—"}
-                <span className="text-gray-600 ml-1">({total})</span>
+                <span className="text-gray-600 ml-1">({total}{ic != null ? ` · IC ${ic.toFixed(2)}` : ""})</span>
               </span>
             </div>
           );
@@ -209,6 +213,14 @@ function BiasAnalysis({ data }: { data: HistoryPoint[] }) {
   );
 }
 
+// Barvy poctivých metrik: trefa směru vs. náhoda 50 %, IC vs. 0.
+function hitColor(v: number) {
+  return v >= 0.55 ? "text-green-400" : v >= 0.5 ? "text-yellow-400" : "text-red-400";
+}
+function icColor(v: number) {
+  return v >= 0.05 ? "text-green-400" : v > 0 ? "text-yellow-400" : "text-red-400";
+}
+
 // ── Main Page ───────────────────────────────────────────────────────────────
 export default function HistoryPage() {
   const [data, setData] = useState<HistoryPoint[]>([]);
@@ -262,7 +274,10 @@ export default function HistoryPage() {
     : [];
 
   const totalAcc = stats?.accuracy;
+  // Přesnost má smysl jen vůči základu (vždy tipovat nejčastější výsledek, typicky „neutral“).
+  const base = stats?.baseline_accuracy ?? null;
   const accColor = totalAcc == null ? "text-gray-500"
+    : base != null ? (totalAcc > base + 0.02 ? "text-green-400" : totalAcc >= base - 0.02 ? "text-yellow-400" : "text-red-400")
     : totalAcc >= 0.6 ? "text-green-400"
     : totalAcc >= 0.45 ? "text-yellow-400"
     : "text-red-400";
@@ -317,25 +332,34 @@ export default function HistoryPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
           {
-            label: "Vzorků s reakcí",
-            value: stats?.total ?? data.length,
-            sub: `${ticker} / ${days}d`,
+            label: "Trefa směru",
+            value: stats?.directional_hit_rate != null
+              ? <span className={hitColor(stats.directional_hit_rate)}>{(stats.directional_hit_rate * 100).toFixed(1)}%</span>
+              : "—",
+            sub: `${stats?.directional_hits ?? 0} z ${stats?.directional_total ?? 0} · náhoda = 50 %`,
           },
           {
-            label: "Správných",
-            value: stats?.correct ?? data.filter((d) => d.accuracy).length,
+            label: "Korelace s pohybem (IC)",
+            value: stats?.ic != null
+              ? <span className={icColor(stats.ic)}>{stats.ic.toFixed(3)}</span>
+              : "—",
+            sub: "0 = žádný signál · ≥ 0.05 užitečné",
           },
           {
-            label: "Přesnost",
+            label: "Přesnost (3 třídy)",
             value: totalAcc != null
               ? <span className={accColor}>{(totalAcc * 100).toFixed(1)}%</span>
               : data.length > 0
               ? <span className={accColor}>{accuracy.toFixed(1)}%</span>
               : "—",
+            sub: stats?.baseline_accuracy != null
+              ? `základ ${(stats.baseline_accuracy * 100).toFixed(0)} % (vždy nejčastější výsledek)`
+              : undefined,
           },
           {
-            label: "Kategorií (≥2)",
-            value: catRows.length,
+            label: "Vzorků s reakcí",
+            value: stats?.total ?? data.length,
+            sub: `${ticker} / ${days}d · kategorií ${catRows.length}`,
           },
         ].map(({ label, value, sub }) => (
           <div key={label} className="rounded-xl border border-[#2a2d3a] bg-[#1a1d27] p-4 text-center">

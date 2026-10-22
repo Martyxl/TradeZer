@@ -12,6 +12,31 @@ from app.models import (
 )
 
 
+def _spearman(a: list[float], b: list[float]) -> float | None:
+    """Spearmanova korelace (pořadí, s průměrováním shod). None při < 30 vzorcích."""
+    if len(a) < 30:
+        return None
+
+    def rank(xs: list[float]) -> list[float]:
+        order = sorted(range(len(xs)), key=lambda i: xs[i])
+        rk = [0.0] * len(xs)
+        i = 0
+        while i < len(order):
+            j = i
+            while j + 1 < len(order) and xs[order[j + 1]] == xs[order[i]]:
+                j += 1
+            for k in range(i, j + 1):
+                rk[order[k]] = (i + j) / 2
+            i = j + 1
+        return rk
+
+    ra, rb = rank(a), rank(b)
+    ma, mb = sum(ra) / len(ra), sum(rb) / len(rb)
+    num = sum((x - ma) * (y - mb) for x, y in zip(ra, rb))
+    den = (sum((x - ma) ** 2 for x in ra) * sum((y - mb) ** 2 for y in rb)) ** 0.5
+    return round(num / den, 4) if den else None
+
+
 class NewsRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
@@ -553,6 +578,7 @@ class NewsRepository:
                 NewsPrediction.prob_neutral,
                 NewsPrediction.prob_up,
                 MarketReaction.realized_direction,
+                MarketReaction.pct_change_15m,
             )
             .join(NewsPrediction, and_(
                 NewsPrediction.news_id == MarketReaction.news_id,
@@ -574,6 +600,23 @@ class NewsRepository:
                 key=lambda x: x[1]
             )[0] == (r.realized_direction if isinstance(r.realized_direction, str) else r.realized_direction.value)
         )
+
+        # Poctivé metriky: „přesnost“ (3 třídy) je dominovaná neutrálem → ukazujeme i základ
+        # (vždy tipovat nejčastější výsledek), trefu směru a korelaci signálu s pohybem (IC).
+        def _real(r):
+            return r.realized_direction if isinstance(r.realized_direction, str) else r.realized_direction.value
+
+        def _pred(r):
+            return max(("down", r.prob_down), ("neutral", r.prob_neutral), ("up", r.prob_up), key=lambda x: x[1])[0]
+
+        dist: dict[str, int] = {"down": 0, "neutral": 0, "up": 0}
+        for r in rows:
+            dist[_real(r)] = dist.get(_real(r), 0) + 1
+        baseline = round(max(dist.values()) / len(rows), 4) if rows else None
+        directional = [r for r in rows if _pred(r) != "neutral" and _real(r) != "neutral"]
+        dir_hits = sum(1 for r in directional if _pred(r) == _real(r))
+        with_move = [r for r in rows if r.pct_change_15m is not None]
+        ic = _spearman([r.prob_up - r.prob_down for r in with_move], [r.pct_change_15m for r in with_move])
 
         # Per-kategorie
         cat_stmt = (
@@ -619,6 +662,12 @@ class NewsRepository:
             "total": total,
             "correct": correct,
             "accuracy": round(correct / total, 4) if total > 0 else None,
+            "baseline_accuracy": baseline,          # „vždy tipuj nejčastější výsledek“
+            "realized_distribution": dist,
+            "directional_total": len(directional),  # model tipl směr A trh se opravdu pohnul
+            "directional_hits": dir_hits,
+            "directional_hit_rate": round(dir_hits / len(directional), 4) if directional else None,
+            "ic": ic,                               # korelace (prob_up − prob_down) s 30min pohybem
             "by_category": {
                 cat: {
                     **v,

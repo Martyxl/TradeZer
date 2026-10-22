@@ -65,3 +65,19 @@ async def test_patterns_and_prior_exclude_gap_by_default(db_session, world):
     assert gap_pats[0]["sample_count"] == 4 and gap_pats[0]["dominant_direction"] == "down"
     prior = await repo.get_historical_direction_by_category("inflation", t.id)
     assert sum(prior.values()) == 3          # prior predikcí jen z běžných reakcí
+
+
+@pytest.mark.asyncio
+async def test_honest_kpis_baseline_directional_ic(db_session, world):
+    t = world[0]
+    # 3× neutral realita (model tipuje směr), 2× směr trefen, 1× směr netrefen
+    for i in range(3):
+        await _add(db_session, world, f"n{i}", gap=False, pred_up=True, realized="neutral")
+    await _add(db_session, world, "h1", gap=False, pred_up=True, realized="up")
+    await _add(db_session, world, "h2", gap=False, pred_up=False, realized="down")
+    await _add(db_session, world, "m1", gap=False, pred_up=True, realized="down")
+    s = await NewsRepository(db_session).get_accuracy_stats(t.id, days=30)
+    assert s["baseline_accuracy"] == 0.5                       # 3 z 6 neutral
+    assert (s["directional_total"], s["directional_hits"]) == (3, 2)
+    assert s["directional_hit_rate"] == round(2 / 3, 4)
+    assert s["ic"] is None                                       # < 30 vzorků → bez IC
