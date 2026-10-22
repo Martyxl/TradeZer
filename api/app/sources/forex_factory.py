@@ -28,6 +28,43 @@ FF_XML_URL = "https://nfs.faireconomy.media/ff_calendar_thisweek.xml"
 # (BoE, BoJ, UK/JP inflace…); CHF a ostatní měny nesledujeme.
 TRACKED_CURRENCIES = {"USD", "EUR", "GBP", "JPY", "CNY"}
 
+# Mirror (faireconomy) má rate limit a při častém dotazování vrací 429 (HTML „Rate Limited“).
+# Kalendář je týdenní soubor, který se mění zřídka (actual v něm stejně není) → sdílená cache
+# pro adaptér i get_upcoming_events; při 429 se drží starší verze a další pokus až po pauze.
+FF_CACHE_SECONDS = 1800
+FF_BACKOFF_SECONDS = 1800
+_ff_cache: dict = {"text": None, "ts": 0.0, "blocked_until": 0.0}
+
+
+async def fetch_ff_xml(timeout: float = 20.0) -> str:
+    """XML kalendáře s cache (30 min) a pauzou po 429. Při chybě vrátí starší kopii, pokud je."""
+    import time
+    now = time.time()
+    if _ff_cache["text"] and now - _ff_cache["ts"] < FF_CACHE_SECONDS:
+        return _ff_cache["text"]
+    if now < _ff_cache["blocked_until"]:
+        if _ff_cache["text"]:
+            return _ff_cache["text"]
+        raise RuntimeError("ForexFactory mirror: rate limit, čekám na další pokus")
+    headers = {"User-Agent": settings.forexfactory_user_agent}
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            resp = await client.get(FF_XML_URL, headers=headers)
+        if resp.status_code == 429:
+            _ff_cache["blocked_until"] = now + FF_BACKOFF_SECONDS
+            raise RuntimeError("ForexFactory mirror vrátil 429 (rate limit)")
+        resp.raise_for_status()
+        if "<event" not in resp.text:
+            raise RuntimeError("ForexFactory mirror nevrátil XML kalendáře")
+        _ff_cache.update(text=resp.text, ts=now)
+        return resp.text
+    except Exception:
+        if _ff_cache["text"]:
+            log.warning("ForexFactory fetch selhal, používám starší kopii z cache")
+            return _ff_cache["text"]
+        raise
+
+
 # Filtrujeme pouze medium a high impact (low = příliš šumu)
 HIGH_MEDIUM_IMPACTS = {"high", "medium"}
 
@@ -41,15 +78,8 @@ async def get_upcoming_events(window_before_min: int = 120, window_after_min: in
     Používá se pro smart cron scheduling — zjistí jestli má cenu spouštět LLM predikce.
     Vrátí seznam eventů s UTC časem, měnou, dopadem a forecastem.
     """
-    import httpx
-    from app.config import settings
-
     try:
-        headers = {"User-Agent": settings.forexfactory_user_agent}
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.get(FF_XML_URL, headers=headers)
-            resp.raise_for_status()
-            xml_text = resp.text
+        xml_text = await fetch_ff_xml(timeout=15.0)
     except Exception as e:
         log.warning("get_upcoming_events: FF XML fetch failed", error=str(e))
         return []
@@ -185,13 +215,9 @@ class ForexFactoryAdapter(NewsSource):
             return ["XAUUSD", "ES", "NQ", "YM"]
         return []
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
     async def _download_xml(self) -> str:
-        headers = {"User-Agent": settings.forexfactory_user_agent}
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.get(FF_XML_URL, headers=headers)
-            resp.raise_for_status()
-            return resp.text
+        # Bez @retry: opakování při 429 rate limit jen prodlužovalo blokaci. Cache + backoff viz fetch_ff_xml.
+        return await fetch_ff_xml(timeout=30.0)
 
     async def fetch(self) -> list[RawNewsItem]:
         log.info("ForexFactory fetch start")
