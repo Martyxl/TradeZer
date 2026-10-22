@@ -142,7 +142,7 @@ function MultiTickerBar({ days, gap }: { days: number; gap: boolean }) {
           );
         })}
       </div>
-      <p className="text-[10px] text-gray-600 mt-3">Přesnost = predikovaný směr == realizovaný (15min okno)</p>
+      <p className="text-[10px] text-gray-600 mt-3">Pohyb = změna ceny 30 min po zprávě (u vydání dat od plánovaného času vydání, z ceny těsně před ním).</p>
     </div>
   );
 }
