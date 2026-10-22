@@ -2,6 +2,7 @@
 
   python -m app.spark_jobs calibrate     → CalibrationService.run()   (ex POST /api/calibrate)
   python -m app.spark_jobs outlook_eval  → evaluate_outlook()         (ex POST /api/bias/outlook/evaluate)
+  python -m app.spark_jobs refresh       → NewsAggregator.refresh()   (= POST /api/refresh; primárně ze Sparku)
   přepínač --loop MINUT            → opakuj po N minutách (chyba jednoho běhu smyčku neshodí)
 
 Proč: kalibrace stahuje ceny z Yahoo (z domácí IP funguje, z cloudu bývá blokované) a na Vercelu
@@ -49,7 +50,15 @@ async def run_outlook_eval() -> dict:
         return await evaluate_outlook(session)
 
 
-JOBS = {"calibrate": run_calibrate, "outlook_eval": run_outlook_eval}
+async def run_refresh() -> dict:
+    """Stažení zpráv (RSS + kalendář) přímo do DB. GitHub cron běží reálně jen ~1× za 4 h (GitHub
+    škrtí plánované workflow) → zprávy chodily s velkým zpožděním. Spark = primární, GH = záloha."""
+    from app.services.news_aggregator import NewsAggregator
+    async with session_context() as session:
+        return await NewsAggregator(session).refresh()
+
+
+JOBS = {"calibrate": run_calibrate, "outlook_eval": run_outlook_eval, "refresh": run_refresh}
 
 
 async def _once(name: str) -> bool:
@@ -66,7 +75,7 @@ async def _once(name: str) -> bool:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("job", choices=sorted(JOBS))
-    ap.add_argument("--loop", type=int, default=0, help="opakuj po N minutách (0 = jednou)")
+    ap.add_argument("--loop", type=float, default=0, help="opakuj po N minutách (0 = jednou; lze i 0.5)")
     a = ap.parse_args()
     if not a.loop:
         sys.exit(0 if asyncio.run(_once(a.job)) else 1)
