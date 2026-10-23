@@ -180,11 +180,18 @@ def _record_ny_path(bias: DailyBias, bars: list[dict], symbol: str, neutral_thre
         bias.entry_win = None
 
 
-async def evaluate_pending(session: AsyncSession, ticker_map: dict[int, Ticker]) -> int:
+async def evaluate_pending(session: AsyncSession, ticker_map: dict[int, Ticker], limit: int = 30) -> int:
     """Doplhní realitu ke snapshotům po NY close (pohyb 07:00 -> 21:00 UTC)."""
     now = datetime.utcnow()
     today = _trading_day(now)
-    stmt = select(DailyBias).where(DailyBias.realized_direction.is_(None)).limit(10)
+    # Nejnovější napřed a jen v dosahu Yahoo 5m dat (~60 dní). Dřív: prvních 10 BEZ řazení → staré,
+    # už nevyhodnotitelné řádky (červenec) navždy obsadily všech 10 míst a od 27. 7. se nevyhodnotil
+    # ani jeden den.
+    stmt = (select(DailyBias)
+            .where(DailyBias.realized_direction.is_(None),
+                   DailyBias.bias_date >= today - timedelta(days=58))
+            .order_by(DailyBias.bias_date.desc())
+            .limit(limit))
     pending = (await session.execute(stmt)).scalars().all()
 
     yahoo = YahooFinanceAdapter()
