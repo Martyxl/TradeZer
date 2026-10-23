@@ -47,3 +47,17 @@ async def test_weekend_rows_skipped(db_session, monkeypatch):
                         lambda self, sym, d: asked.append(d) or [])
     await bias_service.evaluate_pending(db_session, {t.id: t}, limit=1)
     assert asked == [fri]
+
+
+def test_entry_pnl_measured_from_entry_not_london_open():
+    from datetime import datetime, timezone
+    b = DailyBias(ticker_id=1, bias_date=date(2026, 10, 14), prob_down=.2, prob_neutral=.2, prob_up=.6,
+                  direction="up", trust_score=50, n_news=3, avg_confidence=.5)
+    b.realized_pct = 0.05   # London→close +5 % (většina PŘED vstupem) — nesmí se započítat
+    ny = int(datetime(2026, 10, 14, 13, 30, tzinfo=timezone.utc).timestamp())
+    # open 100, protipohyb na 99.5 (fill limitu při offsetu 0.25 % = 99.75), close 100.0
+    bars = [{"t": ny + 300 * i, "close": c, "high": c + 0.05, "low": c - 0.05}
+            for i, c in enumerate([100, 99.8, 99.55, 99.7, 99.9, 100.0, 100.0, 100.0])]
+    bias_service._record_ny_path(b, bars, "NQ", 0.001)
+    assert b.entry_filled is True
+    assert abs(b.entry_pnl_pct - (100.0 - 99.75) / 99.75 * 100) < 1e-3    # ≈ +0.25 %, ne +5 %

@@ -170,12 +170,15 @@ def _record_ny_path(bias: DailyBias, bars: list[dict], symbol: str, neutral_thre
     bias.ny_adverse_min = int((adv_bar["t"] - ny_open_dt) / 60)
 
     # Entry plán: limit na offset proti biasu. Fill když protipohyb dosáhl offsetu.
-    # P/L (ve směru biasu) = bias_sign * pohyb do close + offset (výhoda lepší ceny).
+    # P/L = pohyb od SKUTEČNÉ vstupní ceny (limit) do NY close ve směru biasu. Dřív se bral pohyb
+    # od London open (realized_pct) + offset → započítával se i pohyb PŘED vstupem (P/L nadsazené).
     offset = _entry_offset(symbol, bias.direction, neutral_threshold)
     bias.entry_filled = (bias.ny_adverse_pct >= offset)
-    if bias.entry_filled and bias.realized_pct is not None:
+    if bias.entry_filled:
         bias_sign = 1 if bias.direction == "up" else -1
-        bias.entry_pnl_pct = round(bias_sign * bias.realized_pct * 100 + offset, 4)
+        entry = ref * (1 - bias_sign * offset / 100)
+        close = seg[-1]["close"]
+        bias.entry_pnl_pct = round(bias_sign * (close - entry) / entry * 100, 4)
         bias.entry_win = bias.entry_pnl_pct > 0
     else:
         bias.entry_pnl_pct = None
