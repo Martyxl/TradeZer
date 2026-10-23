@@ -108,6 +108,8 @@ async def ensure_snapshots(session: AsyncSession, tickers: list[Ticker]) -> int:
     """Po London open vytvoří denní snapshot BIASu (jednou za den a ticker)."""
     now = datetime.utcnow()
     tday = _trading_day(now)
+    if tday.weekday() >= 5:   # sobota/neděle: trh zavřený, bias by nešel vyhodnotit
+        return 0
     # Snapshot až po London open daného obchodního dne
     london = datetime.combine(tday, LONDON_OPEN_UTC)
     if now < london:
@@ -190,9 +192,9 @@ async def evaluate_pending(session: AsyncSession, ticker_map: dict[int, Ticker],
     stmt = (select(DailyBias)
             .where(DailyBias.realized_direction.is_(None),
                    DailyBias.bias_date >= today - timedelta(days=58))
-            .order_by(DailyBias.bias_date.desc())
-            .limit(limit))
-    pending = (await session.execute(stmt)).scalars().all()
+            .order_by(DailyBias.bias_date.desc()))
+    # Víkendové dny nemají NY session → nevyhodnotitelné, nesmí zabírat místa ve frontě.
+    pending = [b for b in (await session.execute(stmt)).scalars().all() if b.bias_date.weekday() < 5][:limit]
 
     yahoo = YahooFinanceAdapter()
     evaluated = 0
