@@ -117,6 +117,14 @@ async def outlook_evaluate(session: AsyncSession = Depends(get_session)):
     return await evaluate_outlook(session)
 
 
+def _t_stat(xs: list[float]) -> float | None:
+    if len(xs) < 5:
+        return None
+    m = sum(xs) / len(xs)
+    sd = (sum((x - m) ** 2 for x in xs) / (len(xs) - 1)) ** 0.5
+    return round(m / sd * len(xs) ** 0.5, 2) if sd else None
+
+
 @router.get("/stats")
 async def bias_stats(
     ticker: str = Query(...),
@@ -156,6 +164,9 @@ async def bias_stats(
         "win_rate": round(len(entry_wins) / len(filled), 4) if filled else None,
         "avg_pnl_pct": round(sum(entry_pnls) / len(entry_pnls), 3) if entry_pnls else None,
         "sum_pnl_pct": round(sum(entry_pnls), 2) if entry_pnls else None,
+        # Průkaznost: t = průměr / směrodatná odchylka × √n. |t| < 2 = zatím jen šum.
+        "t_stat": _t_stat(entry_pnls),
+        "since": str(min(b.bias_date for b in filled)) if filled else None,
     }
 
     return {
