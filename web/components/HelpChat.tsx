@@ -10,6 +10,14 @@ import { authHeaders, useAuth } from "@/lib/auth";
 
 interface Msg { role: "user" | "assistant" | "info"; text: string }
 
+// Model občas použije **tučné** — vykresli ho, ať uživatel nevidí hvězdičky.
+function renderBold(text: string) {
+  return text.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
+    part.startsWith("**") && part.endsWith("**") && part.length > 4
+      ? <strong key={i} className="text-white">{part.slice(2, -2)}</strong>
+      : <span key={i}>{part}</span>);
+}
+
 const POLL_MS = 1500;
 const GIVE_UP_MS = 120_000;
 const PAGE_HINT: Record<string, string> = {
@@ -100,7 +108,7 @@ export function HelpChat() {
                   m.role === "user" ? "max-w-[85%] rounded-xl bg-[#1e2536] px-3 py-2 text-white"
                   : m.role === "assistant" ? "max-w-[95%] whitespace-pre-wrap rounded-xl bg-[#171b27] px-3 py-2 text-gray-200"
                   : "text-xs text-yellow-400"}>
-                  {m.text}
+                  {m.role === "assistant" ? renderBold(m.text) : m.text}
                 </div>
               </div>
             ))}
