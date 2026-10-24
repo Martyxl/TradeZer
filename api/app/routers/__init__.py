@@ -20,6 +20,7 @@ from app.routers.darkpool import router as darkpool_router
 from app.routers.fund import router as fund_router
 from app.routers.marketstats import router as marketstats_router
 from app.routers.ea import router as ea_router
+from app.routers.help import router as help_router
 
 __all__ = [
     "billing_router",
@@ -28,6 +29,7 @@ __all__ = [
     "fund_router",
     "marketstats_router",
     "ea_router",
+    "help_router",
     "bias_router",
     "valuation_router",
     "auth_router",

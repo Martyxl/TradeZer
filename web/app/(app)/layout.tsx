@@ -1,5 +1,6 @@
 import { Sidebar, MobileNav } from "@/components/Sidebar";
 import { Footer } from "@/components/Footer";
+import { HelpChat } from "@/components/HelpChat";
 
 // Chrome přihlášené/aplikační části (sidebar + user menu). Landing na `/` ho nemá.
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -15,6 +16,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         </main>
       </div>
+      <HelpChat />
     </>
   );
 }

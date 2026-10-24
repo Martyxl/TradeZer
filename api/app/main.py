@@ -34,6 +34,7 @@ from app.routers import (
     fund_router,
     marketstats_router,
     ea_router,
+    help_router,
 )
 
 structlog.configure(
@@ -252,6 +253,7 @@ app.include_router(darkpool_router)
 app.include_router(fund_router)
 app.include_router(marketstats_router)
 app.include_router(ea_router)
+app.include_router(help_router)
 
 
 @app.get("/")
