@@ -130,4 +130,4 @@ async def test_screen_context_reaches_model_and_is_deleted_after_answer():
 
 def test_rules_allow_decision_framework_but_no_orders():
     from app.routers.help import SYSTEM_RULES
-    assert "rozhodovacího procesu" in SYSTEM_RULES and "NEDÁVEJ konkrétní investiční pokyn" in SYSTEM_RULES
+    assert "rozhodovacího procesu" in SYSTEM_RULES and "NIKDY nedávej konkrétní obchodní pokyn" in SYSTEM_RULES

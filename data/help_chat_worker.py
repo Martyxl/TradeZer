@@ -36,7 +36,7 @@ def http_json(url: str, method: str = "GET", body: dict | None = None, headers: 
 
 def ask_model(messages: list[dict]) -> str:
     resp = http_json(f"{LLM_BASE}/chat/completions", "POST",
-                     {"model": MODEL, "temperature": 0.3, "max_tokens": 900, "messages": messages},
+                     {"model": MODEL, "temperature": 0.2, "max_tokens": 700, "messages": messages},
                      headers={"Authorization": f"Bearer {LLM_KEY}"}, timeout=120)
     return (resp["choices"][0]["message"].get("content") or "").strip()
 

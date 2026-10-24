@@ -125,7 +125,9 @@ function ModelTag({ version }: { version?: string }) {
   if (!version) return null;
   let label = version, cls = "bg-gray-800 text-gray-400 border-gray-700";
   if (version.startsWith("local-")) {
-    label = "Qwen · local"; cls = "bg-emerald-950/60 text-emerald-300 border-emerald-800";
+    // local-heavy = gpt-oss 120B na Sparku; local-qwen… = starší predikce z modelu Qwen
+    label = version.includes("qwen") ? "Qwen · local" : "Spark AI · local";
+    cls = "bg-emerald-950/60 text-emerald-300 border-emerald-800";
   } else if (version.includes("haiku")) {
     label = "Haiku"; cls = "bg-blue-950/60 text-blue-300 border-blue-800";
   } else if (version.includes("sonnet")) {
