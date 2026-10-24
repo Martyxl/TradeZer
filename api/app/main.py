@@ -75,6 +75,8 @@ _PG_MIGRATIONS: list[tuple[str, str]] = [
      'ALTER TABLE market_reactions ADD COLUMN IF NOT EXISTS is_gap BOOLEAN NOT NULL DEFAULT FALSE'),
     ('market_reactions is_gap backfill',
      "UPDATE market_reactions SET is_gap = TRUE WHERE is_gap = FALSE AND price_series::text LIKE '%\"gap\": true%'"),
+    ('help_chat_messages context',
+     'ALTER TABLE help_chat_messages ADD COLUMN IF NOT EXISTS context TEXT'),
     ('journal_entries SL/TP/outcome',
      'ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS stop_price DOUBLE PRECISION, ADD COLUMN IF NOT EXISTS target_price DOUBLE PRECISION, ADD COLUMN IF NOT EXISTS outcome VARCHAR(10)'),
 ]

@@ -18,6 +18,15 @@ function renderBold(text: string) {
       : <span key={i}>{part}</span>);
 }
 
+// Text, který uživatel právě vidí (hlavní obsah stránky; otevřený detail/okno první) — pomocník s ním pracuje.
+function screenText(): string {
+  const main = document.querySelector("main");
+  if (!main) return "";
+  const dialog = main.querySelector<HTMLElement>('[role="dialog"], .fixed.inset-0');
+  const parts = dialog ? ["[OTEVŘENÝ DETAIL]", dialog.innerText, "[STRÁNKA]", main.innerText] : [main.innerText];
+  return parts.join("\n").replace(/[ \t]+/g, " ").replace(/\n\s*\n+/g, "\n").trim().slice(0, 12000);
+}
+
 const POLL_MS = 1500;
 const GIVE_UP_MS = 120_000;
 const PAGE_HINT: Record<string, string> = {
@@ -50,7 +59,7 @@ export function HelpChat() {
     try {
       const r = await fetch("/api/help/ask", {
         method: "POST", headers: { "Content-Type": "application/json", ...authHeaders() },
-        body: JSON.stringify({ page: pathname, question: q }),
+        body: JSON.stringify({ page: pathname, question: q, context: screenText() }),
       });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(j.detail || "Otázku se nepodařilo odeslat.");
@@ -84,7 +93,7 @@ export function HelpChat() {
         <div className="fixed bottom-20 right-4 left-4 sm:left-auto z-40 flex max-h-[70vh] sm:w-[380px] flex-col rounded-2xl border border-[#2a2d3a] bg-[#11141d] shadow-2xl">
           <div className="border-b border-[#2a2d3a] px-4 py-3">
             <div className="text-sm font-semibold text-white">Pomocník Tradezeru</div>
-            <div className="text-[11px] text-gray-500">Vysvětlí, co vidíš na stránce. Nedává investiční doporučení.</div>
+            <div className="text-[11px] text-gray-500">Vidí text této stránky a vysvětlí, co čísla znamenají a jak je zapojit do rozhodování. Pokyny k nákupu/prodeji nedává.</div>
           </div>
 
           <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3 text-sm">

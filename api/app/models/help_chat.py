@@ -15,6 +15,8 @@ class HelpChatMessage(Base):
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
     page: Mapped[str] = mapped_column(String(80), nullable=False, default="/")
     question: Mapped[str] = mapped_column(Text, nullable=False)
+    # Text, který uživatel právě vidí na stránce (posílá web). Po odpovědi se maže (minimalizace dat).
+    context: Mapped[str | None] = mapped_column(Text)
     answer: Mapped[str | None] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(12), nullable=False, default="queued", index=True)  # queued|working|done|error|expired
     model: Mapped[str | None] = mapped_column(String(60))
