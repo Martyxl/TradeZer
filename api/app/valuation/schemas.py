@@ -47,11 +47,15 @@ class OverviewItem(BaseModel):
     horizon_verdict: str | None = None
     bubble_flag: bool = False
     confidence: float | None = None
+    # rozhodovací zóna z os mapy (viz app/valuation/zones.py): buy | hold | avoid
+    zone: str | None = None
+    zone_score: float | None = None
 
 
 class OverviewResponse(BaseModel):
     meta: Meta
     items: list[OverviewItem]
+    zones: dict | None = None   # křivky hranic zón pro bublinovou mapu
 
 
 class DriverItem(BaseModel):

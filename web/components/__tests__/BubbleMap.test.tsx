@@ -27,3 +27,20 @@ describe("BubbleMap shlukování", () => {
     expect(onSelect).toHaveBeenCalledWith("SOFI");
   });
 });
+
+
+describe("BubbleMap rozhodovací zóny", () => {
+  it("vykreslí nákupní a prodejní hranici a jejich popisky", () => {
+    const zones = { buy: [[0, -4], [40, 14], [80, 40]] as [number, number][], sell: [[0, -20], [60, 6], [100, 24]] as [number, number][] };
+    const { container } = render(<BubbleMap onSelect={() => {}} zones={zones} items={[item("AAA", 20, 15)]} />);
+    expect(container.querySelectorAll("polyline")).toHaveLength(2);
+    expect(container.querySelectorAll("polygon")).toHaveLength(2);
+    expect(screen.getByText("nákupní zóna (k prověření)")).toBeTruthy();
+    expect(screen.getByText("spíše nepřikupovat / zvážit prodej")).toBeTruthy();
+  });
+
+  it("bez zón zůstanou původní popisky kvadrantů", () => {
+    render(<BubbleMap onSelect={() => {}} items={[item("AAA", 20, 15)]} />);
+    expect(screen.getByText("levné a rostoucí")).toBeTruthy();
+  });
+});

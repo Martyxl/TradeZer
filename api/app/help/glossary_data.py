@@ -256,6 +256,13 @@ GLOSSARY = [
   "calc": "≥70 VHODNÁ K DRŽBĚ · ≥55 SPÍŠE ANO · ≥40 NEUTRÁLNÍ · <40 SPÍŠE NE"
  },
  {
+  "term": "Rozhodovací zóny",
+  "abbr": "zone",
+  "cat": "Valuation Radar — skóre a verdikty",
+  "desc": "Křivky na bublinové mapě: nad zelenou = nákupní zóna (k prověření), mezi křivkami = držet / sledovat, pod červenou = spíše nepřikupovat / zvážit prodej. Čím dražší je firma vůči vlastní historii, tím vyšší očekávaný růst musí cenu ospravedlnit (princip „růst za rozumnou cenu“). Orientační pravidlo, zatím neověřené historickou výnosností — vždy si informace ověř.",
+  "calc": "zone_score = 0,5 × (100 − percentil P/E fwd) + 0,5 × skóre růstu EPS; ≥ 60 nákupní zóna, ≥ 40 držet, jinak spíše nepřikupovat; nad 80. percentilem nákupní zóna nevzniká"
+ },
+ {
   "term": "Bublinová vlajka",
   "abbr": "bubble_flag",
   "cat": "Valuation Radar — skóre a verdikty",

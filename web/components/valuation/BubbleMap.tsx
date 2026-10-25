@@ -15,7 +15,18 @@ export interface OverviewItem {
   horizon_verdict: string | null;
   bubble_flag: boolean;
   confidence: number | null;
+  zone?: "buy" | "hold" | "avoid" | null;   // rozhodovací zóna (api/app/valuation/zones.py)
+  zone_score?: number | null;
 }
+
+export interface ZoneCurves { buy: [number, number][]; sell: [number, number][] }
+
+export const ZONE_LABEL: Record<string, string> = {
+  buy: "nákupní zóna (k prověření)",
+  hold: "držet / sledovat",
+  avoid: "spíše nepřikupovat / zvážit prodej",
+};
+export const ZONE_COLOR: Record<string, string> = { buy: "#4ade80", hold: "#9ca3af", avoid: "#f87171" };
 
 export const VERDICT_COLOR: Record<string, string> = {
   "LEVNÁ": "#4ade80",
@@ -61,7 +72,7 @@ export function cluster(pts: Placed[], overlap = 0.55): Cluster[] {
   });
 }
 
-export function BubbleMap({ items, onSelect }: { items: OverviewItem[]; onSelect: (t: string) => void }) {
+export function BubbleMap({ items, onSelect, zones }: { items: OverviewItem[]; onSelect: (t: string) => void; zones?: ZoneCurves | null }) {
   const [hover, setHover] = useState<string | null>(null);
   const plotted = items.filter((i) => i.pctile_pe_fwd != null && i.eps_growth_ntm != null);
   const maxMc = Math.max(...plotted.map((i) => i.market_cap ?? 0), 1);
@@ -83,6 +94,13 @@ export function BubbleMap({ items, onSelect }: { items: OverviewItem[]; onSelect
   }
 
   const x50 = xPos(50), y0 = yPos(0);
+  // Zóny: nad nákupní křivkou = nákupní zóna, pod prodejní = spíše nepřikupovat (mezi = držet)
+  const pts = (c: [number, number][]) => c.map(([p, g]) => `${xPos(p).toFixed(1)},${yPos(g).toFixed(1)}`).join(" ");
+  const buy = zones?.buy ?? [], sell = zones?.sell ?? [];
+  const buyArea = buy.length > 1
+    ? `${pts(buy)} ${xPos(buy[buy.length - 1][0]).toFixed(1)},${yPos(Y_MAX)} ${xPos(buy[0][0]).toFixed(1)},${yPos(Y_MAX)}` : "";
+  const sellArea = sell.length > 1
+    ? `${pts(sell)} ${xPos(sell[sell.length - 1][0]).toFixed(1)},${yPos(Y_MIN)} ${xPos(sell[0][0]).toFixed(1)},${yPos(Y_MIN)}` : "";
 
   return (
     <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-2 overflow-x-auto">
@@ -90,10 +108,18 @@ export function BubbleMap({ items, onSelect }: { items: OverviewItem[]; onSelect
         {/* kvadranty */}
         <line x1={x50} y1={PAD.t} x2={x50} y2={PAD.t + PLOT_H} stroke="#2a2d3a" strokeDasharray="4 4" />
         <line x1={PAD.l} y1={y0} x2={PAD.l + PLOT_W} y2={y0} stroke="#2a2d3a" strokeDasharray="4 4" />
-        <text x={PAD.l + 6} y={PAD.t + 14} fill="#4b5563" fontSize="10">levné a rostoucí</text>
+        {buyArea && <polygon points={buyArea} fill="#4ade80" fillOpacity={0.07} />}
+        {sellArea && <polygon points={sellArea} fill="#f87171" fillOpacity={0.06} />}
+        {buy.length > 1 && <polyline points={pts(buy)} fill="none" stroke="#4ade80" strokeOpacity={0.7} strokeWidth={1.5} strokeDasharray="6 4" />}
+        {sell.length > 1 && <polyline points={pts(sell)} fill="none" stroke="#f87171" strokeOpacity={0.7} strokeWidth={1.5} strokeDasharray="6 4" />}
+        {buy.length > 1
+          ? <text x={PAD.l + 6} y={PAD.t + 14} fill="#4ade80" fillOpacity={0.8} fontSize="10">nákupní zóna (k prověření)</text>
+          : <text x={PAD.l + 6} y={PAD.t + 14} fill="#4b5563" fontSize="10">levné a rostoucí</text>}
         <text x={PAD.l + PLOT_W - 6} y={PAD.t + 14} fill="#4b5563" fontSize="10" textAnchor="end">drahé a rostoucí</text>
         <text x={PAD.l + 6} y={PAD.t + PLOT_H - 6} fill="#4b5563" fontSize="10">levné a zpomalující</text>
-        <text x={PAD.l + PLOT_W - 6} y={PAD.t + PLOT_H - 6} fill="#4b5563" fontSize="10" textAnchor="end">drahé a zpomalující</text>
+        {sell.length > 1
+          ? <text x={PAD.l + PLOT_W - 6} y={PAD.t + PLOT_H - 6} fill="#f87171" fillOpacity={0.8} fontSize="10" textAnchor="end">spíše nepřikupovat / zvážit prodej</text>
+          : <text x={PAD.l + PLOT_W - 6} y={PAD.t + PLOT_H - 6} fill="#4b5563" fontSize="10" textAnchor="end">drahé a zpomalující</text>}
 
         {/* osy popisky */}
         <text x={PAD.l + PLOT_W / 2} y={H - 10} fill="#9ca3af" fontSize="11" textAnchor="middle">
@@ -131,7 +157,7 @@ export function BubbleMap({ items, onSelect }: { items: OverviewItem[]; onSelect
                 )}
                 {hover === it.ticker && (
                   <text x={cx} y={cy - r - 5} fill="#e5e7eb" fontSize="10" textAnchor="middle">
-                    {it.name?.slice(0, 22)} · comp {it.composite_score?.toFixed(0) ?? "—"}
+                    {it.name?.slice(0, 22)} · comp {it.composite_score?.toFixed(0) ?? "—"}{it.zone ? ` · ${ZONE_LABEL[it.zone]}` : ""}
                   </text>
                 )}
               </g>
@@ -168,6 +194,7 @@ export function BubbleMap({ items, onSelect }: { items: OverviewItem[]; onSelect
                         style={{ background: VERDICT_COLOR[it.valuation_verdict ?? ""] ?? "#64748b" }} />
                   <span className="font-semibold text-white">{it.ticker}</span>
                   <span className="truncate text-gray-400">{it.name}</span>
+                  {it.zone && <span className="text-[10px]" style={{ color: ZONE_COLOR[it.zone] }}>{ZONE_LABEL[it.zone]}</span>}
                   <span className="ml-auto text-gray-500">{it.composite_score?.toFixed(0) ?? "—"}</span>
                 </button>
               </li>

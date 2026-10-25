@@ -59,7 +59,10 @@ poznámky ke každému rozhodnutí a výkon proti benchmarku. Jen ukázka, ne na
 percentil forward P/E vůči vlastní historii firmy, osa Y = očekávaný růst zisku, velikost = tržní kapitalizace,
 barva = verdikt). Překrývající se bubliny se slučují do kolečka s počtem — kliknutím se zobrazí seznam firem.
 Skóre valuace, růstu, kvality, revizí, trendu a kompozitní skóre 0–100, verdikty LEVNÁ/FÉROVÁ/NAPJATÁ/PŘEPÁLENÁ a
-bublinová vlajka. Firmu lze přidat polem nahoře (ticker nebo název).""",
+bublinová vlajka. Firmu lze přidat polem nahoře (ticker nebo název).
+Rozhodovací zóny na mapě: nad zelenou čárou „nákupní zóna (k prověření)“, mezi čarami „držet / sledovat“, pod
+červenou „spíše nepřikupovat / zvážit prodej“ — čím dražší vůči vlastní historii, tím vyšší růst musí cenu
+ospravedlnit. Zóna je i ve sloupci tabulky. Orientační pravidlo, zatím neověřené historickou výnosností.""",
     "/discovery": """Discovery (plán Pro) — screener krátkodobého momenta u malých a středních firem (do ~50 mld. $):
 hledá čerstvé momentum, neobvyklý objem a blízkost 52týdenního maxima. Discovery skóre 0–100 je heuristika, ne
 predikce — hlavní hodnota jsou „důkazy“ pod ním (momentum 5d/20d, relativní objem, vzdálenost od 52w high, poloha

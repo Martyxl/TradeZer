@@ -27,6 +27,7 @@ log = structlog.get_logger(__name__)
 
 # Placené moduly: Valuation Radar je od plánu Trader výš (server-side gate).
 _TRADER = [Depends(require_plan("trader"))]
+from app.valuation.zones import zone, zone_curves, zone_score
 from app.valuation.models import (
     ValGroup, ValInstrument, ValScoreDaily, ValMetricsDaily,
     ValFinancials, ValEstimate, ValEarningsHistory, ValScoreRun, ValPriceDaily,
@@ -257,8 +258,9 @@ async def overview(
             continue
         if (r.get("confidence") or 0) < min_confidence:
             continue
-        items.append(S.OverviewItem(**r))
-    return S.OverviewResponse(meta=_meta(snap.as_of_date), items=items)
+        items.append(S.OverviewItem(**r, zone=zone(r.get("pctile_pe_fwd"), r.get("eps_growth_ntm")),
+                                    zone_score=zone_score(r.get("pctile_pe_fwd"), r.get("eps_growth_ntm"))))
+    return S.OverviewResponse(meta=_meta(snap.as_of_date), items=items, zones=zone_curves())
 
 
 @router.post("/refresh", response_model=S.RefreshResponse, dependencies=[Depends(_verify_token)])

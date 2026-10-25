@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Target, LayoutGrid, Table2, Info, Loader2 } from "lucide-react";
-import { BubbleMap, VERDICT_COLOR, type OverviewItem } from "@/components/valuation/BubbleMap";
+import { BubbleMap, VERDICT_COLOR, ZONE_COLOR, ZONE_LABEL, type OverviewItem, type ZoneCurves } from "@/components/valuation/BubbleMap";
 import { ValuationDetail } from "@/components/valuation/ValuationDetail";
 import { PaywallGuard } from "@/components/PaywallGuard";
 import { authHeaders } from "@/lib/auth";
@@ -21,6 +21,7 @@ export default function ValuationPage() {
 function ValuationInner() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [items, setItems] = useState<OverviewItem[]>([]);
+  const [zones, setZones] = useState<ZoneCurves | null>(null);
   const [group, setGroup] = useState<string | null>(null);
   const [view, setView] = useState<"map" | "table">("map");
   const [selected, setSelected] = useState<string | null>(null);
@@ -45,7 +46,7 @@ function ValuationInner() {
     const qs = p.toString();
     fetch(`/api/valuation/overview${qs ? "?" + qs : ""}`, { cache: "no-store", headers: authHeaders() })
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { setItems(d?.items ?? []); setAsOf(d?.meta?.as_of_date ?? null); })
+      .then((d) => { setItems(d?.items ?? []); setZones(d?.zones ?? null); setAsOf(d?.meta?.as_of_date ?? null); })
       .catch(() => setItems([]))
       .finally(() => setLoading(false));
   }, [group, portfolio, refreshKey]);
@@ -153,8 +154,9 @@ function ValuationInner() {
         </div>
       ) : view === "map" ? (
         <>
-          <BubbleMap items={items} onSelect={setSelected} />
+          <BubbleMap items={items} onSelect={setSelected} zones={zones} />
           <Legend />
+          {zones && <ZoneNote />}
         </>
       ) : (
         <ValuationTable items={items} onSelect={setSelected} />
@@ -184,6 +186,31 @@ function Legend() {
   );
 }
 
+function ZoneNote() {
+  return (
+    <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-3 text-[11px] leading-relaxed text-gray-400">
+      <div className="mb-1 flex flex-wrap gap-4">
+        {(["buy", "hold", "avoid"] as const).map((z) => (
+          <span key={z} className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-sm" style={{ background: ZONE_COLOR[z], opacity: z === "hold" ? 0.5 : 0.8 }} />
+            {ZONE_LABEL[z]}
+          </span>
+        ))}
+      </div>
+      <p>
+        <b className="text-gray-300">Jak zóny vznikají:</b> čím dražší je firma vůči své vlastní historii (vpravo), tím vyšší
+        očekávaný růst zisku (nahoře) musí cenu ospravedlnit. Nad zelenou čárou je firma levná vzhledem k růstu, pod
+        červenou drahá vzhledem k růstu; mezi nimi je pásmo „držet / sledovat“.
+      </p>
+      <p className="mt-1 text-yellow-500/80">
+        Orientační pravidlo, ne doporučení. Hranice vychází z logiky skórování, zatím NENÍ ověřená historickou
+        výnosností (skóre sbíráme teprve od srpna 2026). Odhady analytiků bývají optimistické a data mohou být
+        neúplná — vždy si informace ověř (výsledky firmy, zadlužení, důvod levnosti) a rozhodni se sám.
+      </p>
+    </div>
+  );
+}
+
 function ValuationTable({ items, onSelect }: { items: OverviewItem[]; onSelect: (t: string) => void }) {
   return (
     <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] overflow-x-auto">
@@ -195,6 +222,7 @@ function ValuationTable({ items, onSelect }: { items: OverviewItem[]; onSelect: 
             <th className="text-right px-3 py-2">Composite</th>
             <th className="text-left px-3 py-2">Verdikt</th>
             <th className="text-left px-3 py-2">Horizont</th>
+            <th className="text-left px-3 py-2">Zóna</th>
             <th className="text-right px-3 py-2">Conf.</th>
           </tr>
         </thead>
@@ -209,6 +237,9 @@ function ValuationTable({ items, onSelect }: { items: OverviewItem[]; onSelect: 
               <td className="px-3 py-2" style={{ color: VERDICT_COLOR[it.valuation_verdict ?? ""] ?? "#9ca3af" }}>
                 {it.valuation_verdict ?? "—"}</td>
               <td className="px-3 py-2 text-gray-400">{it.horizon_verdict ?? "—"}</td>
+              <td className="px-3 py-2" style={{ color: it.zone ? ZONE_COLOR[it.zone] : "#6b7280" }}>
+                {it.zone ? ZONE_LABEL[it.zone] : "—"}
+              </td>
               <td className="px-3 py-2 text-right text-gray-500">
                 {it.confidence != null ? (it.confidence * 100).toFixed(0) + " %" : "—"}</td>
             </tr>
