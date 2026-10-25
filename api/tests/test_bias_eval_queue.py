@@ -16,8 +16,10 @@ async def test_newest_first_and_old_rows_do_not_starve(db_session, monkeypatch):
     for d in range(15):   # 15 starých (mimo dosah dat) + 3 nové
         db_session.add(DailyBias(ticker_id=t.id, bias_date=today - timedelta(days=100 + d), prob_down=.3,
                                  prob_neutral=.4, prob_up=.3, direction="up", trust_score=50, n_news=3, avg_confidence=.5))
-    for d in (2, 3, 4):
-        db_session.add(DailyBias(ticker_id=t.id, bias_date=today - timedelta(days=d), prob_down=.3,
+    # 3 poslední všední dny před dneškem (test nesmí záviset na dni v týdnu)
+    recent = [today - timedelta(days=d) for d in range(2, 12) if (today - timedelta(days=d)).weekday() < 5][:3]
+    for day in recent:
+        db_session.add(DailyBias(ticker_id=t.id, bias_date=day, prob_down=.3,
                                  prob_neutral=.4, prob_up=.3, direction="up", trust_score=50, n_news=3, avg_confidence=.5))
     await db_session.commit()
     asked = []
@@ -27,7 +29,7 @@ async def test_newest_first_and_old_rows_do_not_starve(db_session, monkeypatch):
         return []   # bez dat → nevyhodnotí, ale musí se aspoň zkusit nové dny
     monkeypatch.setattr("app.sources.yahoo_finance_adapter.YahooFinanceAdapter.fetch_day_bars", fake_bars)
     await bias_service.evaluate_pending(db_session, {t.id: t})
-    assert sorted(asked, reverse=True) == [today - timedelta(days=d) for d in (2, 3, 4)]
+    assert sorted(asked, reverse=True) == recent
 
 
 @pytest.mark.asyncio

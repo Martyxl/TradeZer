@@ -21,6 +21,7 @@ from app.routers.fund import router as fund_router
 from app.routers.marketstats import router as marketstats_router
 from app.routers.ea import router as ea_router
 from app.routers.help import router as help_router
+from app.routers.mail import router as mail_router
 
 __all__ = [
     "billing_router",
@@ -30,6 +31,7 @@ __all__ = [
     "marketstats_router",
     "ea_router",
     "help_router",
+    "mail_router",
     "bias_router",
     "valuation_router",
     "auth_router",

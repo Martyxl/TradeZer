@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
+
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ShieldCheck, Users, LogIn, Eye, CreditCard, KeyRound, Trash2, ArrowUpDown, type LucideIcon } from "lucide-react";
+import { ShieldCheck, Users, LogIn, Eye, CreditCard, KeyRound, Trash2, ArrowUpDown, type LucideIcon, Mail } from "lucide-react";
 import { useAuth, authToken } from "@/lib/auth";
 
 interface Row {
@@ -78,6 +80,10 @@ export default function AdminPage() {
       <div className="flex items-center gap-2">
         <ShieldCheck size={20} className="text-[#60ff82]" />
         <h1 className="text-2xl font-bold text-white">Admin</h1>
+        <Link href="/admin/posta"
+          className="ml-auto flex items-center gap-1.5 rounded-lg border border-[#2a2d3a] px-3 py-1.5 text-sm text-gray-300 hover:text-white">
+          <Mail size={14} /> Pošta info@tradezer.app
+        </Link>
       </div>
 
       {resetResult && (
