@@ -36,7 +36,7 @@ def zone(pctile: float | None, growth: float | None) -> str | None:
     return "buy" if s >= ZONE_BUY else "hold" if s >= ZONE_SELL else "avoid"
 
 
-# Meziroční (trailing) růst nad tuto mez bývá efekt nízké loňské základny (jednorázové odpisy), ne skutečný růst.
+# Růst zisku nad tuto mez bývá efekt nízké základny / jednorázových položek, ne skutečný růst.
 TRAILING_GROWTH_SUSPECT = 100.0
 MIN_CONFIDENCE = 0.5
 
@@ -45,8 +45,11 @@ def zone_reliability(growth: float | None, growth_basis: str | None, confidence:
     """(spolehlivá?, důvod). Nespolehlivou zónu UI zobrazí šedě s otazníkem."""
     if growth is None:
         return False, None
-    if growth_basis != "ntm" and abs(growth) > TRAILING_GROWTH_SUSPECT:
-        return False, "růst je meziroční z minulých výsledků a extrémní (pravděpodobně nízká loňská základna)"
+    if abs(growth) > TRAILING_GROWTH_SUSPECT:
+        # I „odhad na 12 měsíců“ bývá v datech srovnání UPRAVENÉHO odhadu zisku s účetním ziskem, který srazily
+        # jednorázové položky (ABBV +349 %, PFE +284 %) → extrémní růst je podezřelý bez ohledu na zdroj.
+        return False, ("extrémní růst zisku (nad 100 %) — často jde o srovnání s loňským ziskem sníženým "
+                       "jednorázovými položkami, ne o skutečný růst")
     if confidence is not None and confidence < MIN_CONFIDENCE:
         return False, "nízká důvěra v data (chybí odhady nebo část metrik)"
     return True, None

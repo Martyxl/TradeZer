@@ -208,8 +208,8 @@ function ZoneNote() {
         neúplná — vždy si informace ověř (výsledky firmy, zadlužení, důvod levnosti) a rozhodni se sám.
       </p>
       <p className="mt-1">
-        <b className="text-gray-300">(?) = nespolehlivá zóna:</b> růst je jen meziroční z minulých výsledků a extrémní
-        (často efekt nízké loňské základny po jednorázových odpisech), nebo chybí část dat. U takové firmy zónu neber vážně.
+        <b className="text-gray-300">(?) = nespolehlivá zóna:</b> extrémní růst zisku nad 100 % (často srovnání s loňským
+        ziskem sníženým jednorázovými položkami, ne skutečný růst) nebo nízká důvěra v data. U takové firmy zónu neber vážně.
       </p>
     </div>
   );

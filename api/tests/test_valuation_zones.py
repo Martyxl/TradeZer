@@ -39,7 +39,8 @@ from app.valuation.zones import zone_reliability  # noqa: E402
 @pytest.mark.parametrize("g,basis,conf,ok", [
     (25, "ntm", 0.9, True),
     (284, "ttm", 0.9, False),     # PFE: meziroční růst z nízké základny
-    (284, "ntm", 0.9, True),      # odhad analytiků — nechat
+    (284, "ntm", 0.9, False),     # i „odhad“ nad 100 % je podezřelý (upravený vs účetní zisk)
+    (85, "ntm", 0.9, True),
     (30, "ttm", 0.3, False),      # nízká důvěra v data
     (30, "ttm", None, True),
     (None, "ttm", 0.9, False),
