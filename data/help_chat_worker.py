@@ -3,6 +3,8 @@
 
 Tok: GET /api/help/pending (hotové zprávy pro model) → LiteLLM /chat/completions → POST /api/help/answer.
 Model na Sparku není dostupný z internetu, proto worker sám polluje backend (krátký interval → svižná odpověď).
+Bezpečnost: worker mluví jen s /api/help/* a s LiteLLM /chat/completions; modelu nedává žádné nástroje,
+volání nástrojů zahodí a text odpovědi nikdy nespouští ani neinterpretuje.
 
 Env: TRADEZER_TOKEN (povinný), TRADEZER_API (default https://tradezer.app),
      LLM_BASE_URL (default http://127.0.0.1:4000/v1), LLM_API_KEY, HELP_MODEL (default heavy)
@@ -34,11 +36,22 @@ def http_json(url: str, method: str = "GET", body: dict | None = None, headers: 
         return json.loads(r.read() or b"{}")
 
 
+ALLOWED_ROLES = {"system", "user", "assistant"}
+
+
 def ask_model(messages: list[dict]) -> str:
+    """Čistě textový dotaz: žádné nástroje/funkce, výstup se jen vrátí jako text (nikdy se nespouští)."""
+    msgs = [{"role": m["role"], "content": str(m.get("content", ""))} for m in messages
+            if isinstance(m, dict) and m.get("role") in ALLOWED_ROLES]
+    if not msgs or msgs[0]["role"] != "system":
+        raise ValueError("neplatné zprávy z fronty")
     resp = http_json(f"{LLM_BASE}/chat/completions", "POST",
-                     {"model": MODEL, "temperature": 0.2, "max_tokens": 700, "messages": messages},
+                     {"model": MODEL, "temperature": 0.2, "max_tokens": 700, "messages": msgs},
                      headers={"Authorization": f"Bearer {LLM_KEY}"}, timeout=120)
-    return (resp["choices"][0]["message"].get("content") or "").strip()
+    msg = resp["choices"][0]["message"]
+    if msg.get("tool_calls") or msg.get("function_call"):
+        raise ValueError("model se pokusil volat nástroj — zahozeno")
+    return (msg.get("content") or "").strip()
 
 
 def run_once() -> int:
