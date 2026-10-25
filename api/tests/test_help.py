@@ -185,3 +185,8 @@ def test_worker_rejects_tool_calls_and_foreign_roles(monkeypatch):
         hw.ask_model([{"role": "system", "content": "s"}, {"role": "tool", "content": "x"}, {"role": "user", "content": "q"}])
     assert [m["role"] for m in sent["body"]["messages"]] == ["system", "user"]   # cizí role zahozena
     assert "tools" not in sent["body"]
+
+
+def test_context_arrows_become_words():
+    from app.routers.help import _clean_context
+    assert _clean_context("↑ 10% → 33% ↓ 57%") == "nahoru 10% do strany 33% dolů 57%"

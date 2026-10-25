@@ -101,7 +101,10 @@ def build_messages(page: str, question: str, history: list[tuple[str, str]], con
 def _clean_context(ctx) -> str | None:
     if not isinstance(ctx, str):
         return None
+    # Šipky pravděpodobností (↑ 10% → 33% ↓ 57%) model špatně čte → převést na slova.
+    ctx = ctx.replace("↑", " nahoru ").replace("↓", " dolů ").replace("→", " do strany ")
     text = re.sub(r"[ \t]+", " ", ctx)
+    text = re.sub(r" *\n *", "\n", text)
     text = re.sub(r"\n\s*\n+", "\n", text).strip()
     return text[:MAX_CONTEXT] or None
 
