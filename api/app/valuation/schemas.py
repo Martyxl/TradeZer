@@ -50,6 +50,9 @@ class OverviewItem(BaseModel):
     # rozhodovací zóna z os mapy (viz app/valuation/zones.py): buy | hold | avoid
     zone: str | None = None
     zone_score: float | None = None
+    zone_reliable: bool = True
+    zone_note: str | None = None
+    growth_basis: str | None = None   # "ntm" = odhad analytiků na 12 měsíců, "ttm" = meziroční z minulých výsledků
 
 
 class OverviewResponse(BaseModel):

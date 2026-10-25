@@ -17,6 +17,15 @@ export interface OverviewItem {
   confidence: number | null;
   zone?: "buy" | "hold" | "avoid" | null;   // rozhodovací zóna (api/app/valuation/zones.py)
   zone_score?: number | null;
+  zone_reliable?: boolean;
+  zone_note?: string | null;
+  growth_basis?: "ntm" | "ttm" | null;
+}
+
+/** Popisek zóny; nespolehlivá zóna dostane otazník. */
+export function zoneText(it: OverviewItem): string {
+  if (!it.zone) return "";
+  return ZONE_LABEL[it.zone] + (it.zone_reliable === false ? " (?)" : "");
 }
 
 export interface ZoneCurves { buy: [number, number][]; sell: [number, number][] }
@@ -157,7 +166,7 @@ export function BubbleMap({ items, onSelect, zones }: { items: OverviewItem[]; o
                 )}
                 {hover === it.ticker && (
                   <text x={cx} y={cy - r - 5} fill="#e5e7eb" fontSize="10" textAnchor="middle">
-                    {it.name?.slice(0, 22)} · comp {it.composite_score?.toFixed(0) ?? "—"}{it.zone ? ` · ${ZONE_LABEL[it.zone]}` : ""}
+                    {it.name?.slice(0, 22)} · comp {it.composite_score?.toFixed(0) ?? "—"}{it.zone ? ` · ${zoneText(it)}` : ""}
                   </text>
                 )}
               </g>
@@ -194,7 +203,10 @@ export function BubbleMap({ items, onSelect, zones }: { items: OverviewItem[]; o
                         style={{ background: VERDICT_COLOR[it.valuation_verdict ?? ""] ?? "#64748b" }} />
                   <span className="font-semibold text-white">{it.ticker}</span>
                   <span className="truncate text-gray-400">{it.name}</span>
-                  {it.zone && <span className="text-[10px]" style={{ color: ZONE_COLOR[it.zone] }}>{ZONE_LABEL[it.zone]}</span>}
+                  {it.zone && (
+                    <span className="text-[10px]" title={it.zone_note ?? undefined}
+                          style={{ color: it.zone_reliable === false ? "#6b7280" : ZONE_COLOR[it.zone] }}>{zoneText(it)}</span>
+                  )}
                   <span className="ml-auto text-gray-500">{it.composite_score?.toFixed(0) ?? "—"}</span>
                 </button>
               </li>

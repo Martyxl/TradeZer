@@ -27,7 +27,7 @@ log = structlog.get_logger(__name__)
 
 # Placené moduly: Valuation Radar je od plánu Trader výš (server-side gate).
 _TRADER = [Depends(require_plan("trader"))]
-from app.valuation.zones import zone, zone_curves, zone_score
+from app.valuation.zones import zone, zone_curves, zone_reliability, zone_score
 from app.valuation.models import (
     ValGroup, ValInstrument, ValScoreDaily, ValMetricsDaily,
     ValFinancials, ValEstimate, ValEarningsHistory, ValScoreRun, ValPriceDaily,
@@ -209,6 +209,7 @@ async def _compute_overview_rows(session: AsyncSession) -> tuple[date | None, li
             "ticker": s.ticker, "name": inst.name, "group_key": inst.group_key,
             "pctile_pe_fwd": m.get("pctile_pe_fwd"),
             "eps_growth_ntm": m.get("eps_growth_ntm") if m.get("eps_growth_ntm") is not None else m.get("eps_yoy_ttm"),
+            "growth_basis": "ntm" if m.get("eps_growth_ntm") is not None else ("ttm" if m.get("eps_yoy_ttm") is not None else None),
             "market_cap": m.get("market_cap"), "valuation_score": s.valuation_score,
             "composite_score": s.composite_score, "valuation_verdict": s.valuation_verdict,
             "horizon_verdict": s.horizon_verdict, "bubble_flag": s.bubble_flag, "confidence": s.confidence,
@@ -258,8 +259,10 @@ async def overview(
             continue
         if (r.get("confidence") or 0) < min_confidence:
             continue
+        rel, note = zone_reliability(r.get("eps_growth_ntm"), r.get("growth_basis"), r.get("confidence"))
         items.append(S.OverviewItem(**r, zone=zone(r.get("pctile_pe_fwd"), r.get("eps_growth_ntm")),
-                                    zone_score=zone_score(r.get("pctile_pe_fwd"), r.get("eps_growth_ntm"))))
+                                    zone_score=zone_score(r.get("pctile_pe_fwd"), r.get("eps_growth_ntm")),
+                                    zone_reliable=rel, zone_note=note))
     return S.OverviewResponse(meta=_meta(snap.as_of_date), items=items, zones=zone_curves())
 
 

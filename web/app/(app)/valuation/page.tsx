@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Target, LayoutGrid, Table2, Info, Loader2 } from "lucide-react";
-import { BubbleMap, VERDICT_COLOR, ZONE_COLOR, ZONE_LABEL, type OverviewItem, type ZoneCurves } from "@/components/valuation/BubbleMap";
+import { BubbleMap, VERDICT_COLOR, ZONE_COLOR, ZONE_LABEL, zoneText, type OverviewItem, type ZoneCurves } from "@/components/valuation/BubbleMap";
 import { ValuationDetail } from "@/components/valuation/ValuationDetail";
 import { PaywallGuard } from "@/components/PaywallGuard";
 import { authHeaders } from "@/lib/auth";
@@ -207,6 +207,10 @@ function ZoneNote() {
         výnosností (skóre sbíráme teprve od srpna 2026). Odhady analytiků bývají optimistické a data mohou být
         neúplná — vždy si informace ověř (výsledky firmy, zadlužení, důvod levnosti) a rozhodni se sám.
       </p>
+      <p className="mt-1">
+        <b className="text-gray-300">(?) = nespolehlivá zóna:</b> růst je jen meziroční z minulých výsledků a extrémní
+        (často efekt nízké loňské základny po jednorázových odpisech), nebo chybí část dat. U takové firmy zónu neber vážně.
+      </p>
     </div>
   );
 }
@@ -237,8 +241,9 @@ function ValuationTable({ items, onSelect }: { items: OverviewItem[]; onSelect: 
               <td className="px-3 py-2" style={{ color: VERDICT_COLOR[it.valuation_verdict ?? ""] ?? "#9ca3af" }}>
                 {it.valuation_verdict ?? "—"}</td>
               <td className="px-3 py-2 text-gray-400">{it.horizon_verdict ?? "—"}</td>
-              <td className="px-3 py-2" style={{ color: it.zone ? ZONE_COLOR[it.zone] : "#6b7280" }}>
-                {it.zone ? ZONE_LABEL[it.zone] : "—"}
+              <td className="px-3 py-2" title={it.zone_note ?? undefined}
+                  style={{ color: it.zone && it.zone_reliable !== false ? ZONE_COLOR[it.zone] : "#6b7280" }}>
+                {it.zone ? zoneText(it) : "—"}
               </td>
               <td className="px-3 py-2 text-right text-gray-500">
                 {it.confidence != null ? (it.confidence * 100).toFixed(0) + " %" : "—"}</td>

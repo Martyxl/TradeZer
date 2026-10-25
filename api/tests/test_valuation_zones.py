@@ -31,3 +31,18 @@ def test_boundaries_match_thresholds_and_are_monotonic():
 def test_curves_payload():
     c = zone_curves()
     assert c["buy_threshold"] == 60 and c["sell_threshold"] == 40 and c["buy"] and c["sell"]
+
+
+from app.valuation.zones import zone_reliability  # noqa: E402
+
+
+@pytest.mark.parametrize("g,basis,conf,ok", [
+    (25, "ntm", 0.9, True),
+    (284, "ttm", 0.9, False),     # PFE: meziroční růst z nízké základny
+    (284, "ntm", 0.9, True),      # odhad analytiků — nechat
+    (30, "ttm", 0.3, False),      # nízká důvěra v data
+    (30, "ttm", None, True),
+    (None, "ttm", 0.9, False),
+])
+def test_zone_reliability(g, basis, conf, ok):
+    assert zone_reliability(g, basis, conf)[0] is ok

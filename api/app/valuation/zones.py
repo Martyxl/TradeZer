@@ -36,6 +36,22 @@ def zone(pctile: float | None, growth: float | None) -> str | None:
     return "buy" if s >= ZONE_BUY else "hold" if s >= ZONE_SELL else "avoid"
 
 
+# Meziroční (trailing) růst nad tuto mez bývá efekt nízké loňské základny (jednorázové odpisy), ne skutečný růst.
+TRAILING_GROWTH_SUSPECT = 100.0
+MIN_CONFIDENCE = 0.5
+
+
+def zone_reliability(growth: float | None, growth_basis: str | None, confidence: float | None) -> tuple[bool, str | None]:
+    """(spolehlivá?, důvod). Nespolehlivou zónu UI zobrazí šedě s otazníkem."""
+    if growth is None:
+        return False, None
+    if growth_basis != "ntm" and abs(growth) > TRAILING_GROWTH_SUSPECT:
+        return False, "růst je meziroční z minulých výsledků a extrémní (pravděpodobně nízká loňská základna)"
+    if confidence is not None and confidence < MIN_CONFIDENCE:
+        return False, "nízká důvěra v data (chybí odhady nebo část metrik)"
+    return True, None
+
+
 def _growth_for_subscore(target: float) -> float | None:
     """Inverze po částech lineární škály růstu: jaký růst dá dané subskóre (None = nedosažitelné)."""
     if target > _GROWTH[-1][1]:
