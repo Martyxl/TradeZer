@@ -80,3 +80,54 @@ async def test_overview_portfolio_matches_suffix():
             await s.commit()
         mine = (await c.get("/api/valuation/overview?portfolio=true", headers=h)).json()
         assert {i["ticker"] for i in mine["items"]} == {"OGN"}
+
+
+def _no_network(monkeypatch, taxonomies=None, calls=None):
+    """Bez sítě: resolve tickeru, ingest/compute/score a SEC taxonomie nahradit stuby."""
+    import app.routers.valuation as V
+    monkeypatch.setattr(V, "_resolve_ticker", lambda q: (q.upper(), f"{q.upper()} Inc."))
+
+    async def ingest_all(*a, **k):
+        if calls is not None:
+            calls.append("ingest")
+        return {}
+
+    async def noop(*a, **k):
+        return {}
+    monkeypatch.setattr("app.valuation.ingest.ingest_all", ingest_all)
+    monkeypatch.setattr("app.valuation.compute.compute_all", noop)
+    monkeypatch.setattr("app.valuation.score.score_all", noop)
+    monkeypatch.setattr("app.valuation.providers.sec_provider.SECEdgarProvider.taxonomies",
+                        lambda self, t: taxonomies)
+
+
+@pytest.mark.asyncio
+async def test_existing_firm_is_shown_not_recomputed_and_interest_counted_once_per_user(monkeypatch):
+    await _seed_scored(["SOFI"])
+    calls = []
+    _no_network(monkeypatch, calls=calls)
+    async with _client() as c:
+        a = await auth_headers(c, "a@x.cz", plan="trader")
+        b = await auth_headers(c, "b@x.cz", plan="trader")
+        r1 = (await c.post("/api/valuation/request", json={"query": "sofi"}, headers=a)).json()
+        r2 = (await c.post("/api/valuation/request", json={"query": "sofi"}, headers=a)).json()   # stejný uživatel znovu
+        r3 = (await c.post("/api/valuation/request", json={"query": "sofi"}, headers=b)).json()
+    assert r1["status"] == r2["status"] == r3["status"] == "exists" and r1["computed"] is True
+    assert (r1["request_count"], r2["request_count"], r3["request_count"]) == (1, 1, 2)
+    assert calls == []                                    # žádný duplicitní výpočet
+
+
+@pytest.mark.asyncio
+async def test_foreign_ifrs_issuer_is_reported_not_displayed(monkeypatch):
+    calls = []
+    _no_network(monkeypatch, taxonomies={"ifrs-full", "dei"}, calls=calls)
+    async with _client() as c:
+        a = await auth_headers(c, "a@x.cz", plan="trader")
+        r = (await c.post("/api/valuation/request", json={"query": "nu"}, headers=a)).json()
+        assert r["status"] == "unsupported" and "IFRS" in r["message"]
+        r2 = (await c.post("/api/valuation/request", json={"query": "nu"}, headers=a)).json()
+        assert r2["status"] == "unsupported"
+    assert calls == ["ingest"]                            # podruhé už se nic nestahuje
+    async with session_context() as s:
+        inst = await s.get(ValInstrument, "NU")
+        assert inst.coverage_note == "foreign_ifrs" and inst.in_display_universe is False and inst.request_count == 1

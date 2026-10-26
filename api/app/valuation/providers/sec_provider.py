@@ -250,6 +250,18 @@ class SECEdgarProvider(MarketDataProvider):
             gics_industry=sub.get("sicDescription"),
             shares_outstanding=shares)
 
+    def taxonomies(self, ticker: str) -> set[str] | None:
+        """Které XBRL taxonomie firma v SEC má (us-gaap = americké výkazy, ifrs-full = zahraniční
+        emitent s 20-F). None = nelze zjistit (neznámý ticker / chyba sítě)."""
+        cik = self._cik(ticker)
+        if cik is None:
+            return None
+        try:
+            return set((self._get_json(FACTS_URL.format(cik=cik)).get("facts") or {}).keys())
+        except Exception as e:  # noqa: BLE001
+            log.warning("SEC companyfacts failed", ticker=ticker, error=str(e)[:120])
+            return None
+
     def get_financials(self, ticker: str) -> list[FinancialStatement]:
         cik = self._cik(ticker)
         if cik is None:

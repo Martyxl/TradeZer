@@ -63,9 +63,11 @@ function ValuationInner() {
       });
       const d = await res.json().catch(() => ({}));
       if (res.ok) {
-        setAddMsg(`${d.ticker} (${d.name}) přidáno${d.computed ? " a spočítáno" : " — přepočítá se brzy"}.`);
+        setAddMsg(d.message || `${d.ticker} (${d.name}) přidáno.`);
         setAddQuery("");
         setRefreshKey((k) => k + 1);
+        // Firma už je spočítaná (nová nebo dříve přidaná jiným uživatelem) → rovnou otevři její detail
+        if (d.computed && d.ticker) setSelected(d.ticker);
       } else {
         setAddMsg(d.detail || "Nepodařilo se přidat.");
       }

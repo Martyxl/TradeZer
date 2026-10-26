@@ -29,6 +29,7 @@ log = structlog.get_logger(__name__)
 _TRADER = [Depends(require_plan("trader"))]
 from app.valuation.zones import zone, zone_curves, zone_reliability, zone_score
 from app.valuation.models import (
+    ValRequest, ValFinancials,
     ValGroup, ValInstrument, ValScoreDaily, ValMetricsDaily,
     ValFinancials, ValEstimate, ValEarningsHistory, ValScoreRun, ValPriceDaily,
     ValOverviewSnapshot,
@@ -130,11 +131,28 @@ async def universe(session: AsyncSession = Depends(get_session)):
     return {"tickers": list(rows)}
 
 
+UNSUPPORTED_MSG = {
+    "foreign_ifrs": ("{name} je zahraniční emitent a vykazuje podle IFRS (formulář 20-F). Náš současný zdroj dat "
+                     "pokrývá jen americké výkazy (US-GAAP), proto ji zatím nespočítáme. Žádost jsme uložili — "
+                     "doplní se po přechodu na rozšířený zdroj dat."),
+    "no_us_gaap": ("Pro {name} nemáme v dostupném zdroji finanční výkazy, proto ji zatím nespočítáme. "
+                   "Žádost jsme uložili."),
+}
+
+
+async def _has_recent_score(session: AsyncSession, ticker: str) -> bool:
+    since = date.today() - timedelta(days=7)
+    return bool(await session.scalar(select(func.count(ValScoreDaily.ticker)).where(
+        ValScoreDaily.ticker == ticker, ValScoreDaily.as_of_date >= since,
+        ValScoreDaily.valuation_score.isnot(None))))
+
+
 @router.post("/request")
 async def request_ticker(payload: dict, user: User = Depends(current_user),
                          session: AsyncSession = Depends(get_session)):
-    """Přidání akcie na přání: zákazník zadá ticker/název → přidá se do seznamu
-    (community) + počítadlo požadavků + best-effort SEC výpočet (jinak dopočítá Spark)."""
+    """Přidání akcie na přání. Radar je společný pro všechny: když firma už je spočítaná, nic se
+    nepřepočítává a uživateli se rovnou zobrazí. Zájem (request_count) = počet RŮZNÝCH uživatelů.
+    Firmy mimo pokrytí zdroje (zahraniční emitenti s IFRS) se nespočítají, ale žádost se uloží."""
     query = (payload.get("query") or payload.get("ticker") or "").strip()
     if not query:
         raise HTTPException(status_code=400, detail="Zadej ticker nebo název firmy.")
@@ -149,20 +167,42 @@ async def request_ticker(payload: dict, user: User = Depends(current_user),
                              color_hex="#9184d9", sort_order=99))
         await session.commit()
 
+    new_requester = await session.scalar(select(ValRequest).where(
+        ValRequest.user_id == user.id, ValRequest.ticker == ticker)) is None
+    if new_requester:
+        session.add(ValRequest(user_id=user.id, ticker=ticker))
+
     inst = await session.get(ValInstrument, ticker)
     newly = inst is None
     if inst is None:
         inst = ValInstrument(ticker=ticker, name=name, group_key="community",
-                             in_display_universe=True, in_peer_universe=True, active=True, request_count=1)
+                             in_display_universe=True, in_peer_universe=True, active=True, request_count=0)
         session.add(inst)
-    else:
+    if new_requester:
         inst.request_count = (inst.request_count or 0) + 1
-        inst.in_display_universe = True
-        if not inst.name:
-            inst.name = name
+    if not inst.name:
+        inst.name = name
+    display_name = inst.name or name
+
+    # 1) Mimo pokrytí zdroje → nic nepočítat, jen uložit zájem
+    if inst.coverage_note in UNSUPPORTED_MSG:
+        await session.commit()
+        return {"status": "unsupported", "ticker": ticker, "name": display_name,
+                "message": UNSUPPORTED_MSG[inst.coverage_note].format(name=display_name),
+                "request_count": inst.request_count, "newly_added": False, "computed": False}
+
+    # 2) Už je v Radaru a spočítaná → jen zobrazit (žádný duplicitní výpočet)
+    if not newly and inst.in_display_universe and inst.active and await _has_recent_score(session, ticker):
+        await session.commit()
+        return {"status": "exists", "ticker": ticker, "name": display_name, "newly_added": False,
+                "computed": True, "request_count": inst.request_count,
+                "message": f"{ticker} ({display_name}) už v Radaru je — zobrazuji ji."}
+
+    inst.in_display_universe = True
+    inst.active = True
     await session.commit()
 
-    # Best-effort okamžitý výpočet (1 ticker se do 60 s vejde; chyba nevadí → dopočítá Spark).
+    # 3) Nová (nebo dosud nespočítaná) firma → best-effort okamžitý výpočet (jinak dopočítá denní běh)
     computed = False
     try:
         from app.valuation.ingest import ingest_all
@@ -171,13 +211,29 @@ async def request_ticker(payload: dict, user: User = Depends(current_user),
         await ingest_all(session, tickers=[ticker], force=False, provider_name="sec")
         await compute_all(session, tickers=[ticker])
         r = await score_all(session, tickers=[ticker])
-        computed = bool(r.get("scored"))
+        computed = bool(r.get("scored")) and await _has_recent_score(session, ticker)
         await build_overview_snapshot(session)  # nová firma hned v overview snapshotu
     except Exception as e:  # noqa: BLE001
         log.warning("request ticker ingest best-effort fail", ticker=ticker, error=str(e))
 
-    return {"status": "ok", "ticker": ticker, "name": name, "newly_added": newly,
-            "computed": computed, "request_count": inst.request_count}
+    # 4) Nespočítalo se a nemáme žádné výkazy → zjisti, jestli je firma vůbec v našem zdroji
+    if not computed and not await session.scalar(select(func.count(ValFinancials.ticker)).where(
+            ValFinancials.ticker == ticker)):
+        from app.valuation.providers.sec_provider import SECEdgarProvider
+        tax = await run_in_threadpool(SECEdgarProvider().taxonomies, ticker)
+        if tax is not None and "us-gaap" not in tax:
+            inst.coverage_note = "foreign_ifrs" if "ifrs-full" in tax else "no_us_gaap"
+            inst.in_display_universe = False
+            await session.commit()
+            await build_overview_snapshot(session)
+            return {"status": "unsupported", "ticker": ticker, "name": display_name,
+                    "message": UNSUPPORTED_MSG[inst.coverage_note].format(name=display_name),
+                    "request_count": inst.request_count, "newly_added": newly, "computed": False}
+
+    return {"status": "added", "ticker": ticker, "name": display_name, "newly_added": newly,
+            "computed": computed, "request_count": inst.request_count,
+            "message": (f"{ticker} ({display_name}) přidáno a spočítáno." if computed
+                        else f"{ticker} ({display_name}) přidáno — data se dopočítají při nejbližším denním běhu.")}
 
 
 async def _compute_overview_rows(session: AsyncSession) -> tuple[date | None, list[dict]]:

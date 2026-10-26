@@ -78,6 +78,8 @@ _PG_MIGRATIONS: list[tuple[str, str]] = [
      "UPDATE market_reactions SET is_gap = TRUE WHERE is_gap = FALSE AND price_series::text LIKE '%\"gap\": true%'"),
     ('help_chat_messages context',
      'ALTER TABLE help_chat_messages ADD COLUMN IF NOT EXISTS context TEXT'),
+    ('val_instruments coverage_note',
+     'ALTER TABLE val_instruments ADD COLUMN IF NOT EXISTS coverage_note VARCHAR(40)'),
     ('journal_entries SL/TP/outcome',
      'ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS stop_price DOUBLE PRECISION, ADD COLUMN IF NOT EXISTS target_price DOUBLE PRECISION, ADD COLUMN IF NOT EXISTS outcome VARCHAR(10)'),
 ]

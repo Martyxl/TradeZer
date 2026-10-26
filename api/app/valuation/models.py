@@ -44,7 +44,20 @@ class ValInstrument(Base):
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     # Kolikrát si firmu vyžádali uživatelé (přidání na přání) — co je „v kurzu".
     request_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    # Proč firmu nespočítáme (např. "foreign_ifrs" = zahraniční emitent, výkazy IFRS/20-F, mimo náš zdroj).
+    coverage_note: Mapped[str | None] = mapped_column(String(40))
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class ValRequest(Base):
+    """Kdo si kterou firmu vyžádal — zájem se počítá jednou na uživatele, ne za každé kliknutí."""
+    __tablename__ = "val_requests"
+    __table_args__ = (UniqueConstraint("user_id", "ticker", name="uq_val_request"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    ticker: Mapped[str] = mapped_column(String(12), nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 
 class ValRawSnapshot(Base):
