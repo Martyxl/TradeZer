@@ -71,7 +71,7 @@ export function EntryCard({ ticker }: { ticker: string }) {
         <LogIn size={15} className="text-blue-400" />
         <h2 className="text-sm font-semibold text-white">Entry plán po NY open · {ticker}</h2>
         <span className="text-[10px] text-gray-500">
-          NY open 13:30 UTC (15:30){leg ? ` · z ${leg.n} historických dní` : ""}
+          NY open 9:30 ET (15:30 Praha, ve dnech posunu času 14:30){leg ? ` · z ${leg.n} historických dní` : ""}
         </span>
       </div>
 

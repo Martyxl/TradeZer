@@ -45,8 +45,8 @@ async def ea_plan(ticker: str = Query(...), session: AsyncSession = Depends(get_
 
     lines = [f"ticker={sym}", f"date={tday.isoformat()}", f"direction={direction}",
              f"trust={snap.trust_score if snap else 0}", f"offset_pct={offset}",
-             f"ny_open_utc={bias_service.NY_OPEN_UTC.strftime('%H:%M')}",
-             f"close_utc={bias_service.NY_CLOSE_UTC.strftime('%H:%M')}"]
+             f"ny_open_utc={bias_service.ny_open_utc(tday).strftime('%H:%M')}",
+             f"close_utc={bias_service.ny_close_utc(tday).strftime('%H:%M')}"]
     try:
         events = await forex_factory.get_upcoming_events(window_before_min=1440, window_after_min=1440)
         news_ok = 1

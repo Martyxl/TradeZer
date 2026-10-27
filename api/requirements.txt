@@ -43,3 +43,4 @@ respx==0.21.1
 
 # Type checking
 mypy==1.13.0
+tzdata>=2024.1

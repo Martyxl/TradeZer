@@ -5,7 +5,7 @@ Osobní robot pro MetaTrader 5. **Zatím ve stavu „připraveno k ladění“**
 
 ## Strategie (stejná jako „živé výsledky entry plánu“ ve Statistikách)
 1. Směr dne = denní bias Tradezeru (snapshot po London open 07:00 UTC).
-2. Po NY open (13:30 UTC, do 15 min) limit **proti** biasu s offsetem (`offset_pct` z API).
+2. Po NY open (9:30 ET = 13:30 UTC v létě / 14:30 UTC v zimě, do 15 min) limit **proti** biasu s offsetem (`offset_pct` z API).
 3. SL = offset × `InpStopMult` za vstupem, bez TP; nevyplněný limit zrušit v 19:00 UTC, pozice zavřít v 20:50 UTC.
 4. Velikost pozice z rizika `InpRiskPct` % zůstatku při zásahu SL.
 

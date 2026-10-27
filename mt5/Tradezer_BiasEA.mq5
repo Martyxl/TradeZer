@@ -287,6 +287,24 @@ void NewDay(const string day)
    Log("-", "NOVÝ DEN", StringFormat("%s, equity %.2f", day, g_dayStartEquity));
   }
 
+// US letní čas: od 2. neděle v březnu do 1. neděle v listopadu (přechod v 2:00 ET ≈ 7:00 UTC).
+// NY cash open 9:30 ET = 13:30 UTC v létě, 14:30 UTC v zimě.
+datetime NthSundayUtc(int year, int mon, int nth)
+  {
+   MqlDateTime d; d.year = year; d.mon = mon; d.day = 1; d.hour = 7; d.min = 0; d.sec = 0;
+   datetime first = StructToTime(d);
+   MqlDateTime f; TimeToStruct(first, f);
+   int add = (7 - f.day_of_week) % 7 + 7 * (nth - 1);
+   return first + add * 86400;
+  }
+
+int NyOpenUtcMinutes(datetime nowUtc)
+  {
+   MqlDateTime s; TimeToStruct(nowUtc, s);
+   bool dst = nowUtc >= NthSundayUtc(s.year, 3, 2) && nowUtc < NthSundayUtc(s.year, 11, 1);
+   return (dst ? 13 : 14) * 60 + 30;
+  }
+
 void OnTimer()
   {
    datetime now = TimeGMT();
@@ -296,7 +314,7 @@ void OnTimer()
    if(day != g_day) NewDay(day);
 
    int m = UtcMinutes(now);
-   int nyOpen = 13 * 60 + 30, cancelM = MinutesOf(InpCancelUtc), closeM = MinutesOf(InpCloseUtc);
+   int nyOpen = NyOpenUtcMinutes(now), cancelM = MinutesOf(InpCancelUtc), closeM = MinutesOf(InpCloseUtc);
 
    // pojistka denní ztráty
    if(!g_dayStopped && g_dayStartEquity > 0 &&

@@ -1,5 +1,5 @@
 """Denní BIAS: agregace ranních predikcí -> směr dne, snapshot v London open,
-vyhodnocení proti realitě (pohyb 07:00 -> 21:00 UTC) a statistika úspěšnosti.
+vyhodnocení proti realitě (pohyb London open -> 17:00 ET; v létě 07:00 -> 21:00 UTC) a statistika úspěšnosti.
 
 Obchodní den = 22:00 UTC předchozího dne až 22:00 UTC. Snapshot se dělá při
 prvním zpracování po 07:00 UTC (London open) z predikcí zpráv publikovaných
@@ -8,6 +8,7 @@ od začátku obchodního dne.
 import asyncio
 import math
 from datetime import datetime, date, time, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 import structlog
 from sqlalchemy import select
@@ -18,9 +19,32 @@ from app.sources.yahoo_finance_adapter import YahooFinanceAdapter, _find_close_a
 
 log = structlog.get_logger(__name__)
 
-LONDON_OPEN_UTC = time(7, 0)
-NY_OPEN_UTC = time(13, 30)   # otevření US cash trhu
-NY_CLOSE_UTC = time(21, 0)
+# Časy session jsou v MÍSTNÍM čase burzy — v UTC se posouvají s letním/zimním časem
+# (London open 07:00 UTC v létě / 08:00 v zimě, NY cash open 13:30 / 14:30, close 17:00 ET = 21:00 / 22:00).
+# Dřív byly pevně v UTC → v zimě vstup o hodinu dřív než skutečný NY open.
+_LONDON = ZoneInfo("Europe/London")
+_NY = ZoneInfo("America/New_York")
+LONDON_OPEN_LOCAL = time(8, 0)
+NY_OPEN_LOCAL = time(9, 30)    # otevření US cash trhu
+NY_CLOSE_LOCAL = time(17, 0)   # denní uzávěrka futures (CME)
+
+
+def _local_to_utc(d: date, t: time, tz: ZoneInfo) -> datetime:
+    """Místní čas burzy v daný den → naivní UTC datetime."""
+    return datetime.combine(d, t, tzinfo=tz).astimezone(timezone.utc).replace(tzinfo=None)
+
+
+def london_open_utc(d: date) -> datetime:
+    return _local_to_utc(d, LONDON_OPEN_LOCAL, _LONDON)
+
+
+def ny_open_utc(d: date) -> datetime:
+    return _local_to_utc(d, NY_OPEN_LOCAL, _NY)
+
+
+def ny_close_utc(d: date) -> datetime:
+    return _local_to_utc(d, NY_CLOSE_LOCAL, _NY)
+
 DAY_START_SHIFT_H = 2  # 22:00 UTC = začátek obchodního dne
 
 # Doporučený entry offset (%) proti biasu po NY open — z historického playbooku
@@ -111,7 +135,7 @@ async def ensure_snapshots(session: AsyncSession, tickers: list[Ticker]) -> int:
     if tday.weekday() >= 5:   # sobota/neděle: trh zavřený, bias by nešel vyhodnotit
         return 0
     # Snapshot až po London open daného obchodního dne
-    london = datetime.combine(tday, LONDON_OPEN_UTC)
+    london = london_open_utc(tday)
     if now < london:
         return 0
 
@@ -137,7 +161,7 @@ async def ensure_snapshots(session: AsyncSession, tickers: list[Ticker]) -> int:
 
 
 def _record_ny_path(bias: DailyBias, bars: list[dict], symbol: str, neutral_threshold: float) -> None:
-    """Zaznamená protipohyb/pohyb po NY open (13:30) relativně ke směru biasu.
+    """Zaznamená protipohyb/pohyb po NY open (9:30 ET) relativně ke směru biasu.
 
     adverse = jak daleko šla cena PROTI biasu (kam dát limit entry),
     favorable = jak daleko ve směru biasu. Neutral bias cestu nepočítá.
@@ -145,8 +169,8 @@ def _record_ny_path(bias: DailyBias, bars: list[dict], symbol: str, neutral_thre
     """
     if bias.direction not in ("up", "down"):
         return
-    ny_open_dt = datetime.combine(bias.bias_date, NY_OPEN_UTC, tzinfo=timezone.utc).timestamp()
-    ny_close_dt = datetime.combine(bias.bias_date, NY_CLOSE_UTC, tzinfo=timezone.utc).timestamp()
+    ny_open_dt = ny_open_utc(bias.bias_date).replace(tzinfo=timezone.utc).timestamp()
+    ny_close_dt = ny_close_utc(bias.bias_date).replace(tzinfo=timezone.utc).timestamp()
     seg = [b for b in bars if ny_open_dt <= b["t"] <= ny_close_dt and b.get("high") and b.get("low")]
     if len(seg) < 6:
         return
@@ -203,15 +227,15 @@ async def evaluate_pending(session: AsyncSession, ticker_map: dict[int, Ticker],
     evaluated = 0
     for b in pending:
         # Hodnotit až po NY close daného dne
-        if b.bias_date > today or (b.bias_date == today and now.time() < NY_CLOSE_UTC):
+        if b.bias_date > today or (b.bias_date == today and now < ny_close_utc(b.bias_date)):
             continue
         ticker = ticker_map.get(b.ticker_id)
         if not ticker:
             continue
         try:
             bars = await asyncio.to_thread(yahoo.fetch_day_bars, ticker.symbol, b.bias_date)
-            p_open = _find_close_at(bars, datetime.combine(b.bias_date, LONDON_OPEN_UTC, tzinfo=timezone.utc), 60)
-            p_close = _find_close_at(bars, datetime.combine(b.bias_date, NY_CLOSE_UTC, tzinfo=timezone.utc), 60)
+            p_open = _find_close_at(bars, london_open_utc(b.bias_date).replace(tzinfo=timezone.utc), 60)
+            p_close = _find_close_at(bars, ny_close_utc(b.bias_date).replace(tzinfo=timezone.utc), 60)
             if not p_open or not p_close:
                 continue
             pct = (p_close - p_open) / p_open
