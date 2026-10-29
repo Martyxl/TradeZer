@@ -34,7 +34,8 @@ def test_all_known_migrations_are_idempotent_alters():
     for name, sql in m._PG_MIGRATIONS:
         idempotent_alter = sql.startswith("ALTER TABLE") and "IF NOT EXISTS" in sql
         guarded_update = sql.startswith("UPDATE") and " WHERE " in sql  # opakovatelný backfill
-        assert idempotent_alter or guarded_update, name
+        guarded_insert = sql.startswith("INSERT") and "WHERE NOT EXISTS" in sql  # opakovatelný seed
+        assert idempotent_alter or guarded_update or guarded_insert, name
 
 
 def test_anthropic_not_imported_at_startup():
