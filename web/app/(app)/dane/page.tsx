@@ -155,6 +155,13 @@ export default function DanePage() {
         <h2 className="text-sm font-semibold text-white">Jak to funguje</h2>
         <p><strong className="text-white">Časový test 3 roky:</strong> když cenný papír (akcie, ETF) držíš déle než 3 roky, příjem z jeho prodeje je osvobozen od daně z příjmu fyzických osob. Datum osvobození = datum nákupu + 3 roky. U částečných prodejů se dřívější nákupy prodávají první (FIFO).</p>
         <p><strong className="text-white">Limit 100 000 Kč:</strong> pokud je souhrn <em>příjmů</em> (ne zisku) z prodeje cenných papírů za rok do 100 000 Kč, je osvobozen i bez splnění časového testu.</p>
+        <p><strong className="text-white">Dividendy:</strong> na ně se <em>ani</em> limit 100 000 Kč, <em>ani</em> časový test nevztahuje — ty platí jen pro příjmy z prodeje. Dividenda je příjem z kapitálového majetku a daní se vždy 15&nbsp;%, ať je jakkoli malá.</p>
+        <ul className="list-disc space-y-1 pl-5">
+          <li><strong className="text-white">České dividendy:</strong> 15&nbsp;% srazí firma (srážková daň) a tím je hotovo, do přiznání je nepíšeš.</li>
+          <li><strong className="text-white">Zahraniční dividendy:</strong> patří do daňového přiznání (§&nbsp;8). Daň sraženou v zahraničí si započteš podle smlouvy o zamezení dvojímu zdanění. U akcií z USA s podepsaným formulářem W-8BEN se srazí 15&nbsp;%, což českou daň obvykle pokryje → doplácíš 0, ale přiznat je musíš. Bez W-8BEN se srazí 30&nbsp;% a započíst jde jen 15&nbsp;%.</li>
+          <li><strong className="text-white">Zaměstnanci:</strong> pokud máš mzdu od jednoho zaměstnavatele (s podepsaným prohlášením) a kromě ní jiné příjmy (včetně zahraničních dividend) jen do 20 000 Kč za rok, přiznání podávat nemusíš.</li>
+          <li><strong className="text-white">Tip:</strong> akumulační ETF dividendy nevyplácí, ale reinvestují — daň řešíš až při prodeji a tam už platí časový test i limit 100 000 Kč.</li>
+        </ul>
         <p className="text-[11px] text-gray-500">Orientační výpočet podle obecných pravidel, <strong>není to daňové poradenství</strong>. Pravidla se mění (např. od 2025 strop osvobození 40 mil. Kč příjmů/rok) a tvoje situace může mít výjimky — ověř si to s daňovým poradcem.</p>
       </div>
     </div>
