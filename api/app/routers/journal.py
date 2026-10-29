@@ -669,16 +669,23 @@ async def update_strategy(sid: int, payload: dict, user: User = Depends(current_
 
 
 @router.delete("/strategies/{sid}")
-async def delete_strategy(sid: int, user: User = Depends(current_user),
+async def delete_strategy(sid: int, with_entries: bool = False, user: User = Depends(current_user),
                           session: AsyncSession = Depends(get_session)):
-    """Smaže strategii; obchody zůstanou (bez strategie, jejich tagy se nemění)."""
+    """Smaže deník strategie. Obchody standardně zůstanou (bez strategie, checklist se zahodí);
+    s `with_entries=true` se smažou i obchody tohoto deníku."""
     st = await _owned_strategy(sid, user, session)
+    deleted = 0
     for e in (await session.execute(select(JournalEntry).where(
             JournalEntry.user_id == user.id, JournalEntry.strategy_id == sid))).scalars():
-        e.strategy_id = None
+        if with_entries:
+            await session.delete(e)
+            deleted += 1
+        else:
+            e.strategy_id = None
+            e.checks = None
     await session.delete(st)
     await session.commit()
-    return {"status": "ok"}
+    return {"status": "ok", "deleted_entries": deleted}
 
 
 # ---------------------------------------------------------------- AI vision analýza (TradingView)

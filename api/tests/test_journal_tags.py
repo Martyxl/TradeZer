@@ -147,3 +147,22 @@ async def test_legacy_strategy_converts_to_block():
         await c.post("/api/journal", json={"instrument": "NQ", "strategy_id": st["id"], "tag_ids": [by[("setup", "OB")]], "r_result": 1}, headers=h)
         s = (await c.get("/api/journal/stats", headers=h)).json()
         assert s["strategies"][0]["compliance"] == 100
+
+
+@pytest.mark.asyncio
+async def test_delete_strategy_journal_keep_or_drop_entries():
+    async with _client() as c:
+        h = await auth_headers(c, "d@x.cz")
+        await c.get("/api/journal/tags", headers=h)
+        a = (await c.post("/api/journal/strategies", json={"name": "A", "rules": {"blocks": []}}, headers=h)).json()["strategy"]
+        b = (await c.post("/api/journal/strategies", json={"name": "B", "rules": {"blocks": []}}, headers=h)).json()["strategy"]
+        for sid in (a["id"], a["id"], b["id"]):
+            await c.post("/api/journal", json={"instrument": "NQ", "strategy_id": sid, "checks": ["x"]}, headers=h)
+        await c.post("/api/journal", json={"instrument": "ES"}, headers=h)
+
+        r = (await c.delete(f"/api/journal/strategies/{a['id']}?with_entries=true", headers=h)).json()
+        assert r["deleted_entries"] == 2
+        r = (await c.delete(f"/api/journal/strategies/{b['id']}", headers=h)).json()
+        assert r["deleted_entries"] == 0
+        entries = (await c.get("/api/journal", headers=h)).json()["entries"]
+        assert len(entries) == 2 and all(e["strategy_id"] is None and e["checks"] is None for e in entries)

@@ -810,14 +810,53 @@ function TagsModal({ data, onClose, onChanged }: { data: TagData; onClose: () =>
   );
 }
 
+/* ------------------------------------------------------ smazání deníku */
+
+function DeleteJournalModal({ st, count, onClose, onDeleted }: {
+  st: Strategy; count: number; onClose: () => void; onDeleted: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const del = async (withEntries: boolean) => {
+    setBusy(true); setErr(null);
+    try { await jFetch(`/strategies/${st.id}${withEntries ? "?with_entries=true" : ""}`, { method: "DELETE" }); onDeleted(); }
+    catch (e) { setErr(e instanceof Error ? e.message : "Smazání selhalo"); setBusy(false); }
+  };
+  return (
+    <div className="fixed inset-0 z-[60] bg-black/70 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-[#12141c] border border-red-900/60 rounded-2xl max-w-md w-full p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+        <h2 className="text-lg font-bold text-white flex items-center gap-2"><Trash2 size={17} className="text-red-400" /> Smazat deník „{st.name}“?</h2>
+        <p className="text-sm text-gray-400">Smaže se strategie i její pravidla. Tohle nejde vrátit.
+          {count > 0 ? ` V deníku je ${count} ${count === 1 ? "obchod" : count < 5 ? "obchody" : "obchodů"} — co s nimi?` : " Deník nemá žádné obchody."}</p>
+        {err && <p className="text-sm text-red-400">{err}</p>}
+        <div className="flex flex-col gap-2">
+          {count > 0 && (
+            <button disabled={busy} onClick={() => del(false)}
+              className="rounded-lg px-4 py-2.5 text-sm text-left text-gray-100 border border-[#2a2d3a] bg-[#151823] hover:border-gray-500 disabled:opacity-50">
+              <div className="font-medium">Smazat deník, obchody ponechat</div>
+              <div className="text-[11px] text-gray-500">Obchody zůstanou ve „Všech obchodech“ bez strategie (s tagy, bez checklistu).</div>
+            </button>
+          )}
+          <button disabled={busy} onClick={() => del(true)}
+            className="rounded-lg px-4 py-2.5 text-sm text-left text-red-200 border border-red-900/70 bg-red-950/30 hover:bg-red-950/50 disabled:opacity-50">
+            <div className="font-medium">{count > 0 ? `Smazat deník i ${count} ${count === 1 ? "obchod" : count < 5 ? "obchody" : "obchodů"}` : "Smazat deník"}</div>
+            {count > 0 && <div className="text-[11px] text-red-300/70">Obchody tohoto deníku se smažou natrvalo.</div>}
+          </button>
+          <button disabled={busy} onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-gray-400 hover:text-white">Zrušit</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ---------------------------------------------- editor strategie (pravidla po TF) */
 
 const rid = () => Math.random().toString(36).slice(2, 8);
 const LOWER_TF: Record<string, string> = { W1: "D1", D1: "H4", H4: "H1", H1: "M15", M30: "M5", M15: "M5", M5: "M1", M3: "M1", M1: "M1" };
 
-function StrategyEditor({ data, initial, onClose, onSaved, onTagsChanged }: {
+function StrategyEditor({ data, initial, onClose, onSaved, onTagsChanged, onDelete }: {
   data: TagData; initial: Strategy | null; onClose: () => void;
-  onSaved: (id: number | null) => void; onTagsChanged: () => Promise<void>;
+  onSaved: (id: number | null) => void; onTagsChanged: () => Promise<void>; onDelete: (st: Strategy) => void;
 }) {
   const [name, setName] = useState(initial?.name ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
@@ -856,11 +895,6 @@ function StrategyEditor({ data, initial, onClose, onSaved, onTagsChanged }: {
       const r = initial ? await jFetch(`/strategies/${initial.id}`, { method: "PATCH", body }) : await jFetch("/strategies", { method: "POST", body });
       onSaved((r as { strategy: Strategy }).strategy.id);
     } catch (e) { setErr(e instanceof Error ? e.message : "Uložení selhalo"); setSaving(false); }
-  };
-  const remove = async () => {
-    if (!initial || !confirm(`Smazat strategii „${initial.name}“? Obchody zůstanou, jen bez strategie.`)) return;
-    try { await jFetch(`/strategies/${initial.id}`, { method: "DELETE" }); onSaved(null); }
-    catch (e) { setErr(e instanceof Error ? e.message : "Smazání selhalo"); }
   };
 
   const field = "w-full rounded-lg bg-[#0f1117] border border-[#2a2d3a] px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:border-blue-600 focus:outline-none";
@@ -938,7 +972,7 @@ function StrategyEditor({ data, initial, onClose, onSaved, onTagsChanged }: {
 
         {err && <p className="text-sm text-red-400">{err}</p>}
         <div className="flex items-center gap-2 pt-1">
-          {initial && <button onClick={remove} className="rounded-lg px-3 py-2 text-xs text-red-300 border border-red-900/60 hover:bg-red-950/30">Smazat strategii</button>}
+          {initial && <button onClick={() => onDelete(initial)} className="rounded-lg px-3 py-2 text-xs text-red-300 border border-red-900/60 hover:bg-red-950/30">Smazat deník</button>}
           <span className="flex-1" />
           <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-gray-300 border border-[#2a2d3a] hover:text-white">Zrušit</button>
           <button onClick={save} disabled={saving}
@@ -1224,6 +1258,7 @@ export default function DenikPage() {
   const [tagData, setTagData] = useState<TagData>({ tags: [], strategies: [] });
   const [tagsOpen, setTagsOpen] = useState(false);
   const [stratEdit, setStratEdit] = useState<null | "new" | Strategy>(null);
+  const [stratDelete, setStratDelete] = useState<Strategy | null>(null);
   const [filter, setFilter] = useState("");   // "" | "t:<id>" tag
   const [day, setDay] = useState<string | null>(null);   // vybraný den v kalendáři (YYYY-MM-DD)
   const [journal, setJournal] = useState<number | null>(null);   // otevřený deník strategie (null = všechny obchody)
@@ -1371,9 +1406,14 @@ export default function DenikPage() {
             <div className="rounded-xl border border-blue-900/50 bg-blue-950/20 p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="text-lg font-bold text-white">Deník: {cur.name}</h2>
-                <button onClick={() => setStratEdit(cur)} className="text-[11px] text-blue-400 hover:text-blue-300 flex items-center gap-1">
+                <div className="flex items-center gap-3">
+                  <button onClick={() => setStratEdit(cur)} className="text-[11px] text-blue-400 hover:text-blue-300 flex items-center gap-1">
                   <Pencil size={12} /> Upravit pravidla
                 </button>
+                  <button onClick={() => setStratDelete(cur)} className="text-[11px] text-gray-500 hover:text-red-400 flex items-center gap-1">
+                    <Trash2 size={12} /> Smazat deník
+                  </button>
+                </div>
               </div>
               {cur.description && <p className="mt-1 whitespace-pre-line text-xs text-gray-400">{cur.description}</p>}
               {cur.blocks.some((b) => b.conds.length) ? (
@@ -1570,7 +1610,10 @@ export default function DenikPage() {
       {formOpen && <EntryForm initial={editing} draft={draft} meta={lastMeta} tagData={tagData} defaultStrategyId={journal} onManageTags={() => setTagsOpen(true)} onClose={() => { setFormOpen(false); setEditing(null); setDraft(null); setLastMeta(null); }} onSaved={onSaved} />}
       {tagsOpen && <TagsModal data={tagData} onClose={() => setTagsOpen(false)} onChanged={reload} />}
       {stratEdit && <StrategyEditor data={tagData} initial={stratEdit === "new" ? null : stratEdit} onTagsChanged={reload}
-        onClose={() => setStratEdit(null)} onSaved={(id) => { setStratEdit(null); reload(); openJournal(id); }} />}
+        onClose={() => setStratEdit(null)} onSaved={(id) => { setStratEdit(null); reload(); openJournal(id); }}
+        onDelete={(st) => { setStratEdit(null); setStratDelete(st); }} />}
+      {stratDelete && <DeleteJournalModal st={stratDelete} count={entries.filter((e) => e.strategy_id === stratDelete.id).length}
+        onClose={() => setStratDelete(null)} onDeleted={() => { setStratDelete(null); openJournal(null); reload(); }} />}
     </div>
   );
 }
