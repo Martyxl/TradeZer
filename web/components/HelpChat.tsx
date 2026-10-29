@@ -27,6 +27,15 @@ function screenText(): string {
   return parts.join("\n").replace(/[ \t]+/g, " ").replace(/\n\s*\n+/g, "\n").trim().slice(0, 12000);
 }
 
+// Víkendový útlum (pátek 17:30 → neděle 16:00 ET, stejně jako api/app/weekend.py): worker na Sparku stojí.
+function weekendQuiet(d = new Date()): boolean {
+  const p = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(d);
+  const g = (t: string) => p.find((x) => x.type === t)?.value ?? "";
+  const hm = (parseInt(g("hour")) % 24) * 100 + parseInt(g("minute"));
+  const wd = g("weekday");
+  return (wd === "Fri" && hm >= 1730) || wd === "Sat" || (wd === "Sun" && hm < 1600);
+}
+
 const POLL_MS = 1500;
 const GIVE_UP_MS = 120_000;
 const PAGE_HINT: Record<string, string> = {
@@ -47,6 +56,7 @@ export function HelpChat() {
   const [busy, setBusy] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const page = pathname.split("/")[1] || "dashboard";
+  const weekend = open && weekendQuiet();
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs, busy]);
 
@@ -100,7 +110,10 @@ export function HelpChat() {
             {!user && (
               <p className="text-gray-400">Pomocník je pro přihlášené uživatele. <a href="/prihlaseni" className="text-blue-400 underline">Přihlas se</a>.</p>
             )}
-            {user && msgs.length === 0 && (
+            {user && weekend && (
+              <p className="text-xs text-yellow-400">Pomocník má o víkendu pauzu — trhy jsou zavřené a AI server šetří provoz. Vrátí se v neděli večer (kolem 21–22 h našeho času). Mezitím mrkni do <a href="/legenda" className="underline">Legendy</a>.</p>
+            )}
+            {user && !weekend && msgs.length === 0 && (
               <div className="text-gray-400">
                 <p>Zeptej se, co znamená cokoli na téhle stránce.</p>
                 {PAGE_HINT[page] && (
@@ -125,7 +138,7 @@ export function HelpChat() {
             <div ref={endRef} />
           </div>
 
-          {user && (
+          {user && !weekend && (
             <form onSubmit={(e) => { e.preventDefault(); send(input); }} className="flex gap-2 border-t border-[#2a2d3a] p-3">
               <input
                 value={input}

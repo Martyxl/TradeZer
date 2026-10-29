@@ -28,6 +28,7 @@ from app.help.pages import OVERVIEW, page_description, page_key
 from app.models.help_chat import HelpChatMessage
 from app.models.user import User
 from app.routers.admin import _verify_token
+from app.weekend import WEEKEND_MSG, is_weekend_quiet
 from app.routers.auth import current_user
 
 router = APIRouter(prefix="/api/help", tags=["help"])
@@ -126,6 +127,8 @@ def _clean_page(page: str) -> str:
 @router.post("/ask")
 async def ask(payload: dict = Body(...), user: User = Depends(current_user),
               session: AsyncSession = Depends(get_session)):
+    if is_weekend_quiet():   # worker na Sparku o víkendu stojí (Neon smí usnout)
+        raise HTTPException(status_code=503, detail=WEEKEND_MSG)
     q = (payload.get("question") or "").strip()
     if len(q) < 2:
         raise HTTPException(status_code=422, detail="Napiš otázku.")

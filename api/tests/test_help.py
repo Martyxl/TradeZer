@@ -190,3 +190,18 @@ def test_worker_rejects_tool_calls_and_foreign_roles(monkeypatch):
 def test_context_arrows_become_words():
     from app.routers.help import _clean_context
     assert _clean_context("↑ 10% → 33% ↓ 57%") == "nahoru 10% do strany 33% dolů 57%"
+
+
+@pytest.fixture(autouse=True)
+def _no_weekend_pause(monkeypatch):
+    # Testy nesmí záviset na dni v týdnu (o víkendu má pomocník pauzu).
+    monkeypatch.setattr(help_router, "is_weekend_quiet", lambda: False)
+
+
+@pytest.mark.asyncio
+async def test_ask_weekend_pause(monkeypatch):
+    monkeypatch.setattr(help_router, "is_weekend_quiet", lambda: True)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as c:
+        h = await auth_headers(c, "w@x.cz")
+        r = await c.post("/api/help/ask", json={"page": "/", "question": "co je bias?"}, headers=h)
+    assert r.status_code == 503 and "víkendu" in r.json()["detail"]
