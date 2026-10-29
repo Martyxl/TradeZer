@@ -68,7 +68,7 @@ async def bias_outlook(
     t = await _get_ticker(session, ticker)
     tday = bias_service._trading_day(datetime.utcnow())
 
-    outlook = await build_outlook(t.symbol)
+    outlook = await build_outlook(t.symbol, session)
     # Úspěšnost scénářů (1h reakce) — přiřaď každému scénáři dle jeho kategorie.
     stats = await compute_scenario_stats(session, t.symbol, days=90)
     for s in outlook["scenarios"]:

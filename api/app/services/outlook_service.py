@@ -148,13 +148,57 @@ def _today_events(events: list[dict], today_iso: str) -> list[dict]:
     return todays
 
 
-async def build_outlook(ticker_symbol: str) -> dict:
-    """Sestaví deterministickou část výhledu (eventy + scénáře) pro instrument."""
+async def released_candidates(session, ev_dt: datetime) -> list:
+    """Vydání z investingLive kolem času události (titulky s „actual vs expected“)."""
+    from datetime import timedelta
+    from sqlalchemy import select
+    from app.models import NewsItem, NewsSource
+    from app.services.release_parser import parse_release
+    lo = (ev_dt - timedelta(minutes=2)).replace(tzinfo=None)
+    hi = (ev_dt + timedelta(minutes=20)).replace(tzinfo=None)
+    titles = (await session.execute(
+        select(NewsItem.title).join(NewsSource, NewsSource.id == NewsItem.source_id)
+        .where(NewsSource.name == "rss_investinglive", NewsItem.published_at >= lo,
+               NewsItem.published_at <= hi))).scalars().all()
+    return [(t, r) for t in titles if (r := parse_release(t or "")) is not None]
+
+
+async def fill_actuals(session, events: list[dict], now: datetime | None = None) -> None:
+    """Doplní `actual` u už vydaných eventů (mirror ForexFactory ho nedává) z investingLive titulků.
+    Na místě nastaví e['actual'] a e['actual_source']; u vydaných bez nalezené hodnoty e['released']=True."""
+    from app.services.release_parser import format_actual, match_release
+    now = now or datetime.now(timezone.utc)
+    for e in events:
+        try:
+            ev_dt = datetime.fromisoformat((e.get("time_utc") or "").replace("Z", "+00:00"))
+        except ValueError:
+            continue
+        e["released"] = ev_dt <= now
+        if not e["released"]:
+            continue
+        if (e.get("actual") or "").strip():
+            e.setdefault("actual_source", "calendar")
+            continue
+        rel = match_release(e.get("title", ""), (e.get("currency") or "").upper(),
+                            await released_candidates(session, ev_dt))
+        if rel is not None:
+            e["actual"] = format_actual(rel, e.get("forecast"))
+            e["actual_source"] = "investingLive"
+
+
+async def build_outlook(ticker_symbol: str, session=None) -> dict:
+    """Sestaví deterministickou část výhledu (eventy + scénáře) pro instrument. Se `session` doplní
+    skutečné hodnoty už vydaných eventů a označí, který scénář nastal."""
     now = datetime.now(timezone.utc)
     today_iso = now.date().isoformat()
     # Široké okno: ~13h zpět (ranní eventy) + ~15h vpřed, pak filtr na dnešní datum.
     raw = await get_upcoming_events(window_before_min=900, window_after_min=780)
     events = _today_events(raw, today_iso)
+    if session is not None:
+        try:
+            await fill_actuals(session, events, now)
+        except Exception as ex:  # noqa: BLE001 — výhled musí jít zobrazit i bez skutečných hodnot
+            log.warning("Outlook actuals failed", error=str(ex)[:200])
 
     scenarios = []
     for e in events:
@@ -171,7 +215,8 @@ async def build_outlook(ticker_symbol: str) -> dict:
         scenarios.append({
             "title": e.get("title"), "time_utc": e.get("time_utc"), "impact": e.get("impact"),
             "forecast": e.get("forecast"), "previous": e.get("previous"), "actual": e.get("actual"),
-            "category": cat, "realized": realized, **sc,
+            "category": cat, "realized": realized, "released": bool(e.get("released")),
+            "actual_source": e.get("actual_source"), **sc,
         })
     return {"ticker": ticker_symbol, "date": today_iso, "events": events, "scenarios": scenarios}
 
@@ -270,20 +315,10 @@ async def evaluate_outlook(session) -> dict:
     from datetime import datetime, timezone, timedelta
     from sqlalchemy import select
     from app.config import settings
-    from app.models import Ticker, OutlookEval, NewsItem, NewsSource
-    from app.services.release_parser import format_actual, match_release, parse_release
+    from app.models import Ticker, OutlookEval
+    from app.services.release_parser import format_actual, match_release
     from app.sources.fred_adapter import get_event_actual
     from app.sources.yahoo_finance_adapter import YahooFinanceAdapter, _close_before
-
-    async def _released_candidates(ev_dt):
-        """Vydání z investingLive kolem času události (titulky s „actual vs expected“)."""
-        lo = (ev_dt - timedelta(minutes=2)).replace(tzinfo=None)
-        hi = (ev_dt + timedelta(minutes=20)).replace(tzinfo=None)
-        titles = (await session.execute(
-            select(NewsItem.title).join(NewsSource, NewsSource.id == NewsItem.source_id)
-            .where(NewsSource.name == "rss_investinglive", NewsItem.published_at >= lo,
-                   NewsItem.published_at <= hi))).scalars().all()
-        return [(t, r) for t in titles if (r := parse_release(t or "")) is not None]
 
     now = datetime.now(timezone.utc)
     raw = await get_upcoming_events(window_before_min=60, window_after_min=1440)  # posledních ~24h
@@ -309,7 +344,7 @@ async def evaluate_outlook(session) -> dict:
         if not actual:
             # Mirror ForexFactory `actual` nedává → přesná čísla z investingLive (vydání do pár minut).
             rel = match_release(e.get("title", ""), (e.get("currency") or "").upper(),
-                                await _released_candidates(ev_dt))
+                                await released_candidates(session, ev_dt))
             if rel is not None:
                 actual = format_actual(rel, e.get("forecast"))
         if not actual and settings.fred_api_key:       # ani investingLive → zkus FRED (zdarma)
