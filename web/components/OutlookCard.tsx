@@ -53,6 +53,9 @@ const BUCKET_COLOR = { hot: "#fb923c", inline: "#eab308", cool: "#60a5fa" } as c
 const DIR_WORD = { up: "nahoru", down: "dolů", flat: "bez výrazného směru" } as const;
 const DIR_COLOR = { up: "#4ade80", down: "#f87171", flat: "#eab308" } as const;
 
+/** Vyšlo před víc než hodinou a hodnotu pořád nemáme — zdroj ji zřejmě samostatně nezveřejnil. */
+const staleRelease = (s: Scenario) => !s.actual && Date.now() - new Date(s.time_utc).getTime() > 3_600_000;
+
 /** Stav eventu: čeká / vyšlo (+ hodnota) / vyšlo, ale čísla ještě nemáme. */
 function StatusTag({ s }: { s: Scenario }) {
   if (s.realized) {
@@ -64,7 +67,7 @@ function StatusTag({ s }: { s: Scenario }) {
     );
   }
   if (s.released) {
-    return <span className="rounded bg-gray-800 px-1.5 py-0.5 text-[10px] text-gray-300">vyšlo · čekám na čísla</span>;
+    return <span className="rounded bg-gray-800 px-1.5 py-0.5 text-[10px] text-gray-300">vyšlo · {staleRelease(s) ? "číslo nemáme" : "čekám na čísla"}</span>;
   }
   return (
     <span className="inline-flex items-center gap-1 rounded bg-[#1e2536] px-1.5 py-0.5 text-[10px] text-blue-300">
@@ -96,7 +99,7 @@ export function OutlookCard({ ticker }: { ticker: string }) {
   useEffect(() => { load(false); }, [load]);
 
   // Dokud má dnešek nevyhodnocené eventy, obnovuj každé 2 min — skutečná čísla dorazí pár minut po vydání.
-  const pending = !!d?.scenarios.some((s) => !s.realized);
+  const pending = !!d?.scenarios.some((s) => !s.realized && !staleRelease(s));
   useEffect(() => {
     if (!pending) return;
     const id = setInterval(() => { if (document.visibilityState === "visible") load(true); }, 120_000);
@@ -153,7 +156,11 @@ export function OutlookCard({ ticker }: { ticker: string }) {
                           </div>
                         </>
                       ) : (
-                        <span className="text-gray-400">— vyšlo, skutečné číslo zatím nemáme (doplní se během pár minut)</span>
+                        <span className="text-gray-400">
+                          {staleRelease(s)
+                            ? "— vyšlo, ale skutečné číslo náš zdroj samostatně nezveřejnil"
+                            : "— vyšlo, skutečné číslo zatím nemáme (doplní se během pár minut)"}
+                        </span>
                       )}
                     </li>
                   );
