@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import get_session
 from app.llm.client import llm_client
 from app.models import User
-from app.models.journal import JournalEntry, JournalAnalysisJob
+from app.models.journal import JournalEntry, JournalAnalysisJob, JournalStrategy, JournalTag
 from app.routers.admin import _verify_token
 from app.routers.auth import current_user
 
@@ -30,6 +30,18 @@ router = APIRouter(prefix="/api/journal", tags=["journal"])
 DIRECTIONS = {"long", "short"}
 SESSIONS = {"asia", "london", "ny", "other"}
 OUTCOMES = {"win", "loss", "be"}
+TAG_KINDS = ("setup", "timeframe", "mistake")
+
+# Výchozí tagy, které se založí každému uživateli při prvním otevření deníku.
+DEFAULT_TAGS: dict[str, list[str]] = {
+    "setup": ["FVG", "iFVG", "OB", "Fibo OTE", "Liquidity"],
+    "timeframe": ["M1", "M5", "M15", "H1", "H4", "D1"],
+    "mistake": [
+        "Nepočkal jsem na likviditu", "Vstup před OTE (FOMO)", "Bez potvrzení (MSS)",
+        "Proti HTF trendu", "Posunutý / žádný SL", "Moc velká pozice",
+        "Obchod během zpráv", "Revenge trade", "Předčasný výstup",
+    ],
+}
 
 
 def _out(e: JournalEntry) -> dict:
@@ -50,6 +62,10 @@ def _out(e: JournalEntry) -> dict:
         "setup": e.setup,
         "notes": e.notes,
         "screenshot_url": e.screenshot_url,
+        "strategy_id": e.strategy_id,
+        "tag_ids": e.tag_ids or [],
+        "mistake_ids": e.mistake_ids or [],
+        "loss_reason": e.loss_reason,
         "created_at": e.created_at.isoformat() if e.created_at else None,
     }
 
@@ -102,7 +118,37 @@ def _apply(e: JournalEntry, p: dict) -> None:
         e.outcome = o if o in OUTCOMES else None
     if "traded_at" in p:
         e.traded_at = _parse_dt(p.get("traded_at"))
+    if "loss_reason" in p:
+        e.loss_reason = (str(p.get("loss_reason") or "").strip()[:2000] or None)
     _fill_result(e)
+
+
+def _id_list(v) -> list[int]:
+    out: list[int] = []
+    for x in v if isinstance(v, list) else []:
+        try:
+            i = int(x)
+        except (ValueError, TypeError):
+            continue
+        if i not in out:
+            out.append(i)
+    return out[:30]
+
+
+async def _apply_context(e: JournalEntry, p: dict, user: User, session: AsyncSession) -> None:
+    """Strategie/tagy/chyby — jen vlastní (cizí id tiše zahodí) a správného druhu."""
+    if not any(k in p for k in ("strategy_id", "tag_ids", "mistake_ids")):
+        return
+    kinds = dict((await session.execute(
+        select(JournalTag.id, JournalTag.kind).where(JournalTag.user_id == user.id))).all())
+    if "tag_ids" in p:
+        e.tag_ids = [i for i in _id_list(p.get("tag_ids")) if kinds.get(i) in ("setup", "timeframe")] or None
+    if "mistake_ids" in p:
+        e.mistake_ids = [i for i in _id_list(p.get("mistake_ids")) if kinds.get(i) == "mistake"] or None
+    if "strategy_id" in p:
+        sid = _id_list([p.get("strategy_id")])
+        st = await session.get(JournalStrategy, sid[0]) if sid else None
+        e.strategy_id = st.id if st is not None and st.user_id == user.id else None
 
 
 def _fill_result(e: JournalEntry) -> None:
@@ -141,6 +187,7 @@ async def create_entry(payload: dict, user: User = Depends(current_user),
         raise HTTPException(status_code=400, detail="Instrument je povinný")
     e = JournalEntry(user_id=user.id, instrument="?", direction="long")
     _apply(e, payload)
+    await _apply_context(e, payload, user, session)
     session.add(e)
     await session.commit()
     await session.refresh(e)
@@ -188,6 +235,7 @@ async def update_entry(entry_id: int, payload: dict, user: User = Depends(curren
                        session: AsyncSession = Depends(get_session)):
     e = await _owned(entry_id, user, session)
     _apply(e, payload)
+    await _apply_context(e, payload, user, session)
     await session.commit()
     await session.refresh(e)
     return {"entry": _out(e)}
@@ -251,6 +299,36 @@ async def journal_stats(user: User = Depends(current_user),
     rs = [e.r_result for e in entries if e.r_result is not None]
     pnls = [e.pnl for e in entries if e.pnl is not None]
 
+    tags = {t.id: t for t in (await session.execute(
+        select(JournalTag).where(JournalTag.user_id == user.id))).scalars().all()}
+    strategies = {st.id: st.name for st in (await session.execute(
+        select(JournalStrategy).where(JournalStrategy.user_id == user.id))).scalars().all()}
+
+    def tag_names(e: JournalEntry, kind: str) -> list[str]:
+        ids = e.mistake_ids if kind == "mistake" else e.tag_ids
+        return [tags[i].name for i in ids or [] if i in tags and tags[i].kind == kind]
+
+    def combo(e: JournalEntry) -> str | None:
+        # Podmínky obchodu = setup tagy + timeframe — „za jakých podmínek se mi daří“
+        parts = sorted(tag_names(e, "setup")) + sorted(tag_names(e, "timeframe"))
+        return " + ".join(parts) if len(parts) >= 2 else None
+
+    by_combo = [b for b in _bucket_stats(entries, combo) if b["n"] >= 2]
+    by_combo.sort(key=lambda b: (b["avg_r"] if b["avg_r"] is not None else -99, b["n"]), reverse=True)
+
+    # Chyby: kolikrát se objevily a kolik R stály (záporné R obchodů, u kterých je chyba zapsaná)
+    mistakes: dict[str, dict] = {}
+    for e in entries:
+        for name in tag_names(e, "mistake"):
+            m = mistakes.setdefault(name, {"key": name, "n": 0, "r_lost": 0.0})
+            m["n"] += 1
+            if e.r_result is not None and e.r_result < 0:
+                m["r_lost"] += e.r_result
+    by_mistake = sorted(({**m, "r_lost": round(m["r_lost"], 2)} for m in mistakes.values()),
+                        key=lambda m: (m["n"], -m["r_lost"]), reverse=True)
+    losses_list = [e for e in entries if _outcome(e) == "loss"]
+    explained = sum(1 for e in losses_list if e.mistake_ids or e.loss_reason)
+
     return {
         "totals": {
             "trades": total,
@@ -268,7 +346,175 @@ async def journal_stats(user: User = Depends(current_user),
         "by_setup": _bucket_stats(entries, lambda e: e.setup),
         "by_session": _bucket_stats(entries, lambda e: e.session),
         "by_instrument": _bucket_stats(entries, lambda e: e.instrument),
+        "by_strategy": _bucket_stats(entries, lambda e: strategies.get(e.strategy_id)),
+        "by_tag": _multi_bucket(entries, lambda e: tag_names(e, "setup")),
+        "by_timeframe": _multi_bucket(entries, lambda e: tag_names(e, "timeframe")),
+        "by_combo": by_combo[:15],
+        "by_mistake": by_mistake,
+        "losses": {"total": len(losses_list), "explained": explained},
     }
+
+
+def _multi_bucket(entries: list[JournalEntry], keys) -> list[dict]:
+    """Jako _bucket_stats, ale obchod s více tagy se započte do každého svého tagu."""
+    by: dict[str, list[JournalEntry]] = {}
+    for e in entries:
+        for k in keys(e):
+            by.setdefault(k, []).append(e)
+    out = [{**_bucket_stats(items, lambda _e: "x")[0], "key": k} for k, items in by.items()]
+    out.sort(key=lambda x: x["n"], reverse=True)
+    return out
+
+
+# ---------------------------------------------------------------- tagy a strategie
+
+async def _ensure_default_tags(user: User, session: AsyncSession) -> None:
+    has = await session.scalar(select(JournalTag.id).where(JournalTag.user_id == user.id).limit(1))
+    if has is not None:
+        return
+    for kind, names in DEFAULT_TAGS.items():
+        for i, name in enumerate(names):
+            session.add(JournalTag(user_id=user.id, kind=kind, name=name, sort_order=i))
+    await session.commit()
+
+
+def _tag_out(t: JournalTag) -> dict:
+    return {"id": t.id, "kind": t.kind, "name": t.name}
+
+
+def _strategy_out(st: JournalStrategy) -> dict:
+    return {"id": st.id, "name": st.name, "description": st.description, "tag_ids": st.tag_ids or []}
+
+
+@router.get("/tags")
+async def list_tags(user: User = Depends(current_user), session: AsyncSession = Depends(get_session)):
+    """Tagy (setup / timeframe / mistake) a strategie uživatele. Při prvním volání založí výchozí sadu."""
+    await _ensure_default_tags(user, session)
+    tags = (await session.execute(select(JournalTag).where(JournalTag.user_id == user.id)
+                                  .order_by(JournalTag.kind, JournalTag.sort_order, JournalTag.id))).scalars().all()
+    strategies = (await session.execute(select(JournalStrategy).where(JournalStrategy.user_id == user.id)
+                                        .order_by(JournalStrategy.name))).scalars().all()
+    return {"tags": [_tag_out(t) for t in tags], "strategies": [_strategy_out(x) for x in strategies]}
+
+
+def _clean_name(v, max_len: int, what: str) -> str:
+    name = re.sub(r"\s+", " ", str(v or "")).strip()[:max_len]
+    if not name:
+        raise HTTPException(status_code=422, detail=f"Zadej název {what}.")
+    return name
+
+
+async def _owned_tag(tag_id: int, user: User, session: AsyncSession) -> JournalTag:
+    t = await session.get(JournalTag, tag_id)
+    if t is None or t.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Tag nenalezen")
+    return t
+
+
+async def _check_tag_unique(user: User, kind: str, name: str, session: AsyncSession,
+                            skip_id: int | None = None) -> int:
+    rows = (await session.execute(select(JournalTag).where(
+        JournalTag.user_id == user.id, JournalTag.kind == kind))).scalars().all()
+    if any(t.name.lower() == name.lower() and t.id != skip_id for t in rows):
+        raise HTTPException(status_code=409, detail=f"Tag „{name}“ už máš.")
+    return len(rows)
+
+
+@router.post("/tags")
+async def create_tag(payload: dict, user: User = Depends(current_user),
+                     session: AsyncSession = Depends(get_session)):
+    kind = str(payload.get("kind") or "setup")
+    if kind not in TAG_KINDS:
+        raise HTTPException(status_code=422, detail="Neznámý druh tagu.")
+    name = _clean_name(payload.get("name"), 40, "tagu")
+    n = await _check_tag_unique(user, kind, name, session)
+    if n >= 60:
+        raise HTTPException(status_code=422, detail="Max 60 tagů jednoho druhu.")
+    t = JournalTag(user_id=user.id, kind=kind, name=name, sort_order=n)
+    session.add(t)
+    await session.commit()
+    await session.refresh(t)
+    return {"tag": _tag_out(t)}
+
+
+@router.patch("/tags/{tag_id}")
+async def rename_tag(tag_id: int, payload: dict, user: User = Depends(current_user),
+                     session: AsyncSession = Depends(get_session)):
+    t = await _owned_tag(tag_id, user, session)
+    name = _clean_name(payload.get("name"), 40, "tagu")
+    await _check_tag_unique(user, t.kind, name, session, skip_id=t.id)
+    t.name = name
+    await session.commit()
+    return {"tag": _tag_out(t)}
+
+
+@router.delete("/tags/{tag_id}")
+async def delete_tag(tag_id: int, user: User = Depends(current_user),
+                     session: AsyncSession = Depends(get_session)):
+    """Smaže tag a odebere ho ze všech obchodů a strategií uživatele (obchody samotné zůstanou)."""
+    t = await _owned_tag(tag_id, user, session)
+    for e in (await session.execute(select(JournalEntry).where(JournalEntry.user_id == user.id))).scalars():
+        if tag_id in (e.tag_ids or []):
+            e.tag_ids = [i for i in e.tag_ids if i != tag_id] or None
+        if tag_id in (e.mistake_ids or []):
+            e.mistake_ids = [i for i in e.mistake_ids if i != tag_id] or None
+    for st in (await session.execute(select(JournalStrategy).where(JournalStrategy.user_id == user.id))).scalars():
+        if tag_id in (st.tag_ids or []):
+            st.tag_ids = [i for i in st.tag_ids if i != tag_id] or None
+    await session.delete(t)
+    await session.commit()
+    return {"status": "ok"}
+
+
+async def _apply_strategy(st: JournalStrategy, p: dict, user: User, session: AsyncSession) -> None:
+    if "name" in p:
+        st.name = _clean_name(p.get("name"), 60, "strategie")
+    if "description" in p:
+        st.description = str(p.get("description") or "").strip()[:2000] or None
+    if "tag_ids" in p:
+        own = set((await session.execute(select(JournalTag.id).where(
+            JournalTag.user_id == user.id, JournalTag.kind.in_(("setup", "timeframe"))))).scalars())
+        st.tag_ids = [i for i in _id_list(p.get("tag_ids")) if i in own] or None
+
+
+@router.post("/strategies")
+async def create_strategy(payload: dict, user: User = Depends(current_user),
+                          session: AsyncSession = Depends(get_session)):
+    st = JournalStrategy(user_id=user.id, name="?")
+    await _apply_strategy(st, {"name": payload.get("name"), **payload}, user, session)
+    session.add(st)
+    await session.commit()
+    await session.refresh(st)
+    return {"strategy": _strategy_out(st)}
+
+
+async def _owned_strategy(sid: int, user: User, session: AsyncSession) -> JournalStrategy:
+    st = await session.get(JournalStrategy, sid)
+    if st is None or st.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Strategie nenalezena")
+    return st
+
+
+@router.patch("/strategies/{sid}")
+async def update_strategy(sid: int, payload: dict, user: User = Depends(current_user),
+                          session: AsyncSession = Depends(get_session)):
+    st = await _owned_strategy(sid, user, session)
+    await _apply_strategy(st, payload, user, session)
+    await session.commit()
+    return {"strategy": _strategy_out(st)}
+
+
+@router.delete("/strategies/{sid}")
+async def delete_strategy(sid: int, user: User = Depends(current_user),
+                          session: AsyncSession = Depends(get_session)):
+    """Smaže strategii; obchody zůstanou (bez strategie, jejich tagy se nemění)."""
+    st = await _owned_strategy(sid, user, session)
+    for e in (await session.execute(select(JournalEntry).where(
+            JournalEntry.user_id == user.id, JournalEntry.strategy_id == sid))).scalars():
+        e.strategy_id = None
+    await session.delete(st)
+    await session.commit()
+    return {"status": "ok"}
 
 
 # ---------------------------------------------------------------- AI vision analýza (TradingView)

@@ -23,7 +23,7 @@ from app.models.fund import FundState, FundPosition, FundTrade, FundSnapshot
 from app.models.bias import DailyBias
 from app.models.outlook import DailyOutlook, OutlookEval
 from app.models.user import User
-from app.models.journal import JournalEntry, JournalAnalysisJob
+from app.models.journal import JournalEntry, JournalAnalysisJob, JournalTag, JournalStrategy
 from app.models.investment import InvestmentTx, InvestmentQuote, InvestmentPriceDaily
 # Registrace valuation tabulek do Base.metadata (create_all je najde)
 from app.valuation import models as _valuation_models  # noqa: F401
@@ -48,6 +48,8 @@ __all__ = [
     "User",
     "JournalEntry",
     "JournalAnalysisJob",
+    "JournalTag",
+    "JournalStrategy",
     "InvestmentTx",
     "InvestmentQuote",
     "InvestmentPriceDaily",

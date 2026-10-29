@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { NotebookPen, Plus, Pencil, Trash2, X, ExternalLink, TrendingUp, Sparkles, Upload } from "lucide-react";
+import { NotebookPen, Plus, Pencil, Trash2, X, ExternalLink, TrendingUp, Sparkles, Upload, Tags, AlertTriangle } from "lucide-react";
 import { authToken, useAuth } from "@/lib/auth";
 import Link from "next/link";
 
@@ -24,9 +24,18 @@ interface Entry {
   setup: string | null;
   notes: string | null;
   screenshot_url: string | null;
+  strategy_id: number | null;
+  tag_ids: number[];
+  mistake_ids: number[];
+  loss_reason: string | null;
   created_at: string | null;
 }
+type TagKind = "setup" | "timeframe" | "mistake";
+interface Tag { id: number; kind: TagKind; name: string }
+interface Strategy { id: number; name: string; description: string | null; tag_ids: number[] }
+interface TagData { tags: Tag[]; strategies: Strategy[] }
 interface Bucket { key: string; n: number; win_rate: number | null; avg_r: number | null }
+interface MistakeBucket { key: string; n: number; r_lost: number }
 interface Stats {
   totals: {
     trades: number; decided: number; wins: number; losses: number; breakeven: number;
@@ -36,6 +45,12 @@ interface Stats {
   by_setup: Bucket[];
   by_session: Bucket[];
   by_instrument: Bucket[];
+  by_strategy: Bucket[];
+  by_tag: Bucket[];
+  by_timeframe: Bucket[];
+  by_combo: Bucket[];
+  by_mistake: MistakeBucket[];
+  losses: { total: number; explained: number };
 }
 interface AnalysisMeta {
   engine?: string; model?: string; ms?: number;
@@ -140,6 +155,54 @@ function BucketTable({ title, rows, nameMap }: { title: string; rows: Bucket[]; 
   );
 }
 
+function MistakeTable({ rows, losses }: { rows: MistakeBucket[]; losses: { total: number; explained: number } }) {
+  if (!losses.total) return null;
+  return (
+    <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-4">
+      <h3 className="text-sm font-semibold text-white mb-1 flex items-center gap-1.5">
+        <AlertTriangle size={14} className="text-orange-400" /> Proč obchody nevycházejí
+      </h3>
+      <p className="text-[11px] text-gray-500 mb-3">
+        Důvod máš vyplněný u {losses.explained} z {losses.total} ztrát
+        {losses.explained < losses.total ? " — doplň ho u zbytku, ať je přehled úplný." : "."}
+      </p>
+      {rows.length > 0 ? (
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="text-gray-500 text-[10px] uppercase">
+              <th className="text-left pb-2">Chyba</th>
+              <th className="text-right pb-2">Kolikrát</th>
+              <th className="text-right pb-2">Stálo tě</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((m) => (
+              <tr key={m.key} className="border-t border-[#232735]">
+                <td className="py-1.5 text-gray-200">{m.key}</td>
+                <td className="text-right text-gray-400">{m.n}×</td>
+                <td className="text-right font-medium" style={{ color: rColor(m.r_lost) }}>{m.r_lost ? `${m.r_lost}R` : "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : <p className="text-xs text-gray-500">Zatím žádné označené chyby.</p>}
+    </div>
+  );
+}
+
+function Chip({ on, label, onClick, tone = "blue" }: { on: boolean; label: string; onClick: () => void; tone?: "blue" | "orange" }) {
+  const onCls = tone === "orange" ? "bg-orange-950/50 text-orange-300 border-orange-800" : "bg-blue-950/50 text-blue-300 border-blue-800";
+  return (
+    <button type="button" onClick={onClick}
+      className={`rounded-full px-2.5 py-1 text-xs border transition-colors ${on ? onCls : "bg-[#0f1117] text-gray-400 border-[#2a2d3a] hover:text-white"}`}>
+      {label}
+    </button>
+  );
+}
+
+const KIND_LABEL: Record<TagKind, string> = { setup: "Setup", timeframe: "Timeframe", mistake: "Chyby (důvod ztráty)" };
+const toggle = (arr: number[], id: number) => (arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id]);
+
 /* -------------------------------------------------------------- formulář */
 
 const EMPTY = {
@@ -164,10 +227,22 @@ function resultFromLevels(f: FormState, outcome: string): { exit_price: string; 
   return { exit_price: f.exit_price, r_result: f.r_result };
 }
 
-function EntryForm({ initial, draft, meta, onClose, onSaved }: {
+function EntryForm({ initial, draft, meta, tagData, onClose, onSaved, onManageTags }: {
   initial: Entry | null; draft?: Partial<FormState> | null; meta?: AnalysisMeta | null;
-  onClose: () => void; onSaved: () => void;
+  tagData: TagData; onClose: () => void; onSaved: () => void; onManageTags: () => void;
 }) {
+  const [strategyId, setStrategyId] = useState<number | null>(initial?.strategy_id ?? null);
+  const [tagIds, setTagIds] = useState<number[]>(initial?.tag_ids ?? []);
+  const [mistakeIds, setMistakeIds] = useState<number[]>(initial?.mistake_ids ?? []);
+  const [lossReason, setLossReason] = useState(initial?.loss_reason ?? "");
+  // Výběr strategie předvyplní její tagy (přidá k už zaškrtnutým; jednotlivé jde pak odškrtnout)
+  const pickStrategy = (v: string) => {
+    const id = v ? Number(v) : null;
+    setStrategyId(id);
+    const st = tagData.strategies.find((x) => x.id === id);
+    if (st) setTagIds((cur) => [...cur, ...st.tag_ids.filter((t) => !cur.includes(t))]);
+  };
+  const tagsOf = (k: TagKind) => tagData.tags.filter((t) => t.kind === k);
   const [f, setF] = useState<FormState>(() => initial ? {
     instrument: initial.instrument ?? "",
     direction: initial.direction ?? "long",
@@ -204,8 +279,13 @@ function EntryForm({ initial, draft, meta, onClose, onSaved }: {
     if (!f.instrument.trim()) { setErr("Instrument je povinný"); return; }
     setSaving(true); setErr(null);
     try {
-      if (initial) await jFetch(`/${initial.id}`, { method: "PATCH", body: f });
-      else await jFetch("", { method: "POST", body: f });
+      const isLoss = f.outcome === "loss" || (f.r_result.trim() !== "" && Number(f.r_result) < 0);
+      const body = {
+        ...f, strategy_id: strategyId, tag_ids: tagIds,
+        mistake_ids: isLoss ? mistakeIds : [], loss_reason: isLoss ? lossReason : "",
+      };
+      if (initial) await jFetch(`/${initial.id}`, { method: "PATCH", body });
+      else await jFetch("", { method: "POST", body });
       onSaved();
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Uložení selhalo");
@@ -317,11 +397,47 @@ function EntryForm({ initial, draft, meta, onClose, onSaved }: {
             </select>
           </div>
 
-          <div className="col-span-2">
-            <label className={lab}>Setup / strategie</label>
-            <input className={field} value={f.setup} placeholder="např. ORB London, NPOC revisit…"
-              onChange={(e) => set("setup", e.target.value)} />
+          <div className="col-span-2 rounded-xl border border-[#2a2d3a] bg-[#0f1117]/60 p-3 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-gray-200">Za jaké situace jsi obchod vzal</span>
+              <button type="button" onClick={onManageTags} className="text-[11px] text-blue-400 hover:text-blue-300 flex items-center gap-1">
+                <Tags size={12} /> Upravit tagy a strategie
+              </button>
+            </div>
+            <div>
+              <label className={lab}>Strategie</label>
+              <select className={field} value={strategyId ?? ""} onChange={(e) => pickStrategy(e.target.value)}>
+                <option value="">— bez strategie (jen tagy) —</option>
+                {tagData.strategies.map((st) => <option key={st.id} value={st.id}>{st.name}</option>)}
+              </select>
+            </div>
+            {(["setup", "timeframe"] as const).map((k) => (
+              <div key={k}>
+                <label className={lab}>{KIND_LABEL[k]}</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {tagsOf(k).map((t) => <Chip key={t.id} on={tagIds.includes(t.id)} label={t.name} onClick={() => setTagIds((c) => toggle(c, t.id))} />)}
+                </div>
+              </div>
+            ))}
+            {(initial?.setup || draft?.setup) && (
+              <div>
+                <label className={lab}>Setup (původní volný popis)</label>
+                <input className={field} value={f.setup} onChange={(e) => set("setup", e.target.value)} />
+              </div>
+            )}
           </div>
+
+          {(f.outcome === "loss" || (f.r_result.trim() !== "" && Number(f.r_result) < 0)) && (
+            <div className="col-span-2 rounded-xl border border-orange-900/50 bg-orange-950/20 p-3 space-y-2">
+              <span className="text-xs font-semibold text-orange-300 flex items-center gap-1.5"><AlertTriangle size={13} /> Proč obchod nevyšel?</span>
+              <div className="flex flex-wrap gap-1.5">
+                {tagsOf("mistake").map((t) => <Chip key={t.id} tone="orange" on={mistakeIds.includes(t.id)} label={t.name} onClick={() => setMistakeIds((c) => toggle(c, t.id))} />)}
+              </div>
+              <textarea className={`${field} min-h-[56px] resize-y`} value={lossReason}
+                placeholder="Vlastními slovy: co jsem udělal jinak než podle plánu… (nebo „obchod byl podle plánu, jen nevyšel“)"
+                onChange={(e) => setLossReason(e.target.value)} />
+            </div>
+          )}
           <div className="col-span-2">
             <label className={lab}>Screenshot (URL)</label>
             <input className={field} value={f.screenshot_url} placeholder="https://…"
@@ -343,6 +459,124 @@ function EntryForm({ initial, draft, meta, onClose, onSaved }: {
             {saving ? "Ukládám…" : initial ? "Uložit změny" : "Přidat obchod"}
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------- správa tagů a strategií */
+
+function TagsModal({ data, onClose, onChanged }: { data: TagData; onClose: () => void; onChanged: () => Promise<void> }) {
+  const [newName, setNewName] = useState<Record<TagKind, string>>({ setup: "", timeframe: "", mistake: "" });
+  const [err, setErr] = useState<string | null>(null);
+  const [st, setSt] = useState<{ id: number | null; name: string; description: string; tag_ids: number[] } | null>(null);
+
+  const run = async (fn: () => Promise<unknown>) => {
+    setErr(null);
+    try { await fn(); await onChanged(); } catch (e) { setErr(e instanceof Error ? e.message : "Akce selhala"); }
+  };
+  const addTag = (k: TagKind) => {
+    const name = newName[k].trim();
+    if (!name) return;
+    run(async () => { await jFetch("/tags", { method: "POST", body: { kind: k, name } }); setNewName((p) => ({ ...p, [k]: "" })); });
+  };
+  const renameTag = (t: Tag) => {
+    const name = prompt("Nový název tagu", t.name);
+    if (name && name.trim() !== t.name) run(() => jFetch(`/tags/${t.id}`, { method: "PATCH", body: { name } }));
+  };
+  const deleteTag = (t: Tag) => {
+    if (confirm(`Smazat tag „${t.name}“? Odebere se ze všech obchodů a strategií.`)) run(() => jFetch(`/tags/${t.id}`, { method: "DELETE" }));
+  };
+  const saveStrategy = () => {
+    if (!st) return;
+    run(async () => {
+      const body = { name: st.name, description: st.description, tag_ids: st.tag_ids };
+      if (st.id) await jFetch(`/strategies/${st.id}`, { method: "PATCH", body });
+      else await jFetch("/strategies", { method: "POST", body });
+      setSt(null);
+    });
+  };
+  const deleteStrategy = (x: Strategy) => {
+    if (confirm(`Smazat strategii „${x.name}“? Obchody zůstanou, jen bez strategie.`)) run(() => jFetch(`/strategies/${x.id}`, { method: "DELETE" }));
+  };
+  const tagName = (id: number) => data.tags.find((t) => t.id === id)?.name;
+  const field = "w-full rounded-lg bg-[#0f1117] border border-[#2a2d3a] px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:border-blue-600 focus:outline-none";
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/70 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
+      <div className="bg-[#12141c] border border-[#2a2d3a] rounded-2xl max-w-2xl w-full p-6 my-8 space-y-6" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold text-white flex items-center gap-2"><Tags size={17} className="text-blue-400" /> Tagy a strategie</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-white"><X size={20} /></button>
+        </div>
+        {err && <p className="text-sm text-red-400">{err}</p>}
+
+        {/* strategie */}
+        <section>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-semibold text-white">Strategie</h3>
+            {!st && (
+              <button onClick={() => setSt({ id: null, name: "", description: "", tag_ids: [] })}
+                className="text-xs text-[#8fffab] flex items-center gap-1"><Plus size={13} /> Nová strategie</button>
+            )}
+          </div>
+          <p className="text-[11px] text-gray-500 mb-3">Strategie je pojmenovaná kombinace tagů (např. „Sweep + iFVG“ = Liquidity, iFVG, M5). U obchodu ji vybereš jedním klikem.</p>
+          {st && (
+            <div className="rounded-xl border border-[#2f3b55] bg-[#0f1117] p-3 space-y-2 mb-3">
+              <input className={field} value={st.name} placeholder="Název strategie" maxLength={60} onChange={(e) => setSt({ ...st, name: e.target.value })} />
+              <textarea className={`${field} min-h-[50px]`} value={st.description} placeholder="Pravidla vstupu (volitelné)…" onChange={(e) => setSt({ ...st, description: e.target.value })} />
+              {(["setup", "timeframe"] as const).map((k) => (
+                <div key={k} className="flex flex-wrap gap-1.5 items-center">
+                  <span className="text-[10px] uppercase tracking-wider text-gray-500 w-20">{KIND_LABEL[k]}</span>
+                  {data.tags.filter((t) => t.kind === k).map((t) => (
+                    <Chip key={t.id} on={st.tag_ids.includes(t.id)} label={t.name} onClick={() => setSt({ ...st, tag_ids: toggle(st.tag_ids, t.id) })} />
+                  ))}
+                </div>
+              ))}
+              <div className="flex justify-end gap-2 pt-1">
+                <button onClick={() => setSt(null)} className="rounded-lg px-3 py-1.5 text-xs text-gray-300 border border-[#2a2d3a]">Zrušit</button>
+                <button onClick={saveStrategy} disabled={!st.name.trim()} className="rounded-lg px-3 py-1.5 text-xs bg-blue-600 text-white disabled:opacity-40">Uložit strategii</button>
+              </div>
+            </div>
+          )}
+          <div className="space-y-1.5">
+            {data.strategies.length === 0 && !st && <p className="text-xs text-gray-500">Zatím žádná strategie.</p>}
+            {data.strategies.map((x) => (
+              <div key={x.id} className="flex items-start justify-between gap-2 rounded-lg border border-[#232735] px-3 py-2">
+                <div className="min-w-0">
+                  <div className="text-sm text-gray-100">{x.name}</div>
+                  <div className="text-[11px] text-gray-500">{x.tag_ids.map(tagName).filter(Boolean).join(" · ") || "bez tagů"}</div>
+                </div>
+                <div className="shrink-0">
+                  <button onClick={() => setSt({ id: x.id, name: x.name, description: x.description ?? "", tag_ids: x.tag_ids })} className="text-gray-500 hover:text-blue-400 p-1" title="Upravit"><Pencil size={13} /></button>
+                  <button onClick={() => deleteStrategy(x)} className="text-gray-500 hover:text-red-400 p-1" title="Smazat"><Trash2 size={13} /></button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* tagy */}
+        {(["setup", "timeframe", "mistake"] as const).map((k) => (
+          <section key={k}>
+            <h3 className="text-sm font-semibold text-white mb-2">{KIND_LABEL[k]}</h3>
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {data.tags.filter((t) => t.kind === k).map((t) => (
+                <span key={t.id} className="inline-flex items-center gap-1 rounded-full border border-[#2a2d3a] bg-[#0f1117] pl-2.5 pr-1 py-0.5 text-xs text-gray-200">
+                  <button onClick={() => renameTag(t)} title="Přejmenovat" className="hover:text-blue-300">{t.name}</button>
+                  <button onClick={() => deleteTag(t)} title="Smazat" className="text-gray-600 hover:text-red-400"><X size={12} /></button>
+                </span>
+              ))}
+            </div>
+            <form onSubmit={(e) => { e.preventDefault(); addTag(k); }} className="flex gap-2">
+              <input className={`${field} py-1.5`} value={newName[k]} maxLength={40}
+                placeholder={k === "mistake" ? "Nová chyba, např. „Obchodoval jsem unavený“" : k === "timeframe" ? "např. M3" : "např. Breaker, SMT, Judas swing"}
+                onChange={(e) => setNewName((p) => ({ ...p, [k]: e.target.value }))} />
+              <button type="submit" disabled={!newName[k].trim()} className="rounded-lg px-3 text-xs bg-[#1e2536] text-white border border-[#2f3b55] disabled:opacity-40">Přidat</button>
+            </form>
+          </section>
+        ))}
+        <p className="text-[10px] text-gray-600">Kliknutím na tag ho přejmenuješ (u všech obchodů se změní taky).</p>
       </div>
     </div>
   );
@@ -618,15 +852,20 @@ export default function DenikPage() {
   const [importOpen, setImportOpen] = useState(false);
   const [draft, setDraft] = useState<Partial<FormState> | null>(null);
   const [lastMeta, setLastMeta] = useState<AnalysisMeta | null>(null);
+  const [tagData, setTagData] = useState<TagData>({ tags: [], strategies: [] });
+  const [tagsOpen, setTagsOpen] = useState(false);
+  const [filter, setFilter] = useState("");   // "" | "s:<id>" strategie | "t:<id>" tag
 
   // Bez setLoading(true) → refetch (po add/edit/delete/import) aktualizuje data
   // v místě, neblikne skeletonem přes celou stránku. Skeleton jen při 1. načtení
   // (loading init = true). Chyba refreshe nepřepisuje už zobrazená data.
   const reload = useCallback(async () => {
     try {
-      const [list, st] = await Promise.all([jFetch(""), jFetch("/stats")]);
+      const [list, st, tg] = await Promise.all([jFetch(""), jFetch("/stats"), jFetch("/tags")]);
       setEntries((list as { entries: Entry[] }).entries);
-      setStats(st as Stats);
+      // starší backend (při nasazování) nová pole nemá → prázdné výchozí hodnoty
+      setStats({ by_strategy: [], by_tag: [], by_timeframe: [], by_combo: [], by_mistake: [], losses: { total: 0, explained: 0 }, ...(st as Partial<Stats>) } as Stats);
+      setTagData(tg as TagData);
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Načtení selhalo");
@@ -664,6 +903,14 @@ export default function DenikPage() {
     }
   };
 
+  const tagById = useMemo(() => new Map(tagData.tags.map((x) => [x.id, x])), [tagData]);
+  const stratById = useMemo(() => new Map(tagData.strategies.map((x) => [x.id, x])), [tagData]);
+  const shown = useMemo(() => {
+    if (!filter) return entries;
+    const id = Number(filter.slice(2));
+    return entries.filter((e) => filter.startsWith("s:") ? e.strategy_id === id : e.tag_ids.includes(id) || e.mistake_ids.includes(id));
+  }, [entries, filter]);
+
   const t = stats?.totals;
   const pnlLabel = useMemo(() => {
     if (!t) return "";
@@ -698,6 +945,10 @@ export default function DenikPage() {
                 <span className="ml-1 rounded bg-blue-950/60 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-300">Coming soon</span>
               </button>
             )}
+            <button onClick={() => setTagsOpen(true)}
+              className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium bg-[#151823] text-gray-300 border border-[#2a2d3a] hover:text-white transition-colors">
+              <Tags size={15} /> Tagy a strategie
+            </button>
             <button onClick={() => setImportOpen(true)}
               className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium bg-[#151823] text-gray-300 border border-[#2a2d3a] hover:text-white transition-colors">
               <Upload size={15} /> Import CSV
@@ -751,7 +1002,40 @@ export default function DenikPage() {
             </div>
           )}
 
+          {t.trades > 0 && (stats!.by_strategy.length > 0 || stats!.by_tag.length > 0 || stats!.losses.total > 0) && (
+            <div className="space-y-3">
+              <div>
+                <h2 className="text-base font-semibold text-white">Za jakých podmínek se ti daří</h2>
+                <p className="text-xs text-gray-500">Obchod s více tagy se počítá do každého z nich. Kombinace = setup tagy + timeframe, ukazujeme ty s aspoň 2 obchody, seřazené podle Ø R. Na malém vzorku berte výsledky orientačně.</p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                <BucketTable title="Podle strategie" rows={stats!.by_strategy} />
+                <BucketTable title="Podle tagu" rows={stats!.by_tag} />
+                <BucketTable title="Podle timeframe" rows={stats!.by_timeframe} />
+                <BucketTable title="Nejlepší kombinace podmínek" rows={stats!.by_combo} />
+                <MistakeTable rows={stats!.by_mistake} losses={stats!.losses} />
+              </div>
+            </div>
+          )}
+
           {/* seznam obchodů */}
+          {entries.length > 0 && (tagData.strategies.length > 0 || tagData.tags.length > 0) && (
+            <div className="flex items-center gap-2 -mb-4">
+              <select value={filter} onChange={(e) => setFilter(e.target.value)}
+                className="rounded-lg bg-[#151823] border border-[#2a2d3a] px-3 py-1.5 text-xs text-gray-200">
+                <option value="">Všechny obchody</option>
+                {tagData.strategies.length > 0 && (
+                  <optgroup label="Strategie">{tagData.strategies.map((x) => <option key={x.id} value={`s:${x.id}`}>{x.name}</option>)}</optgroup>
+                )}
+                {(["setup", "timeframe", "mistake"] as const).map((k) => (
+                  <optgroup key={k} label={KIND_LABEL[k]}>
+                    {tagData.tags.filter((x) => x.kind === k).map((x) => <option key={x.id} value={`t:${x.id}`}>{x.name}</option>)}
+                  </optgroup>
+                ))}
+              </select>
+              {filter && <span className="text-xs text-gray-500">{shown.length} z {entries.length}</span>}
+            </div>
+          )}
           {entries.length === 0 ? (
             <div className="rounded-xl border border-dashed border-[#2a2d3a] bg-[#12141c] p-10 text-center">
               <TrendingUp size={28} className="mx-auto text-gray-600 mb-3" />
@@ -776,7 +1060,7 @@ export default function DenikPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {entries.map((e) => {
+                    {shown.map((e) => {
                       const oc = outcomeOf(e);
                       return (
                         <tr key={e.id} className="border-t border-[#232735] hover:bg-[#181b26]/50">
@@ -801,7 +1085,20 @@ export default function DenikPage() {
                             )}
                             {e.r_result != null ? `${e.r_result > 0 ? "+" : ""}${e.r_result}R` : e.pnl != null ? `${e.pnl > 0 ? "+" : ""}${e.pnl}` : e.outcome ? "" : "—"}
                           </td>
-                          <td className="px-3 py-2.5 text-gray-300 max-w-[160px] truncate">{e.setup || "—"}</td>
+                          <td className="px-3 py-2.5 text-gray-300 max-w-[220px]">
+                            {e.strategy_id && stratById.get(e.strategy_id) && (
+                              <div className="text-xs font-medium text-gray-100 truncate">{stratById.get(e.strategy_id)!.name}</div>
+                            )}
+                            <div className="flex flex-wrap gap-1 mt-0.5">
+                              {e.tag_ids.map((id) => tagById.get(id)).filter(Boolean).map((tg) => (
+                                <span key={tg!.id} className="rounded bg-blue-950/50 px-1.5 py-0.5 text-[10px] text-blue-300">{tg!.name}</span>
+                              ))}
+                              {e.mistake_ids.map((id) => tagById.get(id)).filter(Boolean).map((tg) => (
+                                <span key={tg!.id} className="rounded bg-orange-950/50 px-1.5 py-0.5 text-[10px] text-orange-300" title="Chyba">{tg!.name}</span>
+                              ))}
+                            </div>
+                            {!e.strategy_id && !e.tag_ids.length && !e.mistake_ids.length && <span className="text-xs">{e.setup || "—"}</span>}
+                          </td>
                           <td className="px-3 py-2.5 text-gray-400">{e.session ? (SESSION_NAME[e.session] || e.session) : "—"}</td>
                           <td className="px-3 py-2.5 text-gray-500 max-w-[180px] truncate" title={e.notes || ""}>
                             {e.screenshot_url && (
@@ -828,7 +1125,8 @@ export default function DenikPage() {
 
       {analyzeOpen && <AnalyzeModal isAdmin={!!user?.is_admin} onClose={() => setAnalyzeOpen(false)} onExtracted={onExtracted} />}
       {importOpen && <ImportModal onClose={() => setImportOpen(false)} onDone={onImported} />}
-      {formOpen && <EntryForm initial={editing} draft={draft} meta={lastMeta} onClose={() => { setFormOpen(false); setEditing(null); setDraft(null); setLastMeta(null); }} onSaved={onSaved} />}
+      {formOpen && <EntryForm initial={editing} draft={draft} meta={lastMeta} tagData={tagData} onManageTags={() => setTagsOpen(true)} onClose={() => { setFormOpen(false); setEditing(null); setDraft(null); setLastMeta(null); }} onSaved={onSaved} />}
+      {tagsOpen && <TagsModal data={tagData} onClose={() => setTagsOpen(false)} onChanged={reload} />}
     </div>
   );
 }

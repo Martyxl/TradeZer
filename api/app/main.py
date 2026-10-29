@@ -80,6 +80,8 @@ _PG_MIGRATIONS: list[tuple[str, str]] = [
      'ALTER TABLE help_chat_messages ADD COLUMN IF NOT EXISTS context TEXT'),
     ('val_instruments coverage_note',
      'ALTER TABLE val_instruments ADD COLUMN IF NOT EXISTS coverage_note VARCHAR(40)'),
+    ('journal_entries tags/strategy',
+     'ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS strategy_id INTEGER REFERENCES journal_strategies(id) ON DELETE SET NULL, ADD COLUMN IF NOT EXISTS tag_ids JSON, ADD COLUMN IF NOT EXISTS mistake_ids JSON, ADD COLUMN IF NOT EXISTS loss_reason TEXT'),
     ('journal_entries SL/TP/outcome',
      'ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS stop_price DOUBLE PRECISION, ADD COLUMN IF NOT EXISTS target_price DOUBLE PRECISION, ADD COLUMN IF NOT EXISTS outcome VARCHAR(10)'),
 ]
