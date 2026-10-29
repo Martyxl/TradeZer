@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { NotebookPen, Plus, Pencil, Trash2, X, ExternalLink, TrendingUp, Sparkles, Upload, Tags, AlertTriangle } from "lucide-react";
+import { NotebookPen, Plus, Pencil, Trash2, X, ExternalLink, TrendingUp, Sparkles, Upload, Tags, AlertTriangle, ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
 import { authToken, useAuth } from "@/lib/auth";
 import Link from "next/link";
 
@@ -202,6 +202,145 @@ function Chip({ on, label, onClick, tone = "blue" }: { on: boolean; label: strin
 
 const KIND_LABEL: Record<TagKind, string> = { setup: "Setup", timeframe: "Timeframe", mistake: "Chyby (důvod ztráty)" };
 const toggle = (arr: number[], id: number) => (arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id]);
+
+/* -------------------------------------------------------------- kalendář */
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+/** Místní den obchodu (YYYY-MM-DD) — podle času, který uživatel zadal. */
+function dayKey(s: string | null): string | null {
+  if (!s) return null;
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return null;
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+interface DayAgg { n: number; wins: number; decided: number; sumR: number | null; sumPnl: number | null }
+function aggregate(items: Entry[]): DayAgg {
+  const a: DayAgg = { n: 0, wins: 0, decided: 0, sumR: null, sumPnl: null };
+  for (const e of items) {
+    a.n++;
+    const o = outcomeOf(e);
+    if (o !== null) { a.decided++; if (o > 0) a.wins++; }
+    if (e.r_result != null) a.sumR = (a.sumR ?? 0) + e.r_result;
+    if (e.pnl != null) a.sumPnl = (a.sumPnl ?? 0) + e.pnl;
+  }
+  return a;
+}
+/** Hlavní číslo dne: součet R; když R chybí, součet P/L. */
+function dayValue(a: DayAgg): { v: number | null; label: string } {
+  const r2 = (x: number) => Math.round(x * 100) / 100;
+  if (a.sumR != null) return { v: a.sumR, label: `${a.sumR > 0 ? "+" : ""}${r2(a.sumR)}R` };
+  if (a.sumPnl != null) return { v: a.sumPnl, label: `${a.sumPnl > 0 ? "+" : ""}${r2(a.sumPnl)}` };
+  if (a.decided) { const net = 2 * a.wins - a.decided; return { v: net, label: `${a.wins}W/${a.decided - a.wins}L` }; }
+  return { v: null, label: "—" };
+}
+function dayStyle(v: number | null): React.CSSProperties {
+  if (v == null || v === 0) return { background: "#1a1d27", borderColor: "#2a2d3a" };
+  return v > 0
+    ? { background: "rgba(34,197,94,0.14)", borderColor: "rgba(34,197,94,0.45)" }
+    : { background: "rgba(239,68,68,0.14)", borderColor: "rgba(239,68,68,0.45)" };
+}
+const WEEKDAYS = ["Po", "Út", "St", "Čt", "Pá", "So", "Ne"];
+
+function JournalCalendar({ entries, selected, onSelect }: {
+  entries: Entry[]; selected: string | null; onSelect: (day: string | null) => void;
+}) {
+  // Výchozí měsíc = měsíc posledního obchodu (jinak aktuální)
+  const [month, setMonth] = useState(() => {
+    const last = entries.map((e) => dayKey(e.traded_at)).filter(Boolean).sort().pop();
+    const d = last ? new Date(`${last}T12:00:00`) : new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1);
+  });
+  const byDay = useMemo(() => {
+    const m = new Map<string, Entry[]>();
+    for (const e of entries) { const k = dayKey(e.traded_at); if (k) m.set(k, [...(m.get(k) || []), e]); }
+    return m;
+  }, [entries]);
+
+  const y = month.getFullYear(), mo = month.getMonth();
+  const first = (new Date(y, mo, 1).getDay() + 6) % 7;        // pondělí = 0
+  const days = new Date(y, mo + 1, 0).getDate();
+  const cells: (number | null)[] = [...Array(first).fill(null), ...Array.from({ length: days }, (_, i) => i + 1)];
+  while (cells.length % 7) cells.push(null);
+  const weeks = Array.from({ length: cells.length / 7 }, (_, i) => cells.slice(i * 7, i * 7 + 7));
+  const key = (d: number) => `${y}-${pad2(mo + 1)}-${pad2(d)}`;
+  const monthItems = Array.from(byDay.entries()).filter(([k]) => k.startsWith(`${y}-${pad2(mo + 1)}`)).flatMap(([, v]) => v);
+  const mAgg = aggregate(monthItems);
+  const mVal = dayValue(mAgg);
+  const tradingDays = new Set(monthItems.map((e) => dayKey(e.traded_at))).size;
+  const greenDays = Array.from(byDay.entries()).filter(([k, v]) => k.startsWith(`${y}-${pad2(mo + 1)}`) && (dayValue(aggregate(v)).v ?? 0) > 0).length;
+  const shift = (n: number) => setMonth(new Date(y, mo + n, 1));
+  const todayKey = dayKey(new Date().toISOString());
+
+  return (
+    <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+        <div className="flex items-center gap-2">
+          <CalendarDays size={16} className="text-blue-400" />
+          <button onClick={() => shift(-1)} className="p-1 text-gray-400 hover:text-white" aria-label="Předchozí měsíc"><ChevronLeft size={16} /></button>
+          <h3 className="text-sm font-semibold text-white w-32 text-center capitalize">
+            {month.toLocaleDateString("cs", { month: "long", year: "numeric" })}
+          </h3>
+          <button onClick={() => shift(1)} className="p-1 text-gray-400 hover:text-white" aria-label="Další měsíc"><ChevronRight size={16} /></button>
+        </div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-400">
+          <span>Měsíc: <b style={{ color: rColor(mVal.v) }}>{mVal.label}</b></span>
+          <span>{mAgg.n} obchodů{mAgg.decided ? ` · win ${Math.round((100 * mAgg.wins) / mAgg.decided)} %` : ""}</span>
+          {tradingDays > 0 && <span>{greenDays}/{tradingDays} dní v plusu</span>}
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <div className="min-w-[560px] grid grid-cols-[repeat(7,minmax(0,1fr))_minmax(0,0.9fr)] gap-1.5">
+          {WEEKDAYS.map((w) => <div key={w} className="text-[10px] uppercase text-gray-500 text-center pb-1">{w}</div>)}
+          <div className="text-[10px] uppercase text-gray-500 text-center pb-1">Týden</div>
+          {weeks.map((wk, wi) => {
+            const wItems = wk.filter((d): d is number => d != null).flatMap((d) => byDay.get(key(d)) || []);
+            const wAgg = aggregate(wItems);
+            const wVal = dayValue(wAgg);
+            return (
+              <div key={wi} className="contents">
+                {wk.map((d, di) => {
+                  if (d == null) return <div key={di} />;
+                  const k = key(d);
+                  const items = byDay.get(k);
+                  const a = items ? aggregate(items) : null;
+                  const val = a ? dayValue(a) : null;
+                  const isSel = selected === k;
+                  return (
+                    <button key={di} type="button" disabled={!items}
+                      onClick={() => onSelect(isSel ? null : k)}
+                      title={a ? `${a.n} obchodů · ${a.wins}W / ${a.decided - a.wins}L` : undefined}
+                      className={`h-[72px] rounded-lg border p-1.5 text-left flex flex-col transition-colors ${items ? "hover:brightness-125 cursor-pointer" : "cursor-default"} ${isSel ? "ring-2 ring-blue-500" : ""}`}
+                      style={a ? dayStyle(val!.v) : { background: "#12141c", borderColor: "#1f2230" }}>
+                      <span className={`text-[10px] ${k === todayKey ? "text-blue-300 font-bold" : "text-gray-500"}`}>{d}</span>
+                      {a && (
+                        <>
+                          <span className="text-sm font-bold mt-auto leading-tight" style={{ color: rColor(val!.v) }}>{val!.label}</span>
+                          <span className="text-[10px] text-gray-400 leading-tight">
+                            {a.n} {a.n === 1 ? "obchod" : a.n < 5 ? "obchody" : "obchodů"}{a.decided ? ` · ${Math.round((100 * a.wins) / a.decided)} %` : ""}
+                          </span>
+                        </>
+                      )}
+                    </button>
+                  );
+                })}
+                <div className="h-[72px] rounded-lg border border-dashed border-[#2a2d3a] p-1.5 flex flex-col justify-end">
+                  {wAgg.n > 0 ? (
+                    <>
+                      <span className="text-sm font-bold leading-tight" style={{ color: rColor(wVal.v) }}>{wVal.label}</span>
+                      <span className="text-[10px] text-gray-500 leading-tight">{wAgg.n} obch.{wAgg.decided ? ` · ${Math.round((100 * wAgg.wins) / wAgg.decided)} %` : ""}</span>
+                    </>
+                  ) : <span className="text-[10px] text-gray-600">—</span>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      <p className="mt-2 text-[10px] text-gray-600">Číslo dne = součet R (bez R součet P/L). Procento = win rate dne. Kliknutím na den zobrazíš jeho obchody níže.</p>
+    </div>
+  );
+}
 
 /* -------------------------------------------------------------- formulář */
 
@@ -855,6 +994,7 @@ export default function DenikPage() {
   const [tagData, setTagData] = useState<TagData>({ tags: [], strategies: [] });
   const [tagsOpen, setTagsOpen] = useState(false);
   const [filter, setFilter] = useState("");   // "" | "s:<id>" strategie | "t:<id>" tag
+  const [day, setDay] = useState<string | null>(null);   // vybraný den v kalendáři (YYYY-MM-DD)
 
   // Bez setLoading(true) → refetch (po add/edit/delete/import) aktualizuje data
   // v místě, neblikne skeletonem přes celou stránku. Skeleton jen při 1. načtení
@@ -906,10 +1046,11 @@ export default function DenikPage() {
   const tagById = useMemo(() => new Map(tagData.tags.map((x) => [x.id, x])), [tagData]);
   const stratById = useMemo(() => new Map(tagData.strategies.map((x) => [x.id, x])), [tagData]);
   const shown = useMemo(() => {
-    if (!filter) return entries;
     const id = Number(filter.slice(2));
-    return entries.filter((e) => filter.startsWith("s:") ? e.strategy_id === id : e.tag_ids.includes(id) || e.mistake_ids.includes(id));
-  }, [entries, filter]);
+    return entries.filter((e) =>
+      (!day || dayKey(e.traded_at) === day) &&
+      (!filter || (filter.startsWith("s:") ? e.strategy_id === id : e.tag_ids.includes(id) || e.mistake_ids.includes(id))));
+  }, [entries, filter, day]);
 
   const t = stats?.totals;
   const pnlLabel = useMemo(() => {
@@ -1018,9 +1159,11 @@ export default function DenikPage() {
             </div>
           )}
 
+          {entries.length > 0 && <JournalCalendar entries={entries} selected={day} onSelect={setDay} />}
+
           {/* seznam obchodů */}
           {entries.length > 0 && (tagData.strategies.length > 0 || tagData.tags.length > 0) && (
-            <div className="flex items-center gap-2 -mb-4">
+            <div className="flex flex-wrap items-center gap-2 -mb-4">
               <select value={filter} onChange={(e) => setFilter(e.target.value)}
                 className="rounded-lg bg-[#151823] border border-[#2a2d3a] px-3 py-1.5 text-xs text-gray-200">
                 <option value="">Všechny obchody</option>
@@ -1033,7 +1176,12 @@ export default function DenikPage() {
                   </optgroup>
                 ))}
               </select>
-              {filter && <span className="text-xs text-gray-500">{shown.length} z {entries.length}</span>}
+              {day && (
+                <button onClick={() => setDay(null)} className="flex items-center gap-1 rounded-lg border border-blue-800 bg-blue-950/40 px-2.5 py-1 text-xs text-blue-300">
+                  {new Date(`${day}T12:00:00`).toLocaleDateString("cs", { day: "numeric", month: "numeric", year: "numeric" })} <X size={12} />
+                </button>
+              )}
+              {(filter || day) && <span className="text-xs text-gray-500">{shown.length} z {entries.length}</span>}
             </div>
           )}
           {entries.length === 0 ? (
