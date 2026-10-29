@@ -283,12 +283,62 @@ def _bucket_stats(entries: list[JournalEntry], key) -> list[dict]:
     return out
 
 
+def _rules_met(e: JournalEntry, st: JournalStrategy) -> tuple[int, int]:
+    """Kolik pravidel (tagů) strategie obchod splnil: (splněno, celkem)."""
+    rules = st.tag_ids or []
+    have = set(e.tag_ids or [])
+    return sum(1 for r in rules if r in have), len(rules)
+
+
+def _strategy_journals(entries: list[JournalEntry], strats: list[JournalStrategy]) -> list[dict]:
+    """Přehled deníků strategií: výsledky + jak často obchod splnil všechna pravidla."""
+    out = []
+    for st in strats:
+        items = [e for e in entries if e.strategy_id == st.id]
+        base = _bucket_stats(items, lambda _e: "x")[0] if items else {"n": 0, "win_rate": None, "avg_r": None}
+        rs = [e.r_result for e in items if e.r_result is not None]
+        full = sum(1 for e in items if (m := _rules_met(e, st))[0] == m[1])
+        last = max((e.traded_at for e in items if e.traded_at), default=None)
+        out.append({
+            "id": st.id, "name": st.name, "n": base["n"], "win_rate": base["win_rate"], "avg_r": base["avg_r"],
+            "sum_r": round(sum(rs), 2) if rs else None,
+            "compliance": round(100 * full / len(items)) if items and st.tag_ids else None,
+            "last_trade": last.isoformat() if last else None,
+        })
+    return out
+
+
+def _compliance(entries: list[JournalEntry], st: JournalStrategy, tags: dict) -> dict:
+    """Výsledky obchodů podle pravidel vs. s porušením + co stojí porušení jednotlivých pravidel."""
+    def full(e: JournalEntry) -> str:
+        met, total = _rules_met(e, st)
+        return "all" if met == total else "broken"
+    by_rule = []
+    for tid in st.tag_ids or []:
+        missed = [e for e in entries if tid not in (e.tag_ids or [])]
+        if missed and tid in tags:
+            by_rule.append({**_bucket_stats(missed, lambda _e: "x")[0], "key": tags[tid].name})
+    return {
+        "rules_total": len(st.tag_ids or []),
+        "buckets": _bucket_stats(entries, full) if st.tag_ids else [],
+        "by_rule": by_rule,
+    }
+
+
 @router.get("/stats")
-async def journal_stats(user: User = Depends(current_user),
+async def journal_stats(strategy_id: int | None = None, user: User = Depends(current_user),
                         session: AsyncSession = Depends(get_session)):
-    entries = (await session.execute(
+    """Souhrnné statistiky. Se `strategy_id` jen pro deník dané strategie (+ dodržení pravidel)."""
+    all_entries = (await session.execute(
         select(JournalEntry).where(JournalEntry.user_id == user.id)
     )).scalars().all()
+    strat_objs = (await session.execute(
+        select(JournalStrategy).where(JournalStrategy.user_id == user.id)
+        .order_by(JournalStrategy.name))).scalars().all()
+    current = next((st for st in strat_objs if st.id == strategy_id), None)
+    if strategy_id is not None and current is None:
+        raise HTTPException(status_code=404, detail="Strategie nenalezena")
+    entries = [e for e in all_entries if current is None or e.strategy_id == current.id]
 
     total = len(entries)
     outc = [_outcome(e) for e in entries]
@@ -301,8 +351,7 @@ async def journal_stats(user: User = Depends(current_user),
 
     tags = {t.id: t for t in (await session.execute(
         select(JournalTag).where(JournalTag.user_id == user.id))).scalars().all()}
-    strategies = {st.id: st.name for st in (await session.execute(
-        select(JournalStrategy).where(JournalStrategy.user_id == user.id))).scalars().all()}
+    strategies = {st.id: st.name for st in strat_objs}
 
     def tag_names(e: JournalEntry, kind: str) -> list[str]:
         ids = e.mistake_ids if kind == "mistake" else e.tag_ids
@@ -352,6 +401,8 @@ async def journal_stats(user: User = Depends(current_user),
         "by_combo": by_combo[:15],
         "by_mistake": by_mistake,
         "losses": {"total": len(losses_list), "explained": explained},
+        "strategies": _strategy_journals(all_entries, strat_objs),
+        "compliance": _compliance(entries, current, tags) if current is not None else None,
     }
 
 

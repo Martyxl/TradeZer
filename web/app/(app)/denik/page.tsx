@@ -51,6 +51,12 @@ interface Stats {
   by_combo: Bucket[];
   by_mistake: MistakeBucket[];
   losses: { total: number; explained: number };
+  strategies: StrategyJournal[];
+  compliance: { rules_total: number; buckets: Bucket[]; by_rule: Bucket[] } | null;
+}
+interface StrategyJournal {
+  id: number; name: string; n: number; win_rate: number | null; avg_r: number | null;
+  sum_r: number | null; compliance: number | null; last_trade: string | null;
 }
 interface AnalysisMeta {
   engine?: string; model?: string; ms?: number;
@@ -202,6 +208,70 @@ function Chip({ on, label, onClick, tone = "blue" }: { on: boolean; label: strin
 
 const KIND_LABEL: Record<TagKind, string> = { setup: "Setup", timeframe: "Timeframe", mistake: "Chyby (důvod ztráty)" };
 const toggle = (arr: number[], id: number) => (arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id]);
+const fmtR = (v: number | null | undefined) => (v == null ? "—" : `${v > 0 ? "+" : ""}${v}R`);
+
+/** Kolik pravidel (tagů) strategie obchod splnil. */
+function rulesMet(tagIds: number[], st: Strategy | undefined): { met: number; total: number } {
+  const rules = st?.tag_ids ?? [];
+  return { met: rules.filter((r) => tagIds.includes(r)).length, total: rules.length };
+}
+
+function RulesBadge({ met, total }: { met: number; total: number }) {
+  if (!total) return null;
+  const ok = met === total;
+  return (
+    <span title={ok ? "Všechna pravidla strategie splněna" : `Splněno ${met} z ${total} pravidel strategie`}
+      className={`ml-1.5 rounded px-1.5 py-0.5 text-[10px] font-semibold ${ok ? "bg-green-950/60 text-green-300" : "bg-orange-950/60 text-orange-300"}`}>
+      {ok ? "✓" : "!"} {met}/{total}
+    </span>
+  );
+}
+
+/* ------------------------------------------------------ deníky strategií */
+
+function StrategyTabs({ items, total, active, onSelect, onNew }: {
+  items: StrategyJournal[]; total: number; active: number | null;
+  onSelect: (id: number | null) => void; onNew: () => void;
+}) {
+  const card = (on: boolean) =>
+    `shrink-0 w-44 rounded-xl border p-3 text-left transition-colors ${on ? "border-blue-600 bg-blue-950/30" : "border-[#2a2d3a] bg-[#151823] hover:border-[#3a3f52]"}`;
+  return (
+    <div>
+      <div className="mb-2 flex items-baseline justify-between">
+        <h2 className="text-sm font-semibold text-white">Deníky strategií</h2>
+        <span className="text-[11px] text-gray-500">Každá strategie má vlastní statistiky a kontrolu pravidel</span>
+      </div>
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        <button onClick={() => onSelect(null)} className={card(active === null)}>
+          <div className="text-sm font-semibold text-white">Všechny obchody</div>
+          <div className="mt-1 text-[11px] text-gray-500">{total} obchodů</div>
+        </button>
+        {items.map((s) => (
+          <button key={s.id} onClick={() => onSelect(s.id)} className={card(active === s.id)}>
+            <div className="truncate text-sm font-semibold text-white" title={s.name}>{s.name}</div>
+            {s.n ? (
+              <>
+                <div className="mt-1 flex gap-2 text-[11px]">
+                  <span className="text-gray-400">{s.n} obch.</span>
+                  <span style={{ color: s.win_rate != null && s.win_rate >= 50 ? "#4ade80" : "#9ca3af" }}>{s.win_rate != null ? `${s.win_rate}%` : "—"}</span>
+                  <span style={{ color: rColor(s.sum_r) }}>{fmtR(s.sum_r)}</span>
+                </div>
+                {s.compliance != null && (
+                  <div className="mt-1 text-[10px]" style={{ color: s.compliance >= 80 ? "#4ade80" : s.compliance >= 50 ? "#eab308" : "#fb923c" }}>
+                    pravidla dodržena v {s.compliance}%
+                  </div>
+                )}
+              </>
+            ) : <div className="mt-1 text-[11px] text-gray-500">zatím bez obchodů</div>}
+          </button>
+        ))}
+        <button onClick={onNew} className="shrink-0 w-44 rounded-xl border border-dashed border-[#2f3b55] p-3 text-left text-sm text-[#8fffab] hover:bg-[#151823]">
+          <Plus size={14} className="mb-1" /> Nový deník strategie
+        </button>
+      </div>
+    </div>
+  );
+}
 
 /* -------------------------------------------------------------- kalendář */
 
@@ -366,22 +436,20 @@ function resultFromLevels(f: FormState, outcome: string): { exit_price: string; 
   return { exit_price: f.exit_price, r_result: f.r_result };
 }
 
-function EntryForm({ initial, draft, meta, tagData, onClose, onSaved, onManageTags }: {
+function EntryForm({ initial, draft, meta, tagData, defaultStrategyId, onClose, onSaved, onManageTags }: {
   initial: Entry | null; draft?: Partial<FormState> | null; meta?: AnalysisMeta | null;
-  tagData: TagData; onClose: () => void; onSaved: () => void; onManageTags: () => void;
+  tagData: TagData; defaultStrategyId?: number | null; onClose: () => void; onSaved: () => void; onManageTags: () => void;
 }) {
-  const [strategyId, setStrategyId] = useState<number | null>(initial?.strategy_id ?? null);
+  const [strategyId, setStrategyId] = useState<number | null>(initial ? initial.strategy_id : defaultStrategyId ?? null);
   const [tagIds, setTagIds] = useState<number[]>(initial?.tag_ids ?? []);
   const [mistakeIds, setMistakeIds] = useState<number[]>(initial?.mistake_ids ?? []);
   const [lossReason, setLossReason] = useState(initial?.loss_reason ?? "");
-  // Výběr strategie předvyplní její tagy (přidá k už zaškrtnutým; jednotlivé jde pak odškrtnout)
-  const pickStrategy = (v: string) => {
-    const id = v ? Number(v) : null;
-    setStrategyId(id);
-    const st = tagData.strategies.find((x) => x.id === id);
-    if (st) setTagIds((cur) => [...cur, ...st.tag_ids.filter((t) => !cur.includes(t))]);
-  };
-  const tagsOf = (k: TagKind) => tagData.tags.filter((t) => t.kind === k);
+  // Pravidla strategie se nepředvyplňují — trader je musí u obchodu sám odškrtat (checklist).
+  const pickStrategy = (v: string) => setStrategyId(v ? Number(v) : null);
+  const strategy = tagData.strategies.find((x) => x.id === strategyId);
+  const rules = (strategy?.tag_ids ?? []).map((id) => tagData.tags.find((t) => t.id === id)).filter((t): t is Tag => !!t);
+  const { met, total } = rulesMet(tagIds, strategy);
+  const tagsOf = (k: TagKind) => tagData.tags.filter((t) => t.kind === k && !strategy?.tag_ids.includes(t.id));
   const [f, setF] = useState<FormState>(() => initial ? {
     instrument: initial.instrument ?? "",
     direction: initial.direction ?? "long",
@@ -550,9 +618,37 @@ function EntryForm({ initial, draft, meta, tagData, onClose, onSaved, onManageTa
                 {tagData.strategies.map((st) => <option key={st.id} value={st.id}>{st.name}</option>)}
               </select>
             </div>
+            {strategy && (
+              <div className={`rounded-lg border p-3 ${total && met === total ? "border-green-900/60 bg-green-950/20" : "border-orange-900/50 bg-orange-950/10"}`}>
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-xs font-semibold text-gray-200">Checklist strategie</span>
+                  {total > 0 && (
+                    <span className={`text-[11px] font-semibold ${met === total ? "text-green-300" : "text-orange-300"}`}>
+                      {met === total ? "✓ vše splněno" : `splněno ${met} z ${total}`}
+                    </span>
+                  )}
+                </div>
+                {rules.length ? (
+                  <div className="space-y-1">
+                    {rules.map((t) => (
+                      <label key={t.id} className="flex cursor-pointer items-center gap-2 text-sm text-gray-200">
+                        <input type="checkbox" className="h-4 w-4 accent-green-500" checked={tagIds.includes(t.id)}
+                          onChange={() => setTagIds((c) => toggle(c, t.id))} />
+                        {t.name}
+                        <span className="text-[10px] text-gray-600">{t.kind === "timeframe" ? "timeframe" : ""}</span>
+                      </label>
+                    ))}
+                  </div>
+                ) : <p className="text-[11px] text-gray-500">Strategie zatím nemá žádná pravidla — přidej jí tagy v „Upravit tagy a strategie“.</p>}
+                {total > 0 && met < total && (
+                  <p className="mt-2 text-[11px] text-orange-300/90">Nesplněná pravidla = obchod mimo plán. Ve statistikách deníku uvidíš, kolik tě porušování pravidel stojí.</p>
+                )}
+                {strategy.description && <p className="mt-2 whitespace-pre-line text-[11px] text-gray-500">{strategy.description}</p>}
+              </div>
+            )}
             {(["setup", "timeframe"] as const).map((k) => (
               <div key={k}>
-                <label className={lab}>{KIND_LABEL[k]}</label>
+                <label className={lab}>{strategy ? `Další ${KIND_LABEL[k].toLowerCase()} (mimo strategii)` : KIND_LABEL[k]}</label>
                 <div className="flex flex-wrap gap-1.5">
                   {tagsOf(k).map((t) => <Chip key={t.id} on={tagIds.includes(t.id)} label={t.name} onClick={() => setTagIds((c) => toggle(c, t.id))} />)}
                 </div>
@@ -605,10 +701,13 @@ function EntryForm({ initial, draft, meta, tagData, onClose, onSaved, onManageTa
 
 /* ------------------------------------------------- správa tagů a strategií */
 
-function TagsModal({ data, onClose, onChanged }: { data: TagData; onClose: () => void; onChanged: () => Promise<void> }) {
+function TagsModal({ data, startNew, onClose, onChanged }: {
+  data: TagData; startNew?: boolean; onClose: () => void; onChanged: () => Promise<void>;
+}) {
   const [newName, setNewName] = useState<Record<TagKind, string>>({ setup: "", timeframe: "", mistake: "" });
   const [err, setErr] = useState<string | null>(null);
-  const [st, setSt] = useState<{ id: number | null; name: string; description: string; tag_ids: number[] } | null>(null);
+  const [st, setSt] = useState<{ id: number | null; name: string; description: string; tag_ids: number[] } | null>(
+    startNew ? { id: null, name: "", description: "", tag_ids: [] } : null);
 
   const run = async (fn: () => Promise<unknown>) => {
     setErr(null);
@@ -659,7 +758,7 @@ function TagsModal({ data, onClose, onChanged }: { data: TagData; onClose: () =>
                 className="text-xs text-[#8fffab] flex items-center gap-1"><Plus size={13} /> Nová strategie</button>
             )}
           </div>
-          <p className="text-[11px] text-gray-500 mb-3">Strategie je pojmenovaná kombinace tagů (např. „Sweep + iFVG“ = Liquidity, iFVG, M5). U obchodu ji vybereš jedním klikem.</p>
+          <p className="text-[11px] text-gray-500 mb-3">Strategie je pojmenovaná kombinace tagů (např. „Sweep + iFVG“ = Liquidity, iFVG, M5). Tagy strategie jsou její <strong className="text-gray-300">pravidla</strong> — u obchodu je odškrtáš jako checklist a deník strategie ukáže, jak ti jde, když je dodržíš a když ne. Chybí ti pravidlo? Přidej si vlastní tag dole (např. „Sweep likvidity“, „MSS po sweepu“).</p>
           {st && (
             <div className="rounded-xl border border-[#2f3b55] bg-[#0f1117] p-3 space-y-2 mb-3">
               <input className={field} value={st.name} placeholder="Název strategie" maxLength={60} onChange={(e) => setSt({ ...st, name: e.target.value })} />
@@ -992,19 +1091,25 @@ export default function DenikPage() {
   const [draft, setDraft] = useState<Partial<FormState> | null>(null);
   const [lastMeta, setLastMeta] = useState<AnalysisMeta | null>(null);
   const [tagData, setTagData] = useState<TagData>({ tags: [], strategies: [] });
-  const [tagsOpen, setTagsOpen] = useState(false);
-  const [filter, setFilter] = useState("");   // "" | "s:<id>" strategie | "t:<id>" tag
+  const [tagsOpen, setTagsOpen] = useState<false | "manage" | "new">(false);
+  const [filter, setFilter] = useState("");   // "" | "t:<id>" tag
   const [day, setDay] = useState<string | null>(null);   // vybraný den v kalendáři (YYYY-MM-DD)
+  const [journal, setJournal] = useState<number | null>(null);   // otevřený deník strategie (null = všechny obchody)
 
   // Bez setLoading(true) → refetch (po add/edit/delete/import) aktualizuje data
   // v místě, neblikne skeletonem přes celou stránku. Skeleton jen při 1. načtení
   // (loading init = true). Chyba refreshe nepřepisuje už zobrazená data.
   const reload = useCallback(async () => {
     try {
-      const [list, st, tg] = await Promise.all([jFetch(""), jFetch("/stats"), jFetch("/tags")]);
+      const [list, tg] = await Promise.all([jFetch(""), jFetch("/tags")]);
+      // smazaná strategie → zpět na všechny obchody
+      const sid = journal != null && (tg as TagData).strategies.some((x) => x.id === journal) ? journal : null;
+      if (sid !== journal) setJournal(null);
+      const st = await jFetch(sid != null ? `/stats?strategy_id=${sid}` : "/stats");
       setEntries((list as { entries: Entry[] }).entries);
       // starší backend (při nasazování) nová pole nemá → prázdné výchozí hodnoty
-      setStats({ by_strategy: [], by_tag: [], by_timeframe: [], by_combo: [], by_mistake: [], losses: { total: 0, explained: 0 }, ...(st as Partial<Stats>) } as Stats);
+      setStats({ by_strategy: [], by_tag: [], by_timeframe: [], by_combo: [], by_mistake: [], losses: { total: 0, explained: 0 },
+        strategies: [], compliance: null, ...(st as Partial<Stats>) } as Stats);
       setTagData(tg as TagData);
       setError(null);
     } catch (e) {
@@ -1012,7 +1117,7 @@ export default function DenikPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [journal]);
 
   useEffect(() => {
     if (!authLoading && user) reload();
@@ -1045,12 +1150,17 @@ export default function DenikPage() {
 
   const tagById = useMemo(() => new Map(tagData.tags.map((x) => [x.id, x])), [tagData]);
   const stratById = useMemo(() => new Map(tagData.strategies.map((x) => [x.id, x])), [tagData]);
+  const journalEntries = useMemo(
+    () => (journal == null ? entries : entries.filter((e) => e.strategy_id === journal)), [entries, journal]);
   const shown = useMemo(() => {
     const id = Number(filter.slice(2));
-    return entries.filter((e) =>
+    return journalEntries.filter((e) =>
       (!day || dayKey(e.traded_at) === day) &&
-      (!filter || (filter.startsWith("s:") ? e.strategy_id === id : e.tag_ids.includes(id) || e.mistake_ids.includes(id))));
-  }, [entries, filter, day]);
+      (!filter || e.tag_ids.includes(id) || e.mistake_ids.includes(id)));
+  }, [journalEntries, filter, day]);
+  const openJournal = (id: number | null) => { setJournal(id); setDay(null); setFilter(""); };
+  const cur = journal != null ? stratById.get(journal) : undefined;
+  const comp = stats?.compliance;
 
   const t = stats?.totals;
   const pnlLabel = useMemo(() => {
@@ -1086,7 +1196,7 @@ export default function DenikPage() {
                 <span className="ml-1 rounded bg-blue-950/60 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-300">Coming soon</span>
               </button>
             )}
-            <button onClick={() => setTagsOpen(true)}
+            <button onClick={() => setTagsOpen("manage")}
               className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium bg-[#151823] text-gray-300 border border-[#2a2d3a] hover:text-white transition-colors">
               <Tags size={15} /> Tagy a strategie
             </button>
@@ -1122,6 +1232,28 @@ export default function DenikPage() {
 
       {user && !loading && t && (
         <>
+          <StrategyTabs items={stats!.strategies} total={entries.length} active={journal}
+            onSelect={openJournal} onNew={() => setTagsOpen("new")} />
+
+          {cur && (
+            <div className="rounded-xl border border-blue-900/50 bg-blue-950/20 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-lg font-bold text-white">Deník: {cur.name}</h2>
+                <button onClick={() => setTagsOpen("manage")} className="text-[11px] text-blue-400 hover:text-blue-300 flex items-center gap-1">
+                  <Pencil size={12} /> Upravit pravidla
+                </button>
+              </div>
+              {cur.description && <p className="mt-1 whitespace-pre-line text-xs text-gray-400">{cur.description}</p>}
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                <span className="text-[10px] uppercase tracking-wider text-gray-500">Pravidla:</span>
+                {cur.tag_ids.length
+                  ? cur.tag_ids.map((id) => tagById.get(id)).filter(Boolean).map((tg) => (
+                      <span key={tg!.id} className="rounded bg-blue-950/60 px-2 py-0.5 text-[11px] text-blue-300">{tg!.name}</span>))
+                  : <span className="text-xs text-gray-500">žádná — přidej strategii tagy, ať můžeš kontrolovat jejich dodržení</span>}
+              </div>
+            </div>
+          )}
+
           {/* souhrn */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <StatCard label="Obchodů" value={String(t.trades)} sub={pnlLabel || undefined} />
@@ -1133,6 +1265,21 @@ export default function DenikPage() {
             <StatCard label="Σ R" value={t.sum_r != null ? `${t.sum_r > 0 ? "+" : ""}${t.sum_r}R` : "—"}
               sub={t.best_r != null ? `nej ${t.best_r} · nejh ${t.worst_r}` : undefined} color={rColor(t.sum_r)} />
           </div>
+
+          {/* dodržení pravidel strategie */}
+          {cur && comp && comp.buckets.length > 0 && (
+            <div className="space-y-3">
+              <div>
+                <h2 className="text-base font-semibold text-white">Dodržuješ pravidla strategie?</h2>
+                <p className="text-xs text-gray-500">Obchod „podle pravidel“ = odškrtnutých všech {comp.rules_total} pravidel. Porovnej, jak ti jde, když je dodržíš a když ne.</p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <BucketTable title="Podle pravidel vs. s porušením" rows={comp.buckets}
+                  nameMap={{ all: "✓ Všechna pravidla splněna", broken: "! Aspoň jedno porušeno" }} />
+                <BucketTable title="Když jsi pravidlo nedodržel" rows={comp.by_rule} />
+              </div>
+            </div>
+          )}
 
           {/* rozklad */}
           {t.trades > 0 && (
@@ -1150,7 +1297,7 @@ export default function DenikPage() {
                 <p className="text-xs text-gray-500">Obchod s více tagy se počítá do každého z nich. Kombinace = setup tagy + timeframe, ukazujeme ty s aspoň 2 obchody, seřazené podle Ø R. Na malém vzorku berte výsledky orientačně.</p>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                <BucketTable title="Podle strategie" rows={stats!.by_strategy} />
+                {!cur && <BucketTable title="Podle strategie" rows={stats!.by_strategy} />}
                 <BucketTable title="Podle tagu" rows={stats!.by_tag} />
                 <BucketTable title="Podle timeframe" rows={stats!.by_timeframe} />
                 <BucketTable title="Nejlepší kombinace podmínek" rows={stats!.by_combo} />
@@ -1159,17 +1306,14 @@ export default function DenikPage() {
             </div>
           )}
 
-          {entries.length > 0 && <JournalCalendar entries={entries} selected={day} onSelect={setDay} />}
+          {journalEntries.length > 0 && <JournalCalendar key={journal ?? "all"} entries={journalEntries} selected={day} onSelect={setDay} />}
 
           {/* seznam obchodů */}
-          {entries.length > 0 && (tagData.strategies.length > 0 || tagData.tags.length > 0) && (
+          {journalEntries.length > 0 && tagData.tags.length > 0 && (
             <div className="flex flex-wrap items-center gap-2 -mb-4">
               <select value={filter} onChange={(e) => setFilter(e.target.value)}
                 className="rounded-lg bg-[#151823] border border-[#2a2d3a] px-3 py-1.5 text-xs text-gray-200">
-                <option value="">Všechny obchody</option>
-                {tagData.strategies.length > 0 && (
-                  <optgroup label="Strategie">{tagData.strategies.map((x) => <option key={x.id} value={`s:${x.id}`}>{x.name}</option>)}</optgroup>
-                )}
+                <option value="">Všechny tagy</option>
                 {(["setup", "timeframe", "mistake"] as const).map((k) => (
                   <optgroup key={k} label={KIND_LABEL[k]}>
                     {tagData.tags.filter((x) => x.kind === k).map((x) => <option key={x.id} value={`t:${x.id}`}>{x.name}</option>)}
@@ -1181,14 +1325,16 @@ export default function DenikPage() {
                   {new Date(`${day}T12:00:00`).toLocaleDateString("cs", { day: "numeric", month: "numeric", year: "numeric" })} <X size={12} />
                 </button>
               )}
-              {(filter || day) && <span className="text-xs text-gray-500">{shown.length} z {entries.length}</span>}
+              {(filter || day) && <span className="text-xs text-gray-500">{shown.length} z {journalEntries.length}</span>}
             </div>
           )}
-          {entries.length === 0 ? (
+          {journalEntries.length === 0 ? (
             <div className="rounded-xl border border-dashed border-[#2a2d3a] bg-[#12141c] p-10 text-center">
               <TrendingUp size={28} className="mx-auto text-gray-600 mb-3" />
-              <p className="text-gray-300 font-medium">Zatím žádné obchody</p>
-              <p className="text-sm text-gray-500 mt-1">Přidej první záznam tlačítkem „Přidat obchod“ nahoře.</p>
+              <p className="text-gray-300 font-medium">{cur ? `V deníku „${cur.name}“ zatím nejsou obchody` : "Zatím žádné obchody"}</p>
+              <p className="text-sm text-gray-500 mt-1">
+                {cur ? "Přidej obchod — strategie se předvyplní a odškrtáš její checklist." : "Přidej první záznam tlačítkem „Přidat obchod“ nahoře."}
+              </p>
             </div>
           ) : (
             <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] overflow-hidden">
@@ -1235,7 +1381,10 @@ export default function DenikPage() {
                           </td>
                           <td className="px-3 py-2.5 text-gray-300 max-w-[220px]">
                             {e.strategy_id && stratById.get(e.strategy_id) && (
-                              <div className="text-xs font-medium text-gray-100 truncate">{stratById.get(e.strategy_id)!.name}</div>
+                              <div className="text-xs font-medium text-gray-100 truncate">
+                                {stratById.get(e.strategy_id)!.name}
+                                <RulesBadge {...rulesMet(e.tag_ids, stratById.get(e.strategy_id))} />
+                              </div>
                             )}
                             <div className="flex flex-wrap gap-1 mt-0.5">
                               {e.tag_ids.map((id) => tagById.get(id)).filter(Boolean).map((tg) => (
@@ -1273,8 +1422,8 @@ export default function DenikPage() {
 
       {analyzeOpen && <AnalyzeModal isAdmin={!!user?.is_admin} onClose={() => setAnalyzeOpen(false)} onExtracted={onExtracted} />}
       {importOpen && <ImportModal onClose={() => setImportOpen(false)} onDone={onImported} />}
-      {formOpen && <EntryForm initial={editing} draft={draft} meta={lastMeta} tagData={tagData} onManageTags={() => setTagsOpen(true)} onClose={() => { setFormOpen(false); setEditing(null); setDraft(null); setLastMeta(null); }} onSaved={onSaved} />}
-      {tagsOpen && <TagsModal data={tagData} onClose={() => setTagsOpen(false)} onChanged={reload} />}
+      {formOpen && <EntryForm initial={editing} draft={draft} meta={lastMeta} tagData={tagData} defaultStrategyId={journal} onManageTags={() => setTagsOpen("manage")} onClose={() => { setFormOpen(false); setEditing(null); setDraft(null); setLastMeta(null); }} onSaved={onSaved} />}
+      {tagsOpen && <TagsModal data={tagData} startNew={tagsOpen === "new"} onClose={() => setTagsOpen(false)} onChanged={reload} />}
     </div>
   );
 }

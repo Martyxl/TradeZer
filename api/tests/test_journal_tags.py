@@ -84,3 +84,36 @@ async def test_tags_are_private_and_unique():
         e = (await c.post("/api/journal", json={"instrument": "ES", "tag_ids": [mine["id"]]}, headers=b)).json()["entry"]
         assert e["tag_ids"] == []
         assert (await c.patch(f"/api/journal/tags/{mine['id']}", json={"name": "Breaker block"}, headers=a)).json()["tag"]["name"] == "Breaker block"
+
+
+@pytest.mark.asyncio
+async def test_strategy_journal_and_rule_compliance():
+    async with _client() as c:
+        h = await auth_headers(c, "s@x.cz")
+        by = {(t["kind"], t["name"]): t["id"] for t in (await c.get("/api/journal/tags", headers=h)).json()["tags"]}
+        liq, ifvg, m5 = by[("setup", "Liquidity")], by[("setup", "iFVG")], by[("timeframe", "M5")]
+        st = (await c.post("/api/journal/strategies", json={"name": "Sweep", "tag_ids": [liq, ifvg, m5]},
+                           headers=h)).json()["strategy"]
+        other = (await c.post("/api/journal/strategies", json={"name": "Jiná", "tag_ids": []}, headers=h)).json()["strategy"]
+        base = {"instrument": "NQ", "strategy_id": st["id"]}
+        await c.post("/api/journal", json={**base, "tag_ids": [liq, ifvg, m5], "r_result": 3}, headers=h)
+        await c.post("/api/journal", json={**base, "tag_ids": [liq, ifvg, m5], "r_result": 2}, headers=h)
+        await c.post("/api/journal", json={**base, "tag_ids": [ifvg, m5], "r_result": -1}, headers=h)  # bez likvidity
+        await c.post("/api/journal", json={"instrument": "ES", "strategy_id": other["id"], "r_result": -1}, headers=h)
+
+        s = (await c.get("/api/journal/stats", headers=h)).json()
+        assert s["compliance"] is None and s["totals"]["trades"] == 4
+        j = {x["name"]: x for x in s["strategies"]}
+        assert j["Sweep"]["n"] == 3 and j["Sweep"]["compliance"] == 67 and j["Sweep"]["sum_r"] == 4
+        assert j["Jiná"]["compliance"] is None   # strategie bez pravidel
+
+        s = (await c.get(f"/api/journal/stats?strategy_id={st['id']}", headers=h)).json()
+        assert s["totals"]["trades"] == 3 and s["totals"]["win_rate"] == 67
+        comp = s["compliance"]
+        assert comp["rules_total"] == 3
+        assert {b["key"]: (b["n"], b["win_rate"]) for b in comp["buckets"]} == {"all": (2, 100), "broken": (1, 0)}
+        assert comp["by_rule"] == [{"key": "Liquidity", "n": 1, "win_rate": 0, "avg_r": -1.0}]
+
+        # cizí / neexistující strategie
+        b = await auth_headers(c, "z@x.cz")
+        assert (await c.get(f"/api/journal/stats?strategy_id={st['id']}", headers=b)).status_code == 404
