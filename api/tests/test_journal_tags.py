@@ -91,29 +91,59 @@ async def test_strategy_journal_and_rule_compliance():
     async with _client() as c:
         h = await auth_headers(c, "s@x.cz")
         by = {(t["kind"], t["name"]): t["id"] for t in (await c.get("/api/journal/tags", headers=h)).json()["tags"]}
-        liq, ifvg, m5 = by[("setup", "Liquidity")], by[("setup", "iFVG")], by[("timeframe", "M5")]
-        st = (await c.post("/api/journal/strategies", json={"name": "Sweep", "tag_ids": [liq, ifvg, m5]},
-                           headers=h)).json()["strategy"]
-        other = (await c.post("/api/journal/strategies", json={"name": "Jiná", "tag_ids": []}, headers=h)).json()["strategy"]
+        liq, ob, ifvg, smt, ote = (by[("setup", n)] for n in ("Liquidity", "OB", "iFVG", "SMT", "Fibo OTE"))
+        rules = {"blocks": [
+            {"id": "h1", "tf": "H1", "label": "kontext", "conds": [
+                {"id": "liq", "tag_id": liq, "action": "vybrána (sweep)", "req": "must"},
+                {"id": "ob", "tag_id": ob, "obj_tf": "H4", "action": "zasažen", "req": "must"}]},
+            {"id": "m5", "tf": "M5", "conds": [
+                {"id": "ifvg", "tag_id": ifvg, "action": "vznikl", "req": "must"},
+                {"id": "liq5", "tag_id": liq, "req": "A"},
+                {"id": "smt", "tag_id": smt, "req": "A"},
+                {"id": "ote", "tag_id": ote, "req": "opt"},
+                {"id": "x", "tag_id": by[("mistake", "Revenge trade")], "req": "must"}]},   # chyba do pravidel nepatří
+        ]}
+        st = (await c.post("/api/journal/strategies", json={"name": "Sweep", "rules": rules}, headers=h)).json()["strategy"]
+        assert [len(b["conds"]) for b in st["blocks"]] == [2, 4]
+        assert st["blocks"][0]["conds"][1]["obj_tf"] == "H4" and sorted(st["tag_ids"]) == sorted([liq, ob, ifvg, smt, ote])
+        assert (await c.post("/api/journal/strategies", json={"name": "X", "rules": {"blocks": [{"tf": "H2"}]}},
+                             headers=h)).status_code == 422
+        other = (await c.post("/api/journal/strategies", json={"name": "Jiná", "rules": {"blocks": []}}, headers=h)).json()["strategy"]
         base = {"instrument": "NQ", "strategy_id": st["id"]}
-        await c.post("/api/journal", json={**base, "tag_ids": [liq, ifvg, m5], "r_result": 3}, headers=h)
-        await c.post("/api/journal", json={**base, "tag_ids": [liq, ifvg, m5], "r_result": 2}, headers=h)
-        await c.post("/api/journal", json={**base, "tag_ids": [ifvg, m5], "r_result": -1}, headers=h)  # bez likvidity
+        ok = ["liq", "ob", "ifvg"]
+        await c.post("/api/journal", json={**base, "checks": ok + ["smt", "ote"], "r_result": 3}, headers=h)
+        await c.post("/api/journal", json={**base, "checks": ok + ["liq5"], "r_result": 2}, headers=h)
+        await c.post("/api/journal", json={**base, "checks": ["ob", "ifvg", "smt"], "r_result": -1}, headers=h)  # bez sweepu
+        await c.post("/api/journal", json={**base, "checks": ok, "r_result": -1}, headers=h)   # chybí skupina A
         await c.post("/api/journal", json={"instrument": "ES", "strategy_id": other["id"], "r_result": -1}, headers=h)
 
         s = (await c.get("/api/journal/stats", headers=h)).json()
-        assert s["compliance"] is None and s["totals"]["trades"] == 4
+        assert s["compliance"] is None and s["totals"]["trades"] == 5
         j = {x["name"]: x for x in s["strategies"]}
-        assert j["Sweep"]["n"] == 3 and j["Sweep"]["compliance"] == 67 and j["Sweep"]["sum_r"] == 4
+        assert j["Sweep"]["n"] == 4 and j["Sweep"]["compliance"] == 50 and j["Sweep"]["sum_r"] == 3
         assert j["Jiná"]["compliance"] is None   # strategie bez pravidel
 
-        s = (await c.get(f"/api/journal/stats?strategy_id={st['id']}", headers=h)).json()
-        assert s["totals"]["trades"] == 3 and s["totals"]["win_rate"] == 67
-        comp = s["compliance"]
-        assert comp["rules_total"] == 3
-        assert {b["key"]: (b["n"], b["win_rate"]) for b in comp["buckets"]} == {"all": (2, 100), "broken": (1, 0)}
-        assert comp["by_rule"] == [{"key": "Liquidity", "n": 1, "win_rate": 0, "avg_r": -1.0}]
+        comp = (await c.get(f"/api/journal/stats?strategy_id={st['id']}", headers=h)).json()["compliance"]
+        assert comp["rules_total"] == 4   # 3 povinné + skupina A
+        assert {b["key"]: (b["n"], b["win_rate"]) for b in comp["buckets"]} == {"all": (2, 100), "broken": (2, 0)}
+        assert comp["by_rule"] == [{"key": "H1 · Liquidity vybrána (sweep)", "n": 1, "win_rate": 0, "avg_r": -1.0}]
+        assert {b["key"]: b["n"] for b in comp["optional"]} == {"✓ M5 · Fibo OTE": 1, "✗ M5 · Fibo OTE": 3}
+        assert {b["key"]: b["n"] for b in comp["alternatives"]} == {"A: M5 · Liquidity": 1, "A: M5 · SMT": 2}
 
-        # cizí / neexistující strategie
+        # cizí strategie
         b = await auth_headers(c, "z@x.cz")
         assert (await c.get(f"/api/journal/stats?strategy_id={st['id']}", headers=b)).status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_legacy_strategy_converts_to_block():
+    async with _client() as c:
+        h = await auth_headers(c, "l@x.cz")
+        by = {(t["kind"], t["name"]): t["id"] for t in (await c.get("/api/journal/tags", headers=h)).json()["tags"]}
+        st = (await c.post("/api/journal/strategies", json={"name": "Old", "tag_ids": [by[("setup", "OB")], by[("timeframe", "H1")]]},
+                           headers=h)).json()["strategy"]
+        assert st["blocks"] == [{"id": "b0", "tf": "H1", "label": None, "conds": [
+            {"id": f"t{by[('setup', 'OB')]}", "tag_id": by[("setup", "OB")], "action": None, "obj_tf": None, "req": "must"}]}]
+        await c.post("/api/journal", json={"instrument": "NQ", "strategy_id": st["id"], "tag_ids": [by[("setup", "OB")]], "r_result": 1}, headers=h)
+        s = (await c.get("/api/journal/stats", headers=h)).json()
+        assert s["strategies"][0]["compliance"] == 100

@@ -28,11 +28,15 @@ interface Entry {
   tag_ids: number[];
   mistake_ids: number[];
   loss_reason: string | null;
+  checks: string[] | null;
   created_at: string | null;
 }
 type TagKind = "setup" | "timeframe" | "mistake";
 interface Tag { id: number; kind: TagKind; name: string }
-interface Strategy { id: number; name: string; description: string | null; tag_ids: number[] }
+/** Podmínka strategie: objekt (tag) + co se stalo, volitelně z jiného TF; req = must | opt | A–D (jedno z). */
+interface Cond { id: string; tag_id: number; action: string | null; obj_tf: string | null; req: string }
+interface Block { id: string; tf: string; label: string | null; conds: Cond[] }
+interface Strategy { id: number; name: string; description: string | null; tag_ids: number[]; blocks: Block[] }
 interface TagData { tags: Tag[]; strategies: Strategy[] }
 interface Bucket { key: string; n: number; win_rate: number | null; avg_r: number | null }
 interface MistakeBucket { key: string; n: number; r_lost: number }
@@ -52,7 +56,7 @@ interface Stats {
   by_mistake: MistakeBucket[];
   losses: { total: number; explained: number };
   strategies: StrategyJournal[];
-  compliance: { rules_total: number; buckets: Bucket[]; by_rule: Bucket[] } | null;
+  compliance: { rules_total: number; buckets: Bucket[]; by_rule: Bucket[]; optional?: Bucket[]; alternatives?: Bucket[] } | null;
 }
 interface StrategyJournal {
   id: number; name: string; n: number; win_rate: number | null; avg_r: number | null;
@@ -206,14 +210,43 @@ function Chip({ on, label, onClick, tone = "blue" }: { on: boolean; label: strin
   );
 }
 
-const KIND_LABEL: Record<TagKind, string> = { setup: "Setup", timeframe: "Timeframe", mistake: "Chyby (důvod ztráty)" };
+const KIND_LABEL: Record<TagKind, string> = { setup: "Objekty (FVG, OB, Liquidity…)", timeframe: "Timeframe", mistake: "Chyby (důvod ztráty)" };
 const toggle = (arr: number[], id: number) => (arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id]);
 const fmtR = (v: number | null | undefined) => (v == null ? "—" : `${v > 0 ? "+" : ""}${v}R`);
 
-/** Kolik pravidel (tagů) strategie obchod splnil. */
-function rulesMet(tagIds: number[], st: Strategy | undefined): { met: number; total: number } {
-  const rules = st?.tag_ids ?? [];
-  return { met: rules.filter((r) => tagIds.includes(r)).length, total: rules.length };
+const TIMEFRAMES = ["M1", "M3", "M5", "M15", "M30", "H1", "H4", "D1", "W1"];
+const REQ_OPTS: [string, string][] = [["must", "Povinné"], ["opt", "Volitelné"], ["A", "Jedno z A"], ["B", "Jedno z B"], ["C", "Jedno z C"]];
+// Pevná nabídka „co se stalo“ podle objektu; vlastní objekty dostanou obecnou nabídku.
+const ACTIONS: Record<string, string[]> = {
+  liquidity: ["vybrána (sweep)", "cíl (draw on liquidity)", "vytvořena (equal highs/lows)"],
+  fvg: ["vznikl", "zasažen", "respektován", "invertován"],
+  ifvg: ["vznikl", "zasažen", "respektován"],
+  ob: ["zasažen", "respektován", "vznikl", "prolomen"],
+  smt: ["divergence potvrzena"],
+  "fibo ote": ["vstup v zóně", "zóna zasažena"],
+};
+const GENERIC_ACTIONS = ["vznikl", "zasažen", "respektován", "prolomen", "potvrzen"];
+const actionsFor = (name: string | undefined) => ACTIONS[(name || "").toLowerCase()] ?? GENERIC_ACTIONS;
+
+/** Splněné podmínky obchodu: checklist (checks), u starších obchodů podle tagů. */
+function checkedIds(checks: string[] | null, tagIds: number[], st: Strategy | undefined): string[] {
+  if (checks) return checks;
+  return (st?.blocks ?? []).flatMap((b) => b.conds).filter((c) => tagIds.includes(c.tag_id)).map((c) => c.id);
+}
+
+/** Splnění plánu: povinné podmínky + skupiny „jedno z“ (stačí jedna). Volitelné se nepočítají. */
+function rulesMet(checked: string[], st: Strategy | undefined): { met: number; total: number } {
+  const conds = (st?.blocks ?? []).flatMap((b) => b.conds);
+  const musts = conds.filter((c) => c.req === "must");
+  const groups = new Map<string, Cond[]>();
+  conds.filter((c) => c.req !== "must" && c.req !== "opt").forEach((c) => groups.set(c.req, [...(groups.get(c.req) ?? []), c]));
+  const met = musts.filter((c) => checked.includes(c.id)).length
+    + [...groups.values()].filter((g) => g.some((c) => checked.includes(c.id))).length;
+  return { met, total: musts.length + groups.size };
+}
+
+function condText(c: Cond, tagName: (id: number) => string | undefined): string {
+  return `${c.obj_tf ? c.obj_tf + " " : ""}${tagName(c.tag_id) ?? "?"}${c.action ? " " + c.action : ""}`;
 }
 
 function RulesBadge({ met, total }: { met: number; total: number }) {
@@ -444,12 +477,18 @@ function EntryForm({ initial, draft, meta, tagData, defaultStrategyId, onClose, 
   const [tagIds, setTagIds] = useState<number[]>(initial?.tag_ids ?? []);
   const [mistakeIds, setMistakeIds] = useState<number[]>(initial?.mistake_ids ?? []);
   const [lossReason, setLossReason] = useState(initial?.loss_reason ?? "");
+  const initialStrategy = tagData.strategies.find((x) => x.id === initial?.strategy_id);
+  const [checks, setChecks] = useState<string[]>(() =>
+    initial ? checkedIds(initial.checks, initial.tag_ids, initialStrategy) : []);
   // Pravidla strategie se nepředvyplňují — trader je musí u obchodu sám odškrtat (checklist).
-  const pickStrategy = (v: string) => setStrategyId(v ? Number(v) : null);
+  const pickStrategy = (v: string) => { setStrategyId(v ? Number(v) : null); setChecks([]); };
   const strategy = tagData.strategies.find((x) => x.id === strategyId);
-  const rules = (strategy?.tag_ids ?? []).map((id) => tagData.tags.find((t) => t.id === id)).filter((t): t is Tag => !!t);
-  const { met, total } = rulesMet(tagIds, strategy);
-  const tagsOf = (k: TagKind) => tagData.tags.filter((t) => t.kind === k && !strategy?.tag_ids.includes(t.id));
+  const { met, total } = rulesMet(checks, strategy);
+  const tagName = (id: number) => tagData.tags.find((t) => t.id === id)?.name;
+  const toggleCheck = (id: string) => setChecks((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]));
+  const condTagIds = (strategy?.blocks ?? []).flatMap((b) => b.conds.map((c) => c.tag_id));
+  // Se strategií se timeframe bere z jejích bloků → nabízíme jen další objekty mimo strategii.
+  const tagsOf = (k: TagKind) => tagData.tags.filter((t) => t.kind === k && !(strategy && condTagIds.includes(t.id)));
   const [f, setF] = useState<FormState>(() => initial ? {
     instrument: initial.instrument ?? "",
     direction: initial.direction ?? "long",
@@ -487,8 +526,15 @@ function EntryForm({ initial, draft, meta, tagData, defaultStrategyId, onClose, 
     setSaving(true); setErr(null);
     try {
       const isLoss = f.outcome === "loss" || (f.r_result.trim() !== "" && Number(f.r_result) < 0);
+      // Se strategií: tagy = objekty splněných podmínek + ručně přidané objekty mimo strategii.
+      const finalTags = strategy
+        ? [...new Set([
+            ...tagIds.filter((id) => !condTagIds.includes(id) && tagData.tags.find((t) => t.id === id)?.kind === "setup"),
+            ...strategy.blocks.flatMap((b) => b.conds).filter((c) => checks.includes(c.id)).map((c) => c.tag_id),
+          ])]
+        : tagIds;
       const body = {
-        ...f, strategy_id: strategyId, tag_ids: tagIds,
+        ...f, strategy_id: strategyId, tag_ids: finalTags, checks: strategy ? checks : null,
         mistake_ids: isLoss ? mistakeIds : [], loss_reason: isLoss ? lossReason : "",
       };
       if (initial) await jFetch(`/${initial.id}`, { method: "PATCH", body });
@@ -608,7 +654,7 @@ function EntryForm({ initial, draft, meta, tagData, defaultStrategyId, onClose, 
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-gray-200">Za jaké situace jsi obchod vzal</span>
               <button type="button" onClick={onManageTags} className="text-[11px] text-blue-400 hover:text-blue-300 flex items-center gap-1">
-                <Tags size={12} /> Upravit tagy a strategie
+                <Tags size={12} /> Upravit tagy
               </button>
             </div>
             <div>
@@ -624,31 +670,37 @@ function EntryForm({ initial, draft, meta, tagData, defaultStrategyId, onClose, 
                   <span className="text-xs font-semibold text-gray-200">Checklist strategie</span>
                   {total > 0 && (
                     <span className={`text-[11px] font-semibold ${met === total ? "text-green-300" : "text-orange-300"}`}>
-                      {met === total ? "✓ vše splněno" : `splněno ${met} z ${total}`}
+                      {met === total ? "✓ podle plánu" : `splněno ${met} z ${total}`}
                     </span>
                   )}
                 </div>
-                {rules.length ? (
-                  <div className="space-y-1">
-                    {rules.map((t) => (
-                      <label key={t.id} className="flex cursor-pointer items-center gap-2 text-sm text-gray-200">
-                        <input type="checkbox" className="h-4 w-4 accent-green-500" checked={tagIds.includes(t.id)}
-                          onChange={() => setTagIds((c) => toggle(c, t.id))} />
-                        {t.name}
-                        <span className="text-[10px] text-gray-600">{t.kind === "timeframe" ? "timeframe" : ""}</span>
-                      </label>
+                {strategy.blocks.some((b) => b.conds.length) ? (
+                  <div className="space-y-2">
+                    {strategy.blocks.filter((b) => b.conds.length).map((b) => (
+                      <div key={b.id}>
+                        <div className="text-[10px] uppercase tracking-wider text-blue-300">{b.tf}{b.label ? ` · ${b.label}` : ""}</div>
+                        {b.conds.map((c) => (
+                          <label key={c.id} className="flex cursor-pointer items-center gap-2 py-0.5 text-sm text-gray-200">
+                            <input type="checkbox" className="h-4 w-4 accent-green-500" checked={checks.includes(c.id)}
+                              onChange={() => toggleCheck(c.id)} />
+                            {condText(c, tagName)}
+                            {c.req === "opt" && <span className="text-[10px] text-gray-500">volitelné</span>}
+                            {c.req !== "must" && c.req !== "opt" && <span className="rounded bg-blue-950/60 px-1 text-[10px] text-blue-300">jedno z {c.req}</span>}
+                          </label>
+                        ))}
+                      </div>
                     ))}
                   </div>
-                ) : <p className="text-[11px] text-gray-500">Strategie zatím nemá žádná pravidla — přidej jí tagy v „Upravit tagy a strategie“.</p>}
+                ) : <p className="text-[11px] text-gray-500">Strategie zatím nemá žádná pravidla — doplň je v deníku strategie („Upravit pravidla“).</p>}
                 {total > 0 && met < total && (
-                  <p className="mt-2 text-[11px] text-orange-300/90">Nesplněná pravidla = obchod mimo plán. Ve statistikách deníku uvidíš, kolik tě porušování pravidel stojí.</p>
+                  <p className="mt-2 text-[11px] text-orange-300/90">Nesplněná povinná podmínka (nebo žádná ze skupiny „jedno z“) = obchod mimo plán. Ve statistikách deníku uvidíš, kolik tě to stojí.</p>
                 )}
                 {strategy.description && <p className="mt-2 whitespace-pre-line text-[11px] text-gray-500">{strategy.description}</p>}
               </div>
             )}
-            {(["setup", "timeframe"] as const).map((k) => (
+            {(strategy ? (["setup"] as const) : (["setup", "timeframe"] as const)).map((k) => (
               <div key={k}>
-                <label className={lab}>{strategy ? `Další ${KIND_LABEL[k].toLowerCase()} (mimo strategii)` : KIND_LABEL[k]}</label>
+                <label className={lab}>{strategy ? "Další objekty (mimo strategii)" : KIND_LABEL[k]}</label>
                 <div className="flex flex-wrap gap-1.5">
                   {tagsOf(k).map((t) => <Chip key={t.id} on={tagIds.includes(t.id)} label={t.name} onClick={() => setTagIds((c) => toggle(c, t.id))} />)}
                 </div>
@@ -701,13 +753,9 @@ function EntryForm({ initial, draft, meta, tagData, defaultStrategyId, onClose, 
 
 /* ------------------------------------------------- správa tagů a strategií */
 
-function TagsModal({ data, startNew, onClose, onChanged }: {
-  data: TagData; startNew?: boolean; onClose: () => void; onChanged: () => Promise<void>;
-}) {
+function TagsModal({ data, onClose, onChanged }: { data: TagData; onClose: () => void; onChanged: () => Promise<void> }) {
   const [newName, setNewName] = useState<Record<TagKind, string>>({ setup: "", timeframe: "", mistake: "" });
   const [err, setErr] = useState<string | null>(null);
-  const [st, setSt] = useState<{ id: number | null; name: string; description: string; tag_ids: number[] } | null>(
-    startNew ? { id: null, name: "", description: "", tag_ids: [] } : null);
 
   const run = async (fn: () => Promise<unknown>) => {
     setErr(null);
@@ -723,78 +771,20 @@ function TagsModal({ data, startNew, onClose, onChanged }: {
     if (name && name.trim() !== t.name) run(() => jFetch(`/tags/${t.id}`, { method: "PATCH", body: { name } }));
   };
   const deleteTag = (t: Tag) => {
-    if (confirm(`Smazat tag „${t.name}“? Odebere se ze všech obchodů a strategií.`)) run(() => jFetch(`/tags/${t.id}`, { method: "DELETE" }));
+    if (confirm(`Smazat tag „${t.name}“? Odebere se ze všech obchodů a z pravidel strategií.`)) run(() => jFetch(`/tags/${t.id}`, { method: "DELETE" }));
   };
-  const saveStrategy = () => {
-    if (!st) return;
-    run(async () => {
-      const body = { name: st.name, description: st.description, tag_ids: st.tag_ids };
-      if (st.id) await jFetch(`/strategies/${st.id}`, { method: "PATCH", body });
-      else await jFetch("/strategies", { method: "POST", body });
-      setSt(null);
-    });
-  };
-  const deleteStrategy = (x: Strategy) => {
-    if (confirm(`Smazat strategii „${x.name}“? Obchody zůstanou, jen bez strategie.`)) run(() => jFetch(`/strategies/${x.id}`, { method: "DELETE" }));
-  };
-  const tagName = (id: number) => data.tags.find((t) => t.id === id)?.name;
   const field = "w-full rounded-lg bg-[#0f1117] border border-[#2a2d3a] px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:border-blue-600 focus:outline-none";
 
   return (
     <div className="fixed inset-0 z-50 bg-black/70 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
       <div className="bg-[#12141c] border border-[#2a2d3a] rounded-2xl max-w-2xl w-full p-6 my-8 space-y-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-white flex items-center gap-2"><Tags size={17} className="text-blue-400" /> Tagy a strategie</h2>
+          <h2 className="text-lg font-bold text-white flex items-center gap-2"><Tags size={17} className="text-blue-400" /> Tagy</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-white"><X size={20} /></button>
         </div>
+        <p className="text-[11px] text-gray-500 -mt-3">Strategie a jejich pravidla upravíš v deníku strategie (karty nahoře v deníku).</p>
         {err && <p className="text-sm text-red-400">{err}</p>}
 
-        {/* strategie */}
-        <section>
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-semibold text-white">Strategie</h3>
-            {!st && (
-              <button onClick={() => setSt({ id: null, name: "", description: "", tag_ids: [] })}
-                className="text-xs text-[#8fffab] flex items-center gap-1"><Plus size={13} /> Nová strategie</button>
-            )}
-          </div>
-          <p className="text-[11px] text-gray-500 mb-3">Strategie je pojmenovaná kombinace tagů (např. „Sweep + iFVG“ = Liquidity, iFVG, M5). Tagy strategie jsou její <strong className="text-gray-300">pravidla</strong> — u obchodu je odškrtáš jako checklist a deník strategie ukáže, jak ti jde, když je dodržíš a když ne. Chybí ti pravidlo? Přidej si vlastní tag dole (např. „Sweep likvidity“, „MSS po sweepu“).</p>
-          {st && (
-            <div className="rounded-xl border border-[#2f3b55] bg-[#0f1117] p-3 space-y-2 mb-3">
-              <input className={field} value={st.name} placeholder="Název strategie" maxLength={60} onChange={(e) => setSt({ ...st, name: e.target.value })} />
-              <textarea className={`${field} min-h-[50px]`} value={st.description} placeholder="Pravidla vstupu (volitelné)…" onChange={(e) => setSt({ ...st, description: e.target.value })} />
-              {(["setup", "timeframe"] as const).map((k) => (
-                <div key={k} className="flex flex-wrap gap-1.5 items-center">
-                  <span className="text-[10px] uppercase tracking-wider text-gray-500 w-20">{KIND_LABEL[k]}</span>
-                  {data.tags.filter((t) => t.kind === k).map((t) => (
-                    <Chip key={t.id} on={st.tag_ids.includes(t.id)} label={t.name} onClick={() => setSt({ ...st, tag_ids: toggle(st.tag_ids, t.id) })} />
-                  ))}
-                </div>
-              ))}
-              <div className="flex justify-end gap-2 pt-1">
-                <button onClick={() => setSt(null)} className="rounded-lg px-3 py-1.5 text-xs text-gray-300 border border-[#2a2d3a]">Zrušit</button>
-                <button onClick={saveStrategy} disabled={!st.name.trim()} className="rounded-lg px-3 py-1.5 text-xs bg-blue-600 text-white disabled:opacity-40">Uložit strategii</button>
-              </div>
-            </div>
-          )}
-          <div className="space-y-1.5">
-            {data.strategies.length === 0 && !st && <p className="text-xs text-gray-500">Zatím žádná strategie.</p>}
-            {data.strategies.map((x) => (
-              <div key={x.id} className="flex items-start justify-between gap-2 rounded-lg border border-[#232735] px-3 py-2">
-                <div className="min-w-0">
-                  <div className="text-sm text-gray-100">{x.name}</div>
-                  <div className="text-[11px] text-gray-500">{x.tag_ids.map(tagName).filter(Boolean).join(" · ") || "bez tagů"}</div>
-                </div>
-                <div className="shrink-0">
-                  <button onClick={() => setSt({ id: x.id, name: x.name, description: x.description ?? "", tag_ids: x.tag_ids })} className="text-gray-500 hover:text-blue-400 p-1" title="Upravit"><Pencil size={13} /></button>
-                  <button onClick={() => deleteStrategy(x)} className="text-gray-500 hover:text-red-400 p-1" title="Smazat"><Trash2 size={13} /></button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* tagy */}
         {(["setup", "timeframe", "mistake"] as const).map((k) => (
           <section key={k}>
             <h3 className="text-sm font-semibold text-white mb-2">{KIND_LABEL[k]}</h3>
@@ -808,13 +798,154 @@ function TagsModal({ data, startNew, onClose, onChanged }: {
             </div>
             <form onSubmit={(e) => { e.preventDefault(); addTag(k); }} className="flex gap-2">
               <input className={`${field} py-1.5`} value={newName[k]} maxLength={40}
-                placeholder={k === "mistake" ? "Nová chyba, např. „Obchodoval jsem unavený“" : k === "timeframe" ? "např. M3" : "např. Breaker, SMT, Judas swing"}
+                placeholder={k === "mistake" ? "Nová chyba, např. „Obchodoval jsem unavený“" : k === "timeframe" ? "např. M3" : "např. Breaker, MSS, Judas swing"}
                 onChange={(e) => setNewName((p) => ({ ...p, [k]: e.target.value }))} />
               <button type="submit" disabled={!newName[k].trim()} className="rounded-lg px-3 text-xs bg-[#1e2536] text-white border border-[#2f3b55] disabled:opacity-40">Přidat</button>
             </form>
           </section>
         ))}
-        <p className="text-[10px] text-gray-600">Kliknutím na tag ho přejmenuješ (u všech obchodů se změní taky).</p>
+        <p className="text-[10px] text-gray-600">Kliknutím na tag ho přejmenuješ (u všech obchodů se změní taky). Timeframe tagy slouží jen pro obchody bez strategie — strategie má timeframe u každého bloku pravidel.</p>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------- editor strategie (pravidla po TF) */
+
+const rid = () => Math.random().toString(36).slice(2, 8);
+const LOWER_TF: Record<string, string> = { W1: "D1", D1: "H4", H4: "H1", H1: "M15", M30: "M5", M15: "M5", M5: "M1", M3: "M1", M1: "M1" };
+
+function StrategyEditor({ data, initial, onClose, onSaved, onTagsChanged }: {
+  data: TagData; initial: Strategy | null; onClose: () => void;
+  onSaved: (id: number | null) => void; onTagsChanged: () => Promise<void>;
+}) {
+  const [name, setName] = useState(initial?.name ?? "");
+  const [description, setDescription] = useState(initial?.description ?? "");
+  const [blocks, setBlocks] = useState<Block[]>(() =>
+    initial?.blocks.length ? JSON.parse(JSON.stringify(initial.blocks)) : [{ id: rid(), tf: "H1", label: "kontext", conds: [] }]);
+  const [newObj, setNewObj] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const objects = data.tags.filter((t) => t.kind === "setup");
+  const nameOf = (id: number) => data.tags.find((t) => t.id === id)?.name;
+
+  const patchBlock = (bid: string, p: Partial<Block>) => setBlocks((bs) => bs.map((b) => (b.id === bid ? { ...b, ...p } : b)));
+  const patchCond = (bid: string, cid: string, p: Partial<Cond>) =>
+    setBlocks((bs) => bs.map((b) => (b.id === bid ? { ...b, conds: b.conds.map((c) => (c.id === cid ? { ...c, ...p } : c)) } : b)));
+  const addCond = (bid: string, tagId: number) => setBlocks((bs) => bs.map((b) => (b.id === bid
+    ? { ...b, conds: [...b.conds, { id: rid(), tag_id: tagId, action: actionsFor(nameOf(tagId))[0], obj_tf: null, req: "must" }] } : b)));
+  const removeCond = (bid: string, cid: string) =>
+    setBlocks((bs) => bs.map((b) => (b.id === bid ? { ...b, conds: b.conds.filter((c) => c.id !== cid) } : b)));
+  const addBlock = () => setBlocks((bs) => [...bs, { id: rid(), tf: LOWER_TF[bs[bs.length - 1]?.tf] ?? "M5", label: bs.length ? "vstup" : "kontext", conds: [] }]);
+  const moveBlock = (i: number, d: -1 | 1) => setBlocks((bs) => {
+    const j = i + d; if (j < 0 || j >= bs.length) return bs;
+    const n = [...bs]; [n[i], n[j]] = [n[j], n[i]]; return n;
+  });
+
+  const addObject = async () => {
+    const n = newObj.trim(); if (!n) return;
+    setErr(null);
+    try { await jFetch("/tags", { method: "POST", body: { kind: "setup", name: n } }); setNewObj(""); await onTagsChanged(); }
+    catch (e) { setErr(e instanceof Error ? e.message : "Objekt se nepodařilo přidat"); }
+  };
+  const save = async () => {
+    if (!name.trim()) { setErr("Zadej název strategie."); return; }
+    setSaving(true); setErr(null);
+    try {
+      const body = { name, description, rules: { blocks } };
+      const r = initial ? await jFetch(`/strategies/${initial.id}`, { method: "PATCH", body }) : await jFetch("/strategies", { method: "POST", body });
+      onSaved((r as { strategy: Strategy }).strategy.id);
+    } catch (e) { setErr(e instanceof Error ? e.message : "Uložení selhalo"); setSaving(false); }
+  };
+  const remove = async () => {
+    if (!initial || !confirm(`Smazat strategii „${initial.name}“? Obchody zůstanou, jen bez strategie.`)) return;
+    try { await jFetch(`/strategies/${initial.id}`, { method: "DELETE" }); onSaved(null); }
+    catch (e) { setErr(e instanceof Error ? e.message : "Smazání selhalo"); }
+  };
+
+  const field = "w-full rounded-lg bg-[#0f1117] border border-[#2a2d3a] px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:border-blue-600 focus:outline-none";
+  const sel = "rounded-md bg-[#0f1117] border border-[#2a2d3a] px-1.5 py-1 text-xs text-gray-200 focus:border-blue-600 focus:outline-none";
+  const reqColor = (r: string) => (r === "must" ? "text-green-300" : r === "opt" ? "text-gray-400" : "text-blue-300");
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/70 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
+      <div className="bg-[#12141c] border border-[#2a2d3a] rounded-2xl max-w-2xl w-full p-6 my-8 space-y-4" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold text-white">{initial ? "Upravit strategii" : "Nový deník strategie"}</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-white"><X size={20} /></button>
+        </div>
+        <input className={field} value={name} maxLength={60} placeholder="Název, např. H1 sweep + M5 iFVG" onChange={(e) => setName(e.target.value)} />
+        <textarea className={`${field} min-h-[44px]`} value={description} placeholder="Popis / poznámky ke strategii (volitelné)" onChange={(e) => setDescription(e.target.value)} />
+
+        <div>
+          <h3 className="text-sm font-semibold text-white">Pravidla po timeframech</h3>
+          <p className="text-[11px] text-gray-500">Od vyššího TF k nižšímu. Podmínka = objekt + co se stalo. <span className="text-green-300">Povinné</span> musí platit vždy, <span className="text-blue-300">jedno z A</span> = stačí jedna podmínka ze skupiny A, <span className="text-gray-400">volitelné</span> = bonus (statistika ukáže, jestli pomáhá).</p>
+        </div>
+
+        {blocks.map((b, i) => (
+          <div key={b.id} className="rounded-xl border border-[#2f3b55] bg-[#0f1117]/60 p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <select className={`${sel} font-semibold text-blue-300`} value={b.tf} onChange={(e) => patchBlock(b.id, { tf: e.target.value })}>
+                {TIMEFRAMES.map((tf) => <option key={tf} value={tf}>{tf}</option>)}
+              </select>
+              <input className={`${sel} w-32`} value={b.label ?? ""} maxLength={30} placeholder="popisek (kontext…)"
+                onChange={(e) => patchBlock(b.id, { label: e.target.value })} />
+              <span className="flex-1" />
+              <button type="button" onClick={() => moveBlock(i, -1)} disabled={i === 0} className="p-1 text-gray-500 hover:text-white disabled:opacity-30" title="Výš"><ChevronLeft size={14} className="rotate-90" /></button>
+              <button type="button" onClick={() => moveBlock(i, 1)} disabled={i === blocks.length - 1} className="p-1 text-gray-500 hover:text-white disabled:opacity-30" title="Níž"><ChevronRight size={14} className="rotate-90" /></button>
+              <button type="button" onClick={() => setBlocks((bs) => bs.filter((x) => x.id !== b.id))} className="p-1 text-gray-500 hover:text-red-400" title="Smazat blok"><Trash2 size={14} /></button>
+            </div>
+
+            <div className="mt-2 space-y-1.5">
+              {b.conds.map((c) => {
+                const acts = actionsFor(nameOf(c.tag_id));
+                return (
+                  <div key={c.id} className="flex flex-wrap items-center gap-1.5 border-t border-[#232735] pt-1.5">
+                    <span className="min-w-[70px] text-sm font-medium text-gray-100">{nameOf(c.tag_id) ?? "?"}</span>
+                    <select className={sel} value={c.obj_tf ?? ""} title="Timeframe objektu" onChange={(e) => patchCond(b.id, c.id, { obj_tf: e.target.value || null })}>
+                      <option value="">z {b.tf}</option>
+                      {TIMEFRAMES.filter((tf) => tf !== b.tf).map((tf) => <option key={tf} value={tf}>z {tf}</option>)}
+                    </select>
+                    <select className={sel} value={c.action ?? ""} onChange={(e) => patchCond(b.id, c.id, { action: e.target.value || null })}>
+                      <option value="">—</option>
+                      {[...new Set([...acts, ...(c.action && !acts.includes(c.action) ? [c.action] : [])])].map((a) => <option key={a} value={a}>{a}</option>)}
+                    </select>
+                    <span className="flex-1" />
+                    <select className={`${sel} ${reqColor(c.req)}`} value={c.req} onChange={(e) => patchCond(b.id, c.id, { req: e.target.value })}>
+                      {REQ_OPTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                    </select>
+                    <button type="button" onClick={() => removeCond(b.id, c.id)} className="p-1 text-gray-600 hover:text-red-400" title="Odebrat"><X size={13} /></button>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              <span className="text-[10px] uppercase tracking-wider text-gray-500">+ přidat</span>
+              {objects.map((t) => (
+                <button key={t.id} type="button" onClick={() => addCond(b.id, t.id)}
+                  className="rounded-full border border-[#2a2d3a] bg-[#0f1117] px-2 py-0.5 text-xs text-gray-300 hover:border-blue-700 hover:text-white">{t.name}</button>
+              ))}
+            </div>
+          </div>
+        ))}
+
+        <button type="button" onClick={addBlock} className="flex items-center gap-1 text-xs text-[#8fffab]"><Plus size={13} /> Přidat timeframe</button>
+
+        <form onSubmit={(e) => { e.preventDefault(); addObject(); }} className="flex gap-2">
+          <input className={`${field} py-1.5`} value={newObj} maxLength={40} placeholder="Chybí objekt? Přidej vlastní (např. Breaker, MSS)" onChange={(e) => setNewObj(e.target.value)} />
+          <button type="submit" disabled={!newObj.trim()} className="rounded-lg px-3 text-xs bg-[#1e2536] text-white border border-[#2f3b55] disabled:opacity-40">Přidat objekt</button>
+        </form>
+
+        {err && <p className="text-sm text-red-400">{err}</p>}
+        <div className="flex items-center gap-2 pt-1">
+          {initial && <button onClick={remove} className="rounded-lg px-3 py-2 text-xs text-red-300 border border-red-900/60 hover:bg-red-950/30">Smazat strategii</button>}
+          <span className="flex-1" />
+          <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-gray-300 border border-[#2a2d3a] hover:text-white">Zrušit</button>
+          <button onClick={save} disabled={saving}
+            className="rounded-lg px-4 py-2 text-sm font-medium bg-[rgba(96,255,130,0.14)] text-[#8fffab] border border-[rgba(96,255,130,0.4)] hover:bg-[rgba(96,255,130,0.22)] disabled:opacity-50">
+            {saving ? "Ukládám…" : initial ? "Uložit strategii" : "Vytvořit deník"}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -1091,7 +1222,8 @@ export default function DenikPage() {
   const [draft, setDraft] = useState<Partial<FormState> | null>(null);
   const [lastMeta, setLastMeta] = useState<AnalysisMeta | null>(null);
   const [tagData, setTagData] = useState<TagData>({ tags: [], strategies: [] });
-  const [tagsOpen, setTagsOpen] = useState<false | "manage" | "new">(false);
+  const [tagsOpen, setTagsOpen] = useState(false);
+  const [stratEdit, setStratEdit] = useState<null | "new" | Strategy>(null);
   const [filter, setFilter] = useState("");   // "" | "t:<id>" tag
   const [day, setDay] = useState<string | null>(null);   // vybraný den v kalendáři (YYYY-MM-DD)
   const [journal, setJournal] = useState<number | null>(null);   // otevřený deník strategie (null = všechny obchody)
@@ -1196,9 +1328,9 @@ export default function DenikPage() {
                 <span className="ml-1 rounded bg-blue-950/60 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-300">Coming soon</span>
               </button>
             )}
-            <button onClick={() => setTagsOpen("manage")}
+            <button onClick={() => setTagsOpen(true)}
               className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium bg-[#151823] text-gray-300 border border-[#2a2d3a] hover:text-white transition-colors">
-              <Tags size={15} /> Tagy a strategie
+              <Tags size={15} /> Tagy
             </button>
             <button onClick={() => setImportOpen(true)}
               className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium bg-[#151823] text-gray-300 border border-[#2a2d3a] hover:text-white transition-colors">
@@ -1233,24 +1365,35 @@ export default function DenikPage() {
       {user && !loading && t && (
         <>
           <StrategyTabs items={stats!.strategies} total={entries.length} active={journal}
-            onSelect={openJournal} onNew={() => setTagsOpen("new")} />
+            onSelect={openJournal} onNew={() => setStratEdit("new")} />
 
           {cur && (
             <div className="rounded-xl border border-blue-900/50 bg-blue-950/20 p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="text-lg font-bold text-white">Deník: {cur.name}</h2>
-                <button onClick={() => setTagsOpen("manage")} className="text-[11px] text-blue-400 hover:text-blue-300 flex items-center gap-1">
+                <button onClick={() => setStratEdit(cur)} className="text-[11px] text-blue-400 hover:text-blue-300 flex items-center gap-1">
                   <Pencil size={12} /> Upravit pravidla
                 </button>
               </div>
               {cur.description && <p className="mt-1 whitespace-pre-line text-xs text-gray-400">{cur.description}</p>}
-              <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                <span className="text-[10px] uppercase tracking-wider text-gray-500">Pravidla:</span>
-                {cur.tag_ids.length
-                  ? cur.tag_ids.map((id) => tagById.get(id)).filter(Boolean).map((tg) => (
-                      <span key={tg!.id} className="rounded bg-blue-950/60 px-2 py-0.5 text-[11px] text-blue-300">{tg!.name}</span>))
-                  : <span className="text-xs text-gray-500">žádná — přidej strategii tagy, ať můžeš kontrolovat jejich dodržení</span>}
-              </div>
+              {cur.blocks.some((b) => b.conds.length) ? (
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {cur.blocks.filter((b) => b.conds.length).map((b) => (
+                    <div key={b.id} className="rounded-lg border border-[#2f3b55] bg-[#0f1117]/60 px-3 py-2">
+                      <div className="text-[10px] uppercase tracking-wider text-blue-300">{b.tf}{b.label ? ` · ${b.label}` : ""}</div>
+                      {b.conds.map((c) => (
+                        <div key={c.id} className="flex items-center gap-1.5 text-[12px] text-gray-200">
+                          <span className={c.req === "must" ? "text-green-400" : c.req === "opt" ? "text-gray-500" : "text-blue-300"}>
+                            {c.req === "must" ? "●" : c.req === "opt" ? "○" : c.req}
+                          </span>
+                          {condText(c, (id) => tagById.get(id)?.name)}
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                  <div className="text-[10px] text-gray-500 sm:col-span-2"><span className="text-green-400">●</span> povinné · <span className="text-blue-300">A</span> jedno ze skupiny · <span className="text-gray-500">○</span> volitelné</div>
+                </div>
+              ) : <p className="mt-2 text-xs text-gray-500">Strategie zatím nemá pravidla — klikni na „Upravit pravidla“.</p>}
             </div>
           )}
 
@@ -1271,12 +1414,14 @@ export default function DenikPage() {
             <div className="space-y-3">
               <div>
                 <h2 className="text-base font-semibold text-white">Dodržuješ pravidla strategie?</h2>
-                <p className="text-xs text-gray-500">Obchod „podle pravidel“ = odškrtnutých všech {comp.rules_total} pravidel. Porovnej, jak ti jde, když je dodržíš a když ne.</p>
+                <p className="text-xs text-gray-500">Obchod „podle plánu“ = splněné všechny povinné podmínky a z každé skupiny „jedno z“ aspoň jedna (požadavků celkem: {comp.rules_total}). Porovnej, jak ti jde, když je dodržíš a když ne.</p>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <BucketTable title="Podle pravidel vs. s porušením" rows={comp.buckets}
-                  nameMap={{ all: "✓ Všechna pravidla splněna", broken: "! Aspoň jedno porušeno" }} />
-                <BucketTable title="Když jsi pravidlo nedodržel" rows={comp.by_rule} />
+                <BucketTable title="Podle plánu vs. mimo plán" rows={comp.buckets}
+                  nameMap={{ all: "✓ Podle plánu", broken: "! Mimo plán" }} />
+                <BucketTable title="Když jsi povinnou podmínku vynechal" rows={comp.by_rule} />
+                <BucketTable title="Volitelné podmínky: s ní (✓) vs. bez ní (✗)" rows={comp.optional ?? []} />
+                <BucketTable title="Skupiny „jedno z“: která varianta funguje líp" rows={comp.alternatives ?? []} />
               </div>
             </div>
           )}
@@ -1383,7 +1528,7 @@ export default function DenikPage() {
                             {e.strategy_id && stratById.get(e.strategy_id) && (
                               <div className="text-xs font-medium text-gray-100 truncate">
                                 {stratById.get(e.strategy_id)!.name}
-                                <RulesBadge {...rulesMet(e.tag_ids, stratById.get(e.strategy_id))} />
+                                <RulesBadge {...rulesMet(checkedIds(e.checks, e.tag_ids, stratById.get(e.strategy_id)), stratById.get(e.strategy_id))} />
                               </div>
                             )}
                             <div className="flex flex-wrap gap-1 mt-0.5">
@@ -1422,8 +1567,10 @@ export default function DenikPage() {
 
       {analyzeOpen && <AnalyzeModal isAdmin={!!user?.is_admin} onClose={() => setAnalyzeOpen(false)} onExtracted={onExtracted} />}
       {importOpen && <ImportModal onClose={() => setImportOpen(false)} onDone={onImported} />}
-      {formOpen && <EntryForm initial={editing} draft={draft} meta={lastMeta} tagData={tagData} defaultStrategyId={journal} onManageTags={() => setTagsOpen("manage")} onClose={() => { setFormOpen(false); setEditing(null); setDraft(null); setLastMeta(null); }} onSaved={onSaved} />}
-      {tagsOpen && <TagsModal data={tagData} startNew={tagsOpen === "new"} onClose={() => setTagsOpen(false)} onChanged={reload} />}
+      {formOpen && <EntryForm initial={editing} draft={draft} meta={lastMeta} tagData={tagData} defaultStrategyId={journal} onManageTags={() => setTagsOpen(true)} onClose={() => { setFormOpen(false); setEditing(null); setDraft(null); setLastMeta(null); }} onSaved={onSaved} />}
+      {tagsOpen && <TagsModal data={tagData} onClose={() => setTagsOpen(false)} onChanged={reload} />}
+      {stratEdit && <StrategyEditor data={tagData} initial={stratEdit === "new" ? null : stratEdit} onTagsChanged={reload}
+        onClose={() => setStratEdit(null)} onSaved={(id) => { setStratEdit(null); reload(); openJournal(id); }} />}
     </div>
   );
 }

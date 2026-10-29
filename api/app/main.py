@@ -80,6 +80,14 @@ _PG_MIGRATIONS: list[tuple[str, str]] = [
      'ALTER TABLE help_chat_messages ADD COLUMN IF NOT EXISTS context TEXT'),
     ('val_instruments coverage_note',
      'ALTER TABLE val_instruments ADD COLUMN IF NOT EXISTS coverage_note VARCHAR(40)'),
+    ('journal_strategies rules',
+     'ALTER TABLE journal_strategies ADD COLUMN IF NOT EXISTS rules JSON'),
+    ('journal_entries checks',
+     'ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS checks JSON'),
+    ('journal_tags SMT default',
+     "INSERT INTO journal_tags (user_id, kind, name, sort_order, created_at) "
+     "SELECT DISTINCT t.user_id, 'setup', 'SMT', 50, now() FROM journal_tags t WHERE NOT EXISTS "
+     "(SELECT 1 FROM journal_tags s WHERE s.user_id = t.user_id AND s.kind = 'setup' AND lower(s.name) = 'smt')"),
     ('journal_entries tags/strategy',
      'ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS strategy_id INTEGER REFERENCES journal_strategies(id) ON DELETE SET NULL, ADD COLUMN IF NOT EXISTS tag_ids JSON, ADD COLUMN IF NOT EXISTS mistake_ids JSON, ADD COLUMN IF NOT EXISTS loss_reason TEXT'),
     ('journal_entries SL/TP/outcome',

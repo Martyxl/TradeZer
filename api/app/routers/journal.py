@@ -8,6 +8,7 @@ from __future__ import annotations
 import base64
 import json
 import re
+import secrets
 from datetime import datetime
 
 import httpx
@@ -31,10 +32,12 @@ DIRECTIONS = {"long", "short"}
 SESSIONS = {"asia", "london", "ny", "other"}
 OUTCOMES = {"win", "loss", "be"}
 TAG_KINDS = ("setup", "timeframe", "mistake")
+TIMEFRAMES = ("M1", "M3", "M5", "M15", "M30", "H1", "H4", "D1", "W1")
+RULE_REQS = ("must", "opt", "A", "B", "C", "D")   # povinné / volitelné / skupina „jedno z“
 
 # Výchozí tagy, které se založí každému uživateli při prvním otevření deníku.
 DEFAULT_TAGS: dict[str, list[str]] = {
-    "setup": ["FVG", "iFVG", "OB", "Fibo OTE", "Liquidity"],
+    "setup": ["FVG", "iFVG", "OB", "Fibo OTE", "Liquidity", "SMT"],
     "timeframe": ["M1", "M5", "M15", "H1", "H4", "D1"],
     "mistake": [
         "Nepočkal jsem na likviditu", "Vstup před OTE (FOMO)", "Bez potvrzení (MSS)",
@@ -66,6 +69,7 @@ def _out(e: JournalEntry) -> dict:
         "tag_ids": e.tag_ids or [],
         "mistake_ids": e.mistake_ids or [],
         "loss_reason": e.loss_reason,
+        "checks": e.checks,
         "created_at": e.created_at.isoformat() if e.created_at else None,
     }
 
@@ -137,6 +141,10 @@ def _id_list(v) -> list[int]:
 
 async def _apply_context(e: JournalEntry, p: dict, user: User, session: AsyncSession) -> None:
     """Strategie/tagy/chyby — jen vlastní (cizí id tiše zahodí) a správného druhu."""
+    if "checks" in p:
+        raw = p.get("checks")
+        e.checks = None if raw is None else list(dict.fromkeys(
+            c for c in (re.sub(r"[^\w-]", "", str(x))[:20] for x in (raw if isinstance(raw, list) else [])) if c))[:60]
     if not any(k in p for k in ("strategy_id", "tag_ids", "mistake_ids")):
         return
     kinds = dict((await session.execute(
@@ -283,45 +291,98 @@ def _bucket_stats(entries: list[JournalEntry], key) -> list[dict]:
     return out
 
 
-def _rules_met(e: JournalEntry, st: JournalStrategy) -> tuple[int, int]:
-    """Kolik pravidel (tagů) strategie obchod splnil: (splněno, celkem)."""
-    rules = st.tag_ids or []
-    have = set(e.tag_ids or [])
-    return sum(1 for r in rules if r in have), len(rules)
+def _rules_of(st: JournalStrategy, tags: dict) -> list[dict]:
+    """Bloky pravidel strategie. Starší strategie (jen ploché tag_ids) převede na jeden blok:
+    setup tagy = povinné podmínky, timeframe tag = timeframe bloku."""
+    if isinstance(st.rules, dict) and isinstance(st.rules.get("blocks"), list):
+        return st.rules["blocks"]
+    ids = [i for i in st.tag_ids or [] if i in tags]
+    if not ids:
+        return []
+    tf = next((tags[i].name for i in ids if tags[i].kind == "timeframe" and tags[i].name in TIMEFRAMES), None)
+    conds = [{"id": f"t{i}", "tag_id": i, "action": None, "obj_tf": None, "req": "must"}
+             for i in ids if tags[i].kind == "setup"]
+    return [{"id": "b0", "tf": tf or "M5", "label": None, "conds": conds}]
 
 
-def _strategy_journals(entries: list[JournalEntry], strats: list[JournalStrategy]) -> list[dict]:
+def _cond_ok(e: JournalEntry, c: dict) -> bool:
+    """Splnil obchod podmínku? Checklist (checks) má přednost; starší obchody podle tagů."""
+    if e.checks is not None:
+        return c["id"] in e.checks
+    return c["tag_id"] in (e.tag_ids or [])
+
+
+def _requirements(blocks: list[dict]) -> tuple[list[dict], dict[str, list[dict]], list[dict]]:
+    conds = [c for b in blocks for c in b["conds"]]
+    groups: dict[str, list[dict]] = {}
+    for c in conds:
+        if c["req"] not in ("must", "opt"):
+            groups.setdefault(c["req"], []).append(c)
+    return [c for c in conds if c["req"] == "must"], groups, [c for c in conds if c["req"] == "opt"]
+
+
+def _rules_met(e: JournalEntry, blocks: list[dict]) -> tuple[int, int]:
+    """(splněno, celkem): povinné podmínky + skupiny „jedno z“ (stačí jedna ze skupiny). Volitelné se nepočítají."""
+    musts, groups, _ = _requirements(blocks)
+    met = sum(_cond_ok(e, c) for c in musts) + sum(any(_cond_ok(e, c) for c in g) for g in groups.values())
+    return met, len(musts) + len(groups)
+
+
+def _cond_label(b: dict, c: dict, tags: dict) -> str:
+    name = tags[c["tag_id"]].name if c["tag_id"] in tags else "?"
+    obj = f"{c['obj_tf']} {name}" if c.get("obj_tf") else name
+    return f"{b['tf']} · {obj}" + (f" {c['action']}" if c.get("action") else "")
+
+
+def _strategy_journals(entries: list[JournalEntry], strats: list[JournalStrategy], tags: dict) -> list[dict]:
     """Přehled deníků strategií: výsledky + jak často obchod splnil všechna pravidla."""
     out = []
     for st in strats:
+        blocks = _rules_of(st, tags)
+        has_rules = _rules_met(JournalEntry(), blocks)[1] > 0
         items = [e for e in entries if e.strategy_id == st.id]
         base = _bucket_stats(items, lambda _e: "x")[0] if items else {"n": 0, "win_rate": None, "avg_r": None}
         rs = [e.r_result for e in items if e.r_result is not None]
-        full = sum(1 for e in items if (m := _rules_met(e, st))[0] == m[1])
+        full = sum(1 for e in items if (m := _rules_met(e, blocks))[0] == m[1])
         last = max((e.traded_at for e in items if e.traded_at), default=None)
         out.append({
             "id": st.id, "name": st.name, "n": base["n"], "win_rate": base["win_rate"], "avg_r": base["avg_r"],
             "sum_r": round(sum(rs), 2) if rs else None,
-            "compliance": round(100 * full / len(items)) if items and st.tag_ids else None,
+            "compliance": round(100 * full / len(items)) if items and has_rules else None,
             "last_trade": last.isoformat() if last else None,
         })
     return out
 
 
-def _compliance(entries: list[JournalEntry], st: JournalStrategy, tags: dict) -> dict:
-    """Výsledky obchodů podle pravidel vs. s porušením + co stojí porušení jednotlivých pravidel."""
+def _compliance(entries: list[JournalEntry], blocks: list[dict], tags: dict) -> dict:
+    """Podle plánu vs. s porušením, cena vynechání povinných podmínek, efekt volitelných
+    a která alternativa ze skupin „jedno z“ funguje líp."""
+    musts, groups, opts = _requirements(blocks)
+    total = len(musts) + len(groups)
+    label = {c["id"]: _cond_label(b, c, tags) for b in blocks for c in b["conds"]}
+    one = lambda items, key: {**_bucket_stats(items, lambda _e: "x")[0], "key": key}  # noqa: E731
+
     def full(e: JournalEntry) -> str:
-        met, total = _rules_met(e, st)
-        return "all" if met == total else "broken"
-    by_rule = []
-    for tid in st.tag_ids or []:
-        missed = [e for e in entries if tid not in (e.tag_ids or [])]
-        if missed and tid in tags:
-            by_rule.append({**_bucket_stats(missed, lambda _e: "x")[0], "key": tags[tid].name})
+        met, tot = _rules_met(e, blocks)
+        return "all" if met == tot else "broken"
+    by_rule = [one(missed, label[c["id"]]) for c in musts
+               if (missed := [e for e in entries if not _cond_ok(e, c)])]
+    optional = []
+    for c in opts:
+        with_c = [e for e in entries if _cond_ok(e, c)]
+        without = [e for e in entries if not _cond_ok(e, c)]
+        if with_c:
+            optional.append(one(with_c, f"✓ {label[c['id']]}"))
+        if without:
+            optional.append(one(without, f"✗ {label[c['id']]}"))
+    alternatives = [one(hit, f"{g}: {label[c['id']]}") for g, cs in sorted(groups.items()) for c in cs
+                    if (hit := [e for e in entries if _cond_ok(e, c)])]
     return {
-        "rules_total": len(st.tag_ids or []),
-        "buckets": _bucket_stats(entries, full) if st.tag_ids else [],
+        "rules_total": total,
+        "buckets": _bucket_stats(entries, full) if total else [],
         "by_rule": by_rule,
+        "optional": optional,
+        "alternatives": alternatives,
     }
 
 
@@ -401,8 +462,8 @@ async def journal_stats(strategy_id: int | None = None, user: User = Depends(cur
         "by_combo": by_combo[:15],
         "by_mistake": by_mistake,
         "losses": {"total": len(losses_list), "explained": explained},
-        "strategies": _strategy_journals(all_entries, strat_objs),
-        "compliance": _compliance(entries, current, tags) if current is not None else None,
+        "strategies": _strategy_journals(all_entries, strat_objs, tags),
+        "compliance": _compliance(entries, _rules_of(current, tags), tags) if current is not None else None,
     }
 
 
@@ -433,8 +494,14 @@ def _tag_out(t: JournalTag) -> dict:
     return {"id": t.id, "kind": t.kind, "name": t.name}
 
 
-def _strategy_out(st: JournalStrategy) -> dict:
-    return {"id": st.id, "name": st.name, "description": st.description, "tag_ids": st.tag_ids or []}
+def _strategy_out(st: JournalStrategy, tags: dict) -> dict:
+    return {"id": st.id, "name": st.name, "description": st.description, "tag_ids": st.tag_ids or [],
+            "blocks": _rules_of(st, tags)}
+
+
+async def _tags_by_id(user: User, session: AsyncSession) -> dict:
+    return {t.id: t for t in (await session.execute(
+        select(JournalTag).where(JournalTag.user_id == user.id))).scalars()}
 
 
 @router.get("/tags")
@@ -445,7 +512,7 @@ async def list_tags(user: User = Depends(current_user), session: AsyncSession = 
                                   .order_by(JournalTag.kind, JournalTag.sort_order, JournalTag.id))).scalars().all()
     strategies = (await session.execute(select(JournalStrategy).where(JournalStrategy.user_id == user.id)
                                         .order_by(JournalStrategy.name))).scalars().all()
-    return {"tags": [_tag_out(t) for t in tags], "strategies": [_strategy_out(x) for x in strategies]}
+    return {"tags": [_tag_out(t) for t in tags], "strategies": [_strategy_out(x, {t.id: t for t in tags}) for x in strategies]}
 
 
 def _clean_name(v, max_len: int, what: str) -> str:
@@ -512,6 +579,9 @@ async def delete_tag(tag_id: int, user: User = Depends(current_user),
     for st in (await session.execute(select(JournalStrategy).where(JournalStrategy.user_id == user.id))).scalars():
         if tag_id in (st.tag_ids or []):
             st.tag_ids = [i for i in st.tag_ids if i != tag_id] or None
+        if isinstance(st.rules, dict):
+            st.rules = {"blocks": [{**b, "conds": [c for c in b["conds"] if c["tag_id"] != tag_id]}
+                                   for b in st.rules.get("blocks", [])]}
     await session.delete(t)
     await session.commit()
     return {"status": "ok"}
@@ -522,10 +592,53 @@ async def _apply_strategy(st: JournalStrategy, p: dict, user: User, session: Asy
         st.name = _clean_name(p.get("name"), 60, "strategie")
     if "description" in p:
         st.description = str(p.get("description") or "").strip()[:2000] or None
-    if "tag_ids" in p:
+    if "rules" in p:
+        own = set((await session.execute(select(JournalTag.id).where(
+            JournalTag.user_id == user.id, JournalTag.kind == "setup"))).scalars())
+        st.rules = _clean_rules(p.get("rules"), own)
+        # tag_ids = objekty z pravidel (filtr „podle tagu“, úklid při mazání tagu)
+        st.tag_ids = list(dict.fromkeys(c["tag_id"] for b in st.rules["blocks"] for c in b["conds"])) or None
+    elif "tag_ids" in p:
         own = set((await session.execute(select(JournalTag.id).where(
             JournalTag.user_id == user.id, JournalTag.kind.in_(("setup", "timeframe"))))).scalars())
         st.tag_ids = [i for i in _id_list(p.get("tag_ids")) if i in own] or None
+
+
+def _clean_rules(v, own: set[int]) -> dict:
+    """Validuje bloky pravidel: známý timeframe, jen vlastní objektové tagy, limity délek."""
+    blocks = v.get("blocks") if isinstance(v, dict) else None
+    if not isinstance(blocks, list):
+        raise HTTPException(status_code=422, detail="Chybí bloky pravidel.")
+    seen: set[str] = set()
+
+    def uid(raw) -> str:
+        i = re.sub(r"[^\w-]", "", str(raw or ""))[:20]
+        if not i or i in seen:
+            i = secrets.token_hex(4)
+        seen.add(i)
+        return i
+    out = []
+    for b in blocks[:8]:
+        if not isinstance(b, dict):
+            continue
+        tf = str(b.get("tf") or "")
+        if tf not in TIMEFRAMES:
+            raise HTTPException(status_code=422, detail=f"Neznámý timeframe „{tf}“.")
+        conds = []
+        for c in (b.get("conds") or [])[:12]:
+            tid = _id_list([c.get("tag_id")]) if isinstance(c, dict) else []
+            if not tid or tid[0] not in own:
+                continue
+            obj_tf = c.get("obj_tf")
+            conds.append({
+                "id": uid(c.get("id")), "tag_id": tid[0],
+                "action": str(c.get("action") or "").strip()[:40] or None,
+                "obj_tf": obj_tf if obj_tf in TIMEFRAMES and obj_tf != tf else None,
+                "req": c.get("req") if c.get("req") in RULE_REQS else "must",
+            })
+        out.append({"id": uid(b.get("id")), "tf": tf, "label": str(b.get("label") or "").strip()[:30] or None,
+                     "conds": conds})
+    return {"blocks": out}
 
 
 @router.post("/strategies")
@@ -536,7 +649,7 @@ async def create_strategy(payload: dict, user: User = Depends(current_user),
     session.add(st)
     await session.commit()
     await session.refresh(st)
-    return {"strategy": _strategy_out(st)}
+    return {"strategy": _strategy_out(st, await _tags_by_id(user, session))}
 
 
 async def _owned_strategy(sid: int, user: User, session: AsyncSession) -> JournalStrategy:
@@ -552,7 +665,7 @@ async def update_strategy(sid: int, payload: dict, user: User = Depends(current_
     st = await _owned_strategy(sid, user, session)
     await _apply_strategy(st, payload, user, session)
     await session.commit()
-    return {"strategy": _strategy_out(st)}
+    return {"strategy": _strategy_out(st, await _tags_by_id(user, session))}
 
 
 @router.delete("/strategies/{sid}")

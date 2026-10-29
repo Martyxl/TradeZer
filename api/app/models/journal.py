@@ -39,6 +39,7 @@ class JournalEntry(Base):
     tag_ids: Mapped[list | None] = mapped_column(JSON)       # [JournalTag.id] druhu setup/timeframe
     mistake_ids: Mapped[list | None] = mapped_column(JSON)   # [JournalTag.id] druhu mistake
     loss_reason: Mapped[str | None] = mapped_column(Text)    # proč obchod nevyšel (volný text)
+    checks: Mapped[list | None] = mapped_column(JSON)        # id splněných podmínek strategie (checklist)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime | None] = mapped_column(DateTime, onupdate=func.now())
 
@@ -60,7 +61,9 @@ class JournalTag(Base):
 
 
 class JournalStrategy(Base):
-    """Strategie = pojmenovaná kombinace tagů (např. „Sweep + iFVG“ = Liquidity, iFVG, M5)."""
+    """Strategie = pravidla po timeframech. `rules` = {"blocks": [{"id", "tf", "label",
+    "conds": [{"id", "tag_id", "action", "obj_tf", "req"}]}]}, req: "must" | "opt" | "A".."D"
+    (skupina „jedno z“). Starší strategie mají jen ploché `tag_ids` (převedou se při čtení)."""
     __tablename__ = "journal_strategies"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -69,7 +72,8 @@ class JournalStrategy(Base):
     )
     name: Mapped[str] = mapped_column(String(60), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
-    tag_ids: Mapped[list | None] = mapped_column(JSON)
+    tag_ids: Mapped[list | None] = mapped_column(JSON)   # legacy: plochý seznam tagů
+    rules: Mapped[dict | None] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 
