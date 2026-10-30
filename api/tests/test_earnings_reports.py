@@ -1,4 +1,4 @@
-"""Výsledky hospodaření: ingest z workeru (SEC 8-K) → AI vysvětlení, reakce ceny, feed."""
+"""Výsledky hospodaření: ingest analýzy ze Sparku (SEC 8-K), reakce ceny + vysvětlení, feed."""
 import os
 from datetime import datetime, timedelta
 
@@ -6,7 +6,6 @@ import pytest
 
 os.environ["APP_ENV"] = "test"
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
-os.environ["ANTHROPIC_API_KEY"] = "test-key"
 os.environ["INTERNAL_API_TOKEN"] = "test-token"
 
 from httpx import AsyncClient, ASGITransport
@@ -58,30 +57,34 @@ async def test_ingest_reaction_and_feed(monkeypatch):
                        published_at=accepted + timedelta(minutes=20), raw_payload={}))
         await s.commit()
 
-    calls = []
-
-    def fake_json(system, user, max_tokens=1400):
-        calls.append(user)
-        return ({"fiscal_period": "Q3 2026", "revenue_usd": 102.3e9, "revenue_yoy_pct": 25, "eps_gaap": 2.12, "eps_adjusted": None,
-                 "verdict": "mixed", "headline_cs": "Tržby rostou, zisk pod odhadem.",
-                 "summary_cs": ["Tržby +25 %", "Zisk na akcii 2,12 USD pod odhadem 2,94"], "guidance_cs": None},
-                "test-model")
-    monkeypatch.setattr(E, "_llm_json", fake_json)
-    monkeypatch.setattr(E, "_llm_text", lambda system, user, max_tokens=600: "- Investoři řeší výdaje na AI.")
+    analysis = {"fiscal_period": "Q3 2026", "revenue_usd": 102.3e9, "revenue_yoy_pct": 25, "eps_gaap": 2.12,
+                "eps_adjusted": None, "verdict": "mixed", "headline_cs": "Tržby rostou, zisk pod odhadem.",
+                "summary_cs": ["Tržby +25 %", "Zisk na akcii 2,12 USD pod odhadem 2,94"], "guidance_cs": None}
 
     async with _client() as c:
         body = {"ticker": "googl", "accession": "0001652044-26-000080", "accepted_at": accepted.isoformat() + "Z",
-                "url": "https://www.sec.gov/x", "press_text": "Alphabet announces third quarter 2026 results...",
-                "eps_estimate": 2.94, "n_estimates": "14"}
+                "url": "https://www.sec.gov/x", "analysis": None, "eps_estimate": 2.94, "n_estimates": "14"}
         assert (await c.post("/api/valuation/earnings/ingest", json=body)).status_code in (401, 403, 503)
+        # Spark model selhal → report bez analýzy, doplní se dalším ingestem
         r = (await c.post("/api/valuation/earnings/ingest", json=body, headers=TOKEN)).json()
-        assert r["status"] == "created" and r["analyzed"]
+        assert r["status"] == "created" and not r["analyzed"]
+        body.update(analysis=analysis, llm_model="spark-heavy")
+        r2 = (await c.post("/api/valuation/earnings/ingest", json=body, headers=TOKEN)).json()
+        assert r2 == {"status": "analyzed", "id": r["id"], "analyzed": True}
         assert (await c.post("/api/valuation/earnings/ingest", json=body, headers=TOKEN)).json()["status"] == "exists"
-        assert "Konsenzus EPS analytiků: 2.94" in calls[0]
 
         rr = (await c.post(f"/api/valuation/earnings/{r['id']}/reaction",
                            json={"price_before": 280.0, "price_now": 266.0}, headers=TOKEN)).json()
-        assert rr["reaction_pct"] == -5.0 and rr["explained"]
+        assert rr["reaction_pct"] == -5.0 and not rr["explained"]
+        ctx = rr["explain"]
+        assert ctx["eps_estimate"] == 2.94 and ctx["reaction_pct"] == -5.0
+        assert ctx["news"] == ["Alphabet Q3 Profit Falls Despite 25% Revenue Growth"]
+        ex = await c.post(f"/api/valuation/earnings/{r['id']}/explanation",
+                          json={"reaction_cs": ["Investoři řeší výdaje na AI."]}, headers=TOKEN)
+        assert ex.json()["explained"]
+        rr = (await c.post(f"/api/valuation/earnings/{r['id']}/reaction",
+                           json={"price_before": 280.0, "price_now": 266.0}, headers=TOKEN)).json()
+        assert rr["explained"] and rr["explain"] is None
 
         h = await auth_headers(c, "t@x.cz", plan="trader")
         feed = (await c.get("/api/valuation/earnings", headers=h)).json()["reports"]

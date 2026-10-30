@@ -464,12 +464,26 @@ def _parse_utc(v) -> datetime | None:
         return None
 
 
+def _apply_analysis(r, a: dict, act, act_surprise) -> None:
+    """Analýza ze Sparku → pole reportu. EPS z tiskové zprávy (upravený, pokud ho firma uvádí — na tom
+    základu bývá konsenzus); Nasdaq „eps“ jen jako záloha (u čerstvých výsledků někdy ukazuje loňské číslo)."""
+    eps = a.get("eps_adjusted") if a.get("eps_adjusted") is not None else a.get("eps_gaap")
+    surprise = None
+    if eps is None:
+        eps, surprise = act, act_surprise
+    if surprise is None and eps is not None and r.eps_estimate:
+        surprise = round((eps - r.eps_estimate) / abs(r.eps_estimate) * 100, 2)
+    r.eps_actual, r.eps_surprise_pct, r.eps_gaap = eps, surprise, a.get("eps_gaap")
+    for k in ("fiscal_period", "revenue", "revenue_yoy_pct", "verdict", "headline_cs", "summary_cs",
+              "guidance_cs", "llm_model"):
+        setattr(r, k, a.get(k))
+
+
 @router.post("/earnings/ingest", dependencies=[Depends(_verify_token)])
 async def earnings_ingest(payload: dict, session: AsyncSession = Depends(get_session)):
-    """Spark worker: nové výsledky (SEC 8-K Item 2.02) → vytěžení čísel + české vysvětlení (Claude).
-    Tělo: {ticker, accession, accepted_at, url, press_text, eps_estimate?, eps_actual?, n_estimates?}.
-    Idempotentní podle accession."""
-    import asyncio
+    """Spark worker: nové výsledky (SEC 8-K Item 2.02) + analýza od lokálního modelu na Sparku.
+    Tělo: {ticker, accession, accepted_at, url, analysis?, llm_model?, eps_estimate?, eps_actual?, n_estimates?}.
+    Idempotentní podle accession; existující report bez analýzy se analýzou doplní."""
     from app.valuation import earnings as E
     from app.valuation.models import ValEarningsReport
     ticker = str(payload.get("ticker") or "").upper()[:12]
@@ -477,31 +491,23 @@ async def earnings_ingest(payload: dict, session: AsyncSession = Depends(get_ses
     accepted = _parse_utc(payload.get("accepted_at"))
     if not ticker or not acc or accepted is None:
         raise HTTPException(status_code=422, detail="Chybí ticker / accession / accepted_at")
+    a = E.normalize_analysis(payload.get("analysis"), payload.get("llm_model"))
+    act, act_surprise = _f(payload.get("eps_actual")), _f(payload.get("eps_surprise_pct"))
     existing = await session.scalar(select(ValEarningsReport).where(ValEarningsReport.accession == acc))
     if existing:
-        return {"status": "exists", "id": existing.id}
+        if a and not existing.headline_cs:
+            _apply_analysis(existing, a, act, act_surprise)
+            await session.commit()
+            return {"status": "analyzed", "id": existing.id, "analyzed": True}
+        return {"status": "exists", "id": existing.id, "analyzed": bool(existing.headline_cs)}
     name = (await E.instrument_names(session, [ticker])).get(ticker)
-    est, act = _f(payload.get("eps_estimate")), _f(payload.get("eps_actual"))
     n_est = payload.get("n_estimates")
-    a = await asyncio.to_thread(E.analyze_press_release, ticker, name, str(payload.get("press_text") or ""),
-                                est, int(n_est) if str(n_est or "").isdigit() else None)
-    # EPS z tiskové zprávy (upravený, pokud ho firma uvádí — na tom základu bývá konsenzus);
-    # Nasdaq „eps“ jen jako záloha (u čerstvých výsledků někdy ukazuje loňské číslo).
-    eps = a.get("eps_adjusted") if a.get("eps_adjusted") is not None else a.get("eps_gaap")
-    surprise = None
-    if eps is None:
-        eps, surprise = act, _f(payload.get("eps_surprise_pct"))
-    if surprise is None and eps is not None and est:
-        surprise = round((eps - est) / abs(est) * 100, 2)
     r = ValEarningsReport(
         ticker=ticker, accession=acc, accepted_at=accepted, source_url=str(payload.get("url") or "")[:300] or None,
-        fiscal_period=a.get("fiscal_period"), revenue=a.get("revenue"), revenue_yoy_pct=a.get("revenue_yoy_pct"),
-        eps_actual=eps, eps_gaap=a.get("eps_gaap"), eps_estimate=est, eps_surprise_pct=surprise,
-        n_estimates=int(n_est) if str(n_est or "").isdigit() else None,
-        verdict=a.get("verdict"), headline_cs=a.get("headline_cs"), summary_cs=a.get("summary_cs"),
-        guidance_cs=a.get("guidance_cs"), llm_model=a.get("llm_model"),
+        eps_estimate=_f(payload.get("eps_estimate")), n_estimates=int(n_est) if str(n_est or "").isdigit() else None,
         related_news=await E.related_news(session, ticker, name, accepted - timedelta(hours=1), accepted + timedelta(hours=2)),
     )
+    _apply_analysis(r, a, act, act_surprise)
     session.add(r)
     await session.commit()
     await session.refresh(r)
@@ -510,9 +516,8 @@ async def earnings_ingest(payload: dict, session: AsyncSession = Depends(get_ses
 
 @router.post("/earnings/{report_id}/reaction", dependencies=[Depends(_verify_token)])
 async def earnings_reaction(report_id: int, payload: dict, session: AsyncSession = Depends(get_session)):
-    """Spark worker: průběžná reakce ceny {price_before, price_now}. Po ~45 min od zveřejnění
-    (a jednou) dopíše „proč trh reaguje“; při ještě chybějící analýze (LLM selhal) ji zkusí znovu."""
-    import asyncio
+    """Spark worker: průběžná reakce ceny {price_before, price_now}. Po ~45 min od zveřejnění vrátí
+    v `explain` podklady, ze kterých Spark napíše „proč trh reaguje“ (→ POST …/explanation)."""
     from app.valuation import earnings as E
     from app.valuation.models import ValEarningsReport
     r = await session.get(ValEarningsReport, report_id)
@@ -526,10 +531,27 @@ async def earnings_reaction(report_id: int, payload: dict, session: AsyncSession
     name = (await E.instrument_names(session, [r.ticker])).get(r.ticker)
     r.related_news = await E.related_news(session, r.ticker, name, r.accepted_at - timedelta(hours=1),
                                           r.accepted_at + timedelta(hours=30))
-    if r.reaction_pct is not None and not r.reaction_cs and datetime.utcnow() - r.accepted_at >= E.REACTION_ANALYSIS_AFTER             and r.summary_cs:
-        r.reaction_cs = await asyncio.to_thread(E.explain_reaction, r, name)
     await session.commit()
-    return {"status": "ok", "reaction_pct": r.reaction_pct, "explained": bool(r.reaction_cs)}
+    due = (r.reaction_pct is not None and not r.reaction_cs and r.summary_cs
+           and datetime.utcnow() - r.accepted_at >= E.REACTION_ANALYSIS_AFTER)
+    return {"status": "ok", "reaction_pct": r.reaction_pct, "explained": bool(r.reaction_cs),
+            "analyzed": bool(r.headline_cs), "explain": E.reaction_context(r, name) if due else None}
+
+
+@router.post("/earnings/{report_id}/explanation", dependencies=[Depends(_verify_token)])
+async def earnings_explanation(report_id: int, payload: dict, session: AsyncSession = Depends(get_session)):
+    """Spark worker: „proč trh reaguje“ napsané lokálním modelem {reaction_cs}."""
+    from app.valuation import earnings as E
+    from app.valuation.models import ValEarningsReport
+    r = await session.get(ValEarningsReport, report_id)
+    if r is None:
+        raise HTTPException(status_code=404, detail="Report nenalezen")
+    text = E._bullets(payload.get("reaction_cs"))[:2000]
+    if not text:
+        raise HTTPException(status_code=422, detail="Prázdné vysvětlení")
+    r.reaction_cs = text
+    await session.commit()
+    return {"status": "ok", "explained": True}
 
 
 @router.get("/earnings", dependencies=_TRADER)

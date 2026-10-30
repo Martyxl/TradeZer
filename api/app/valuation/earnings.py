@@ -1,27 +1,20 @@
-"""Výsledky hospodaření firem: AI vytěžení tiskové zprávy (SEC 8-K, EX-99.1) + české vysvětlení.
+"""Výsledky hospodaření firem: uložení analýzy tiskové zprávy (SEC 8-K, EX-99.1) + české vysvětlení.
 
-LLM dostane text tiskové zprávy a konsenzus EPS. Čísla smí brát JEN z dodaného textu (nic
-nedopočítávat), verdikt = jak zprávu hodnotit fundamentálně (pozitivní / negativní / smíšené).
-Druhá fáze (po ~45 min) dostane reakci ceny + titulky zpráv a vysvětlí, proč trh reaguje tak, jak reaguje.
-Není to investiční doporučení — prompt výslovně zakazuje doporučovat nákup/prodej.
+Texty píše lokální model na Sparku (gpt-oss přes LiteLLM ve scripts/spark/earnings_watch.py, tam jsou
+i prompty) — backend žádný LLM nevolá, jen normalizuje a ukládá. Druhá fáze (po ~45 min) dostane
+reakci ceny + titulky zpráv a vysvětlí, proč trh reaguje tak, jak reaguje.
 """
 from __future__ import annotations
 
-import json
 import re
 from datetime import datetime, timedelta
 
-import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
 from app.valuation.models import ValEarningsReport, ValInstrument
 
-log = structlog.get_logger(__name__)
-
 VERDICTS = ("positive", "negative", "mixed", "neutral")
-MAX_PRESS_CHARS = 45_000
 REACTION_ANALYSIS_AFTER = timedelta(minutes=45)
 
 # Jak se firma jmenuje v titulcích (kde první slovo názvu nestačí / je obecné).
@@ -33,42 +26,6 @@ NAME_ALIASES = {
     "AMZN": ["Amazon"], "AAPL": ["Apple"], "NVDA": ["Nvidia"], "TSLA": ["Tesla"],
 }
 _GENERIC = {"the", "inc", "corp", "group", "holdings", "company", "international", "global", "first", "american"}
-
-EXTRACT_SYSTEM = (
-    "Jsi finanční analytik. Dostaneš text tiskové zprávy o výsledcích hospodaření americké firmy "
-    "(SEC 8-K, exhibit 99.1) a konsenzus odhadu EPS analytiků. Vrať POUZE validní JSON (bez markdownu):\n"
-    "{\n"
-    '  "fiscal_period": string|null,      // např. "Q3 2026"\n'
-    '  "revenue_usd": number|null,        // celkové tržby za čtvrtletí v USD (např. 102300000000)\n'
-    '  "revenue_yoy_pct": number|null,    // meziroční růst tržeb v %, jen pokud je v textu nebo jde přímo odečíst\n'
-    '  "eps_gaap": number|null,           // zředěný EPS za čtvrtletí podle GAAP (diluted EPS)\n'
-    '  "eps_adjusted": number|null,       // upravený EPS (non-GAAP / adjusted), JEN pokud ho firma v textu uvádí\n'
-    '  "verdict": "positive"|"negative"|"mixed"|"neutral",\n'
-    '  "headline_cs": string,             // 1 věta česky: co je hlavní zpráva\n'
-    '  "summary_cs": string,              // 3–5 odrážek česky (každá začíná "- "), co se stalo a co to znamená pro firmu\n'
-    '  "guidance_cs": string|null         // výhled vedení na další období, pokud ho zpráva obsahuje\n'
-    "}\n"
-    "Pravidla: čísla ber VÝHRADNĚ z dodaného textu, nic nedopočítávej ani neodhaduj — co v textu není, dej null. "
-    "Verdikt hodnotí zprávu fundamentálně (růst, marže, zisk vs. konsenzus, výhled, jednorázové vlivy). "
-    "Když jsou dobré tržby, ale zisk pod odhadem (nebo naopak), je to 'mixed'. "
-    "Konsenzus EPS analytiků bývá na upraveném (non-GAAP) základu, pokud ho firma vykazuje — porovnávej se správným "
-    "číslem a jednorázové položky (zisky/ztráty z investic, restrukturalizace) výslovně zmiň. "
-    "Než napíšeš 'nad/pod odhadem', porovnej čísla: vyšší EPS než konsenzus = překonal odhad. "
-    "headline_cs je JEDNA jasná věta bez závorek a bez oprav sebe sama. "
-    "Vysvětluj srozumitelně pro retailového tradera, česky, bez anglických zkratek kde to jde. "
-    "NIKDY nedoporučuj nákup ani prodej akcie."
-)
-
-REACTION_SYSTEM = (
-    "Jsi finanční analytik. Dostaneš shrnutí výsledků hospodaření firmy, reakci ceny akcie po zveřejnění "
-    "a titulky zpráv, které po zveřejnění vyšly. Napiš česky 2–4 krátké odrážky (každá začíná \"- \"), "
-    "PROČ trh reaguje tak, jak reaguje (co investoři nejspíš řeší: zisk vs. odhad, výhled, výdaje, "
-    "konkrétní segment…). Opírej se jen o dodané informace; když z nich důvod nejde poznat, řekni to. "
-    "Chybějící výhled NEBER jako důvod — řada firem (např. Alphabet) výhled vůbec nedává. "
-    "Každá odrážka max 35 slov. "
-    "NIKDY nedoporučuj nákup ani prodej. Odpověz jen odrážkami."
-)
-
 
 def aliases(ticker: str, name: str | None) -> list[str]:
     out = list(NAME_ALIASES.get(ticker.upper(), []))
@@ -105,32 +62,6 @@ async def related_news(session: AsyncSession, ticker: str, name: str | None,
     return out[-limit:]
 
 
-def _llm_json(system: str, user: str, max_tokens: int = 1400) -> tuple[dict | None, str | None]:
-    from app.llm.client import llm_client
-    try:
-        msg = llm_client._get_client().messages.create(
-            model=settings.claude_model, max_tokens=max_tokens, system=system,
-            messages=[{"role": "user", "content": user}])
-        text = msg.content[0].text.strip()
-        m = re.search(r"\{.*\}", text, flags=re.S)
-        return (json.loads(m.group(0)) if m else None), settings.claude_model
-    except Exception as e:  # noqa: BLE001
-        log.warning("Earnings LLM failed", error=str(e)[:300])
-        return None, None
-
-
-def _llm_text(system: str, user: str, max_tokens: int = 600) -> str | None:
-    from app.llm.client import llm_client
-    try:
-        msg = llm_client._get_client().messages.create(
-            model=settings.claude_model, max_tokens=max_tokens, system=system,
-            messages=[{"role": "user", "content": user}])
-        return msg.content[0].text.strip()[:2000]
-    except Exception as e:  # noqa: BLE001
-        log.warning("Earnings reaction LLM failed", error=str(e)[:300])
-        return None
-
-
 def _bullets(v) -> str:
     if isinstance(v, list):
         return "\n".join(f"- {str(x).lstrip('- ').strip()}" for x in v if x)
@@ -144,15 +75,9 @@ def _num(v) -> float | None:
         return None
 
 
-def analyze_press_release(ticker: str, name: str | None, press_text: str,
-                          eps_estimate: float | None, n_estimates: int | None) -> dict:
-    """Vytěží čísla a napíše vysvětlení. Při selhání LLM vrátí prázdný dict (záznam se uloží i tak)."""
-    cons = (f"Konsenzus EPS analytiků: {eps_estimate} (počet odhadů: {n_estimates})"
-            if eps_estimate is not None else "Konsenzus EPS: není k dispozici")
-    user = (f"Firma: {name or ticker} ({ticker})\n{cons}\n\nTisková zpráva:\n"
-            f"{press_text[:MAX_PRESS_CHARS]}")
-    data, model = _llm_json(EXTRACT_SYSTEM, user)
-    if not data:
+def normalize_analysis(data: dict | None, model: str | None) -> dict:
+    """Výstup LLM ze Sparku (JSON dle EXTRACT promptu ve workeru) → pole reportu. Prázdný dict = bez analýzy."""
+    if not isinstance(data, dict) or not data:
         return {}
     verdict = data.get("verdict") if data.get("verdict") in VERDICTS else None
     return {
@@ -162,22 +87,19 @@ def analyze_press_release(ticker: str, name: str | None, press_text: str,
         "eps_gaap": _num(data.get("eps_gaap")),
         "eps_adjusted": _num(data.get("eps_adjusted")),
         "verdict": verdict,
-        "headline_cs": (data.get("headline_cs") or "")[:300] or None,
+        "headline_cs": str(data.get("headline_cs") or "")[:300] or None,
         "summary_cs": _bullets(data.get("summary_cs"))[:4000] or None,
         "guidance_cs": (data.get("guidance_cs") or None) and str(data["guidance_cs"])[:1000],
-        "llm_model": model,
+        "llm_model": (model or "")[:60] or None,
     }
 
 
-def explain_reaction(r: ValEarningsReport, name: str | None) -> str | None:
-    news = "\n".join(f"- {n['title']}" for n in (r.related_news or [])) or "(žádné titulky)"
-    eps = (f"EPS {r.eps_actual} vs. konsenzus {r.eps_estimate}" if r.eps_actual is not None and r.eps_estimate is not None
-           else "EPS vs. konsenzus: neznámé")
-    user = (f"Firma: {name or r.ticker} ({r.ticker})\nObdobí: {r.fiscal_period or '?'}\n"
-            f"Shrnutí výsledků:\n{r.headline_cs or ''}\n{r.summary_cs or ''}\n{eps}\n"
-            f"Výhled: {r.guidance_cs or 'neuveden'}\n"
-            f"Reakce ceny od zveřejnění: {r.reaction_pct:+.2f} %\n\nTitulky po zveřejnění:\n{news}")
-    return _llm_text(REACTION_SYSTEM, user)
+def reaction_context(r: ValEarningsReport, name: str | None) -> dict:
+    """Podklady, ze kterých Spark napíše „proč trh reaguje“."""
+    return {"name": name or r.ticker, "ticker": r.ticker, "fiscal_period": r.fiscal_period,
+            "headline_cs": r.headline_cs, "summary_cs": r.summary_cs, "guidance_cs": r.guidance_cs,
+            "eps_actual": r.eps_actual, "eps_estimate": r.eps_estimate, "reaction_pct": r.reaction_pct,
+            "news": [n["title"] for n in (r.related_news or [])]}
 
 
 def report_out(r: ValEarningsReport, name: str | None = None) -> dict:

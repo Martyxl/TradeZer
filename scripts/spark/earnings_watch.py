@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Earnings watch (Spark): hlídá výsledky hospodaření firem z Valuation radaru a co nejdřív je
-pošle do Tradezeru k AI vysvětlení.
+"""Earnings watch (Spark): hlídá výsledky hospodaření firem z Valuation radaru, lokálním modelem
+na Sparku (gpt-oss přes LiteLLM bránu) je co nejdřív vysvětlí a hotové texty pošle do Tradezeru.
 
 Zdroj: SEC EDGAR — firma musí výsledky do pár minut po vydání tiskové zprávy podat jako 8-K
 (Item 2.02, tisková zpráva = exhibit 99.1). Konsenzus EPS: Nasdaq earnings kalendář.
@@ -10,6 +10,7 @@ Nezatěžuje Neon: stav (viděné filingy) drží lokálně v JSON, do DB jde je
 
 Spuštění (systemd, appvenv kvůli httpx):
   EnvironmentFile=~/tradezer/scans.env  (TRADEZER_TOKEN, volitelně TRADEZER_BASE_URL)
+  EnvironmentFile=~/tradezer/predictor.env  (LLM_BASE_URL, LLM_API_KEY, LLM_MODEL=heavy)
   ~/tradezer/appvenv/bin/python ~/tradezer/earnings_watch.py --loop 120
 """
 from __future__ import annotations
@@ -37,6 +38,47 @@ WEB_UA = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chro
 NY = ZoneInfo("America/New_York")
 REACTION_EVERY = 600        # s
 REACTION_WINDOW_H = 30
+LLM_BASE = os.environ.get("LLM_BASE_URL", "http://127.0.0.1:4000/v1").rstrip("/")
+LLM_KEY = os.environ.get("LLM_API_KEY", "")
+LLM_MODEL = os.environ.get("LLM_MODEL", "heavy")
+MAX_PRESS_CHARS = 45_000
+ANALYSIS_TRIES = 3          # pak se report uloží i bez analýzy a doplní se v dalších cyklech
+
+EXTRACT_SYSTEM = (
+    "Jsi finanční analytik. Dostaneš text tiskové zprávy o výsledcích hospodaření americké firmy "
+    "(SEC 8-K, exhibit 99.1) a konsenzus odhadu EPS analytiků. Vrať POUZE validní JSON (bez markdownu):\n"
+    "{\n"
+    '  "fiscal_period": string|null,      // např. "Q3 2026"\n'
+    '  "revenue_usd": number|null,        // celkové tržby za čtvrtletí v USD (např. 102300000000)\n'
+    '  "revenue_yoy_pct": number|null,    // meziroční růst tržeb v %, jen pokud je v textu nebo jde přímo odečíst\n'
+    '  "eps_gaap": number|null,           // zředěný EPS za čtvrtletí podle GAAP (diluted EPS)\n'
+    '  "eps_adjusted": number|null,       // upravený EPS (non-GAAP / adjusted), JEN pokud ho firma v textu uvádí\n'
+    '  "verdict": "positive"|"negative"|"mixed"|"neutral",\n'
+    '  "headline_cs": string,             // 1 věta česky: co je hlavní zpráva\n'
+    '  "summary_cs": [string],            // 3–5 odrážek česky: co se stalo a co to znamená pro firmu\n'
+    '  "guidance_cs": string|null         // výhled vedení na další období, pokud ho zpráva obsahuje\n'
+    "}\n"
+    "Pravidla: čísla ber VÝHRADNĚ z dodaného textu, nic nedopočítávej ani neodhaduj — co v textu není, dej null. "
+    "Verdikt hodnotí zprávu fundamentálně (růst, marže, zisk vs. konsenzus, výhled, jednorázové vlivy). "
+    "Když jsou dobré tržby, ale zisk pod odhadem (nebo naopak), je to 'mixed'. "
+    "Konsenzus EPS analytiků bývá na upraveném (non-GAAP) základu, pokud ho firma vykazuje — porovnávej se správným "
+    "číslem a jednorázové položky (zisky/ztráty z investic, restrukturalizace) výslovně zmiň. "
+    "Než napíšeš 'nad/pod odhadem', porovnej čísla: vyšší EPS než konsenzus = překonal odhad. "
+    "headline_cs je JEDNA jasná věta bez závorek a bez oprav sebe sama. "
+    "Piš spisovnou češtinou srozumitelně pro retailového tradera, bez anglických zkratek kde to jde; "
+    "částky piš jako „102,3 mld. USD“. "
+    "NIKDY nedoporučuj nákup ani prodej akcie."
+)
+
+REACTION_SYSTEM = (
+    "Jsi finanční analytik. Dostaneš shrnutí výsledků hospodaření firmy, reakci ceny akcie po zveřejnění "
+    "a titulky zpráv, které po zveřejnění vyšly. Napiš spisovnou češtinou 2–4 krátké odrážky (každá začíná \"- \"), "
+    "PROČ trh reaguje tak, jak reaguje (co investoři nejspíš řeší: zisk vs. odhad, výhled, výdaje, "
+    "konkrétní segment…). Opírej se jen o dodané informace; když z nich důvod nejde poznat, řekni to. "
+    "Chybějící výhled NEBER jako důvod — řada firem (např. Alphabet) výhled vůbec nedává. "
+    "Každá odrážka max 35 slov. "
+    "NIKDY nedoporučuj nákup ani prodej. Odpověz jen odrážkami."
+)
 
 
 def log(*a):
@@ -60,6 +102,52 @@ def api(method: str, path: str, **kw):
     r = httpx.request(method, f"{BASE}{path}", headers={"X-Internal-Token": TOKEN}, timeout=90, **kw)
     r.raise_for_status()
     return r.json()
+
+
+# ------------------------------------------------------------------ lokální LLM (Spark)
+
+def llm(system: str, user: str, max_tokens: int) -> str | None:
+    """gpt-oss přes LiteLLM bránu na Sparku. Reasoning spotřebuje část max_tokens → dávat s rezervou."""
+    try:
+        r = httpx.post(f"{LLM_BASE}/chat/completions", timeout=600,
+                       headers={"Authorization": f"Bearer {LLM_KEY}"} if LLM_KEY else {},
+                       json={"model": LLM_MODEL, "temperature": 0.2, "max_tokens": max_tokens,
+                             "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]})
+        r.raise_for_status()
+        txt = (r.json()["choices"][0]["message"]["content"] or "").strip()
+        return txt.split("</think>")[-1].strip() or None
+    except Exception as e:  # noqa: BLE001
+        log("LLM fail", str(e)[:200])
+        return None
+
+
+def analyze(ticker: str, press_text: str, eps: dict) -> dict | None:
+    est = eps.get("eps_estimate")
+    cons = (f"Konsenzus EPS analytiků: {est} (počet odhadů: {eps.get('n_estimates')})" if est is not None
+            else "Konsenzus EPS: není k dispozici")
+    txt = llm(EXTRACT_SYSTEM, f"Firma: {ticker}\n{cons}\n\nTisková zpráva:\n{press_text[:MAX_PRESS_CHARS]}", 8000)
+    m = re.search(r"\{.*\}", txt or "", flags=re.S)
+    try:
+        data = json.loads(m.group(0)) if m else None
+    except ValueError:
+        data = None
+    if not isinstance(data, dict) or not data.get("headline_cs"):
+        log("analysis unreadable", ticker, (txt or "")[:160])
+        return None
+    return data
+
+
+def explain(c: dict) -> str | None:
+    news = "\n".join(f"- {t}" for t in c.get("news") or []) or "(žádné titulky)"
+    eps = (f"EPS {c['eps_actual']} vs. konsenzus {c['eps_estimate']}"
+           if c.get("eps_actual") is not None and c.get("eps_estimate") is not None else "EPS vs. konsenzus: neznámé")
+    user = (f"Firma: {c['name']} ({c['ticker']})\nObdobí: {c.get('fiscal_period') or '?'}\n"
+            f"Shrnutí výsledků:\n{c.get('headline_cs') or ''}\n{c.get('summary_cs') or ''}\n{eps}\n"
+            f"Výhled: {c.get('guidance_cs') or 'neuveden'}\n"
+            f"Reakce ceny od zveřejnění: {c['reaction_pct']:+.2f} %\n\nTitulky po zveřejnění:\n{news}")
+    txt = llm(REACTION_SYSTEM, user, 4000)
+    lines = [ln.strip() for ln in (txt or "").splitlines() if ln.strip().startswith(("-", "•", "*"))]
+    return "\n".join("- " + ln.lstrip("-•* ").strip() for ln in lines) or None
 
 
 # ------------------------------------------------------------------ SEC
@@ -219,17 +307,46 @@ def scan(st: dict) -> None:
             if f["accession"] in st["seen"]:
                 continue
             try:
-                text, url = press_release(cik, f["accession"], f["primary"])
-                eps = nasdaq_eps(t, f["accepted_at"])
-                res = api("POST", "/api/valuation/earnings/ingest", json={
-                    "ticker": t, "accession": f["accession"], "accepted_at": f["accepted_at"].isoformat(),
-                    "url": url, "press_text": text, **eps})
-                st["seen"][f["accession"]] = res["id"]
-                st["watch"][str(res["id"])] = {"ticker": t, "accepted_at": f["accepted_at"].isoformat(), "last": 0}
-                save_state(st)
-                log("EARNINGS", t, f["accession"], res)
+                ingest(st, t, cik, f)
             except Exception as e:  # noqa: BLE001
                 log("ingest fail", t, f["accession"], str(e)[:200])
+
+
+def ingest(st: dict, t: str, cik: int, f: dict) -> None:
+    """Tisková zpráva → analýza gpt-oss → Tradezer. Když model selže, zkusí to v dalších cyklech;
+    po ANALYSIS_TRIES uloží report bez analýzy (ať je vidět aspoň odkaz) a doplňuje ji dál."""
+    acc = f["accession"]
+    pend = st.setdefault("pending", {}).setdefault(acc, {"tries": 0})
+    text, url = press_release(cik, acc, f["primary"])
+    eps = nasdaq_eps(t, f["accepted_at"])
+    t0 = time.time()
+    data = analyze(t, text, eps)
+    pend["tries"] += 1
+    if data is None and pend["tries"] < ANALYSIS_TRIES:
+        save_state(st)
+        return
+    res = api("POST", "/api/valuation/earnings/ingest", json={
+        "ticker": t, "accession": acc, "accepted_at": f["accepted_at"].isoformat(), "url": url,
+        "analysis": data, "llm_model": f"spark-{LLM_MODEL}" if data else None, **eps})
+    st["seen"][acc] = res["id"]
+    st["watch"][str(res["id"])] = {"ticker": t, "accepted_at": f["accepted_at"].isoformat(), "last": 0,
+                                   "cik": cik, "accession": acc, "primary": f["primary"]}
+    st["pending"].pop(acc, None)
+    save_state(st)
+    log("EARNINGS", t, acc, res, f"llm {time.time() - t0:.0f}s")
+
+
+def reanalyze(st: dict, w: dict) -> None:
+    """Report uložený bez analýzy (model tehdy selhal) → zkusit znovu."""
+    text, url = press_release(w["cik"], w["accession"], w["primary"])
+    acc_at = datetime.fromisoformat(w["accepted_at"])
+    eps = nasdaq_eps(w["ticker"], acc_at)
+    data = analyze(w["ticker"], text, eps)
+    if data:
+        res = api("POST", "/api/valuation/earnings/ingest", json={
+            "ticker": w["ticker"], "accession": w["accession"], "accepted_at": w["accepted_at"], "url": url,
+            "analysis": data, "llm_model": f"spark-{LLM_MODEL}", **eps})
+        log("reanalyzed", w["ticker"], res)
 
 
 def reactions(st: dict) -> None:
@@ -248,7 +365,15 @@ def reactions(st: dict) -> None:
             if before and cur:
                 res = api("POST", f"/api/valuation/earnings/{rid}/reaction",
                           json={"price_before": before, "price_now": cur})
+                ctx = res.pop("explain", None)
                 log("reaction", w["ticker"], res)
+                if not res.get("analyzed") and w.get("accession"):
+                    reanalyze(st, w)
+                if ctx:
+                    text = explain(ctx)
+                    if text:
+                        api("POST", f"/api/valuation/earnings/{rid}/explanation", json={"reaction_cs": text})
+                        log("explained", w["ticker"])
             w["last"] = now
         except Exception as e:  # noqa: BLE001
             log("reaction fail", w["ticker"], str(e)[:160])
