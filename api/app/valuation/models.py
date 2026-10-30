@@ -262,3 +262,43 @@ class ValOverviewSnapshot(Base):
     as_of_date: Mapped[date | None] = mapped_column(Date)
     payload: Mapped[dict] = mapped_column(JSONType, nullable=False, default=dict)  # {"items": [...]}
     built_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class ValEarningsReport(Base):
+    """Zveřejněné výsledky hospodaření (SEC 8-K Item 2.02) + AI vysvětlení a reakce ceny.
+
+    Detekce: Spark worker (scripts/spark/earnings_watch.py) hlídá SEC EDGAR, pošle text tiskové
+    zprávy (EX-99.1) + konsenzus EPS (Nasdaq) → backend vytěží čísla a napíše vysvětlení.
+    Reakce ceny se doplňuje průběžně; po ~45 min od zveřejnění se dopíše „proč trh reaguje“.
+    """
+    __tablename__ = "val_earnings_reports"
+    __table_args__ = (
+        UniqueConstraint("accession", name="uq_val_earn_report_acc"),
+        Index("ix_val_earn_report_ticker", "ticker", "accepted_at"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    ticker: Mapped[str] = mapped_column(String(12), nullable=False)
+    accession: Mapped[str] = mapped_column(String(30), nullable=False)
+    accepted_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)   # UTC (SEC)
+    source_url: Mapped[str | None] = mapped_column(String(300))
+    fiscal_period: Mapped[str | None] = mapped_column(String(40))
+    revenue: Mapped[float | None] = mapped_column(Float)            # USD
+    revenue_yoy_pct: Mapped[float | None] = mapped_column(Float)
+    eps_actual: Mapped[float | None] = mapped_column(Float)
+    eps_estimate: Mapped[float | None] = mapped_column(Float)       # konsenzus (Nasdaq)
+    eps_surprise_pct: Mapped[float | None] = mapped_column(Float)
+    n_estimates: Mapped[int | None] = mapped_column(Integer)
+    verdict: Mapped[str | None] = mapped_column(String(12))         # positive | negative | mixed | neutral
+    headline_cs: Mapped[str | None] = mapped_column(String(300))
+    summary_cs: Mapped[str | None] = mapped_column(String(4000))
+    guidance_cs: Mapped[str | None] = mapped_column(String(1000))
+    price_before: Mapped[float | None] = mapped_column(Float)
+    price_now: Mapped[float | None] = mapped_column(Float)
+    reaction_pct: Mapped[float | None] = mapped_column(Float)
+    reaction_at: Mapped[datetime | None] = mapped_column(DateTime)
+    reaction_cs: Mapped[str | None] = mapped_column(String(2000))   # proč trh reaguje (po ~45 min)
+    related_news: Mapped[list | None] = mapped_column(JSONType)
+    llm_model: Mapped[str | None] = mapped_column(String(80))
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime, onupdate=func.now())

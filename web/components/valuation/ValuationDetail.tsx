@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { TickerEarnings } from "@/components/valuation/EarningsReports";
 import { X, Loader2 } from "lucide-react";
 import { VERDICT_COLOR } from "./BubbleMap";
 import { authHeaders } from "@/lib/auth";
@@ -140,6 +141,8 @@ export function ValuationDetail({ ticker, onClose }: { ticker: string; onClose: 
                 {!(d.drivers.negative?.length) && <div className="text-[11px] text-gray-600">—</div>}
               </div>
             </div>
+
+            <TickerEarnings ticker={ticker} />
 
             {/* Poslední výsledky + odhady */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">

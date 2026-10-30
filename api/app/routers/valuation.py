@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 import time
 import urllib.request
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -454,6 +454,101 @@ async def backtest(session: AsyncSession = Depends(get_session)):
 
 
 # ---- dynamické routes -------------------------------------------------------
+
+# ---------------------------------------------------------------- výsledky hospodaření
+
+def _parse_utc(v) -> datetime | None:
+    try:
+        return datetime.fromisoformat(str(v).replace("Z", "+00:00")).replace(tzinfo=None)
+    except (TypeError, ValueError):
+        return None
+
+
+@router.post("/earnings/ingest", dependencies=[Depends(_verify_token)])
+async def earnings_ingest(payload: dict, session: AsyncSession = Depends(get_session)):
+    """Spark worker: nové výsledky (SEC 8-K Item 2.02) → vytěžení čísel + české vysvětlení (Claude).
+    Tělo: {ticker, accession, accepted_at, url, press_text, eps_estimate?, eps_actual?, n_estimates?}.
+    Idempotentní podle accession."""
+    import asyncio
+    from app.valuation import earnings as E
+    from app.valuation.models import ValEarningsReport
+    ticker = str(payload.get("ticker") or "").upper()[:12]
+    acc = str(payload.get("accession") or "")[:30]
+    accepted = _parse_utc(payload.get("accepted_at"))
+    if not ticker or not acc or accepted is None:
+        raise HTTPException(status_code=422, detail="Chybí ticker / accession / accepted_at")
+    existing = await session.scalar(select(ValEarningsReport).where(ValEarningsReport.accession == acc))
+    if existing:
+        return {"status": "exists", "id": existing.id}
+    name = (await E.instrument_names(session, [ticker])).get(ticker)
+    est, act = _f(payload.get("eps_estimate")), _f(payload.get("eps_actual"))
+    n_est = payload.get("n_estimates")
+    a = await asyncio.to_thread(E.analyze_press_release, ticker, name, str(payload.get("press_text") or ""),
+                                est, int(n_est) if str(n_est or "").isdigit() else None)
+    eps = act if act is not None else a.get("eps_llm")
+    surprise = _f(payload.get("eps_surprise_pct"))
+    if surprise is None and eps is not None and est:
+        surprise = round((eps - est) / abs(est) * 100, 2)
+    r = ValEarningsReport(
+        ticker=ticker, accession=acc, accepted_at=accepted, source_url=str(payload.get("url") or "")[:300] or None,
+        fiscal_period=a.get("fiscal_period"), revenue=a.get("revenue"), revenue_yoy_pct=a.get("revenue_yoy_pct"),
+        eps_actual=eps, eps_estimate=est, eps_surprise_pct=surprise,
+        n_estimates=int(n_est) if str(n_est or "").isdigit() else None,
+        verdict=a.get("verdict"), headline_cs=a.get("headline_cs"), summary_cs=a.get("summary_cs"),
+        guidance_cs=a.get("guidance_cs"), llm_model=a.get("llm_model"),
+        related_news=await E.related_news(session, ticker, name, accepted - timedelta(hours=1), accepted + timedelta(hours=2)),
+    )
+    session.add(r)
+    await session.commit()
+    await session.refresh(r)
+    return {"status": "created", "id": r.id, "analyzed": bool(a)}
+
+
+@router.post("/earnings/{report_id}/reaction", dependencies=[Depends(_verify_token)])
+async def earnings_reaction(report_id: int, payload: dict, session: AsyncSession = Depends(get_session)):
+    """Spark worker: průběžná reakce ceny {price_before, price_now}. Po ~45 min od zveřejnění
+    (a jednou) dopíše „proč trh reaguje“; při ještě chybějící analýze (LLM selhal) ji zkusí znovu."""
+    import asyncio
+    from app.valuation import earnings as E
+    from app.valuation.models import ValEarningsReport
+    r = await session.get(ValEarningsReport, report_id)
+    if r is None:
+        raise HTTPException(status_code=404, detail="Report nenalezen")
+    before, now_p = _f(payload.get("price_before")), _f(payload.get("price_now"))
+    if before and now_p:
+        r.price_before, r.price_now = before, now_p
+        r.reaction_pct = round((now_p / before - 1) * 100, 2)
+        r.reaction_at = datetime.utcnow()
+    name = (await E.instrument_names(session, [r.ticker])).get(r.ticker)
+    r.related_news = await E.related_news(session, r.ticker, name, r.accepted_at - timedelta(hours=1),
+                                          r.accepted_at + timedelta(hours=30))
+    if r.reaction_pct is not None and not r.reaction_cs and datetime.utcnow() - r.accepted_at >= E.REACTION_ANALYSIS_AFTER             and r.summary_cs:
+        r.reaction_cs = await asyncio.to_thread(E.explain_reaction, r, name)
+    await session.commit()
+    return {"status": "ok", "reaction_pct": r.reaction_pct, "explained": bool(r.reaction_cs)}
+
+
+@router.get("/earnings", dependencies=_TRADER)
+async def earnings_feed(limit: int = Query(default=30, ge=1, le=100), session: AsyncSession = Depends(get_session)):
+    """Nejnovější výsledky hospodaření firem v radaru (s vysvětlením)."""
+    from app.valuation import earnings as E
+    from app.valuation.models import ValEarningsReport
+    rows = (await session.execute(select(ValEarningsReport).order_by(ValEarningsReport.accepted_at.desc())
+                                  .limit(limit))).scalars().all()
+    names = await E.instrument_names(session, list({r.ticker for r in rows}))
+    return {"reports": [E.report_out(r, names.get(r.ticker)) for r in rows]}
+
+
+@router.get("/{ticker}/earnings", dependencies=_TRADER)
+async def ticker_earnings(ticker: str, session: AsyncSession = Depends(get_session)):
+    from app.valuation import earnings as E
+    from app.valuation.models import ValEarningsReport
+    t = ticker.upper()
+    rows = (await session.execute(select(ValEarningsReport).where(ValEarningsReport.ticker == t)
+                                  .order_by(ValEarningsReport.accepted_at.desc()).limit(12))).scalars().all()
+    name = (await E.instrument_names(session, [t])).get(t)
+    return {"ticker": t, "reports": [E.report_out(r, name) for r in rows]}
+
 
 @router.get("/{ticker}/summary", dependencies=_TRADER)
 async def ticker_summary(ticker: str, session: AsyncSession = Depends(get_session)):

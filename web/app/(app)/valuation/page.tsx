@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Target, LayoutGrid, Table2, Info, Loader2 } from "lucide-react";
 import { BubbleMap, VERDICT_COLOR, ZONE_COLOR, ZONE_LABEL, zoneText, type OverviewItem, type ZoneCurves } from "@/components/valuation/BubbleMap";
 import { ValuationDetail } from "@/components/valuation/ValuationDetail";
+import { EarningsFeed } from "@/components/valuation/EarningsReports";
 import { PaywallGuard } from "@/components/PaywallGuard";
 import { authHeaders } from "@/lib/auth";
 
@@ -104,6 +105,9 @@ function ValuationInner() {
           Deterministické skóre valuace z veřejných fundamentů. Není obchodní signál ani investiční doporučení.
         </p>
       </div>
+
+      {/* Výsledky hospodaření firem (SEC 8-K → AI vysvětlení) */}
+      <EarningsFeed onTicker={setSelected} />
 
       {/* filtr skupin */}
       <div className="flex flex-wrap gap-1.5">
