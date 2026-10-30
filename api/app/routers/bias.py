@@ -48,6 +48,8 @@ async def bias_today(
             "snapshot_at": str(snapshot.snapshot_at)[:16],
             "realized_direction": snapshot.realized_direction,
             "realized_pct": snapshot.realized_pct,
+            "ny_realized_direction": snapshot.ny_realized_direction,
+            "ny_realized_pct": snapshot.ny_realized_pct,
         },
         "live": live,
     }
@@ -98,6 +100,20 @@ async def bias_outlook(
     return {**outlook, "bias": bias_ctx, "narrative": narrative}
 
 
+@router.get("/gap")
+async def bias_gap(ticker: str = Query(...)):
+    """Dnešní RTH gap (přes ETF proxy) + historická pravděpodobnost zavření podle velikosti gapu.
+    Směr NY session gap podle backtestu nepředpovídá — proto se ukazuje hlavně zavření."""
+    import asyncio
+    from app.services.gap_service import GAP_ETF, live_gap
+    if ticker.upper() not in GAP_ETF:
+        raise HTTPException(status_code=404, detail="Gap statistika je jen pro NQ, ES a YM")
+    out = await asyncio.to_thread(live_gap, ticker)
+    if out is None:
+        raise HTTPException(status_code=503, detail="Data pro gap se nepodařilo načíst")
+    return out
+
+
 @router.get("/outlook/stats")
 async def bias_outlook_stats(
     ticker: str = Query(...),
@@ -146,11 +162,16 @@ async def bias_stats(
 
     # "unknown" (nešlo určit) se do úspěšnosti nepočítá — nebyl to výrok o směru
     rows = [b for b in rows if b.direction != "unknown"]
-    total = len(rows)
-    correct = sum(1 for b in rows if b.direction == b.realized_direction)
+    # Hlavní metrika = NY session (9:30 → 16:00 ET). London→close obsahuje i premarket/gap,
+    # takže úspěšnost zkresluje (držíme ji jen pro srovnání jako *_london).
+    ny_rows = [b for b in rows if b.ny_realized_direction is not None]
+    total = len(ny_rows)
+    correct = sum(1 for b in ny_rows if b.direction == b.ny_realized_direction)
     # Úspěšnost směrových biasů (bez neutral predikcí) — to tradera zajímá nejvíc
     directional = [b for b in rows if b.direction in ("up", "down")]
-    dir_correct = sum(1 for b in directional if b.direction == b.realized_direction)
+    ny_directional = [b for b in ny_rows if b.direction in ("up", "down")]
+    dir_correct = sum(1 for b in ny_directional if b.direction == b.ny_realized_direction)
+    lon_dir_correct = sum(1 for b in directional if b.direction == b.realized_direction)
 
     # Úspěšnost entry plánu (jen dny, kde limit fillnul)
     filled = [b for b in directional if b.entry_filled]
@@ -175,18 +196,23 @@ async def bias_stats(
         "total": total,
         "correct": correct,
         "accuracy": round(correct / total, 4) if total else None,
-        "directional_total": len(directional),
+        "directional_total": len(ny_directional),
         "directional_correct": dir_correct,
-        "directional_accuracy": round(dir_correct / len(directional), 4) if directional else None,
+        "directional_accuracy": round(dir_correct / len(ny_directional), 4) if ny_directional else None,
+        "metric": "ny_session",
+        "directional_total_london": len(directional),
+        "directional_accuracy_london": round(lon_dir_correct / len(directional), 4) if directional else None,
         "entry": entry,
         "history": [
             {
                 "date": str(b.bias_date),
                 "bias": b.direction,
-                "realized": b.realized_direction,
-                "correct": b.direction == b.realized_direction,
+                "realized": b.ny_realized_direction,
+                "correct": b.direction == b.ny_realized_direction if b.ny_realized_direction else None,
                 "trust_score": b.trust_score,
-                "realized_pct": b.realized_pct,
+                "realized_pct": b.ny_realized_pct,
+                "realized_london": b.realized_direction,
+                "realized_pct_london": b.realized_pct,
                 "entry_filled": b.entry_filled,
                 "entry_win": b.entry_win,
                 "entry_pnl_pct": b.entry_pnl_pct,

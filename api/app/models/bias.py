@@ -27,6 +27,10 @@ class DailyBias(Base):
     # Vyhodnocení: pohyb London open (07:00 UTC) -> NY close (21:00 UTC)
     realized_direction: Mapped[str | None] = mapped_column(String(10), nullable=True)
     realized_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # Realita NY session (9:30 → 16:00 ET) — hlavní metrika úspěšnosti. London→close výše v sobě
+    # má i premarket/gap, takže úspěšnost biasu zkresluje (gap backtest, 30. 10. 2026).
+    ny_realized_direction: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    ny_realized_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
     evaluated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # Intradenní cesta po NY open (13:30 UTC) — pro odhad ideálního entry.

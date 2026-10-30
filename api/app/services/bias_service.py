@@ -11,7 +11,7 @@ from datetime import datetime, date, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 import structlog
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import DailyBias, NewsItem, NewsPrediction, Ticker
@@ -209,15 +209,30 @@ def _record_ny_path(bias: DailyBias, bars: list[dict], symbol: str, neutral_thre
         bias.entry_win = None
 
 
+def _record_ny_session(bias: DailyBias, bars: list[dict], neutral_threshold: float) -> None:
+    """Realita NY session: close 1. baru po 9:30 ET → close posledního baru před 16:00 ET.
+    Hlavní metrika úspěšnosti biasu — bez premarketu/gapu, který je v London→close."""
+    o = ny_open_utc(bias.bias_date).replace(tzinfo=timezone.utc).timestamp()
+    c = ny_close_utc(bias.bias_date).replace(tzinfo=timezone.utc).timestamp()
+    seg = [b for b in bars if o <= b["t"] < c and b.get("close")]
+    if len(seg) < 6:
+        return
+    pct = (seg[-1]["close"] - seg[0]["close"]) / seg[0]["close"]
+    thr = neutral_threshold * 2
+    bias.ny_realized_direction = "up" if pct > thr else ("down" if pct < -thr else "neutral")
+    bias.ny_realized_pct = round(pct, 5)
+
+
 async def evaluate_pending(session: AsyncSession, ticker_map: dict[int, Ticker], limit: int = 30) -> int:
-    """Doplhní realitu ke snapshotům po NY close (pohyb 07:00 -> 21:00 UTC)."""
+    """Doplhní realitu ke snapshotům po NY close: London→close (07:00 → 21:00 UTC) i NY session.
+    Starší vyhodnocené dny bez NY session metriky se dopočítají (dokud jsou v dosahu Yahoo 5m dat)."""
     now = datetime.utcnow()
     today = _trading_day(now)
     # Nejnovější napřed a jen v dosahu Yahoo 5m dat (~60 dní). Dřív: prvních 10 BEZ řazení → staré,
     # už nevyhodnotitelné řádky (červenec) navždy obsadily všech 10 míst a od 27. 7. se nevyhodnotil
     # ani jeden den.
     stmt = (select(DailyBias)
-            .where(DailyBias.realized_direction.is_(None),
+            .where(or_(DailyBias.realized_direction.is_(None), DailyBias.ny_realized_direction.is_(None)),
                    DailyBias.bias_date >= today - timedelta(days=58))
             .order_by(DailyBias.bias_date.desc()))
     # Víkendové dny nemají NY session → nevyhodnotitelné, nesmí zabírat místa ve frontě.
@@ -234,6 +249,12 @@ async def evaluate_pending(session: AsyncSession, ticker_map: dict[int, Ticker],
             continue
         try:
             bars = await asyncio.to_thread(yahoo.fetch_day_bars, ticker.symbol, b.bias_date)
+            if b.realized_direction is not None:
+                # Už vyhodnoceno London→close — jen doplň NY session metriku
+                _record_ny_session(b, bars, ticker.neutral_threshold)
+                if b.ny_realized_direction is not None:
+                    evaluated += 1
+                continue
             p_open = _find_close_at(bars, london_open_utc(b.bias_date).replace(tzinfo=timezone.utc), 60)
             p_close = _find_close_at(bars, ny_close_utc(b.bias_date).replace(tzinfo=timezone.utc), 60)
             if not p_open or not p_close:
@@ -247,6 +268,7 @@ async def evaluate_pending(session: AsyncSession, ticker_map: dict[int, Ticker],
 
             # Intradenní cesta po NY open + vyhodnocení entry plánu
             _record_ny_path(b, bars, ticker.symbol, ticker.neutral_threshold)
+            _record_ny_session(b, bars, ticker.neutral_threshold)
             evaluated += 1
             log.info("Bias evaluated", ticker=ticker.symbol, date=str(b.bias_date),
                      bias=b.direction, realized=realized, pct=round(pct * 100, 2))

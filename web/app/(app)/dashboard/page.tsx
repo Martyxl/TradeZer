@@ -11,6 +11,7 @@ import { EntryCard } from "@/components/EntryCard";
 import { GammaCard } from "@/components/GammaCard";
 import { RegimeCard } from "@/components/RegimeCard";
 import { OutlookCard } from "@/components/OutlookCard";
+import { GapCard } from "@/components/GapCard";
 import { api, type Ticker, type NewsItem, type DailySummary } from "@/lib/api";
 import { invalidateDashboard } from "@/lib/dashboardData";
 
@@ -164,6 +165,9 @@ export default function DashboardPage() {
 
       {/* Dnešní BIAS */}
       <BiasCard ticker={selectedTicker} />
+
+      {/* Gap před openem + pravděpodobnost zavření (NQ/ES/YM) */}
+      {["NQ", "ES", "YM"].includes(selectedTicker) && <GapCard ticker={selectedTicker} />}
 
       {/* Entry plán po NY open */}
       <EntryCard ticker={selectedTicker} />

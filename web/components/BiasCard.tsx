@@ -9,6 +9,7 @@ interface BiasSnapshot {
   direction: string; trust_score: number; n_news: number;
   snapshot_at: string;
   realized_direction: string | null; realized_pct: number | null;
+  ny_realized_direction?: string | null; ny_realized_pct?: number | null;
 }
 interface BiasLive {
   prob_down: number; prob_neutral: number; prob_up: number;
@@ -21,6 +22,7 @@ interface BiasToday {
 interface BiasStats {
   total: number; accuracy: number | null;
   directional_total: number; directional_accuracy: number | null;
+  directional_total_london?: number;
 }
 interface GammaLite {
   underlying: string; regime: "positive" | "negative";
@@ -120,27 +122,29 @@ export function BiasCard({ ticker }: { ticker: string }) {
       )}
 
       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-gray-500">
-        {snap?.realized_direction && (
-          <span>
-            Realita dne:{" "}
-            <span style={{ color: DIR_META[snap.realized_direction]?.color }}>
-              {DIR_META[snap.realized_direction]?.label}
-              {snap.realized_pct != null && ` (${(snap.realized_pct * 100).toFixed(2)} %)`}
+        {snap?.ny_realized_direction && (
+          <span title="Pohyb v NY session 9:30–16:00 ET (bez premarketu / gapu)">
+            Realita NY session:{" "}
+            <span style={{ color: DIR_META[snap.ny_realized_direction]?.color }}>
+              {DIR_META[snap.ny_realized_direction]?.label}
+              {snap.ny_realized_pct != null && ` (${(snap.ny_realized_pct * 100).toFixed(2)} %)`}
             </span>
             {" — "}
-            {snap.realized_direction === snap.direction ? "✓ bias seděl" : "✗ bias neseděl"}
+            {snap.ny_realized_direction === snap.direction ? "✓ bias seděl" : "✗ bias neseděl"}
           </span>
         )}
         {stats && stats.total > 0 && (
-          <span>
-            Úspěšnost 30 dní: <span className="text-gray-300">{((stats.accuracy ?? 0) * 100).toFixed(0)} %</span>
+          <span title="Měřeno na NY session (9:30–16:00 ET). Dřívější metrika London open → close v sobě měla i premarket/gap a úspěšnost zkreslovala.">
+            Úspěšnost 30 dní (NY session): <span className="text-gray-300">{((stats.accuracy ?? 0) * 100).toFixed(0)} %</span>
             {stats.directional_total > 0 && (
               <> · směrové biasy: <span className="text-gray-300">
                 {((stats.directional_accuracy ?? 0) * 100).toFixed(0)} %</span> ({stats.directional_total}×)</>
             )}
           </span>
         )}
-        {stats && stats.total === 0 && <span>Statistika úspěšnosti se začne tvořit od zítřka.</span>}
+        {stats && stats.total === 0 && (
+          <span>{stats.directional_total_london ? "Úspěšnost na NY session se právě dopočítává." : "Statistika úspěšnosti se začne tvořit od zítřka."}</span>
+        )}
       </div>
 
       {gamma && (
