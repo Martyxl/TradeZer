@@ -41,6 +41,7 @@ REACTION_WINDOW_H = 30
 LLM_BASE = os.environ.get("LLM_BASE_URL", "http://127.0.0.1:4000/v1").rstrip("/")
 LLM_KEY = os.environ.get("LLM_API_KEY", "")
 LLM_MODEL = os.environ.get("LLM_MODEL", "heavy")
+LLM_EFFORT = os.environ.get("EARNINGS_REASONING", "high")   # gpt-oss: víc přemýšlení = méně chyb v číslech
 MAX_PRESS_CHARS = 45_000
 ANALYSIS_TRIES = 3          # pak se report uloží i bez analýzy a doplní se v dalších cyklech
 
@@ -64,7 +65,12 @@ EXTRACT_SYSTEM = (
     "Konsenzus EPS analytiků bývá na upraveném (non-GAAP) základu, pokud ho firma vykazuje — porovnávej se správným "
     "číslem a jednorázové položky (zisky/ztráty z investic, restrukturalizace) výslovně zmiň. "
     "Než napíšeš 'nad/pod odhadem', porovnej čísla: vyšší EPS než konsenzus = překonal odhad. "
-    "headline_cs je JEDNA jasná věta bez závorek a bez oprav sebe sama. "
+    "headline_cs je JEDNA jasná věta bez závorek a bez oprav sebe sama; když zmiňuje zisk na akcii, uveď "
+    "skutečné číslo i odhad (např. „zisk na akcii 0,18 USD proti odhadu 0,17 USD“). "
+    "Jednorázové položky (zisky/ztráty z investic, odpisy výzkumu IPR&D, restrukturalizace, srovnání s loňským "
+    "jednorázovým ziskem), pokud je zpráva obsahuje, popiš v samostatné odrážce s částkou a správnou jednotkou "
+    "(USD na akcii ≠ mld. USD) a s tím, jak ovlivnily zisk na akcii. "
+    "Procenta růstu ber přesně z textu a uveď, čeho se týkají (celkové tržby vs. produkty vs. segment). "
     "Piš spisovnou češtinou srozumitelně pro retailového tradera, bez anglických zkratek kde to jde; "
     "částky piš jako „102,3 mld. USD“. "
     "NIKDY nedoporučuj nákup ani prodej akcie."
@@ -76,9 +82,16 @@ REACTION_SYSTEM = (
     "PROČ trh reaguje tak, jak reaguje (co investoři nejspíš řeší: zisk vs. odhad, výhled, výdaje, "
     "konkrétní segment…). Opírej se jen o dodané informace; když z nich důvod nejde poznat, řekni to. "
     "Chybějící výhled NEBER jako důvod — řada firem (např. Alphabet) výhled vůbec nedává. "
-    "Každá odrážka max 35 slov. "
+    "Pokud zisk ovlivnila jednorázová položka, zmiň ji. Nevymýšlej čísla, která v podkladech nejsou. "
+    "Každá odrážka max 35 slov. Odpovídej VÝHRADNĚ česky. "
     "NIKDY nedoporučuj nákup ani prodej. Odpověz jen odrážkami."
 )
+
+_CZ = re.compile(r"[áčďéěíňóřšťúůýž]", re.I)
+
+
+def is_czech(text: str) -> bool:
+    return len(_CZ.findall(text or "")) >= max(3, len(text or "") // 150)
 
 
 def log(*a):
@@ -112,6 +125,7 @@ def llm(system: str, user: str, max_tokens: int) -> str | None:
         r = httpx.post(f"{LLM_BASE}/chat/completions", timeout=600,
                        headers={"Authorization": f"Bearer {LLM_KEY}"} if LLM_KEY else {},
                        json={"model": LLM_MODEL, "temperature": 0.2, "max_tokens": max_tokens,
+                             "reasoning_effort": LLM_EFFORT,
                              "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]})
         r.raise_for_status()
         txt = (r.json()["choices"][0]["message"]["content"] or "").strip()
@@ -125,16 +139,19 @@ def analyze(ticker: str, press_text: str, eps: dict) -> dict | None:
     est = eps.get("eps_estimate")
     cons = (f"Konsenzus EPS analytiků: {est} (počet odhadů: {eps.get('n_estimates')})" if est is not None
             else "Konsenzus EPS: není k dispozici")
-    txt = llm(EXTRACT_SYSTEM, f"Firma: {ticker}\n{cons}\n\nTisková zpráva:\n{press_text[:MAX_PRESS_CHARS]}", 8000)
-    m = re.search(r"\{.*\}", txt or "", flags=re.S)
-    try:
-        data = json.loads(m.group(0)) if m else None
-    except ValueError:
-        data = None
-    if not isinstance(data, dict) or not data.get("headline_cs"):
-        log("analysis unreadable", ticker, (txt or "")[:160])
-        return None
-    return data
+    user = f"Firma: {ticker}\n{cons}\n\nTisková zpráva:\n{press_text[:MAX_PRESS_CHARS]}"
+    for attempt in range(2):
+        txt = llm(EXTRACT_SYSTEM, user if not attempt else user + "\n\nOdpověz česky.", 12000)
+        m = re.search(r"\{.*\}", txt or "", flags=re.S)
+        try:
+            data = json.loads(m.group(0)) if m else None
+        except ValueError:
+            data = None
+        if isinstance(data, dict) and data.get("headline_cs") and is_czech(
+                data["headline_cs"] + " ".join(map(str, data.get("summary_cs") or []))):
+            return data
+        log("analysis unreadable / not Czech", ticker, (txt or "")[:160])
+    return None
 
 
 def explain(c: dict) -> str | None:
@@ -145,9 +162,14 @@ def explain(c: dict) -> str | None:
             f"Shrnutí výsledků:\n{c.get('headline_cs') or ''}\n{c.get('summary_cs') or ''}\n{eps}\n"
             f"Výhled: {c.get('guidance_cs') or 'neuveden'}\n"
             f"Reakce ceny od zveřejnění: {c['reaction_pct']:+.2f} %\n\nTitulky po zveřejnění:\n{news}")
-    txt = llm(REACTION_SYSTEM, user, 4000)
-    lines = [ln.strip() for ln in (txt or "").splitlines() if ln.strip().startswith(("-", "•", "*"))]
-    return "\n".join("- " + ln.lstrip("-•* ").strip() for ln in lines) or None
+    for attempt in range(2):
+        txt = llm(REACTION_SYSTEM, user if not attempt else user + "\n\nOdpověz česky.", 8000)
+        lines = [ln.strip() for ln in (txt or "").splitlines() if ln.strip().startswith(("-", "•", "*"))]
+        out = "\n".join("- " + ln.lstrip("-•* ").strip() for ln in lines)
+        if out and is_czech(out):
+            return out
+        log("explanation not Czech", c["ticker"], (txt or "")[:120])
+    return None
 
 
 # ------------------------------------------------------------------ SEC
