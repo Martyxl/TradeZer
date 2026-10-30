@@ -41,7 +41,8 @@ EXTRACT_SYSTEM = (
     '  "fiscal_period": string|null,      // např. "Q3 2026"\n'
     '  "revenue_usd": number|null,        // celkové tržby za čtvrtletí v USD (např. 102300000000)\n'
     '  "revenue_yoy_pct": number|null,    // meziroční růst tržeb v %, jen pokud je v textu nebo jde přímo odečíst\n'
-    '  "eps_diluted": number|null,        // zředěný EPS za čtvrtletí (GAAP, pokud firma uvádí jen non-GAAP, ten)\n'
+    '  "eps_gaap": number|null,           // zředěný EPS za čtvrtletí podle GAAP (diluted EPS)\n'
+    '  "eps_adjusted": number|null,       // upravený EPS (non-GAAP / adjusted), JEN pokud ho firma v textu uvádí\n'
     '  "verdict": "positive"|"negative"|"mixed"|"neutral",\n'
     '  "headline_cs": string,             // 1 věta česky: co je hlavní zpráva\n'
     '  "summary_cs": string,              // 3–5 odrážek česky (každá začíná "- "), co se stalo a co to znamená pro firmu\n'
@@ -50,6 +51,8 @@ EXTRACT_SYSTEM = (
     "Pravidla: čísla ber VÝHRADNĚ z dodaného textu, nic nedopočítávej ani neodhaduj — co v textu není, dej null. "
     "Verdikt hodnotí zprávu fundamentálně (růst, marže, zisk vs. konsenzus, výhled, jednorázové vlivy). "
     "Když jsou dobré tržby, ale zisk pod odhadem (nebo naopak), je to 'mixed'. "
+    "Konsenzus EPS analytiků bývá na upraveném (non-GAAP) základu, pokud ho firma vykazuje — porovnávej se správným "
+    "číslem a jednorázové položky (zisky/ztráty z investic, restrukturalizace) výslovně zmiň. "
     "Vysvětluj srozumitelně pro retailového tradera, česky, bez anglických zkratek kde to jde. "
     "NIKDY nedoporučuj nákup ani prodej akcie."
 )
@@ -59,6 +62,8 @@ REACTION_SYSTEM = (
     "a titulky zpráv, které po zveřejnění vyšly. Napiš česky 2–4 krátké odrážky (každá začíná \"- \"), "
     "PROČ trh reaguje tak, jak reaguje (co investoři nejspíš řeší: zisk vs. odhad, výhled, výdaje, "
     "konkrétní segment…). Opírej se jen o dodané informace; když z nich důvod nejde poznat, řekni to. "
+    "Chybějící výhled NEBER jako důvod — řada firem (např. Alphabet) výhled vůbec nedává. "
+    "Každá odrážka max 35 slov. "
     "NIKDY nedoporučuj nákup ani prodej. Odpověz jen odrážkami."
 )
 
@@ -152,7 +157,8 @@ def analyze_press_release(ticker: str, name: str | None, press_text: str,
         "fiscal_period": (data.get("fiscal_period") or None) and str(data["fiscal_period"])[:40],
         "revenue": _num(data.get("revenue_usd")),
         "revenue_yoy_pct": _num(data.get("revenue_yoy_pct")),
-        "eps_llm": _num(data.get("eps_diluted")),
+        "eps_gaap": _num(data.get("eps_gaap")),
+        "eps_adjusted": _num(data.get("eps_adjusted")),
         "verdict": verdict,
         "headline_cs": (data.get("headline_cs") or "")[:300] or None,
         "summary_cs": _bullets(data.get("summary_cs"))[:4000] or None,
@@ -177,7 +183,7 @@ def report_out(r: ValEarningsReport, name: str | None = None) -> dict:
         "id": r.id, "ticker": r.ticker, "name": name, "accepted_at": r.accepted_at.isoformat() + "Z",
         "source_url": r.source_url, "fiscal_period": r.fiscal_period,
         "revenue": r.revenue, "revenue_yoy_pct": r.revenue_yoy_pct,
-        "eps_actual": r.eps_actual, "eps_estimate": r.eps_estimate, "eps_surprise_pct": r.eps_surprise_pct,
+        "eps_actual": r.eps_actual, "eps_gaap": r.eps_gaap, "eps_estimate": r.eps_estimate, "eps_surprise_pct": r.eps_surprise_pct,
         "n_estimates": r.n_estimates, "verdict": r.verdict, "headline_cs": r.headline_cs,
         "summary_cs": r.summary_cs, "guidance_cs": r.guidance_cs,
         "price_before": r.price_before, "price_now": r.price_now, "reaction_pct": r.reaction_pct,

@@ -485,14 +485,18 @@ async def earnings_ingest(payload: dict, session: AsyncSession = Depends(get_ses
     n_est = payload.get("n_estimates")
     a = await asyncio.to_thread(E.analyze_press_release, ticker, name, str(payload.get("press_text") or ""),
                                 est, int(n_est) if str(n_est or "").isdigit() else None)
-    eps = act if act is not None else a.get("eps_llm")
-    surprise = _f(payload.get("eps_surprise_pct"))
+    # EPS z tiskové zprávy (upravený, pokud ho firma uvádí — na tom základu bývá konsenzus);
+    # Nasdaq „eps“ jen jako záloha (u čerstvých výsledků někdy ukazuje loňské číslo).
+    eps = a.get("eps_adjusted") if a.get("eps_adjusted") is not None else a.get("eps_gaap")
+    surprise = None
+    if eps is None:
+        eps, surprise = act, _f(payload.get("eps_surprise_pct"))
     if surprise is None and eps is not None and est:
         surprise = round((eps - est) / abs(est) * 100, 2)
     r = ValEarningsReport(
         ticker=ticker, accession=acc, accepted_at=accepted, source_url=str(payload.get("url") or "")[:300] or None,
         fiscal_period=a.get("fiscal_period"), revenue=a.get("revenue"), revenue_yoy_pct=a.get("revenue_yoy_pct"),
-        eps_actual=eps, eps_estimate=est, eps_surprise_pct=surprise,
+        eps_actual=eps, eps_gaap=a.get("eps_gaap"), eps_estimate=est, eps_surprise_pct=surprise,
         n_estimates=int(n_est) if str(n_est or "").isdigit() else None,
         verdict=a.get("verdict"), headline_cs=a.get("headline_cs"), summary_cs=a.get("summary_cs"),
         guidance_cs=a.get("guidance_cs"), llm_model=a.get("llm_model"),

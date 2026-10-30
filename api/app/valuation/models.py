@@ -285,7 +285,8 @@ class ValEarningsReport(Base):
     fiscal_period: Mapped[str | None] = mapped_column(String(40))
     revenue: Mapped[float | None] = mapped_column(Float)            # USD
     revenue_yoy_pct: Mapped[float | None] = mapped_column(Float)
-    eps_actual: Mapped[float | None] = mapped_column(Float)
+    eps_actual: Mapped[float | None] = mapped_column(Float)         # upravený (non-GAAP), jinak GAAP
+    eps_gaap: Mapped[float | None] = mapped_column(Float)
     eps_estimate: Mapped[float | None] = mapped_column(Float)       # konsenzus (Nasdaq)
     eps_surprise_pct: Mapped[float | None] = mapped_column(Float)
     n_estimates: Mapped[int | None] = mapped_column(Integer)

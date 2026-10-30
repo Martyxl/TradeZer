@@ -62,7 +62,7 @@ async def test_ingest_reaction_and_feed(monkeypatch):
 
     def fake_json(system, user, max_tokens=1400):
         calls.append(user)
-        return ({"fiscal_period": "Q3 2026", "revenue_usd": 102.3e9, "revenue_yoy_pct": 25, "eps_diluted": 2.12,
+        return ({"fiscal_period": "Q3 2026", "revenue_usd": 102.3e9, "revenue_yoy_pct": 25, "eps_gaap": 2.12, "eps_adjusted": None,
                  "verdict": "mixed", "headline_cs": "Tržby rostou, zisk pod odhadem.",
                  "summary_cs": ["Tržby +25 %", "Zisk na akcii 2,12 USD pod odhadem 2,94"], "guidance_cs": None},
                 "test-model")
