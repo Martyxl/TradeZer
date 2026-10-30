@@ -53,6 +53,8 @@ EXTRACT_SYSTEM = (
     "Když jsou dobré tržby, ale zisk pod odhadem (nebo naopak), je to 'mixed'. "
     "Konsenzus EPS analytiků bývá na upraveném (non-GAAP) základu, pokud ho firma vykazuje — porovnávej se správným "
     "číslem a jednorázové položky (zisky/ztráty z investic, restrukturalizace) výslovně zmiň. "
+    "Než napíšeš 'nad/pod odhadem', porovnej čísla: vyšší EPS než konsenzus = překonal odhad. "
+    "headline_cs je JEDNA jasná věta bez závorek a bez oprav sebe sama. "
     "Vysvětluj srozumitelně pro retailového tradera, česky, bez anglických zkratek kde to jde. "
     "NIKDY nedoporučuj nákup ani prodej akcie."
 )

@@ -110,11 +110,22 @@ def _html_text(raw: str) -> str:
 def press_release(cik: int, accession: str, primary: str) -> tuple[str, str]:
     """(text tiskové zprávy EX-99.1, URL). Fallback = hlavní dokument 8-K."""
     folder = f"https://www.sec.gov/Archives/edgar/data/{cik}/{accession.replace('-', '')}"
-    names = [it["name"] for it in httpx.get(f"{folder}/index.json", headers=SEC_UA, timeout=20).json()
-             ["directory"]["item"]]
-    ex = [n for n in names if re.search(r"ex-?99|exhibit-?99|ex_?99", n, re.I) and n.lower().endswith((".htm", ".html", ".txt"))]
-    ex.sort(key=lambda n: (not re.search(r"99[-_.]?0?1(?!\d)", n), len(n)))
-    doc = ex[0] if ex else primary
+    doc = None
+    # Typ dokumentu podle SEC hlavičky (názvy souborů si firmy volí libovolně, např. „q326lillysales…htm“)
+    try:
+        hdr = httpx.get(f"{folder}/{accession}-index-headers.html", headers=SEC_UA, timeout=20).text
+        docs = re.findall(r"<TYPE>\s*(EX-99[^\s<]*)[\s\S]*?<FILENAME>\s*([^\s<]+)", html.unescape(hdr), re.I)
+        docs.sort(key=lambda d: d[0].upper() not in ("EX-99.1", "EX-99.01"))
+        doc = docs[0][1] if docs else None
+    except Exception:  # noqa: BLE001
+        pass
+    if not doc:
+        # Záloha: největší HTML dokument mimo hlavní 8-K a XBRL náhledy (R1.htm…)
+        items = httpx.get(f"{folder}/index.json", headers=SEC_UA, timeout=20).json()["directory"]["item"]
+        cands = [(int(it.get("size") or 0), it["name"]) for it in items
+                 if it["name"].lower().endswith((".htm", ".html")) and it["name"] != primary
+                 and not re.match(r"(R\d+|.*index.*)\.html?$", it["name"], re.I)]
+        doc = max(cands)[1] if cands else primary
     time.sleep(0.2)
     raw = httpx.get(f"{folder}/{doc}", headers=SEC_UA, timeout=30).text
     return _html_text(raw)[:60_000], f"{folder}/{doc}"
