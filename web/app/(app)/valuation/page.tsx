@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Target, LayoutGrid, Table2, Info, Loader2 } from "lucide-react";
 import { BubbleMap, VERDICT_COLOR, ZONE_COLOR, ZONE_LABEL, zoneText, type OverviewItem, type ZoneCurves } from "@/components/valuation/BubbleMap";
 import { ValuationDetail } from "@/components/valuation/ValuationDetail";
-import { EarningsFeed } from "@/components/valuation/EarningsReports";
+import { EarningsFeed, alertTitle, earningsAlerts, useReports, type EarningsReport } from "@/components/valuation/EarningsReports";
 import { PaywallGuard } from "@/components/PaywallGuard";
 import { authHeaders } from "@/lib/auth";
 
@@ -33,6 +33,8 @@ function ValuationInner() {
   const [addQuery, setAddQuery] = useState("");
   const [adding, setAdding] = useState(false);
   const [addMsg, setAddMsg] = useState<string | null>(null);
+  const reports = useReports("/api/valuation/earnings?limit=30");
+  const alerts = earningsAlerts(reports);
 
   useEffect(() => {
     fetch("/api/valuation/groups", { cache: "no-store", headers: authHeaders() })
@@ -106,9 +108,6 @@ function ValuationInner() {
         </p>
       </div>
 
-      {/* Výsledky hospodaření firem (SEC 8-K → AI vysvětlení) */}
-      <EarningsFeed onTicker={setSelected} />
-
       {/* filtr skupin */}
       <div className="flex flex-wrap gap-1.5">
         <button onClick={() => setGroup(null)}
@@ -160,13 +159,16 @@ function ValuationInner() {
         </div>
       ) : view === "map" ? (
         <>
-          <BubbleMap items={items} onSelect={setSelected} zones={zones} />
+          <BubbleMap items={items} onSelect={setSelected} zones={zones} alerts={alerts} />
           <Legend />
           {zones && <ZoneNote />}
         </>
       ) : (
-        <ValuationTable items={items} onSelect={setSelected} />
+        <ValuationTable items={items} onSelect={setSelected} alerts={alerts} />
       )}
+
+      {/* Výsledky hospodaření firem (SEC 8-K → vysvětlení ze Sparku) */}
+      <EarningsFeed reports={reports} onTicker={setSelected} />
 
       <p className="text-[11px] text-gray-500">
         Skóre je heuristika nad veřejnými daty s nejistou kvalitou, ne ocenění firmy. Konsenzus analytiků bývá
@@ -187,6 +189,7 @@ function Legend() {
         </span>
       ))}
       <span className="flex items-center gap-1.5"><span className="text-red-400">⚠</span> bublina (drahé + zpomaluje + revize dolů)</span>
+      <span className="flex items-center gap-1.5"><AlertMark /> nové výsledky hospodaření — prověř (viz sekce dole)</span>
       <span>velikost = tržní kapitalizace</span>
     </div>
   );
@@ -221,7 +224,15 @@ function ZoneNote() {
   );
 }
 
-function ValuationTable({ items, onSelect }: { items: OverviewItem[]; onSelect: (t: string) => void }) {
+function AlertMark({ title }: { title?: string }) {
+  return (
+    <span title={title} className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-yellow-400 text-[10px] font-black leading-none text-[#0b0e16]">!</span>
+  );
+}
+
+function ValuationTable({ items, onSelect, alerts }: {
+  items: OverviewItem[]; onSelect: (t: string) => void; alerts: Record<string, EarningsReport>;
+}) {
   return (
     <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] overflow-x-auto">
       <table className="w-full text-xs">
@@ -241,7 +252,8 @@ function ValuationTable({ items, onSelect }: { items: OverviewItem[]; onSelect: 
             <tr key={it.ticker} className="border-b border-[#232735] hover:bg-[#1a1d27] cursor-pointer"
                 onClick={() => onSelect(it.ticker)}>
               <td className="px-3 py-2 font-medium text-white">{it.ticker}
-                {it.bubble_flag && <span className="text-red-400 ml-1">⚠</span>}</td>
+                {it.bubble_flag && <span className="text-red-400 ml-1">⚠</span>}
+                {alerts[it.ticker] && <span className="ml-1 align-middle"><AlertMark title={alertTitle(alerts[it.ticker])} /></span>}</td>
               <td className="px-3 py-2 text-right text-gray-300">{it.valuation_score?.toFixed(0) ?? "—"}</td>
               <td className="px-3 py-2 text-right text-gray-300">{it.composite_score?.toFixed(0) ?? "—"}</td>
               <td className="px-3 py-2" style={{ color: VERDICT_COLOR[it.valuation_verdict ?? ""] ?? "#9ca3af" }}>

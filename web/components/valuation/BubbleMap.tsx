@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { alertTitle, type EarningsReport } from "@/components/valuation/EarningsReports";
 
 export interface OverviewItem {
   ticker: string;
@@ -81,7 +82,20 @@ export function cluster(pts: Placed[], overlap = 0.55): Cluster[] {
   });
 }
 
-export function BubbleMap({ items, onSelect, zones }: { items: OverviewItem[]; onSelect: (t: string) => void; zones?: ZoneCurves | null }) {
+/** Žlutý vykřičník (nové výsledky hospodaření) v SVG; title = tooltip. */
+function SvgAlert({ x, y, title }: { x: number; y: number; title: string }) {
+  return (
+    <g>
+      <title>{title}</title>
+      <circle cx={x} cy={y} r={6.5} fill="#facc15" stroke="#0b0e16" strokeWidth={1.5} />
+      <text x={x} y={y + 3.5} fill="#0b0e16" fontSize="10" fontWeight="900" textAnchor="middle">!</text>
+    </g>
+  );
+}
+
+export function BubbleMap({ items, onSelect, zones, alerts = {} }: {
+  items: OverviewItem[]; onSelect: (t: string) => void; zones?: ZoneCurves | null; alerts?: Record<string, EarningsReport>;
+}) {
   const [hover, setHover] = useState<string | null>(null);
   const plotted = items.filter((i) => i.pctile_pe_fwd != null && i.eps_growth_ntm != null);
   const maxMc = Math.max(...plotted.map((i) => i.market_cap ?? 0), 1);
@@ -164,6 +178,9 @@ export function BubbleMap({ items, onSelect, zones }: { items: OverviewItem[]; o
                 {it.bubble_flag && (
                   <text x={cx + r + 2} y={cy - r} fill="#ef4444" fontSize="11">⚠</text>
                 )}
+                {alerts[it.ticker] && (
+                  <SvgAlert x={cx - r * 0.72} y={cy - r * 0.72} title={alertTitle(alerts[it.ticker])} />
+                )}
                 {hover === it.ticker && (
                   <text x={cx} y={cy - r - 5} fill="#e5e7eb" fontSize="10" textAnchor="middle">
                     {it.name?.slice(0, 22)} · comp {it.composite_score?.toFixed(0) ?? "—"}{it.zone ? ` · ${zoneText(it)}` : ""}
@@ -173,6 +190,7 @@ export function BubbleMap({ items, onSelect, zones }: { items: OverviewItem[]; o
             );
           }
           const k = clKey(c), sel = open === k;
+          const flagged = c.members.filter((m) => alerts[m.it.ticker]);
           return (
             <g key={k} style={{ cursor: "pointer" }} data-testid="bubble-cluster"
                onClick={() => setOpen(sel ? null : k)}>
@@ -182,6 +200,10 @@ export function BubbleMap({ items, onSelect, zones }: { items: OverviewItem[]; o
                     stroke="#0b0e16" strokeWidth={2.5} paintOrder="stroke">
                 {c.members.length}×
               </text>
+              {flagged.length > 0 && (
+                <SvgAlert x={c.cx - Math.max(c.r, 14) * 0.72} y={c.cy - Math.max(c.r, 14) * 0.72}
+                          title={`Nové výsledky: ${flagged.map((m) => m.it.ticker).join(", ")}`} />
+              )}
             </g>
           );
         })}
@@ -202,6 +224,10 @@ export function BubbleMap({ items, onSelect, zones }: { items: OverviewItem[]; o
                   <span className="inline-block h-2 w-2 rounded-full"
                         style={{ background: VERDICT_COLOR[it.valuation_verdict ?? ""] ?? "#64748b" }} />
                   <span className="font-semibold text-white">{it.ticker}</span>
+                  {alerts[it.ticker] && (
+                    <span title={alertTitle(alerts[it.ticker])}
+                          className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-yellow-400 text-[10px] font-black leading-none text-[#0b0e16]">!</span>
+                  )}
                   <span className="truncate text-gray-400">{it.name}</span>
                   {it.zone && (
                     <span className="text-[10px]" title={it.zone_note ?? undefined}

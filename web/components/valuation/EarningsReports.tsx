@@ -130,7 +130,7 @@ export function EarningsReportCard({ r, open: initialOpen = false, onTicker }: {
   );
 }
 
-function useReports(url: string) {
+export function useReports(url: string) {
   const [reports, setReports] = useState<EarningsReport[] | null>(null);
   const load = useCallback(() => {
     fetch(url, { cache: "no-store", headers: authHeaders() })
@@ -146,9 +146,30 @@ function useReports(url: string) {
   return reports;
 }
 
-/** Sekce v radaru: nejnovější výsledky hospodaření firem (obnovuje se každé 2 min). */
-export function EarningsFeed({ onTicker }: { onTicker: (t: string) => void }) {
-  const reports = useReports("/api/valuation/earnings?limit=30");
+// Žlutý vykřičník v radaru: čerstvé výsledky, které mění obrázek firmy (verdikt není neutrální
+// nebo akcie výrazně reagovala). Skóre valuace je z dat před výsledky → stojí za to je prověřit.
+export const ALERT_DAYS = 7;
+const ALERT_MOVE_PCT = 3;
+
+export function earningsAlerts(reports: EarningsReport[] | null): Record<string, EarningsReport> {
+  const out: Record<string, EarningsReport> = {};
+  const since = Date.now() - ALERT_DAYS * 86_400_000;
+  for (const r of reports ?? []) {
+    if (new Date(r.accepted_at).getTime() < since || out[r.ticker]) continue;   // feed je od nejnovějších
+    const moved = r.reaction_pct != null && Math.abs(r.reaction_pct) >= ALERT_MOVE_PCT;
+    if (moved || (r.verdict && r.verdict !== "neutral")) out[r.ticker] = r;
+  }
+  return out;
+}
+
+export function alertTitle(r: EarningsReport): string {
+  const v = r.verdict ? VERDICT[r.verdict].label.toLowerCase() : "bez hodnocení";
+  return `Nové výsledky ${when(r.accepted_at)} (${v}${r.reaction_pct != null ? `, akcie ${pct(r.reaction_pct)}` : ""})`
+    + (r.headline_cs ? `: ${r.headline_cs}` : "") + " — skóre valuace ještě nemusí nové výsledky zohledňovat.";
+}
+
+/** Sekce v radaru: nejnovější výsledky hospodaření firem (data načítá stránka, obnova každé 2 min). */
+export function EarningsFeed({ reports, onTicker }: { reports: EarningsReport[] | null; onTicker: (t: string) => void }) {
   const [all, setAll] = useState(false);
   if (!reports) return null;
   const shown = all ? reports : reports.slice(0, 4);
