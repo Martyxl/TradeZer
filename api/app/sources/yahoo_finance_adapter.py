@@ -128,7 +128,7 @@ def _close_before(bars: list[dict], target_utc: datetime, tolerance_minutes: int
     target = target_utc.timestamp()
     best_t, best = None, None
     for bar in bars:
-        end = bar["t"] + BAR_SECONDS
+        end = bar["t"] + bar.get("s", BAR_SECONDS)  # "s" = délka svíčky (Twelve Data 1min)
         if end <= target and target - end <= tolerance_minutes * 60 and (best_t is None or bar["t"] > best_t):
             best_t, best = bar["t"], bar["close"]
     return best

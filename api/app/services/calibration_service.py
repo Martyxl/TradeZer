@@ -9,12 +9,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import DirectionEnum
 from app.repositories import NewsRepository, TickerRepository
 from app.services.release_parser import release_anchor
+from app.sources import twelvedata_adapter as td
+from app.sources.twelvedata_adapter import TwelveDataAdapter
 from app.sources.yahoo_finance_adapter import YahooFinanceAdapter, _close_before, _find_close_at
 from datetime import timedelta
 
 log = structlog.get_logger(__name__)
 
-# Yahoo 5m svíčky sahají jen ~60 dní zpět → starší zprávy se nikdy nezkalibrují.
+# Yahoo 5m svíčky sahají jen ~60 dní zpět → starší zprávy se nikdy nezkalibrují
+# (neplatí pro nástroje z Twelve Data — 1min historie od 2020).
 MAX_NEWS_AGE_DAYS = 58
 # Reakce počítáme až když uplynulo okno 1 h (jinak by se uložila bez price_1h a už se nedoplnila).
 MIN_NEWS_AGE_MINUTES = 65
@@ -28,6 +31,24 @@ class CalibrationService:
         self.repo = NewsRepository(session)
         self.ticker_repo = TickerRepository(session)
         self.yahoo = YahooFinanceAdapter()
+        self.td = TwelveDataAdapter()
+
+    def _day_bars(self, symbol: str, for_date):
+        """Forex/zlato/BTC z Twelve Data (1min), při jeho výpadku Yahoo (5min); futures jen Yahoo."""
+        if td.supports(symbol):
+            bars = self.td.fetch_day_bars(symbol, for_date)
+            if bars is not None:
+                return bars
+            if (datetime.now(timezone.utc).date() - for_date).days > MAX_NEWS_AGE_DAYS:
+                raise RuntimeError("Twelve Data nedostupné a Yahoo tak staré bary nemá")
+        return self.yahoo.fetch_day_bars(symbol, for_date)
+
+    def _range_bars(self, symbol: str, start, end):
+        if td.supports(symbol):
+            bars = self.td.fetch_range_bars(symbol, start, end)
+            if bars is not None:
+                return bars
+        return self.yahoo.fetch_range_bars(symbol, start, end)
 
     def _determine_direction(self, pct_change: float | None, threshold: float) -> str | None:
         if pct_change is None:
@@ -53,7 +74,7 @@ class CalibrationService:
         if key not in cache:
             try:
                 cache[key] = await asyncio.to_thread(
-                    self.yahoo.fetch_range_bars, symbol,
+                    self._range_bars, symbol,
                     news_utc.date() - timedelta(days=3), news_utc.date() + timedelta(days=5))
             except Exception as e:  # noqa: BLE001
                 log.warning("Gap bars fetch failed", symbol=symbol, error=str(e))
@@ -111,7 +132,7 @@ class CalibrationService:
             ticker_map[ticker.id] = ticker
             # U vydání makro dat měř od plánovaného času vydání, ne od času titulku.
             news_utc = release_anchor(pred.news_item.title or "", self._to_utc(pred.news_item.published_at))
-            if now - news_utc > timedelta(days=MAX_NEWS_AGE_DAYS):
+            if now - news_utc > timedelta(days=MAX_NEWS_AGE_DAYS) and not td.supports(ticker.symbol):
                 await mark(pred, "too_old")  # bez stahování — Yahoo tak staré 5m svíčky nemá
                 continue
             groups[ticker.symbol][news_utc.date()].append((pred, news_utc))
@@ -125,9 +146,7 @@ class CalibrationService:
                 cache_key = (symbol, for_date)
                 log.info("Fetching price bars", symbol=symbol, date=str(for_date))
                 try:
-                    bars = await asyncio.to_thread(
-                        self.yahoo.fetch_day_bars, symbol, for_date
-                    )
+                    bars = await asyncio.to_thread(self._day_bars, symbol, for_date)
                     bar_cache[cache_key] = bars
                     log.info("Bars fetched", symbol=symbol, date=str(for_date), count=len(bars))
                 except Exception as e:
@@ -202,6 +221,7 @@ class CalibrationService:
                         "liquidity_grab": liquidity_grab,
                         "gap": gap,  # True = reakce na zprávu při zavřeném trhu (gap při otevření)
                         "initial_dir": ("up" if dir_5m > 0 else ("down" if dir_5m < 0 else "flat")),
+                        "src": "twelvedata" if use_bars and use_bars[0].get("s") == 60 else "yahoo",
                     }
 
                     # Cena v čase zprávy je, ale 30min cena chybí a už je pozdě → trh se zavřel

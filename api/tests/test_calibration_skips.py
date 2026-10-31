@@ -136,3 +136,42 @@ async def test_gap_waits_when_market_not_reopened(db_session, world):
     stats = await svc.run()
     assert stats["unresolvable"] == 0 and stats["skipped"] == 1   # čeká na znovuotevření
     assert await _reaction(db_session, item.id) is None
+
+
+def test_twelvedata_fx_hours():
+    """Twelve Data vrací forex i o víkendu (syntetické kotace) → mimo pá 17:00–ne 17:00 NY zahodit."""
+    from app.sources.twelvedata_adapter import fx_open
+    ts = lambda s: datetime.fromisoformat(s).replace(tzinfo=timezone.utc).timestamp()  # noqa: E731
+    assert fx_open(ts("2026-10-30T20:59:00"))        # pá 16:59 NY (EDT)
+    assert not fx_open(ts("2026-10-30T21:00:00"))    # pá 17:00 NY → zavřeno
+    assert not fx_open(ts("2026-10-31T15:00:00"))    # sobota
+    assert not fx_open(ts("2026-11-01T21:30:00"))    # ne 16:30 NY (už EST) → ještě zavřeno
+    assert fx_open(ts("2026-11-01T22:00:00"))        # ne 17:00 NY → otevřeno
+    assert fx_open(ts("2026-11-04T03:00:00"))        # středa v noci
+
+
+@pytest.mark.asyncio
+async def test_twelvedata_used_for_fx_even_when_old(db_session, monkeypatch):
+    """Forex z Twelve Data (1min bary, historie i starší než 58 dní); Yahoo se nevolá."""
+    from app.sources import twelvedata_adapter
+    monkeypatch.setenv("TWELVEDATA_API_KEY", "k")
+    t = Ticker(symbol="EURUSD", name="EURUSD", asset_class="forex", source_symbol_map={}, neutral_threshold=0.0005)
+    src = NewsSource(name="s", source_weight=1.0, config={})
+    db_session.add_all([t, src])
+    await db_session.commit()
+    item = await _pred(db_session, (t, src), "old-fx", timedelta(days=90))
+    base = int(item.published_at.replace(tzinfo=timezone.utc).timestamp()) // 60 * 60
+    bars = [{"t": base + 60 * i, "close": 1.1 + (0.0002 * i if i > 0 else 0), "s": 60} for i in range(-10, 70)]
+    seen = []
+
+    def fake(sym, start, end):
+        seen.append(sym)
+        return bars
+    monkeypatch.setattr(twelvedata_adapter, "_fetch", fake)
+    svc = CalibrationService(db_session)
+    svc.yahoo.fetch_day_bars = lambda *a, **k: pytest.fail("Yahoo se nemá volat")
+    stats = await svc.run()
+    assert stats["recorded"] == 1 and seen == ["EURUSD"]
+    r = await _reaction(db_session, item.id)
+    assert r.skip_reason is None and r.price_series["src"] == "twelvedata"
+    assert r.price_series["pct_5m"] is not None and r.pct_change_15m > 0
