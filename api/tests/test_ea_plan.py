@@ -49,7 +49,11 @@ async def test_plan_text_with_bias_offset_and_news(client, db_session, monkeypat
     d = {k: v for k, v in kv if k != "news"}
     news = [v for k, v in kv if k == "news"]
     assert d["direction"] == "up" and d["date"] == day and float(d["offset_pct"]) == 0.25
-    assert d["ny_open_utc"] == "13:30" and d["close_utc"] == "21:00" and d["news_ok"] == "1"
+    # NY open 9:30 a close 17:00 New York → v UTC podle letního/zimního času
+    from zoneinfo import ZoneInfo
+    off = datetime(tday.year, tday.month, tday.day, 12, tzinfo=ZoneInfo("America/New_York")).utcoffset().total_seconds() / 3600
+    assert d["ny_open_utc"] == f"{int(9 - off):02d}:30"
+    assert d["close_utc"] == f"{int(17 - off):02d}:00" and d["news_ok"] == "1"
     assert news == [f"{day}T14:00:00Z|USD|ISM Manufacturing PMI"]
 
 
