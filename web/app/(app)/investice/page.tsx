@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Wallet, Plus, Upload, Trash2, Loader2, TrendingUp, Calculator, RefreshCw } from "lucide-react";
 import { useAuth, authHeaders } from "@/lib/auth";
+import { PortfolioInsights } from "@/components/investments/PortfolioInsights";
 
 // ── Typy ────────────────────────────────────────────────────────────────────
 interface Signal {
@@ -159,10 +160,13 @@ export default function InvesticePage() {
         )}
         {pf && !pf.base_totals.complete && (
           <div className="border-t border-[#2a2d3a] px-4 py-2 text-[11px] text-amber-400/80">
-            Živé ceny se plní z externího skenu (Yahoo). Dokud nedorazí ceny/FX, hodnota je neúplná.
+            Živé ceny se plní z externího skenu (Twelve Data, záložně Yahoo). Dokud nedorazí ceny/FX, hodnota je neúplná.
           </div>
         )}
       </div>
+
+      {/* Dividendy + rozložení (vč. obsahu ETF) */}
+      <PortfolioInsights reloadKey={pf} />
 
       {/* Kalkulačka výhledu */}
       <ProjectionCalculator startValue={bt?.value ?? 0} />

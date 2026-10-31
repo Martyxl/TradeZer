@@ -6,7 +6,7 @@ protože Yahoo nejde z Vercelu). Import z brokerů (XTB/eToro/…) normalizuje d
 """
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text, func
+from sqlalchemy import JSON, DateTime, Float, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -58,4 +58,15 @@ class InvestmentQuote(Base):
     low_52w: Mapped[float | None] = mapped_column(Float)
     as_of: Mapped[datetime | None] = mapped_column(DateTime)
     source: Mapped[str | None] = mapped_column(String(40))
+    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class InvestmentSymbolMeta(Base):
+    """Profil drženého titulu (Twelve Data, 1× denně ze Sparku): typ, sektor, země, u ETF obsah
+    (sektory, země, top pozice) a dividendy (historie 2 roky + vyhlášené). Pro přehled dividend
+    a rozložení portfolia."""
+    __tablename__ = "investment_symbol_meta"
+
+    symbol: Mapped[str] = mapped_column(String(40), primary_key=True)
+    data: Mapped[dict] = mapped_column(JSON, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())

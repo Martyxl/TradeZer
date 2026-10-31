@@ -17,7 +17,7 @@ from sqlalchemy import select, delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
-from app.models import User, InvestmentTx, InvestmentQuote, InvestmentPriceDaily
+from app.models import User, InvestmentTx, InvestmentQuote, InvestmentPriceDaily, InvestmentSymbolMeta
 from app.routers.admin import _verify_token
 from app.routers.auth import current_user
 
@@ -367,6 +367,58 @@ async def portfolio(base: str = Query(DEFAULT_BASE), user: User = Depends(curren
         },
         "fx_available": sorted(fx.keys()),
     }
+
+
+@router.get("/insights")
+async def portfolio_insights(base: str = Query(DEFAULT_BASE), user: User = Depends(current_user),
+                             session: AsyncSession = Depends(get_session)):
+    """Očekávané dividendy (12 měsíců) a rozložení portfolia podle sektorů/zemí vč. obsahu ETF."""
+    from app.services.portfolio_insights import build_insights
+    base = base.strip().upper()[:8]
+    txs = (await session.execute(
+        select(InvestmentTx).where(InvestmentTx.user_id == user.id, InvestmentTx.tx_type.in_(("buy", "sell")))
+        .order_by(InvestmentTx.executed_at.asc().nullsfirst(), InvestmentTx.id.asc()))).scalars().all()
+    pos: dict[str, dict] = {}
+    for t in txs:
+        if not t.symbol:
+            continue
+        p = pos.setdefault(t.symbol, {"symbol": t.symbol, "name": t.name, "quantity": 0.0, "currency": t.currency or "USD"})
+        p["name"] = p["name"] or t.name
+        p["quantity"] += (t.quantity or 0) * (1 if t.tx_type == "buy" else -1)
+    quotes = {q.symbol: q for q in (await session.execute(select(InvestmentQuote))).scalars().all()}
+    fx = {s: q.price for s, q in quotes.items() if len(s) == 6 and s.isalpha()}
+    positions = []
+    for p in pos.values():
+        if p["quantity"] <= 1e-9:
+            continue
+        q = quotes.get(p["symbol"])
+        p["value_base"] = _to_base(p["quantity"] * q.price, p["currency"], base, fx) if q else None
+        positions.append(p)
+    syms = [p["symbol"].upper() for p in positions]
+    metas = {m.symbol: m.data for m in (await session.execute(
+        select(InvestmentSymbolMeta).where(InvestmentSymbolMeta.symbol.in_(syms)))).scalars().all()} if syms else {}
+    out = build_insights(positions, metas, lambda a, c: _to_base(a, c, base, fx), datetime.utcnow().date())
+    return {"base": base, **out}
+
+
+@router.post("/meta/ingest", dependencies=[Depends(_verify_token)])
+async def ingest_meta(payload: dict, session: AsyncSession = Depends(get_session)):
+    """Spark (portfolio_quotes_scan): {items: [{symbol, type, sector, country, etf?, dividends, announced}]}."""
+    keys = ("type", "sector", "country", "etf", "dividends", "announced")
+    n = 0
+    for it in (payload.get("items") or [])[:500]:
+        sym = (it.get("symbol") or "").strip().upper()[:40]
+        if not sym:
+            continue
+        data = {k: it.get(k) for k in keys if it.get(k) is not None}
+        row = await session.get(InvestmentSymbolMeta, sym)
+        if row is None:
+            session.add(InvestmentSymbolMeta(symbol=sym, data=data))
+        else:
+            row.data = data
+        n += 1
+    await session.commit()
+    return {"stored": n}
 
 
 # ── Daňový časový test (ČR: >3 roky držení → osvobození od daně z příjmu) ────
