@@ -37,6 +37,11 @@ function ValuationInner() {
   const alerts = earningsAlerts(reports);
 
   useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get("ticker");
+    if (t && /^[A-Za-z0-9.-]{1,12}$/.test(t)) setSelected(t.toUpperCase());
+  }, []);
+
+  useEffect(() => {
     fetch("/api/valuation/groups", { cache: "no-store", headers: authHeaders() })
       .then((r) => (r.ok ? r.json() : null)).then((d) => setGroups(d?.groups ?? [])).catch(() => {});
   }, []);

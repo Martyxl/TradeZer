@@ -303,3 +303,30 @@ class ValEarningsReport(Base):
     llm_model: Mapped[str | None] = mapped_column(String(80))
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime | None] = mapped_column(DateTime, onupdate=func.now())
+
+
+class ValEarningsAlertSub(Base):
+    """E-mailový odběr výsledků hospodaření (1 řádek na uživatele).
+    scope: all = všechny firmy v radaru | portfolio = jen držené tituly | custom = `tickers`.
+    only_critical: jen výsledky, které mění obrázek firmy (jako žlutý vykřičník v radaru)."""
+    __tablename__ = "val_earnings_alert_subs"
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    scope: Mapped[str] = mapped_column(String(12), default="all", nullable=False)
+    tickers: Mapped[list | None] = mapped_column(JSONType)
+    only_critical: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    unsubscribe_token: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime, onupdate=func.now())
+
+
+class ValEarningsAlertSent(Base):
+    """Co už komu odešlo — každý report max. jeden e-mail na uživatele."""
+    __tablename__ = "val_earnings_alert_sent"
+    __table_args__ = (UniqueConstraint("user_id", "report_id", name="uq_earnings_alert_sent"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    report_id: Mapped[int] = mapped_column(ForeignKey("val_earnings_reports.id", ondelete="CASCADE"), nullable=False)
+    sent_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

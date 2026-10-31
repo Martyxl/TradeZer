@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ChevronDown, ExternalLink, FileText, Newspaper } from "lucide-react";
+import { Bell, BellRing, ChevronDown, ExternalLink, FileText, Loader2, Newspaper, X } from "lucide-react";
 import { authHeaders } from "@/lib/auth";
 
 export interface EarningsReport {
@@ -179,6 +179,7 @@ export function EarningsFeed({ reports, onTicker }: { reports: EarningsReport[] 
         <h2 className="flex items-center gap-2 text-base font-semibold text-white"><FileText size={15} className="text-blue-400" /> Výsledky hospodaření firem</h2>
         <span className="text-[11px] text-gray-500">hlídáme SEC — vysvětlení obvykle do pár minut po zveřejnění</span>
       </div>
+      <EarningsAlertSettings />
       {reports.length === 0 ? (
         <p className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-3 text-[12px] text-gray-500">Zatím žádné zveřejněné výsledky firem z radaru.</p>
       ) : (
@@ -192,6 +193,139 @@ export function EarningsFeed({ reports, onTicker }: { reports: EarningsReport[] 
         </>
       )}
     </section>
+  );
+}
+
+interface AlertSub { enabled: boolean; scope: "all" | "portfolio" | "custom"; tickers: string[]; only_critical: boolean; email: string | null }
+
+const SCOPE_OPTS: { v: AlertSub["scope"]; label: string }[] = [
+  { v: "all", label: "Všechny firmy v radaru" },
+  { v: "portfolio", label: "Jen firmy v mém portfoliu" },
+  { v: "custom", label: "Vybrané firmy" },
+];
+
+/** E-mailová upozornění na výsledky hospodaření (odběr per uživatel). */
+function EarningsAlertSettings() {
+  const [sub, setSub] = useState<AlertSub | null>(null);
+  const [draft, setDraft] = useState<AlertSub | null>(null);
+  const [tickerInput, setTickerInput] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/valuation/earnings/alerts", { cache: "no-store", headers: authHeaders() })
+      .then((r) => (r.ok ? r.json() : null)).then((d) => d && setSub(d)).catch(() => {});
+  }, []);
+  if (!sub) return null;
+
+  async function call(method: "PUT" | "POST", url: string, body?: unknown) {
+    setBusy(true); setMsg(null);
+    try {
+      const res = await fetch(url, {
+        method, headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) { setMsg({ ok: false, text: d.detail || "Nepodařilo se." }); return null; }
+      return d;
+    } catch { setMsg({ ok: false, text: "Chyba připojení." }); return null; } finally { setBusy(false); }
+  }
+
+  function addTickers() {
+    if (!draft) return;
+    const add = tickerInput.toUpperCase().split(/[\s,;]+/).map((t) => t.replace(/[^A-Z0-9.-]/g, "")).filter(Boolean);
+    setDraft({ ...draft, tickers: [...new Set([...draft.tickers, ...add])].slice(0, 50) });
+    setTickerInput("");
+  }
+
+  async function save(next: AlertSub) {
+    const d = await call("PUT", "/api/valuation/earnings/alerts", next);
+    if (d) { setSub(d); setDraft(null); setMsg({ ok: true, text: d.enabled ? `Uloženo — upozornění půjdou na ${d.email}.` : "Upozornění vypnuta." }); }
+  }
+
+  const scopeText = sub.scope === "portfolio" ? "firmy v portfoliu" : sub.scope === "custom" ? sub.tickers.join(", ") : "všechny firmy v radaru";
+  if (!draft) {
+    return (
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[#2a2d3a] bg-[#151823] px-3 py-2 text-[12px]">
+        {sub.enabled ? <BellRing size={14} className="text-yellow-400" /> : <Bell size={14} className="text-gray-500" />}
+        <span className="text-gray-300">
+          {sub.enabled
+            ? <>E-mail na <b className="text-white">{sub.email}</b> · {sub.only_critical ? "kritické výsledky" : "všechny výsledky"} · {scopeText}</>
+            : "Chceš dostat e-mail, jakmile firma zveřejní důležité výsledky?"}
+        </span>
+        <button onClick={() => setDraft({ ...sub, enabled: true })}
+          className="ml-auto rounded-lg border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.12)] px-3 py-1 text-[12px] font-medium text-[#8fffab] hover:bg-[rgba(96,255,130,0.18)]">
+          {sub.enabled ? "Upravit" : "Zapnout upozornění"}
+        </button>
+        {sub.enabled && (
+          <button disabled={busy} onClick={() => save({ ...sub, enabled: false })} className="text-[12px] text-gray-500 hover:text-gray-300">Vypnout</button>
+        )}
+        {msg && <span className={`w-full text-[11px] ${msg.ok ? "text-[#8fffab]" : "text-red-400"}`}>{msg.text}</span>}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3 rounded-xl border border-[#2f3b55] bg-[#151823] p-3 text-[12.5px]">
+      <div className="flex items-center gap-2">
+        <BellRing size={14} className="text-yellow-400" />
+        <span className="font-semibold text-white">Upozornění na výsledky hospodaření e-mailem</span>
+        <button onClick={() => { setDraft(null); setMsg(null); }} className="ml-auto text-gray-500 hover:text-gray-300" aria-label="Zavřít"><X size={14} /></button>
+      </div>
+      {!sub.email && <p className="text-red-400">Účet nemá e-mail — upozornění nejde posílat.</p>}
+      <div className="space-y-1">
+        <div className="text-[11px] uppercase tracking-wider text-gray-500">Které firmy</div>
+        {SCOPE_OPTS.map((o) => (
+          <label key={o.v} className="flex cursor-pointer items-center gap-2 text-gray-300">
+            <input type="radio" name="alert-scope" checked={draft.scope === o.v} onChange={() => setDraft({ ...draft, scope: o.v })} /> {o.label}
+          </label>
+        ))}
+        {draft.scope === "custom" && (
+          <div className="ml-6 space-y-1.5">
+            <div className="flex flex-wrap gap-1">
+              {draft.tickers.map((t) => (
+                <span key={t} className="flex items-center gap-1 rounded bg-[#1e2536] px-1.5 py-0.5 text-[11px] text-white">
+                  {t}<button onClick={() => setDraft({ ...draft, tickers: draft.tickers.filter((x) => x !== t) })} aria-label={`Odebrat ${t}`}><X size={10} /></button>
+                </span>
+              ))}
+            </div>
+            <div className="flex gap-1.5">
+              <input value={tickerInput} onChange={(e) => setTickerInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTickers(); } }}
+                placeholder="Tickery, např. GOOGL, MSFT"
+                className="min-w-0 flex-1 rounded-lg border border-[#2a2d3a] bg-[#0f1117] px-2 py-1 text-[12px] text-gray-200 placeholder-gray-600 focus:border-[#60ff82] focus:outline-none" />
+              <button onClick={addTickers} className="rounded-lg border border-[#2a2d3a] px-2 text-[12px] text-gray-300 hover:text-white">Přidat</button>
+            </div>
+          </div>
+        )}
+      </div>
+      <div className="space-y-1">
+        <div className="text-[11px] uppercase tracking-wider text-gray-500">Které výsledky</div>
+        <label className="flex cursor-pointer items-start gap-2 text-gray-300">
+          <input type="radio" name="alert-crit" className="mt-0.5" checked={draft.only_critical} onChange={() => setDraft({ ...draft, only_critical: true })} />
+          <span>Jen kritické <span className="text-gray-500">— jako žlutý vykřičník: verdikt pozitivní / negativní / smíšený, nebo akcie pohnula o 3 % a víc</span></span>
+        </label>
+        <label className="flex cursor-pointer items-center gap-2 text-gray-300">
+          <input type="radio" name="alert-crit" checked={!draft.only_critical} onChange={() => setDraft({ ...draft, only_critical: false })} /> Všechny zveřejněné výsledky
+        </label>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <button disabled={busy || !sub.email || (draft.scope === "custom" && draft.tickers.length === 0)} onClick={() => save({ ...draft, enabled: true })}
+          className="flex items-center gap-1.5 rounded-lg border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.12)] px-3 py-1.5 text-[12px] font-medium text-[#8fffab] hover:bg-[rgba(96,255,130,0.18)] disabled:opacity-50">
+          {busy && <Loader2 size={12} className="animate-spin" />} Uložit a zapnout
+        </button>
+        {sub.enabled && (
+          <button disabled={busy} onClick={async () => {
+            const d = await call("POST", "/api/valuation/earnings/alerts/test");
+            if (d) setMsg({ ok: true, text: `Zkušební e-mail (${d.ticker}) odeslán na ${d.email}.` });
+          }} className="rounded-lg border border-[#2a2d3a] px-3 py-1.5 text-[12px] text-gray-300 hover:text-white disabled:opacity-50">
+            Poslat zkušební e-mail
+          </button>
+        )}
+        <span className="text-[11px] text-gray-500">na {sub.email ?? "—"} · odhlásit jde i odkazem v e-mailu</span>
+      </div>
+      {msg && <p className={`text-[11px] ${msg.ok ? "text-[#8fffab]" : "text-red-400"}`}>{msg.text}</p>}
+    </div>
   );
 }
 

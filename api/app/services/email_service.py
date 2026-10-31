@@ -44,6 +44,29 @@ def send_email(to: str, subject: str, html: str) -> bool:
         return False
 
 
+def send_batch(messages: list[dict]) -> set[str]:
+    """Hromadné odeslání (Resend /emails/batch, max 100 na volání). Zpráva = {to, subject, html,
+    headers?}. Vrací adresy, kam to odešlo — po dávkách, chyba jedné dávky neshodí ostatní."""
+    key = (os.environ.get("RESEND_API_KEY") or "").strip()
+    if not key:
+        log.warning("RESEND_API_KEY not set — batch skipped", n=len(messages))
+        return set()
+    sent: set[str] = set()
+    for i in range(0, len(messages), 100):
+        chunk = [{"from": _from(), "to": [m["to"]], "subject": m["subject"], "html": m["html"],
+                  **({"headers": m["headers"]} if m.get("headers") else {})} for m in messages[i:i + 100]]
+        try:
+            r = httpx.post("https://api.resend.com/emails/batch", json=chunk, timeout=30.0,
+                           headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"})
+            if r.status_code >= 300:
+                log.error("Resend batch failed", status=r.status_code, body=r.text[:200])
+                continue
+            sent.update(m["to"] for m in messages[i:i + 100])
+        except Exception as e:  # noqa: BLE001
+            log.error("Resend batch error", error=str(e))
+    return sent
+
+
 def reset_email_html(link: str) -> str:
     return (
         '<div style="font-family:Inter,Arial,sans-serif;max-width:480px;margin:0 auto;'

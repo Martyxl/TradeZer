@@ -12,6 +12,7 @@ from datetime import date, datetime, timedelta
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import HTMLResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
@@ -498,6 +499,7 @@ async def earnings_ingest(payload: dict, session: AsyncSession = Depends(get_ses
         if a and not existing.headline_cs:
             _apply_analysis(existing, a, act, act_surprise)
             await session.commit()
+            await _send_alerts(session, existing)
             return {"status": "analyzed", "id": existing.id, "analyzed": True}
         return {"status": "exists", "id": existing.id, "analyzed": bool(existing.headline_cs)}
     name = (await E.instrument_names(session, [ticker])).get(ticker)
@@ -511,6 +513,7 @@ async def earnings_ingest(payload: dict, session: AsyncSession = Depends(get_ses
     session.add(r)
     await session.commit()
     await session.refresh(r)
+    await _send_alerts(session, r)
     return {"status": "created", "id": r.id, "analyzed": bool(a)}
 
 
@@ -532,6 +535,7 @@ async def earnings_reaction(report_id: int, payload: dict, session: AsyncSession
     r.related_news = await E.related_news(session, r.ticker, name, r.accepted_at - timedelta(hours=1),
                                           r.accepted_at + timedelta(hours=30))
     await session.commit()
+    await _send_alerts(session, r)   # neutrální report se stane kritickým až výraznou reakcí ceny
     due = (r.reaction_pct is not None and not r.reaction_cs and r.summary_cs
            and datetime.utcnow() - r.accepted_at >= E.REACTION_ANALYSIS_AFTER)
     return {"status": "ok", "reaction_pct": r.reaction_pct, "explained": bool(r.reaction_cs),
@@ -552,6 +556,101 @@ async def earnings_explanation(report_id: int, payload: dict, session: AsyncSess
     r.reaction_cs = text
     await session.commit()
     return {"status": "ok", "explained": True}
+
+
+async def _send_alerts(session: AsyncSession, r) -> None:
+    """E-maily odběratelům — best-effort, chyba nesmí shodit příjem dat ze Sparku."""
+    from app.valuation import earnings as E
+    from app.valuation.earnings_alerts import notify
+    try:
+        name = (await E.instrument_names(session, [r.ticker])).get(r.ticker)
+        await notify(session, r, name)
+    except Exception as e:  # noqa: BLE001
+        await session.rollback()
+        log.error("Earnings alerts failed", ticker=r.ticker, error=str(e)[:300])
+
+
+@router.get("/earnings/alerts")
+async def earnings_alerts_get(user: User = Depends(require_plan("trader")), session: AsyncSession = Depends(get_session)):
+    """Nastavení e-mailových upozornění na výsledky hospodaření."""
+    from app.valuation.earnings_alerts import sub_out
+    from app.valuation.models import ValEarningsAlertSub
+    return sub_out(await session.get(ValEarningsAlertSub, user.id), user.email)
+
+
+@router.put("/earnings/alerts")
+async def earnings_alerts_put(payload: dict, user: User = Depends(require_plan("trader")),
+                              session: AsyncSession = Depends(get_session)):
+    """{enabled, scope: all|portfolio|custom, tickers: [..], only_critical}."""
+    from app.valuation import earnings_alerts as A
+    from app.valuation.models import ValEarningsAlertSub
+    if not user.email:
+        raise HTTPException(status_code=422, detail="Účet nemá e-mail — upozornění nejde posílat.")
+    scope = payload.get("scope") or "all"
+    if scope not in A.SCOPES:
+        raise HTTPException(status_code=422, detail="Neplatný rozsah")
+    tickers = []
+    for t in payload.get("tickers") or []:
+        t = "".join(ch for ch in str(t).upper() if ch.isalnum() or ch in ".-")[:12]
+        if t and t not in tickers:
+            tickers.append(t)
+    if scope == "custom" and not tickers:
+        raise HTTPException(status_code=422, detail="Vyber aspoň jednu firmu")
+    sub = await session.get(ValEarningsAlertSub, user.id)
+    if sub is None:
+        sub = ValEarningsAlertSub(user_id=user.id, unsubscribe_token=A.new_token())
+        session.add(sub)
+    sub.enabled = bool(payload.get("enabled", True))
+    sub.scope, sub.tickers = scope, tickers[:A.MAX_TICKERS]
+    sub.only_critical = bool(payload.get("only_critical", True))
+    await session.commit()
+    return A.sub_out(sub, user.email)
+
+
+@router.post("/earnings/alerts/test")
+async def earnings_alerts_test(user: User = Depends(require_plan("trader")), session: AsyncSession = Depends(get_session)):
+    """Zkušební e-mail s posledním vysvětleným reportem (jen na vlastní adresu, max 1× za minutu)."""
+    from app.valuation import earnings as E
+    from app.valuation.earnings_alerts import notify
+    from app.valuation.models import ValEarningsAlertSub, ValEarningsReport
+    sub = await session.get(ValEarningsAlertSub, user.id)
+    if sub is None or not user.email:
+        raise HTTPException(status_code=422, detail="Nejdřív ulož nastavení upozornění.")
+    now = time.time()
+    if now - _ALERT_TEST_AT.get(user.id, 0) < 60:
+        raise HTTPException(status_code=429, detail="Zkušební e-mail jde poslat jednou za minutu.")
+    r = await session.scalar(select(ValEarningsReport).where(ValEarningsReport.headline_cs.isnot(None))
+                             .order_by(ValEarningsReport.accepted_at.desc()).limit(1))
+    if r is None:
+        raise HTTPException(status_code=404, detail="Zatím není žádný report k odeslání.")
+    _ALERT_TEST_AT[user.id] = now
+    name = (await E.instrument_names(session, [r.ticker])).get(r.ticker)
+    n = await notify(session, r, name, only_user_id=user.id, force=True)
+    if not n:
+        raise HTTPException(status_code=502, detail="E-mail se nepodařilo odeslat.")
+    return {"status": "sent", "email": user.email, "ticker": r.ticker}
+
+
+_ALERT_TEST_AT: dict[int, float] = {}
+
+
+@router.api_route("/earnings/alerts/unsubscribe", methods=["GET", "POST"], response_class=HTMLResponse)
+async def earnings_alerts_unsubscribe(token: str = Query(..., min_length=20, max_length=64),
+                                      session: AsyncSession = Depends(get_session)):
+    """Odhlášení odkazem z e-mailu (bez přihlášení; POST = one-click z poštovního klienta)."""
+    from app.valuation.models import ValEarningsAlertSub
+    sub = await session.scalar(select(ValEarningsAlertSub).where(ValEarningsAlertSub.unsubscribe_token == token))
+    if sub is not None:
+        sub.enabled = False
+        await session.commit()
+    msg = ("Odběr upozornění na výsledky hospodaření je zrušený. Znovu ho zapneš ve Valuation Radaru."
+           if sub is not None else "Odkaz není platný (odběr už mohl být zrušen).")
+    return HTMLResponse(
+        '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+        '<title>Tradezer — odběr</title><body style="background:#060a0c;color:#e5e7eb;font-family:Inter,Arial,'
+        'sans-serif;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0;padding:16px">'
+        f'<div style="max-width:420px;text-align:center"><h2 style="color:#60ff82">Tradezer</h2><p>{msg}</p>'
+        '<p><a href="/valuation" style="color:#60ff82">Otevřít Valuation Radar</a></p></div></body>')
 
 
 @router.get("/earnings", dependencies=_TRADER)
