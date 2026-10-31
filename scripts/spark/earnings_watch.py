@@ -22,7 +22,7 @@ import os
 import re
 import sys
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -43,6 +43,9 @@ LLM_KEY = os.environ.get("LLM_API_KEY", "")
 LLM_MODEL = os.environ.get("LLM_MODEL", "heavy")
 LLM_EFFORT = os.environ.get("EARNINGS_REASONING", "high")   # gpt-oss: víc přemýšlení = méně chyb v číslech
 MAX_PRESS_CHARS = 45_000
+TD_KEY = os.environ.get("TWELVEDATA_API_KEY", "")
+UPCOMING_EVERY = 6 * 3600   # s — termíny + konsenzus nadcházejících výsledků
+UPCOMING_DAYS = 14
 ANALYSIS_TRIES = 3          # pak se report uloží i bez analýzy a doplní se v dalších cyklech
 
 EXTRACT_SYSTEM = (
@@ -402,6 +405,80 @@ def reactions(st: dict) -> None:
     save_state(st)
 
 
+# ------------------------------------------------------------------ nadcházející výsledky
+
+def td(path: str, **params) -> dict:
+    """Twelve Data REST (bez klíče / při chybě {})."""
+    if not TD_KEY:
+        return {}
+    try:
+        d = httpx.get(f"https://api.twelvedata.com/{path}", params=params, timeout=30,
+                      headers={"Authorization": f"apikey {TD_KEY}"}).json()
+    except Exception as e:  # noqa: BLE001
+        log("TD fail", path, params.get("symbol"), str(e)[:120])
+        return {}
+    return d if isinstance(d, dict) and d.get("status") != "error" else {}
+
+
+def quarter_estimate(rows: list | None, report: date) -> dict | None:
+    """Odhad pro kvartál, který firma právě hlásí = poslední konec kvartálu před termínem (≤ 120 dní)."""
+    best = None
+    for r in rows or []:
+        if r.get("period") not in ("current_quarter", "next_quarter"):
+            continue
+        try:
+            d = date.fromisoformat(str(r.get("date"))[:10])
+        except ValueError:
+            continue
+        if d < report and (report - d).days <= 120 and (best is None or d > best[0]):
+            best = (d, r)
+    return {"end": best[0], **best[1]} if best else None
+
+
+def upcoming(st: dict) -> None:
+    """Termíny výsledků firem z radaru na 14 dní (Nasdaq — Twelve Data kalendář je neúplný) + konsenzus
+    EPS z Twelve Data (průměr, rozpětí, loňské EPS, počet analytiků; Nasdaq jen záloha) → backend
+    (a e-mail „brzy hlásí“). Odhad tržeb Twelve Data pro právě hlášený kvartál většinou nemá."""
+    if time.time() - st.get("upcoming_at", 0) < UPCOMING_EVERY or datetime.now(NY).weekday() >= 5:
+        return   # o víkendu nebudit DB (Neon autosuspend); termíny se obnoví v pondělí ráno
+    tickers = set(universe(st))
+    d0 = datetime.now(NY).date()
+    items = {}
+    for i in range(UPCOMING_DAYS + 1):
+        d = d0 + timedelta(days=i)
+        if d.weekday() >= 5:
+            continue
+        try:
+            rows = (httpx.get("https://api.nasdaq.com/api/calendar/earnings", params={"date": d.isoformat()},
+                              headers=WEB_UA, timeout=20).json().get("data") or {}).get("rows") or []
+        except Exception as e:  # noqa: BLE001
+            log("nasdaq calendar fail", d, str(e)[:120])
+            return   # neúplný seznam by smazal platné termíny → zkusit příště celý
+        for r in rows:
+            t = (r.get("symbol") or "").upper()
+            if t in tickers and t not in items:
+                n = str(r.get("noOfEsts") or "").strip()
+                items[t] = {"ticker": t, "report_date": d.isoformat(),
+                            "time_of_day": {"time-pre-market": "bmo", "time-after-hours": "amc"}.get(r.get("time")),
+                            "eps_estimate": _money(r.get("epsForecast")), "n_analysts": int(n) if n.isdigit() else None}
+        time.sleep(0.3)
+    for it in items.values():
+        q = quarter_estimate(td("earnings_estimate", symbol=it["ticker"]).get("earnings_estimate"),
+                             date.fromisoformat(it["report_date"]))
+        if q:
+            it["fiscal_quarter_end"] = q["end"].isoformat()
+            it["eps_low"], it["eps_high"], it["eps_year_ago"] = q.get("low_estimate"), q.get("high_estimate"), q.get("year_ago_eps")
+            if q.get("avg_estimate") is not None:   # průměr + rozpětí + počet z jednoho zdroje (Nasdaq bývá mimo rozpětí)
+                it["eps_estimate"], it["n_analysts"] = q["avg_estimate"], q.get("number_of_analysts") or it["n_analysts"]
+        rq = quarter_estimate(td("revenue_estimate", symbol=it["ticker"]).get("revenue_estimate"),
+                              date.fromisoformat(it["report_date"]))
+        if rq:
+            it["revenue_estimate"], it["revenue_year_ago"] = rq.get("avg_estimate"), rq.get("year_ago_sales")
+    res = api("POST", "/api/valuation/earnings/upcoming/ingest", json={"items": list(items.values())})
+    st["upcoming_at"] = time.time()
+    log("upcoming", len(items), "firem,", res.get("pre_alerts_sent"), "upozornění")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--loop", type=int, default=0, help="interval v s (0 = jeden běh)")
@@ -413,6 +490,7 @@ def main() -> None:
         try:
             scan(st)
             reactions(st)
+            upcoming(st)
         except Exception as e:  # noqa: BLE001
             log("cycle fail", str(e)[:200])
         save_state(st)

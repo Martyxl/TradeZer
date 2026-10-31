@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Bell, BellRing, ChevronDown, ExternalLink, FileText, Loader2, Newspaper, X } from "lucide-react";
+import { Bell, BellRing, CalendarDays, ChevronDown, ExternalLink, FileText, Loader2, Newspaper, X } from "lucide-react";
 import { authHeaders } from "@/lib/auth";
 
 export interface EarningsReport {
@@ -168,6 +168,70 @@ export function alertTitle(r: EarningsReport): string {
     + (r.headline_cs ? `: ${r.headline_cs}` : "") + " — skóre valuace ještě nemusí nové výsledky zohledňovat.";
 }
 
+export interface Upcoming {
+  ticker: string; name: string | null; report_date: string; time_of_day: "bmo" | "amc" | null; at_utc: string;
+  eps_estimate: number | null; eps_low: number | null; eps_high: number | null; eps_year_ago: number | null;
+  revenue_estimate: number | null; revenue_year_ago: number | null; n_analysts: number | null;
+}
+
+const TOD = { bmo: "před otevřením", amc: "po zavření" } as const;
+const dayLabel = (iso: string) => {
+  const d = new Date(iso + "T12:00:00");
+  const today = new Date(); today.setHours(12, 0, 0, 0);
+  const diff = Math.round((d.getTime() - today.getTime()) / 86_400_000);
+  const base = d.toLocaleDateString("cs-CZ", { weekday: "short", day: "numeric", month: "numeric" });
+  return diff === 0 ? `dnes · ${base}` : diff === 1 ? `zítra · ${base}` : base;
+};
+
+export function useUpcoming() {
+  const [items, setItems] = useState<Upcoming[] | null>(null);
+  useEffect(() => {
+    fetch("/api/valuation/earnings/upcoming", { cache: "no-store", headers: authHeaders() })
+      .then((r) => (r.ok ? r.json() : null)).then((d) => setItems(d?.items ?? [])).catch(() => setItems([]));
+  }, []);
+  return items;
+}
+
+function UpcomingRow({ u, onTicker }: { u: Upcoming; onTicker?: (t: string) => void }) {
+  const yoy = u.eps_estimate != null && u.eps_year_ago ? ((u.eps_estimate / u.eps_year_ago - 1) * 100) : null;
+  return (
+    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 rounded-lg bg-[#0f1117] px-3 py-2 text-[12px]">
+      <button onClick={() => onTicker?.(u.ticker)} className="font-bold text-white hover:text-blue-300" title="Otevřít detail firmy">{u.ticker}</button>
+      {u.name && <span className="max-w-[160px] truncate text-gray-400">{u.name}</span>}
+      <span className="text-gray-300">{dayLabel(u.report_date)}{u.time_of_day ? ` · ${TOD[u.time_of_day]}` : ""}</span>
+      <span className="ml-auto text-gray-400">
+        odhad EPS <b className="text-white">{num(u.eps_estimate)}</b>
+        {u.eps_low != null && u.eps_high != null && <span className="text-gray-500"> ({num(u.eps_low)}–{num(u.eps_high)})</span>}
+        {yoy != null && <span style={{ color: sign(yoy) }}> {pct(yoy)} r/r</span>}
+        {u.revenue_estimate != null && <> · tržby <b className="text-white">{bn(u.revenue_estimate)}</b></>}
+        {u.n_analysts ? <span className="text-gray-600"> · {u.n_analysts} analytiků</span> : null}
+      </span>
+    </div>
+  );
+}
+
+/** Kdy firmy z radaru zveřejní výsledky (14 dní) + co od nich analytici čekají. */
+function UpcomingEarnings({ onTicker }: { onTicker: (t: string) => void }) {
+  const items = useUpcoming();
+  const [all, setAll] = useState(false);
+  if (!items || items.length === 0) return null;
+  const shown = all ? items : items.slice(0, 5);
+  return (
+    <div className="space-y-1.5 rounded-xl border border-[#2a2d3a] bg-[#151823] p-3">
+      <div className="flex items-center gap-2 text-[12px] font-semibold text-gray-200">
+        <CalendarDays size={14} className="text-blue-400" /> Brzy zveřejní výsledky
+        <span className="font-normal text-gray-500">· termín Nasdaq, odhady analytiků Twelve Data</span>
+      </div>
+      {shown.map((u) => <UpcomingRow key={u.ticker + u.report_date} u={u} onTicker={onTicker} />)}
+      {items.length > 5 && (
+        <button onClick={() => setAll((a) => !a)} className="text-[12px] text-blue-400 hover:text-blue-300">
+          {all ? "Zobrazit méně" : `Všechny termíny (${items.length})`}
+        </button>
+      )}
+    </div>
+  );
+}
+
 /** Sekce v radaru: nejnovější výsledky hospodaření firem (data načítá stránka, obnova každé 2 min). */
 export function EarningsFeed({ reports, onTicker }: { reports: EarningsReport[] | null; onTicker: (t: string) => void }) {
   const [all, setAll] = useState(false);
@@ -180,6 +244,7 @@ export function EarningsFeed({ reports, onTicker }: { reports: EarningsReport[] 
         <span className="text-[11px] text-gray-500">hlídáme SEC — vysvětlení obvykle do pár minut po zveřejnění</span>
       </div>
       <EarningsAlertSettings />
+      <UpcomingEarnings onTicker={onTicker} />
       {reports.length === 0 ? (
         <p className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-3 text-[12px] text-gray-500">Zatím žádné zveřejněné výsledky firem z radaru.</p>
       ) : (
@@ -196,7 +261,7 @@ export function EarningsFeed({ reports, onTicker }: { reports: EarningsReport[] 
   );
 }
 
-interface AlertSub { enabled: boolean; scope: "all" | "portfolio" | "custom"; tickers: string[]; only_critical: boolean; email: string | null }
+interface AlertSub { enabled: boolean; scope: "all" | "portfolio" | "custom"; tickers: string[]; only_critical: boolean; pre_alerts: boolean; email: string | null }
 
 const SCOPE_OPTS: { v: AlertSub["scope"]; label: string }[] = [
   { v: "all", label: "Všechny firmy v radaru" },
@@ -308,6 +373,10 @@ function EarningsAlertSettings() {
         <label className="flex cursor-pointer items-center gap-2 text-gray-300">
           <input type="radio" name="alert-crit" checked={!draft.only_critical} onChange={() => setDraft({ ...draft, only_critical: false })} /> Všechny zveřejněné výsledky
         </label>
+        <label className="mt-1 flex cursor-pointer items-start gap-2 text-gray-300">
+          <input type="checkbox" className="mt-0.5" checked={draft.pre_alerts !== false} onChange={(e) => setDraft({ ...draft, pre_alerts: e.target.checked })} />
+          <span>Upozornit i předem <span className="text-gray-500">— den před zveřejněním: kdy firma hlásí a co čekají analytici</span></span>
+        </label>
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <button disabled={busy || !sub.email || (draft.scope === "custom" && draft.tickers.length === 0)} onClick={() => save({ ...draft, enabled: true })}
@@ -332,11 +401,13 @@ function EarningsAlertSettings() {
 /** Výsledky hospodaření jedné firmy (v detailu firmy). */
 export function TickerEarnings({ ticker }: { ticker: string }) {
   const reports = useReports(`/api/valuation/${ticker}/earnings`);
-  if (!reports || reports.length === 0) return null;
+  const next = useUpcoming()?.find((u) => u.ticker === ticker);
+  if (!next && (!reports || reports.length === 0)) return null;
   return (
     <div className="mb-3 space-y-2">
       <h3 className="text-sm font-semibold text-white">Výsledky hospodaření</h3>
-      {reports.map((r, i) => <EarningsReportCard key={r.id} r={r} open={i === 0} />)}
+      {next && <UpcomingRow u={next} />}
+      {(reports ?? []).map((r, i) => <EarningsReportCard key={r.id} r={r} open={i === 0} />)}
     </div>
   );
 }

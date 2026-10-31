@@ -603,6 +603,7 @@ async def earnings_alerts_put(payload: dict, user: User = Depends(require_plan("
     sub.enabled = bool(payload.get("enabled", True))
     sub.scope, sub.tickers = scope, tickers[:A.MAX_TICKERS]
     sub.only_critical = bool(payload.get("only_critical", True))
+    sub.pre_alerts = bool(payload.get("pre_alerts", True))
     await session.commit()
     return A.sub_out(sub, user.email)
 
@@ -651,6 +652,75 @@ async def earnings_alerts_unsubscribe(token: str = Query(..., min_length=20, max
         'sans-serif;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0;padding:16px">'
         f'<div style="max-width:420px;text-align:center"><h2 style="color:#60ff82">Tradezer</h2><p>{msg}</p>'
         '<p><a href="/valuation" style="color:#60ff82">Otevřít Valuation Radar</a></p></div></body>')
+
+
+@router.post("/earnings/upcoming/ingest", dependencies=[Depends(_verify_token)])
+async def earnings_upcoming_ingest(payload: dict, session: AsyncSession = Depends(get_session)):
+    """Spark: {items: [{ticker, report_date, time_of_day, eps_estimate, ...}]} — nahradí budoucí termíny
+    a pošle upozornění „brzy hlásí“."""
+    from datetime import date as _date
+    from sqlalchemy import delete
+    from app.valuation.earnings_alerts import notify_upcoming
+    from app.valuation.models import ValEarningsUpcoming
+    today = datetime.utcnow().date()
+
+    def num(v):
+        try:
+            return float(v) if v is not None else None
+        except (TypeError, ValueError):
+            return None
+    items = []
+    for it in (payload.get("items") or [])[:500]:
+        try:
+            d = _date.fromisoformat(str(it["report_date"])[:10])
+            fq = _date.fromisoformat(str(it["fiscal_quarter_end"])[:10]) if it.get("fiscal_quarter_end") else None
+        except (KeyError, ValueError):
+            continue
+        tk = "".join(ch for ch in str(it.get("ticker") or "").upper() if ch.isalnum() or ch in ".-")[:16]
+        if not tk or d < today:
+            continue
+        tod = it.get("time_of_day") if it.get("time_of_day") in ("bmo", "amc") else None
+        n = it.get("n_analysts")
+        items.append(ValEarningsUpcoming(
+            ticker=tk, report_date=d, time_of_day=tod, fiscal_quarter_end=fq,
+            eps_estimate=num(it.get("eps_estimate")), eps_low=num(it.get("eps_low")), eps_high=num(it.get("eps_high")),
+            eps_year_ago=num(it.get("eps_year_ago")), revenue_estimate=num(it.get("revenue_estimate")),
+            revenue_year_ago=num(it.get("revenue_year_ago")), n_analysts=int(n) if str(n or "").isdigit() else None))
+    await session.execute(delete(ValEarningsUpcoming).where(ValEarningsUpcoming.report_date >= today))
+    seen = set()
+    for x in items:
+        if (x.ticker, x.report_date) not in seen:
+            seen.add((x.ticker, x.report_date))
+            session.add(x)
+    await session.commit()
+    try:
+        sent = await notify_upcoming(session)
+    except Exception as e:  # noqa: BLE001 — e-maily nesmí shodit příjem dat
+        await session.rollback()
+        log.error("Earnings pre-alerts failed", error=str(e)[:300])
+        sent = 0
+    return {"stored": len(seen), "pre_alerts_sent": sent}
+
+
+@router.get("/earnings/upcoming", dependencies=_TRADER)
+async def earnings_upcoming(days: int = Query(default=14, ge=1, le=60), session: AsyncSession = Depends(get_session)):
+    """Nadcházející výsledky firem z radaru (termín + konsenzus analytiků)."""
+    from datetime import timedelta
+    from app.valuation import earnings as E
+    from app.valuation.earnings_alerts import report_moment
+    from app.valuation.models import ValEarningsUpcoming
+    today = datetime.utcnow().date()
+    rows = (await session.execute(select(ValEarningsUpcoming).where(
+        ValEarningsUpcoming.report_date >= today, ValEarningsUpcoming.report_date <= today + timedelta(days=days))
+        .order_by(ValEarningsUpcoming.report_date, ValEarningsUpcoming.ticker))).scalars().all()
+    names = await E.instrument_names(session, [r.ticker for r in rows])
+    return {"items": [{
+        "ticker": r.ticker, "name": names.get(r.ticker), "report_date": r.report_date.isoformat(),
+        "time_of_day": r.time_of_day, "at_utc": report_moment(r).isoformat() + "Z",
+        "fiscal_quarter_end": r.fiscal_quarter_end.isoformat() if r.fiscal_quarter_end else None,
+        "eps_estimate": r.eps_estimate, "eps_low": r.eps_low, "eps_high": r.eps_high, "eps_year_ago": r.eps_year_ago,
+        "revenue_estimate": r.revenue_estimate, "revenue_year_ago": r.revenue_year_ago, "n_analysts": r.n_analysts,
+    } for r in rows]}
 
 
 @router.get("/earnings", dependencies=_TRADER)

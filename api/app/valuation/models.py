@@ -316,9 +316,43 @@ class ValEarningsAlertSub(Base):
     scope: Mapped[str] = mapped_column(String(12), default="all", nullable=False)
     tickers: Mapped[list | None] = mapped_column(JSONType)
     only_critical: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    pre_alerts: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)   # e-mail den předem
     unsubscribe_token: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime | None] = mapped_column(DateTime, onupdate=func.now())
+
+
+class ValEarningsUpcoming(Base):
+    """Nadcházející výsledky firem z radaru: termín (Nasdaq) + konsenzus EPS a tržeb (Twelve Data).
+    Plní Spark worker earnings_watch.py; budoucí řádky se při každém ingestu nahrazují."""
+    __tablename__ = "val_earnings_upcoming"
+    __table_args__ = (UniqueConstraint("ticker", "report_date", name="uq_earnings_upcoming"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    ticker: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+    report_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    time_of_day: Mapped[str | None] = mapped_column(String(8))          # bmo | amc | None
+    fiscal_quarter_end: Mapped[date | None] = mapped_column(Date)
+    eps_estimate: Mapped[float | None] = mapped_column(Float)
+    eps_low: Mapped[float | None] = mapped_column(Float)
+    eps_high: Mapped[float | None] = mapped_column(Float)
+    eps_year_ago: Mapped[float | None] = mapped_column(Float)
+    revenue_estimate: Mapped[float | None] = mapped_column(Float)
+    revenue_year_ago: Mapped[float | None] = mapped_column(Float)
+    n_analysts: Mapped[int | None] = mapped_column(Integer)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class ValEarningsPreSent(Base):
+    """Upozornění „firma zítra hlásí“ — max. jednou na uživatele × firmu × termín."""
+    __tablename__ = "val_earnings_pre_sent"
+    __table_args__ = (UniqueConstraint("user_id", "ticker", "report_date", name="uq_earnings_pre_sent"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    ticker: Mapped[str] = mapped_column(String(16), nullable=False)
+    report_date: Mapped[date] = mapped_column(Date, nullable=False)
+    sent_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 
 class ValEarningsAlertSent(Base):

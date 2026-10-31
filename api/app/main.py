@@ -95,6 +95,8 @@ _PG_MIGRATIONS: list[tuple[str, str]] = [
      "(SELECT 1 FROM journal_tags s WHERE s.user_id = t.user_id AND s.kind = 'setup' AND lower(s.name) = 'smt')"),
     ('journal_entries tags/strategy',
      'ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS strategy_id INTEGER REFERENCES journal_strategies(id) ON DELETE SET NULL, ADD COLUMN IF NOT EXISTS tag_ids JSON, ADD COLUMN IF NOT EXISTS mistake_ids JSON, ADD COLUMN IF NOT EXISTS loss_reason TEXT'),
+    ('val_earnings_alert_subs pre_alerts',
+     'ALTER TABLE val_earnings_alert_subs ADD COLUMN IF NOT EXISTS pre_alerts BOOLEAN NOT NULL DEFAULT TRUE'),
     ('journal_entries SL/TP/outcome',
      'ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS stop_price DOUBLE PRECISION, ADD COLUMN IF NOT EXISTS target_price DOUBLE PRECISION, ADD COLUMN IF NOT EXISTS outcome VARCHAR(10)'),
 ]

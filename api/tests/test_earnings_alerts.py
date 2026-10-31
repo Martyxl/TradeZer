@@ -115,3 +115,39 @@ async def test_alert_recipients_dedup_and_unsubscribe(outbox):
         t = await c.post("/api/valuation/earnings/alerts/test", headers=cust_h)
         assert t.status_code == 200 and [m["to"] for m in outbox] == ["cust@x.cz"]
         assert (await c.post("/api/valuation/earnings/alerts/test", headers=cust_h)).status_code == 429
+
+
+@pytest.mark.asyncio
+async def test_upcoming_ingest_and_pre_alert(outbox, monkeypatch):
+    from app.valuation import earnings_alerts as A
+    async with session_context() as s:
+        s.add_all([ValInstrument(ticker="AMD", name="Advanced Micro Devices"), ValInstrument(ticker="PFE", name="Pfizer")])
+        await s.commit()
+    now = datetime.utcnow()
+    soon = (now + timedelta(hours=20)).date()
+    later = (now + timedelta(days=9)).date()
+    # termín „za ~20 h“ = report_moment v okně PRE_HOURS bez ohledu na denní dobu testu
+    monkeypatch.setattr(A, "report_moment", lambda u: now + (timedelta(hours=20) if u.report_date == soon else timedelta(days=9)))
+    async with _client() as c:
+        a_h = await auth_headers(c, "a@x.cz", plan="trader")
+        b_h = await auth_headers(c, "b@x.cz", plan="trader")
+        n_h = await auth_headers(c, "n@x.cz", plan="trader")
+        await c.put("/api/valuation/earnings/alerts", json={"enabled": True, "scope": "all"}, headers=a_h)
+        await c.put("/api/valuation/earnings/alerts", json={"enabled": True, "scope": "custom", "tickers": ["PFE"]}, headers=b_h)
+        r = (await c.put("/api/valuation/earnings/alerts", json={"enabled": True, "pre_alerts": False}, headers=n_h)).json()
+        assert r["pre_alerts"] is False
+        body = {"items": [
+            {"ticker": "AMD", "report_date": soon.isoformat(), "time_of_day": "amc", "eps_estimate": 1.68,
+             "eps_low": 1.6, "eps_high": 1.8, "eps_year_ago": 1.2, "n_analysts": 30, "fiscal_quarter_end": "2026-09-30"},
+            {"ticker": "PFE", "report_date": later.isoformat(), "time_of_day": "bmo", "eps_estimate": 0.72},
+            {"ticker": "OLD", "report_date": "2020-01-01"},
+        ]}
+        res = (await c.post("/api/valuation/earnings/upcoming/ingest", json=body, headers=TOKEN)).json()
+        assert res == {"stored": 2, "pre_alerts_sent": 1}
+        assert [m["to"] for m in outbox] == ["a@x.cz"]           # b chce jen PFE, n má pre_alerts vypnuté
+        assert "AMD" in outbox[0]["subject"] and "1,68" in outbox[0]["html"] and "po zavření" in outbox[0]["html"]
+        # další ingest (za 6 h) už znovu neposílá
+        assert (await c.post("/api/valuation/earnings/upcoming/ingest", json=body, headers=TOKEN)).json()["pre_alerts_sent"] == 0
+        up = (await c.get("/api/valuation/earnings/upcoming", headers=a_h)).json()["items"]
+        assert [u["ticker"] for u in up] == ["AMD", "PFE"] and up[0]["name"] == "Advanced Micro Devices"
+        assert up[0]["eps_high"] == 1.8 and up[0]["time_of_day"] == "amc"
