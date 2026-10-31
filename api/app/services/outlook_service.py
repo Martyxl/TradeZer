@@ -200,6 +200,7 @@ async def build_outlook(ticker_symbol: str, session=None) -> dict:
         except Exception as ex:  # noqa: BLE001 — výhled musí jít zobrazit i bez skutečných hodnot
             log.warning("Outlook actuals failed", error=str(ex)[:200])
 
+    live = await _live_rows(session, ticker_symbol, now.date()) if session is not None else {}
     scenarios = []
     for e in events:
         if e.get("impact") not in ("high", "medium"):
@@ -217,8 +218,46 @@ async def build_outlook(ticker_symbol: str, session=None) -> dict:
             "forecast": e.get("forecast"), "previous": e.get("previous"), "actual": e.get("actual"),
             "category": cat, "realized": realized, "released": bool(e.get("released")),
             "actual_source": e.get("actual_source"), **sc,
+            "live": live.get((e.get("title") or "")[:200]),
         })
     return {"ticker": ticker_symbol, "date": today_iso, "events": events, "scenarios": scenarios}
+
+
+LIVE_WINDOW_MIN = 65   # jak dlouho po vydání worker sleduje cenu (body 1/5/15/30/60 min)
+
+
+def live_due_events(events: list[dict], now: datetime) -> list[dict]:
+    """Eventy, u kterých má worker právě měřit živou reakci: high/medium s vyhodnotitelným
+    scénářem, od 2 min před vydáním do LIVE_WINDOW_MIN po něm."""
+    from datetime import timedelta
+    out = []
+    for e in events:
+        if e.get("impact") not in ("high", "medium") or classify_event(e.get("title", "")) is None:
+            continue
+        try:
+            ev = datetime.fromisoformat((e.get("time_utc") or "").replace("Z", "+00:00"))
+        except ValueError:
+            continue
+        if ev - timedelta(minutes=2) <= now <= ev + timedelta(minutes=LIVE_WINDOW_MIN):
+            out.append({"title": (e.get("title") or "")[:200], "time_utc": ev.isoformat(),
+                        "currency": e.get("currency")})
+    return out
+
+
+async def _live_rows(session, ticker_symbol: str, day) -> dict:
+    """Živé reakce dneška pro instrument, klíč = název eventu."""
+    from sqlalchemy import select
+    from app.models import OutlookLive, Ticker
+    try:
+        rows = (await session.execute(select(OutlookLive).where(
+            OutlookLive.ticker == ticker_symbol.upper(), OutlookLive.event_date == day))).scalars().all()
+        thr = await session.scalar(select(Ticker.neutral_threshold).where(Ticker.symbol == ticker_symbol.upper()))
+    except Exception as ex:  # noqa: BLE001 — výhled jde zobrazit i bez živých dat
+        log.warning("Outlook live read failed", error=str(ex)[:200])
+        return {}
+    return {r.event_title: {"proxy": r.proxy, "points": r.points or {}, "last_pct": r.last_pct,
+                            "last_at": r.last_at.isoformat() + "Z" if r.last_at else None,
+                            "thr_pct": round((thr or 0) * 100, 4)} for r in rows}
 
 
 def _num(v) -> float | None:

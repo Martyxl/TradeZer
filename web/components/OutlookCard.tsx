@@ -1,16 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CalendarClock, TrendingUp, TrendingDown, Minus, Loader2, CheckCircle2, Clock } from "lucide-react";
+import { Activity, CalendarClock, TrendingUp, TrendingDown, Minus, Loader2, CheckCircle2, Clock } from "lucide-react";
 
 interface Leg { dir: "up" | "down" | "flat"; text: string }
 interface Stat { n: number; hits: number; hit_rate: number | null }
+interface Live { proxy: string | null; points: Record<string, number>; last_pct: number | null; last_at: string | null; thr_pct: number }
 interface Scenario {
   title: string; time_utc: string; impact: string;
   forecast: string; previous: string; actual: string;
   category: string; realized: "hot" | "inline" | "cool" | null;
   released?: boolean; actual_source?: string | null;
-  hot: Leg; inline: Leg; cool: Leg; stat?: Stat | null;
+  hot: Leg; inline: Leg; cool: Leg; stat?: Stat | null; live?: Live | null;
 }
 interface EventRow {
   title: string; impact: string; time_utc: string;
@@ -76,6 +77,43 @@ function StatusTag({ s }: { s: Scenario }) {
   );
 }
 
+const LIVE_MS = 65 * 60_000;
+/** Vyšlo v posledních 65 min — worker právě měří živou reakci ceny. */
+const liveWindow = (s: Scenario) => {
+  const dt = Date.now() - new Date(s.time_utc).getTime();
+  return dt > -120_000 && dt < LIVE_MS;
+};
+const pctTxt = (v: number) => `${v > 0 ? "+" : ""}${v.toLocaleString("cs-CZ", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} %`;
+
+/** Jak se trh skutečně pohnul od vydání (Twelve Data 1min) a jestli to sedí s typickou reakcí. */
+function LiveMove({ s, ticker }: { s: Scenario; ticker: string }) {
+  const l = s.live;
+  if (!l || l.last_pct == null) return null;
+  const dir = (v: number): Leg["dir"] => (Math.abs(v) < l.thr_pct ? "flat" : v > 0 ? "up" : "down");
+  const now = dir(l.last_pct);
+  const exp = s.realized ? s[s.realized].dir : null;
+  const verdict = exp && exp !== "flat" && now !== "flat" ? now === exp : null;
+  const mins = l.last_at ? Math.max(0, Math.round((Date.parse(l.last_at) - Date.parse(s.time_utc)) / 60_000)) : null;
+  const live = liveWindow(s);
+  return (
+    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 pl-11 text-[12px]">
+      <span className="inline-flex items-center gap-1 text-gray-400">
+        <Activity size={12} className={live ? "animate-pulse text-[#60ff82]" : "text-gray-500"} />
+        {live ? "Trh teď" : "Trh po vydání"}{l.proxy ? ` (přes ETF ${l.proxy})` : ""}:
+      </span>
+      <span className="font-semibold" style={{ color: DIR_COLOR[now] }}>{pctTxt(l.last_pct)}</span>
+      {mins != null && <span className="text-gray-500">za {mins} min</span>}
+      {["1", "5", "15", "30", "60"].filter((k) => l.points[k] != null).map((k) => (
+        <span key={k} className="rounded bg-[#0f1117] px-1.5 py-0.5 text-[10.5px] text-gray-400">
+          {k} min <span style={{ color: DIR_COLOR[dir(l.points[k])] }}>{pctTxt(l.points[k])}</span>
+        </span>
+      ))}
+      {verdict === true && <span className="rounded bg-[#14532d55] px-1.5 py-0.5 text-[10.5px] font-medium text-[#86efac]">sedí s typickou reakcí {ticker}</span>}
+      {verdict === false && <span className="rounded bg-[#7f1d1d55] px-1.5 py-0.5 text-[10.5px] font-medium text-[#fca5a5]">trh jde proti typické reakci</span>}
+    </div>
+  );
+}
+
 const SCEN_ROWS: { key: "hot" | "inline" | "cool"; label: string }[] = [
   { key: "hot", label: "🔥 Nad forecastem" },
   { key: "inline", label: "➖ V souladu" },
@@ -99,12 +137,14 @@ export function OutlookCard({ ticker }: { ticker: string }) {
   useEffect(() => { load(false); }, [load]);
 
   // Dokud má dnešek nevyhodnocené eventy, obnovuj každé 2 min — skutečná čísla dorazí pár minut po vydání.
+  // Hodinu po vydání každých 30 s (živá reakce ceny).
   const pending = !!d?.scenarios.some((s) => !s.realized && !staleRelease(s));
+  const liveNow = !!d?.scenarios.some(liveWindow);
   useEffect(() => {
-    if (!pending) return;
-    const id = setInterval(() => { if (document.visibilityState === "visible") load(true); }, 120_000);
+    if (!pending && !liveNow) return;
+    const id = setInterval(() => { if (document.visibilityState === "visible") load(true); }, liveNow ? 30_000 : 120_000);
     return () => clearInterval(id);
-  }, [pending, load]);
+  }, [pending, liveNow, load]);
 
   const done = (d?.scenarios || []).filter((s) => s.realized || s.released);
 
@@ -162,6 +202,7 @@ export function OutlookCard({ ticker }: { ticker: string }) {
                             : "— vyšlo, skutečné číslo zatím nemáme (doplní se během pár minut)"}
                         </span>
                       )}
+                      <LiveMove s={s} ticker={d.ticker} />
                     </li>
                   );
                 })}
@@ -247,7 +288,8 @@ export function OutlookCard({ ticker }: { ticker: string }) {
           )}
 
           <p className="mt-4 text-[10px] leading-relaxed text-gray-600">
-            Skutečné hodnoty vydaných zpráv doplňujeme z investingLive pár minut po vydání (karta se sama obnovuje).{" "}
+            Skutečné hodnoty vydaných zpráv doplňujeme z investingLive pár minut po vydání (karta se sama obnovuje).
+            Pohyb trhu po vydání měříme z minutových dat od ceny těsně před vydáním (indexy přes ETF SPY/QQQ/DIA).{" "}
             <span className="text-gray-500">⌀ badge</span> = jak často predikovaný směr scénáře seděl se
             skutečným pohybem ceny ~1h po eventu (90 dní, počet v závorce). Edukativní mapování typických
             makro reakcí (pravidla + AI komentář), ne investiční doporučení — skutečný pohyb závisí na

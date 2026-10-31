@@ -21,7 +21,7 @@ from app.models.smart_money import SmartMoneySnapshot
 from app.models.darkpool import DarkPoolSnapshot
 from app.models.fund import FundState, FundPosition, FundTrade, FundSnapshot
 from app.models.bias import DailyBias
-from app.models.outlook import DailyOutlook, OutlookEval
+from app.models.outlook import DailyOutlook, OutlookEval, OutlookLive
 from app.models.user import User
 from app.models.journal import JournalEntry, JournalAnalysisJob, JournalTag, JournalStrategy
 from app.models.investment import InvestmentTx, InvestmentQuote, InvestmentPriceDaily
@@ -45,6 +45,7 @@ __all__ = [
     "DailyBias",
     "DailyOutlook",
     "OutlookEval",
+    "OutlookLive",
     "User",
     "JournalEntry",
     "JournalAnalysisJob",

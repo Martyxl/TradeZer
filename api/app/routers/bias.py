@@ -114,6 +114,52 @@ async def bias_gap(ticker: str = Query(...)):
     return out
 
 
+@router.get("/outlook/live/due", dependencies=[Depends(_verify_token)])
+async def outlook_live_due():
+    """Pro worker živých reakcí (Spark): které dnešní eventy právě sledovat."""
+    from datetime import timezone
+    from app.services.outlook_service import live_due_events
+    from app.sources.forex_factory import get_upcoming_events
+    now = datetime.now(timezone.utc)
+    raw = await get_upcoming_events(window_before_min=10, window_after_min=90)
+    return {"now": now.isoformat(), "events": live_due_events(raw, now)}
+
+
+LIVE_TICKERS = {"EURUSD", "GBPUSD", "USDJPY", "XAUUSD", "BTCUSD", "ES", "NQ", "YM"}
+
+
+@router.post("/outlook/live/ingest", dependencies=[Depends(_verify_token)])
+async def outlook_live_ingest(payload: dict, session: AsyncSession = Depends(get_session)):
+    """{items: [{event_title, event_time_utc, ticker, proxy?, p0, points, last_pct, last_at}]} → upsert."""
+    from app.models import OutlookLive
+    n = 0
+    for it in (payload.get("items") or [])[:200]:
+        tk = str(it.get("ticker") or "").upper()
+        if tk not in LIVE_TICKERS or not it.get("p0"):
+            continue
+        try:
+            ev = datetime.fromisoformat(str(it["event_time_utc"]).replace("Z", "+00:00")).replace(tzinfo=None)
+            last_at = (datetime.fromisoformat(str(it["last_at"]).replace("Z", "+00:00")).replace(tzinfo=None)
+                       if it.get("last_at") else None)
+        except (KeyError, ValueError):
+            continue
+        title = str(it.get("event_title") or "")[:200]
+        points = {str(k): round(float(v), 5) for k, v in (it.get("points") or {}).items()
+                  if str(k) in ("1", "5", "15", "30", "60") and v is not None}
+        row = await session.scalar(select(OutlookLive).where(
+            OutlookLive.event_date == ev.date(), OutlookLive.ticker == tk, OutlookLive.event_title == title))
+        if row is None:
+            row = OutlookLive(event_date=ev.date(), ticker=tk, event_title=title, event_time_utc=ev,
+                              p0=float(it["p0"]))
+            session.add(row)
+        row.proxy = (str(it["proxy"])[:12] if it.get("proxy") else None)
+        row.p0, row.points, row.last_at = float(it["p0"]), points, last_at
+        row.last_pct = round(float(it["last_pct"]), 5) if it.get("last_pct") is not None else None
+        n += 1
+    await session.commit()
+    return {"upserted": n}
+
+
 @router.get("/outlook/stats")
 async def bias_outlook_stats(
     ticker: str = Query(...),
