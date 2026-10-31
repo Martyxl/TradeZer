@@ -132,6 +132,27 @@ async def universe(session: AsyncSession = Depends(get_session)):
     return {"tickers": list(rows)}
 
 
+@router.post("/analysts/ingest", dependencies=[Depends(_verify_token)])
+async def analysts_ingest(payload: dict, session: AsyncSession = Depends(get_session)):
+    """Spark (data/analyst_scan.py): {items: [{ticker, price_target, recommendations, revisions, ...}]}."""
+    from app.valuation.models import ValAnalyst
+    keys = ("price_target", "recommendations", "revisions", "growth", "actions", "holders")
+    n = 0
+    for it in (payload.get("items") or [])[:300]:
+        t = "".join(ch for ch in str(it.get("ticker") or "").upper() if ch.isalnum() or ch in ".-")[:16]
+        data = {k: it[k] for k in keys if it.get(k)}
+        if not t or not data:
+            continue
+        row = await session.get(ValAnalyst, t)
+        if row is None:
+            session.add(ValAnalyst(ticker=t, data={"ticker": t, **data}))
+        else:
+            row.data = {"ticker": t, **data}
+        n += 1
+    await session.commit()
+    return {"stored": n}
+
+
 UNSUPPORTED_MSG = {
     "foreign_ifrs": ("{name} je zahraniční emitent a vykazuje podle IFRS (formulář 20-F). Náš současný zdroj dat "
                      "pokrývá jen americké výkazy (US-GAAP), proto ji zatím nespočítáme. Žádost jsme uložili — "
@@ -743,6 +764,16 @@ async def ticker_earnings(ticker: str, session: AsyncSession = Depends(get_sessi
                                   .order_by(ValEarningsReport.accepted_at.desc()).limit(12))).scalars().all()
     name = (await E.instrument_names(session, [t])).get(t)
     return {"ticker": t, "reports": [E.report_out(r, name) for r in rows]}
+
+
+@router.get("/{ticker}/analysts", dependencies=_TRADER)
+async def ticker_analysts(ticker: str, session: AsyncSession = Depends(get_session)):
+    """Analytici a vlastníci (Twelve Data, obnova 1× denně). 404, dokud data nejsou."""
+    from app.valuation.models import ValAnalyst
+    row = await session.get(ValAnalyst, ticker.upper())
+    if row is None:
+        raise HTTPException(status_code=404, detail="Data analytiků zatím nejsou")
+    return {**row.data, "updated_at": row.updated_at.isoformat() + "Z" if row.updated_at else None}
 
 
 @router.get("/{ticker}/summary", dependencies=_TRADER)

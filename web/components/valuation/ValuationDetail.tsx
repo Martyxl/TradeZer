@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { TickerEarnings } from "@/components/valuation/EarningsReports";
+import { AnalystPanel } from "@/components/valuation/AnalystPanel";
 import { X, Loader2 } from "lucide-react";
 import { VERDICT_COLOR } from "./BubbleMap";
 import { authHeaders } from "@/lib/auth";
@@ -143,6 +144,7 @@ export function ValuationDetail({ ticker, onClose }: { ticker: string; onClose: 
             </div>
 
             <TickerEarnings ticker={ticker} />
+            <AnalystPanel ticker={ticker} />
 
             {/* Poslední výsledky + odhady */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">

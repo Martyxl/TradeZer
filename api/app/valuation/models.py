@@ -364,3 +364,13 @@ class ValEarningsAlertSent(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     report_id: Mapped[int] = mapped_column(ForeignKey("val_earnings_reports.id", ondelete="CASCADE"), nullable=False)
     sent_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class ValAnalyst(Base):
+    """Analytici a vlastníci firmy (Twelve Data, 1× denně ze Sparku — data/analyst_scan.py):
+    cílová cena, doporučení, revize odhadů EPS, očekávaný růst, akce analytiků, top vlastníci."""
+    __tablename__ = "val_analysts"
+
+    ticker: Mapped[str] = mapped_column(String(16), primary_key=True)
+    data: Mapped[dict] = mapped_column(JSONType, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())

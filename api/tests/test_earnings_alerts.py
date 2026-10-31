@@ -151,3 +151,20 @@ async def test_upcoming_ingest_and_pre_alert(outbox, monkeypatch):
         up = (await c.get("/api/valuation/earnings/upcoming", headers=a_h)).json()["items"]
         assert [u["ticker"] for u in up] == ["AMD", "PFE"] and up[0]["name"] == "Advanced Micro Devices"
         assert up[0]["eps_high"] == 1.8 and up[0]["time_of_day"] == "amc"
+
+
+@pytest.mark.asyncio
+async def test_analysts_ingest_and_detail():
+    async with _client() as c:
+        h = await auth_headers(c, "an@x.cz", plan="trader")
+        assert (await c.get("/api/valuation/NVDA/analysts", headers=h)).status_code == 404
+        item = {"ticker": "nvda", "price_target": {"average": 330, "current": 205, "upside_pct": 61},
+                "revisions": [{"period": "current_year", "eps": 9.3, "chg_30d": 0.1, "up_month": 2, "down_month": 0}],
+                "evil": "<script>", "holders": {"institutions": [], "funds": []}}
+        r = await c.post("/api/valuation/analysts/ingest", json={"items": [item, {"ticker": "X"}]}, headers=TOKEN)
+        assert r.json() == {"stored": 1}
+        await c.post("/api/valuation/analysts/ingest", json={"items": [{**item, "growth": {"next_year": 70.9}}]}, headers=TOKEN)
+        d = (await c.get("/api/valuation/NVDA/analysts", headers=h)).json()
+        assert d["price_target"]["upside_pct"] == 61 and d["growth"]["next_year"] == 70.9 and "evil" not in d
+        free = await auth_headers(c, "fr@x.cz")
+        assert (await c.get("/api/valuation/NVDA/analysts", headers=free)).status_code == 403
