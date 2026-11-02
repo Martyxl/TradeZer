@@ -1,5 +1,7 @@
 """Generický RSS adaptér — feedparser."""
 import hashlib
+import html
+import re
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from typing import Any
@@ -190,5 +192,75 @@ class RSSAdapter(NewsSource):
         return items
 
 
+class InvestingLiveAdapter(RSSAdapter):
+    """investingLive: RSS + titulky z homepage.
+
+    RSS feed se u nich generuje se zpožděním až ~1 h (2. 11. 2026: ISM v 15:00 UTC na webu hned,
+    v RSS ani po 25 min), kdežto homepage má cache 30 s. Vydání maker („55.5 versus 54.5 estimate“)
+    potřebujeme do pár minut → doplníme položky z homepage. ID = hash URL článku, stejně jako u RSS
+    (guid = URL), takže až článek dorazí i v RSS, neuloží se podruhé.
+    """
+
+    HOME_URL = "https://investinglive.com/"
+    _SLOT = re.compile(r'href="(/news/[^"]+?)/?"[^>]*>\s*<h3[^>]*articleSlotHeader__title[^>]*>(.*?)</h3>', re.S)
+    _TIME = re.compile(r'<time dateTime="([^"]+)"')
+
+    async def _fetch_home(self) -> str:
+        headers = {"User-Agent": "Mozilla/5.0 (compatible; Tradezer/1.0; RSS reader)"}
+        async with httpx.AsyncClient(timeout=20.0, headers=headers, follow_redirects=True) as client:
+            resp = await client.get(self.HOME_URL)
+            resp.raise_for_status()
+            return resp.text
+
+    @classmethod
+    def parse_home(cls, page: str, base: str = "https://investinglive.com") -> list[dict]:
+        """[{url, title, published_at}] — jen články s titulkem i časem vydání."""
+        out, seen = [], set()
+        slots = list(cls._SLOT.finditer(page))
+        for i, m in enumerate(slots):
+            url = f"{base}{m.group(1)}/"
+            if url in seen:
+                continue
+            end = slots[i + 1].start() if i + 1 < len(slots) else m.end() + 6000
+            t = cls._TIME.search(page, m.end(), end)
+            title = html.unescape(re.sub(r"<[^>]+>", "", m.group(2))).strip()
+            if not t or not title:
+                continue
+            try:
+                raw = re.sub(r"(\.\d{6})\d+", r"\1", t.group(1)).replace("Z", "+00:00")
+                ts = datetime.fromisoformat(raw).astimezone(timezone.utc).replace(tzinfo=None)
+            except ValueError:
+                continue
+            seen.add(url)
+            out.append({"url": url, "title": title, "published_at": ts})
+        return out
+
+    async def fetch(self) -> list[RawNewsItem]:
+        items = await super().fetch()
+        try:
+            page = await self._fetch_home()
+        except Exception as e:  # noqa: BLE001 — homepage je jen doplněk RSS
+            log.warning("investingLive homepage fetch failed", error=str(e)[:200])
+            return items
+        known = {i.external_id for i in items}
+        newest = max((i.published_at for i in items), default=datetime.min)
+        extra = []
+        for a in self.parse_home(page):
+            ext = hashlib.sha256(a["url"].encode()).hexdigest()[:32]
+            if ext in known or a["published_at"] <= newest:
+                continue  # RSS už článek má (nebo je starší než nejnovější z RSS)
+            known.add(ext)
+            extra.append(RawNewsItem(
+                source=self.name, external_id=ext, title=a["title"], body=None, url=a["url"],
+                published_at=a["published_at"],
+                raw_payload={"feed_id": a["url"], "link": a["url"], "via": "homepage"},
+                instruments_hint=self._instruments_hint,
+            ))
+        if extra:
+            log.info("investingLive homepage extra", count=len(extra))
+        return extra + items
+
+
 def build_default_rss_adapters() -> list[RSSAdapter]:
-    return [RSSAdapter(**feed) for feed in DEFAULT_FEEDS]
+    return [(InvestingLiveAdapter if feed["name"] == "rss_investinglive" else RSSAdapter)(**feed)
+            for feed in DEFAULT_FEEDS]

@@ -22,6 +22,10 @@ CASES = [
     ("US initial jobless claims for the week is modestly stronger at 197K vs 200K est.", 197, 200, "forecast", "USD", True, 1),
     ("Eurozone September final CPI +3.8% vs +3.8% y/y prelim", 3.8, 3.8, "prior", "EUR", False, 0),
     ("US advance goods trade balance for August -$132.6 billion vs -$115.00 billion expected", -132.6, -115.0, "forecast", "USD", False, -1),
+    # od 11/2026 píšou „versus“
+    ("US ISM manufacturing PMI for October 55.5 versus 54.5 estimate", 55.5, 54.5, "forecast", "USD", False, 1),
+    ("US construction spending for the month of September -1.9% versus 0.3% estimate", -1.9, 0.3, "forecast", "USD", False, -1),
+    ("Canada S&P global manufacturing PMI 49.6 versus 51.5 last month", 49.6, 51.5, "prior", "CAD", False, -1),
 ]
 
 

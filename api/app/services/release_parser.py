@@ -17,9 +17,9 @@ from datetime import datetime, timedelta
 _NUM = r"[+\-−]?\$?\d[\d,]*(?:\.\d+)?\s?(?:%|[KkMmBbTt](?![a-z])|bn|billion|million|trillion|pts?)?"
 _PERIOD = r"(?:\s?(?:m/m|y/y|q/q|mom|yoy|qoq|annualized|saar|ann\.?))?"
 _KIND = (r"(?P<kind>expected|exp\.?|estimate[sd]?|est\.?|consensus|forecast|prior|previous|prev\.?|"
-         r"prelim(?:inary)?|flash|initial|revised)")
+         r"prelim(?:inary)?|flash|initial|revised|last)")
 _RE = re.compile(
-    rf"^(?P<desc>.*?\S)\s(?P<actual>{_NUM}){_PERIOD}\s+vs\.?\s+(?P<cmp>{_NUM}){_PERIOD}"
+    rf"^(?P<desc>.*?\S)\s(?P<actual>{_NUM}){_PERIOD}\s+(?:vs\.?|versus)\s+(?P<cmp>{_NUM}){_PERIOD}"
     rf"(?:\s+{_PERIOD}\s*)?\s*(?:{_KIND})?",
     re.IGNORECASE,
 )
