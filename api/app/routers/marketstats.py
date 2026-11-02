@@ -3,6 +3,7 @@
 PUT /api/marketstats/{kind}/{key}   → uloží blob (interní token; volá Spark `data/publish_stats.py`)
 GET /api/marketstats/orb/{key}      → veřejné (výřez orb_sessions), CDN cache
 GET /api/marketstats/stats/{key}    → plná statistika, jen plán Trader+ (server-side gate, bez CDN cache)
+GET /api/marketstats/live/{key}     → dnešní „den v číslech“ (Spark `data/edge_live.py` každé 2 min), Trader+
 
 Cesta NENÍ pod /api/stats (ten prefix je v CDN cache → placená data by mohla skončit veřejně).
 """
@@ -10,7 +11,7 @@ import json
 import re
 
 import structlog
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,7 +23,7 @@ from app.routers.auth import require_plan
 router = APIRouter(prefix="/api/marketstats", tags=["marketstats"])
 log = structlog.get_logger(__name__)
 
-KINDS = {"stats", "orb"}
+KINDS = {"stats", "orb", "live"}
 _KEY_RE = re.compile(r"^[a-z0-9]{2,12}$")
 
 
@@ -64,3 +65,9 @@ async def get_orb(key: str, session: AsyncSession = Depends(get_session)):
 @router.get("/stats/{key}", dependencies=[Depends(require_plan("trader"))])
 async def get_stats(key: str, session: AsyncSession = Depends(get_session)):
     return await _load(session, "stats", key)
+
+
+@router.get("/live/{key}", dependencies=[Depends(require_plan("trader"))])
+async def get_live(key: str, response: Response, session: AsyncSession = Depends(get_session)):
+    response.headers["Cache-Control"] = "no-store"
+    return await _load(session, "live", key)

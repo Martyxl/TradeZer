@@ -3,12 +3,15 @@
 Vstup:  data/raw/<instrument>-m5-*.csv  (timestamp ms, open, high, low, close, volume)
 Výstup: web/public/stats/<key>.json  + agregované 15m/1h CSV v data/agg/
 
-Obchodní den začíná 22:00 UTC (FX/Globex konvence).
-Sessions (UTC):
-  NQ (futures):  Asia 00–07, London 07–12, NY 12–21, Close = zbytek
-  GOLD (spot):   Asia 22–07, London 07–12, NY 12–21, Close = 21–22
-  FOREX (spot):  stejné jako GOLD; ceny se hned po načtení přepočtou na PIPY (scale), takže
-                 všechny absolutní metriky (rozsahy, ORB, POC bin) jsou v pipech.
+Všechny časy jsou v NEWYORSKÉM čase (America/New_York, ET) — i přes přechody letního času.
+Do 11/2026 se počítalo v pevných hodinách UTC, takže v zimě (US standard time, ~5 měsíců v roce)
+bylo vše posunuté o hodinu (např. „RTH open“ = 8:30 ET, kdy vycházejí makra).
+Obchodní den začíná 18:00 ET (otevření Globexu / FX konvence).
+Sessions (ET):
+  NQ / YM:       Asia 20–03, London 03–08, NY 08–17, RTH 9:30–16:00, Close = zbytek
+  GOLD (spot):   Asia 18–03, London 03–08, NY 08–17, RTH (COMEX) 8:20–13:30
+  FOREX (spot):  sessions jako GOLD, „RTH“ 9:30–17:00; ceny se hned po načtení přepočtou na PIPY
+                 (scale), takže všechny absolutní metriky (rozsahy, ORB, POC bin) jsou v pipech.
 """
 from __future__ import annotations
 
@@ -21,6 +24,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+import edge_stats
+
 ROOT = Path(__file__).parent
 RAW = ROOT / "raw"
 AGG = ROOT / "agg"
@@ -31,37 +36,42 @@ import os  # noqa: E402
 OUT = Path(os.environ["STATS_OUT"]) / "stats-src" if os.environ.get("STATS_OUT") else ROOT.parent / "web" / "stats-src"
 ORB_OUT = Path(os.environ["STATS_OUT"]) / "orb" if os.environ.get("STATS_OUT") else ROOT.parent / "web" / "public" / "orb"
 
-DAY_SHIFT_H = 2  # posun: 22:00 UTC -> 00:00 "trading day"
+TZ = "America/New_York"
+DAY_SHIFT_H = 6  # posun: 18:00 ET -> 00:00 "trading day"
+DAY_START_ET = 18.0
 
 INSTRUMENTS = {
     "nq": {
         "file_glob": "usatechidxusd-m5-*.csv",
+        "edge": {"td": "nq", "td_sessions": False},   # TD: QQQ jen RTH → sessions z vlastních futures
         "label": "NAS/DAQ (US Tech 100)",
         "unit": "bodů",
-        "sessions": {"asia": (0, 7), "london": (7, 12), "ny": (12, 21)},
-        "rth": (13.5, 20.0),   # NY RTH v UTC
+        "sessions": {"asia": (20, 3), "london": (3, 8), "ny": (8, 17)},
+        "rth": (9.5, 16.0),    # NY RTH v ET
     },
     "gold": {
         "file_glob": "xauusd-m5-*.csv",
+        "edge": {"td": "gold", "td_sessions": True},  # TD: XAU/USD 24 h
         "label": "GOLD (XAU/USD)",
         "unit": "bodů",
-        "sessions": {"asia": (22, 7), "london": (7, 12), "ny": (12, 21)},
-        "rth": (13.5, 18.5),   # COMEX RTH v UTC
+        "sessions": {"asia": (18, 3), "london": (3, 8), "ny": (8, 17)},
+        "rth": (8 + 20 / 60, 13.5),   # COMEX RTH 8:20–13:30 ET
     },
     "ym": {
         "file_glob": "usa30idxusd-m5-*.csv",
+        "edge": {"td": "ym", "td_sessions": False},   # TD: DIA jen RTH
         "label": "DOW (US Wall St 30)",
         "unit": "bodů",
-        "sessions": {"asia": (0, 7), "london": (7, 12), "ny": (12, 21)},
-        "rth": (13.5, 20.0),   # NY RTH v UTC
+        "sessions": {"asia": (20, 3), "london": (3, 8), "ny": (8, 17)},
+        "rth": (9.5, 16.0),    # NY RTH v ET
     },
 }
 
 # Forex: scale = násobek převádějící cenu na pipy (EURUSD 0.0001 → ×10000, USDJPY 0.01 → ×100).
-_FX_SESSIONS = {"asia": (22, 7), "london": (7, 12), "ny": (12, 21)}
-_FX_RTH = (13.5, 21.0)
+_FX_SESSIONS = {"asia": (18, 3), "london": (3, 8), "ny": (8, 17)}
+_FX_RTH = (9.5, 17.0)
 _FX_NOTE = ("Data z Yahoo Finance (5m, ~60 obchodních dní, průběžně se kumulují; bez objemu → VWAP = TWAP). "
-            "Vzorek je zatím malý — statistiky ber orientačně.")  # shodné s NY open/close v bias_service (13:30 / 21:00 UTC)
+            "Vzorek je zatím malý — statistiky ber orientačně.")  # shodné s NY open/close v bias_service (9:30 / 17:00 ET)
 INSTRUMENTS.update({
     "eurusd": {"file_glob": "eurusd-m5-*.csv", "label": "EUR/USD", "unit": "pipů",
                "sessions": _FX_SESSIONS, "rth": _FX_RTH, "source": "yahoo", "note": _FX_NOTE, "scale": 10000.0},
@@ -107,13 +117,17 @@ def load_m5(pattern: str, scale: float = 1.0) -> pd.DataFrame:
     if "volume" not in df.columns:
         df["volume"] = 1.0
     df["volume"] = df["volume"].fillna(0.0)
-    # trading day: 22:00 UTC -> půlnoc
-    shifted = df["ts"] + pd.Timedelta(hours=DAY_SHIFT_H)
+    # Rozpracovaná svíčka (Yahoo sběrač uloží i živý bar s časem mimo 5min mřížku) by zkreslila
+    # rozsahy → bereme jen bary zarovnané na 5 min.
+    df = df[df["timestamp"] % 300000 == 0].reset_index(drop=True)
+    # Lokální newyorský čas (letní/zimní čas podle tz databáze); trading day: 18:00 ET -> půlnoc
+    et = df["ts"].dt.tz_convert(TZ)
+    shifted = et + pd.Timedelta(hours=DAY_SHIFT_H)
     df["tday"] = shifted.dt.date
     df["tweekday"] = shifted.dt.weekday  # 0=Po
     df["tweek"] = shifted.dt.strftime("%G-%V")
-    df["hour"] = df["ts"].dt.hour
-    df["hour_f"] = df["ts"].dt.hour + df["ts"].dt.minute / 60.0
+    df["hour"] = et.dt.hour
+    df["hour_f"] = et.dt.hour + et.dt.minute / 60.0
     df["tp"] = (df["high"] + df["low"] + df["close"]) / 3.0
     # vyhoď víkendové zbytky (trading day so/ne)
     df = df[df["tweekday"] <= 4].reset_index(drop=True)
@@ -682,7 +696,7 @@ def orb_stats(df: pd.DataFrame, sessions: dict, months: int = 6,
     a celá session. Overall = celé 6M okno; rolling = trend v čase (na 30m a 60m
     horizontu — tam je edge, na celé session se OR sundá skoro vždy).
     Struktura: {_meta, or5:{asia,london,ny}, or15:{...}}.
-    Pozn.: NY open = start NY session (12:00 UTC), ne cash open (13:30). Lze přepnout."""
+    Pozn.: NY open = start NY session (8:00 ET), ne cash open (9:30). Lze přepnout."""
     max_day = max(df["tday"])
     cutoff = max_day - timedelta(days=round(months * 30.5))
     sub = df[df["tday"] >= cutoff]
@@ -695,13 +709,32 @@ def orb_stats(df: pd.DataFrame, sessions: dict, months: int = 6,
         for name, (s, e) in sessions.items():
             recs = _orb_records(sub, s, e, ob)
             block[name] = {
-                "open_utc": s,
+                "open_et": s,
                 "or_range_avg": round(float(np.mean([r["or_range"] for r in recs])), 2) if recs else 0.0,
                 "overall": {hk: _agg_orb(recs, hk) for hk in ORB_HORIZONS},
                 "rolling": {hk: _rolling_orb(recs, hk, window, step) for hk in ("m30", "m60")},
             }
         out[olk] = block
     return out
+
+
+MACRO_DATES = ROOT / "macro_dates.json"
+
+
+def compute_edge(df: pd.DataFrame, cfg: dict) -> dict | None:
+    """Edge statistiky (rozsah, extrémy, sessions, trend, makro). Primárně placená historie
+    Twelve Data (cache z td_history.py), vlastní 5min data jako záloha a doplnění."""
+    ec = cfg.get("edge")
+    if not ec:
+        return None
+    td_path = RAW / "td" / f"{ec['td']}-td-m5.csv"
+    td = edge_stats.load_csv(td_path) if td_path.exists() else None
+    own = df[["ts", "open", "high", "low", "close"]]
+    events = edge_stats.load_events(MACRO_DATES) if MACRO_DATES.exists() else {}
+    return edge_stats.compute_edge(
+        rth_sources=[("twelvedata", td), ("own", own)],
+        session_sources=([("twelvedata", td)] if ec.get("td_sessions") else []) + [("own", own)],
+        rth=cfg["rth"], events=events, ref_price=round(float(df["close"].iloc[-1]), 2))
 
 
 def compute(key: str, cfg: dict) -> dict:
@@ -726,7 +759,7 @@ def compute(key: str, cfg: dict) -> dict:
     bin_width = max(med_range / 100.0, 1e-4)
 
     sessions = cfg["sessions"]
-    ov_start = 22.0
+    ov_start = DAY_START_ET
     rth = cfg["rth"]
 
     meta = {
@@ -739,6 +772,7 @@ def compute(key: str, cfg: dict) -> dict:
         "days": int(df["tday"].nunique()),
         "weeks": int(df["tweek"].nunique()),
         "volume": has_volume,
+        "tz": "ET",
         "source": cfg.get("source"),
         "note": cfg.get("note"),
     }
@@ -755,13 +789,14 @@ def compute(key: str, cfg: dict) -> dict:
         "weekly_high_day": weekly_extreme_day(df, "high"),
         "weekly_low_day": weekly_extreme_day(df, "low"),
         "weekly_open_revisit": weekly_open_revisit(df),
-        "asia_both_sides": range_break_stats(df, sessions["asia"], (7, 21)),
+        "asia_both_sides": range_break_stats(df, sessions["asia"], (3, 17)),
         "globex_both_sides": range_break_stats(df, (ov_start, rth[0]), rth),
         "first15_range": first15_range_stats(df, rth[0], rth[1]),
         "orb_sessions": orb_stats(df, sessions),
         "ny_entry": ny_entry_model(df, rth[0], rth[1]),
         "trade_sim": trade_sim(df, rth[0], rth[1]),
         "by_hour": by_hour(df),
+        "edge": compute_edge(df, cfg),
     }
 
 
@@ -787,7 +822,9 @@ def main() -> None:
         if out_file.exists():
             old = json.loads(out_file.read_text(encoding="utf-8"))
             old_prev = old.pop("prev", None)
-            if old.get("meta", {}).get("to") == stats["meta"]["to"]:
+            if old.get("meta", {}).get("tz") != "ET":
+                stats["prev"] = None   # starý výpočet v UTC → jiná metodika, nesrovnávat
+            elif old.get("meta", {}).get("to") == stats["meta"]["to"]:
                 stats["prev"] = old_prev
             else:
                 stats["prev"] = old

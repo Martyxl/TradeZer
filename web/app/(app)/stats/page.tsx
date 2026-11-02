@@ -5,6 +5,9 @@ import { Info, X, TrendingUp, Layers, Crosshair, LineChart, Target as TargetIcon
 import { PaywallGuard } from "@/components/PaywallGuard";
 import { authHeaders } from "@/lib/auth";
 import { LiveEntryTracker } from "@/components/LiveEntryTracker";
+import { DayLiveCard } from "@/components/DayLiveCard";
+import { EdgeSections, type Edge } from "@/components/stats/EdgeSections";
+import { wilson } from "@/components/stats/prob";
 
 /* ---------------------------------------------------------------- typy */
 
@@ -12,8 +15,9 @@ interface SessionSize { avg: number; median: number; min: number; max: number }
 interface StatsBody {
   meta: {
     instrument: string; label: string; unit: string; volume?: boolean; note?: string | null;
-    from: string; to: string; bars_m5: number; days: number; weeks: number;
+    from: string; to: string; bars_m5: number; days: number; weeks: number; tz?: string;
   };
+  edge?: Edge | null;
   session_sizes: Record<string, SessionSize>;
   daily_high_session: Record<string, number>;
   daily_low_session: Record<string, number>;
@@ -76,28 +80,39 @@ function Delta({ now, prev }: { now: number; prev?: number }) {
   );
 }
 
-function Bar({ label, value, prev, accent = "#3b82f6", max = 100 }: {
-  label: string; value: number; prev?: number; accent?: string; max?: number;
+/** n = počet pozorování → 95% interval (Wilson) jako světlý pruh + v tooltipu. binary = dvě možnosti
+ *  (pořadí High→Low / Low→High): když interval obsahuje 50 %, je to hod mincí → šedě „≈ náhoda“. */
+function Bar({ label, value, prev, accent = "#3b82f6", max = 100, n, binary = false }: {
+  label: string; value: number; prev?: number; accent?: string; max?: number; n?: number; binary?: boolean;
 }) {
   const width = Math.max(2, (value / max) * 100);
+  const ci = n ? wilson(value, n) : null;
+  const coin = binary && ci != null && ci[0] <= 50 && ci[1] >= 50;
+  const tip = ci ? `95% interval ${ci[0]}–${ci[1]} % · n=${n}${coin ? " · neliší se od 50 %" : ""}` : undefined;
   return (
-    <div className="flex items-center gap-2 text-xs">
+    <div className="flex items-center gap-2 text-xs" title={tip}>
       <span className="w-28 shrink-0 text-gray-400 truncate">{label}</span>
-      <div className="flex-1 h-2 rounded-full bg-[#232735] overflow-hidden">
-        <div className="h-full rounded-full" style={{ width: `${width}%`, background: accent }} />
+      <div className="relative flex-1 h-2 rounded-full bg-[#232735] overflow-hidden">
+        <div className="h-full rounded-full" style={{ width: `${width}%`, background: coin ? "#4b5563" : accent }} />
+        {ci && max === 100 && <div className="absolute top-0 h-full bg-white/20" style={{ left: `${ci[0]}%`, width: `${Math.max(0.5, ci[1] - ci[0])}%` }} />}
       </div>
-      <span className="w-20 text-right font-medium whitespace-nowrap" style={{ color: value >= 50 ? accent : "#9ca3af" }}>
+      <span className="w-20 text-right font-medium whitespace-nowrap" style={{ color: coin ? "#6b7280" : value >= 50 ? accent : "#9ca3af" }}>
         {value.toFixed(1)} %<Delta now={value} prev={prev} />
+        {coin && <span className="block text-[9px] font-normal text-yellow-600">≈ náhoda</span>}
       </span>
     </div>
   );
 }
 
-function BarGroup({ data, prevData, labels, accents }: {
+/** Pořadí prolomení (jen dny, kdy padly obě strany): n ≈ dny × podíl „both“. */
+const orderN = (days?: number, both?: number) => (days && both ? Math.round((days * both) / 100) : undefined);
+
+function BarGroup({ data, prevData, labels, accents, n }: {
   data: Record<string, number>;
   prevData?: Record<string, number> | null;
   labels: LabelList;
   accents?: Record<string, string>;
+  n?: number;
 }) {
   const entries = labels.filter(([k]) => typeof data[k] === "number");
   return (
@@ -109,6 +124,7 @@ function BarGroup({ data, prevData, labels, accents }: {
           value={data[k]}
           prev={typeof prevData?.[k] === "number" ? prevData[k] : undefined}
           accent={accents?.[k] ?? "#3b82f6"}
+          n={n}
         />
       ))}
     </div>
@@ -166,7 +182,8 @@ const LEGEND: [string, string][] = [
   ["First 15m Range", "První 15min svíčka po RTH open vytvoří range. Sledujeme, jestli 2.–3. svíčka (resp. zbytek seance) vybere její high, low, obě strany — a kterou stranu první (High → Low = sweep high, pak výběr low)."],
   ["Asia — Both Sides", "Během London+NY — je high/low Asia range prolomeno na obě strany, jen jednu, nebo žádnou? Pořadí: která strana padla první."],
   ["Globex — Both Sides", "Totéž pro overnight (Globex) range během NY RTH."],
-  ["Volatility by Hour", "Průměrný hodinový rozsah high–low podle hodiny (UTC)."],
+  ["Volatility by Hour", "Průměrný hodinový rozsah high–low podle hodiny (newyorský čas, ET)."],
+  ["Interval spolehlivosti", "Světlý pruh = 95% interval (Wilson) z počtu dní. Kde jsou jen dvě možnosti (pořadí prolomení), „≈ náhoda“ znamená, že interval obsahuje 50 % — výsledek se neliší od hodu mincí."],
   ["Trading — backtest", "Simulace doporučeného vstupu: limit na offset (medián protipohybu) proti biasu po NY open, SL = 1R (=offset) za entry, TP na násobcích R. Ukazuje % obchodů, které dosáhly R1–R3 před SL, win rate (≥1R), medián/průměr max dosaženého R (potenciál) a časy (fill, peak). Vše podmíněno správným směrem — reálná výhoda = tato struktura × úspěšnost biasu."],
   ["▲▼ změny", "Šipky u hodnot ukazují posun oproti minulé měsíční aktualizaci dat (v procentních bodech)."],
 ];
@@ -183,9 +200,10 @@ function LegendModal({ onClose }: { onClose: () => void }) {
           <button onClick={onClose} className="text-gray-400 hover:text-white"><X size={20} /></button>
         </div>
         <p className="text-sm text-gray-300 mb-4">
-          <span className="text-blue-400 font-medium">Data:</span> ~1 rok 5min svíček (Dukascopy),
-          automaticky aktualizováno jednou měsíčně. Všechny časy v <span className="text-blue-400">UTC</span>,
-          obchodní den začíná ve <span className="text-blue-400">22:00 UTC</span>.
+          <span className="text-blue-400 font-medium">Data:</span> 5min svíčky (Dukascopy do 7/2026, pak Yahoo),
+          Edge statistiky RTH z Twelve Data od 2020. Aktualizace jednou měsíčně. Všechny časy jsou v
+          {" "}<span className="text-blue-400">newyorském čase (ET)</span> včetně letního času — v ČR obvykle +6 h
+          (2 týdny v březnu a týden na přelomu října/listopadu +5 h). Obchodní den začíná v <span className="text-blue-400">18:00 ET</span>.
         </p>
         <div className="text-xs text-gray-400 mb-4 rounded-lg border border-[#2a2d3a] overflow-hidden">
           <table className="w-full">
@@ -197,8 +215,9 @@ function LegendModal({ onClose }: { onClose: () => void }) {
               </tr>
             </thead>
             <tbody>
-              <tr className="border-t border-[#2a2d3a]"><td className="px-3 py-2">NQ / YM</td><td className="px-3 py-2">00–07</td><td className="px-3 py-2">07–12</td><td className="px-3 py-2">12–21</td><td className="px-3 py-2">13:30–20</td></tr>
-              <tr className="border-t border-[#2a2d3a]"><td className="px-3 py-2">GOLD</td><td className="px-3 py-2">22–07</td><td className="px-3 py-2">07–12</td><td className="px-3 py-2">12–21</td><td className="px-3 py-2">13:30–18:30</td></tr>
+              <tr className="border-t border-[#2a2d3a]"><td className="px-3 py-2">NQ / YM</td><td className="px-3 py-2">20–03</td><td className="px-3 py-2">03–08</td><td className="px-3 py-2">08–17</td><td className="px-3 py-2">9:30–16:00</td></tr>
+              <tr className="border-t border-[#2a2d3a]"><td className="px-3 py-2">GOLD</td><td className="px-3 py-2">18–03</td><td className="px-3 py-2">03–08</td><td className="px-3 py-2">08–17</td><td className="px-3 py-2">8:20–13:30 (COMEX)</td></tr>
+              <tr className="border-t border-[#2a2d3a]"><td className="px-3 py-2">FOREX</td><td className="px-3 py-2">18–03</td><td className="px-3 py-2">03–08</td><td className="px-3 py-2">08–17</td><td className="px-3 py-2">9:30–17:00</td></tr>
             </tbody>
           </table>
         </div>
@@ -217,15 +236,15 @@ function LegendModal({ onClose }: { onClose: () => void }) {
 
 /* ------------------------------------------------------- hodinový graf */
 
-function HourChart({ title, values, unit }: { title: string; values: number[]; unit: string }) {
+function HourChart({ title, values, unit, tz = "ET" }: { title: string; values: number[]; unit: string; tz?: string }) {
   const max = Math.max(...values, 1);
   return (
     <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-4">
       <h3 className="text-sm font-semibold text-white mb-1">{title}</h3>
-      <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-3">{unit} · UTC</p>
+      <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-3">{unit} · {tz}</p>
       <div className="flex items-end gap-[3px] h-24">
         {values.map((v, h) => (
-          <div key={h} className="flex-1 flex flex-col items-center gap-1" title={`${h}:00 UTC — ${v}`}>
+          <div key={h} className="flex-1 flex flex-col items-center gap-1" title={`${h}:00 ${tz} — ${v}`}>
             <div className="w-full rounded-t bg-blue-500/80 hover:bg-blue-400 transition-colors" style={{ height: `${(v / max) * 100}%` }} />
           </div>
         ))}
@@ -348,6 +367,10 @@ function StatsInner() {
 
       {stats && m && (
         <>
+          {["nq", "ym", "gold"].includes(selected) && <DayLiveCard ticker={STATS_TICKER[selected]} />}
+
+          {stats.edge && <EdgeSections edge={stats.edge} unit={m.unit} />}
+
           {/* ============ SESSIONS ============ */}
           <Section
             icon={Layers}
@@ -387,16 +410,16 @@ function StatsInner() {
             </Card>
 
             <Card title="Daily HIGH — Session" subtitle={`${m.days} dní · kde se tiskne denní high`}>
-              <BarGroup data={stats.daily_high_session} prevData={prev?.daily_high_session} labels={SESSION_LABELS} accents={sessionAccents} />
+              <BarGroup data={stats.daily_high_session} prevData={prev?.daily_high_session} labels={SESSION_LABELS} accents={sessionAccents} n={m.days} />
             </Card>
 
             <Card title="Daily LOW — Session" subtitle={`${m.days} dní · kde se tiskne denní low`}>
-              <BarGroup data={stats.daily_low_session} prevData={prev?.daily_low_session} labels={SESSION_LABELS} accents={sessionAccents} />
+              <BarGroup data={stats.daily_low_session} prevData={prev?.daily_low_session} labels={SESSION_LABELS} accents={sessionAccents} n={m.days} />
             </Card>
 
-            <HourChart title="Volatility by Hour" values={stats.by_hour.volatility} unit={`průměrný rozsah / hod v ${m.unit}`} />
+            <HourChart title="Volatility by Hour" values={stats.by_hour.volatility} unit={`průměrný rozsah / hod v ${m.unit}`} tz={m.tz === "ET" ? "ET" : "UTC"} />
             {m.volume !== false && (
-              <HourChart title="Volume by Hour" values={stats.by_hour.volume} unit="průměrný objem per 5m bar" />
+              <HourChart title="Volume by Hour" values={stats.by_hour.volume} unit="průměrný objem per 5m bar" tz={m.tz === "ET" ? "ET" : "UTC"} />
             )}
           </Section>
 
@@ -408,49 +431,49 @@ function StatsInner() {
           >
             {stats.first15_range && (
               <Card title="First 15m Range — 2. + 3. svíčka" subtitle={`${stats.first15_range.days} dní · sweep high/low první 15min po RTH open`}>
-                <BarGroup data={stats.first15_range.c23} prevData={prev?.first15_range?.c23} labels={SIDES_LABELS} />
+                <BarGroup data={stats.first15_range.c23} prevData={prev?.first15_range?.c23} labels={SIDES_LABELS} n={stats.first15_range.days} />
                 <div className="mt-3 pt-3 border-t border-[#232735] space-y-2">
-                  <Bar label="High → Low" value={stats.first15_range.c23.order?.high_to_low ?? 0} prev={prev?.first15_range?.c23?.order?.high_to_low} accent="#64748b" />
-                  <Bar label="Low → High" value={stats.first15_range.c23.order?.low_to_high ?? 0} prev={prev?.first15_range?.c23?.order?.low_to_high} accent="#64748b" />
+                  <Bar label="High → Low" value={stats.first15_range.c23.order?.high_to_low ?? 0} prev={prev?.first15_range?.c23?.order?.high_to_low} accent="#64748b" binary n={orderN(stats.first15_range.days, stats.first15_range.c23.both)} />
+                  <Bar label="Low → High" value={stats.first15_range.c23.order?.low_to_high ?? 0} prev={prev?.first15_range?.c23?.order?.low_to_high} accent="#64748b" binary n={orderN(stats.first15_range.days, stats.first15_range.c23.both)} />
                 </div>
               </Card>
             )}
 
             {stats.first15_range && (
               <Card title="First 15m Range — do konce RTH" subtitle={`${stats.first15_range.days} dní · sweep do konce seance`}>
-                <BarGroup data={stats.first15_range.eod} prevData={prev?.first15_range?.eod} labels={SIDES_LABELS} />
+                <BarGroup data={stats.first15_range.eod} prevData={prev?.first15_range?.eod} labels={SIDES_LABELS} n={stats.first15_range.days} />
                 <div className="mt-3 pt-3 border-t border-[#232735] space-y-2">
-                  <Bar label="High → Low" value={stats.first15_range.eod.order?.high_to_low ?? 0} prev={prev?.first15_range?.eod?.order?.high_to_low} accent="#64748b" />
-                  <Bar label="Low → High" value={stats.first15_range.eod.order?.low_to_high ?? 0} prev={prev?.first15_range?.eod?.order?.low_to_high} accent="#64748b" />
+                  <Bar label="High → Low" value={stats.first15_range.eod.order?.high_to_low ?? 0} prev={prev?.first15_range?.eod?.order?.high_to_low} accent="#64748b" binary n={orderN(stats.first15_range.days, stats.first15_range.eod.both)} />
+                  <Bar label="Low → High" value={stats.first15_range.eod.order?.low_to_high ?? 0} prev={prev?.first15_range?.eod?.order?.low_to_high} accent="#64748b" binary n={orderN(stats.first15_range.days, stats.first15_range.eod.both)} />
                 </div>
               </Card>
             )}
 
             <Card title="Candle H/L Revisit" subtitle={`${stats.candle_hl_revisit.levels} levelů · daily high & low retested`}>
-              <BarGroup data={stats.candle_hl_revisit} prevData={prev?.candle_hl_revisit} labels={DAY_LABELS} />
+              <BarGroup data={stats.candle_hl_revisit} prevData={prev?.candle_hl_revisit} labels={DAY_LABELS} n={stats.candle_hl_revisit.levels} />
             </Card>
 
             <Card title="Weekly HIGH — Day" subtitle={`${m.weeks} týdnů`}>
-              <BarGroup data={stats.weekly_high_day} prevData={prev?.weekly_high_day} labels={dayLabels(stats.weekly_high_day)} />
+              <BarGroup data={stats.weekly_high_day} prevData={prev?.weekly_high_day} labels={dayLabels(stats.weekly_high_day)} n={m.weeks} />
             </Card>
 
             <Card title="Weekly LOW — Day" subtitle={`${m.weeks} týdnů`}>
-              <BarGroup data={stats.weekly_low_day} prevData={prev?.weekly_low_day} labels={dayLabels(stats.weekly_low_day)} />
+              <BarGroup data={stats.weekly_low_day} prevData={prev?.weekly_low_day} labels={dayLabels(stats.weekly_low_day)} n={m.weeks} />
             </Card>
 
             <Card title="Asia — Both Sides" subtitle={`${stats.asia_both_sides.days} dní · during London+NY`}>
-              <BarGroup data={stats.asia_both_sides} prevData={prev?.asia_both_sides} labels={SIDES_LABELS} />
+              <BarGroup data={stats.asia_both_sides} prevData={prev?.asia_both_sides} labels={SIDES_LABELS} n={stats.asia_both_sides.days} />
               <div className="mt-3 pt-3 border-t border-[#232735] space-y-2">
-                <Bar label="Low → High" value={stats.asia_both_sides.order?.low_to_high ?? 0} prev={prev?.asia_both_sides?.order?.low_to_high} accent="#64748b" />
-                <Bar label="High → Low" value={stats.asia_both_sides.order?.high_to_low ?? 0} prev={prev?.asia_both_sides?.order?.high_to_low} accent="#64748b" />
+                <Bar label="Low → High" value={stats.asia_both_sides.order?.low_to_high ?? 0} prev={prev?.asia_both_sides?.order?.low_to_high} accent="#64748b" binary n={orderN(stats.asia_both_sides.days, stats.asia_both_sides.both)} />
+                <Bar label="High → Low" value={stats.asia_both_sides.order?.high_to_low ?? 0} prev={prev?.asia_both_sides?.order?.high_to_low} accent="#64748b" binary n={orderN(stats.asia_both_sides.days, stats.asia_both_sides.both)} />
               </div>
             </Card>
 
             <Card title="Globex — Both Sides" subtitle={`${stats.globex_both_sides.days} dní · during NY RTH`}>
-              <BarGroup data={stats.globex_both_sides} prevData={prev?.globex_both_sides} labels={SIDES_LABELS} />
+              <BarGroup data={stats.globex_both_sides} prevData={prev?.globex_both_sides} labels={SIDES_LABELS} n={stats.globex_both_sides.days} />
               <div className="mt-3 pt-3 border-t border-[#232735] space-y-2">
-                <Bar label="Low → High" value={stats.globex_both_sides.order?.low_to_high ?? 0} prev={prev?.globex_both_sides?.order?.low_to_high} accent="#64748b" />
-                <Bar label="High → Low" value={stats.globex_both_sides.order?.high_to_low ?? 0} prev={prev?.globex_both_sides?.order?.high_to_low} accent="#64748b" />
+                <Bar label="Low → High" value={stats.globex_both_sides.order?.low_to_high ?? 0} prev={prev?.globex_both_sides?.order?.low_to_high} accent="#64748b" binary n={orderN(stats.globex_both_sides.days, stats.globex_both_sides.both)} />
+                <Bar label="High → Low" value={stats.globex_both_sides.order?.high_to_low ?? 0} prev={prev?.globex_both_sides?.order?.high_to_low} accent="#64748b" binary n={orderN(stats.globex_both_sides.days, stats.globex_both_sides.both)} />
               </div>
             </Card>
           </Section>
@@ -462,12 +485,12 @@ function StatsInner() {
             description="Naked Point of Control — kdy se cena vrací na úrovně s největším zobchodovaným objemem"
           >
             <Card title="Daily NPOC Revisit" subtitle={`${stats.daily_npoc_revisit.days} dní · POC retested`}>
-              <BarGroup data={stats.daily_npoc_revisit} prevData={prev?.daily_npoc_revisit} labels={DAY_LABELS} />
+              <BarGroup data={stats.daily_npoc_revisit} prevData={prev?.daily_npoc_revisit} labels={DAY_LABELS} n={stats.daily_npoc_revisit.days} />
             </Card>
 
             {Object.entries(stats.session_npoc_revisit).map(([sess, d]) => (
               <Card key={sess} title={`${SESSION_NAME[sess]} NPOC Revisit`} subtitle={`${d.days} dní`}>
-                <BarGroup data={d} prevData={prev?.session_npoc_revisit?.[sess]} labels={REVISIT_LABELS} />
+                <BarGroup data={d} prevData={prev?.session_npoc_revisit?.[sess]} labels={REVISIT_LABELS} n={d.days} />
               </Card>
             ))}
           </Section>
@@ -479,15 +502,15 @@ function StatsInner() {
             description="Návraty k VWAP linii a k denním/týdenním otevíracím cenám"
           >
             <Card title="VWAP Edge Revisit" subtitle={`${stats.vwap_edge_revisit.days} dní · návrat k VWAP po ±1σ edge`}>
-              <BarGroup data={stats.vwap_edge_revisit} prevData={prev?.vwap_edge_revisit} labels={REVISIT_LABELS} />
+              <BarGroup data={stats.vwap_edge_revisit} prevData={prev?.vwap_edge_revisit} labels={REVISIT_LABELS} n={stats.vwap_edge_revisit.days} />
             </Card>
 
             <Card title="Daily Open Revisit" subtitle={`${m.days} dní · cena se vrací k open`}>
-              <BarGroup data={stats.daily_open_revisit} prevData={prev?.daily_open_revisit} labels={REVISIT_LABELS} />
+              <BarGroup data={stats.daily_open_revisit} prevData={prev?.daily_open_revisit} labels={REVISIT_LABELS} n={m.days} />
             </Card>
 
             <Card title="Weekly Open Revisit" subtitle={`${m.weeks} týdnů · den prvního revisitu`}>
-              <BarGroup data={stats.weekly_open_revisit} prevData={prev?.weekly_open_revisit} labels={dayLabels(stats.weekly_open_revisit)} />
+              <BarGroup data={stats.weekly_open_revisit} prevData={prev?.weekly_open_revisit} labels={dayLabels(stats.weekly_open_revisit)} n={m.weeks} />
             </Card>
           </Section>
 

@@ -312,7 +312,7 @@ async def bias_entry(
         "ticker": t.symbol,
         "date": str(tday),
         "direction": direction,
-        "ny_open_utc": "13:30",
+        "ny_open_utc": bias_service.ny_open_utc(tday).strftime("%H:%M"),   # 13:30 v létě, 14:30 v zimě
         "realized": realized,  # z reálných biasů (roste časem)
         "note": "Playbook z historických dat je v /stats (ny_entry). "
                 "'realized' je z reálně zaznamenaných biasů.",

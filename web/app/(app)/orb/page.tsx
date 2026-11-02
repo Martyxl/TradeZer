@@ -16,7 +16,7 @@ interface OrbRollPoint {
   one_sided: number; both: number; neither: number;
 }
 interface OrbSession {
-  open_utc: number; or_range_avg: number;
+  open_et?: number; open_utc?: number; or_range_avg: number;   // open_utc = starý výpočet (do 11/2026)
   overall: Record<string, OrbAgg>;
   rolling: Record<string, OrbRollPoint[]>;
 }
@@ -152,7 +152,8 @@ function OrbCard({ name, sess, hor, metric }: {
   const ov = sess.overall[hor];
   const roll = sess.rolling[hor];
   const M = METRICS[metric];
-  const open = String(sess.open_utc).padStart(2, "0") + ":00";
+  const openH = sess.open_et ?? sess.open_utc ?? 0;
+  const open = `${String(Math.floor(openH)).padStart(2, "0")}:${String(Math.round((openH % 1) * 60)).padStart(2, "0")} ${sess.open_et != null ? "ET" : "UTC"}`;
   const os = roll ? roll.map((r) => r[metric]) : [];
   const v = roll && os.length > 1 ? orbVerdict(os, M.pol) : null;
   const cur = roll && os.length ? os[os.length - 1] : (ov as unknown as Record<string, number>)[metric];
@@ -162,7 +163,7 @@ function OrbCard({ name, sess, hor, metric }: {
         <div>
           <h3 className="text-sm font-semibold text-white">{name}</h3>
           <p className="text-[10px] uppercase tracking-wider text-gray-500 mt-0.5">
-            open {open} UTC · {ov.days} dní · OR-avg {sess.or_range_avg}
+            open {open} · {ov.days} dní · OR-avg {sess.or_range_avg}
           </p>
         </div>
         {v && (
@@ -222,7 +223,7 @@ function InfoModal({ onClose }: { onClose: () => void }) {
           <p><b className="text-white">Trend (křivka)</b> = vyber, kterou metriku sleduje velké číslo, sparkline a verdikt: 1-sided, Obě strany, Ani jedna, High nebo Low. Bary pod tím ukazují celé rozdělení vždy.</p>
           <p><b className="text-white">Verdikt</b> = lineární regrese zvolené metriky přes plovoucí 30denní okna za 6 měsíců. U „1-sided" a „Obě strany" hodnotí edge (Zpevňuje / Rozpadá se), u ostatních jen směr (Roste / Klesá). Sparkline ukazuje ten trend.</p>
           <p><b className="text-white">Nejdřív High / Low</b> = která strana OR padne první.</p>
-          <p className="text-xs text-gray-500">Open = start session (Asia dle instrumentu, London 07:00, NY 12:00 UTC — session open, ne cash open 13:30). Data: Dukascopy 5m bary. Statistika popisuje strukturu trhu, není investiční doporučení.</p>
+          <p className="text-xs text-gray-500">Open = start session v newyorském čase včetně letního času (Asia dle instrumentu, London 3:00, NY 8:00 ET — session open, ne cash open 9:30; v ČR obvykle +6 h). Data: 5m bary (Dukascopy, Yahoo). Statistika popisuje strukturu trhu, není investiční doporučení.</p>
         </div>
       </div>
     </div>

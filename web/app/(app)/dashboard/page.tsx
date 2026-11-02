@@ -12,6 +12,7 @@ import { GammaCard } from "@/components/GammaCard";
 import { RegimeCard } from "@/components/RegimeCard";
 import { OutlookCard } from "@/components/OutlookCard";
 import { GapCard } from "@/components/GapCard";
+import { DayLiveCard } from "@/components/DayLiveCard";
 import { api, type Ticker, type NewsItem, type DailySummary } from "@/lib/api";
 import { invalidateDashboard } from "@/lib/dashboardData";
 
@@ -171,6 +172,9 @@ export default function DashboardPage() {
 
       {/* Entry plán po NY open */}
       <EntryCard ticker={selectedTicker} />
+
+      {/* Dnešní den vůči historii (rozsah, extrémy, trend, sessions, makro) — Trader+, NQ/YM/GOLD */}
+      <DayLiveCard ticker={selectedTicker} />
 
       {/* Gamma exposure (GEX) — režim + levely z options OI (skryje se bez dat) */}
       <GammaCard ticker={selectedTicker} />

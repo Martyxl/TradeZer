@@ -4,11 +4,12 @@
   "label": "USD/JPY",
   "unit": "pipů",
   "from": "2026-07-27",
-  "to": "2026-10-20",
-  "bars_m5": 17094,
-  "days": 61,
-  "weeks": 13,
+  "to": "2026-11-02",
+  "bars_m5": 19613,
+  "days": 70,
+  "weeks": 15,
   "volume": false,
+  "tz": "ET",
   "source": "yahoo",
   "note": "Data z Yahoo Finance (5m, ~60 obchodních dní, průběžně se kumulují; bez objemu → VWAP = TWAP). Vzorek je zatím malý — statistiky ber orientačně."
  },
@@ -17,8 +18,8 @@
    "months": 6,
    "window_days": 30,
    "step_days": 5,
-   "from": "2026-04-20",
-   "to": "2026-10-20",
+   "from": "2026-05-03",
+   "to": "2026-11-02",
    "horizons": {
     "m30": "30 min",
     "m60": "60 min",
@@ -31,52 +32,52 @@
   },
   "or5": {
    "asia": {
-    "open_utc": 22,
-    "or_range_avg": 8.99,
+    "open_et": 18,
+    "or_range_avg": 9.25,
     "overall": {
      "m30": {
-      "days": 61,
-      "both": 11.5,
-      "high_only": 52.5,
-      "low_only": 24.6,
-      "neither": 11.5,
-      "high_taken": 64.0,
-      "low_taken": 36.1,
-      "break_rate": 88.5,
-      "one_sided": 77.1,
+      "days": 70,
+      "both": 11.4,
+      "high_only": 52.9,
+      "low_only": 22.9,
+      "neither": 12.9,
+      "high_taken": 64.3,
+      "low_taken": 34.3,
+      "break_rate": 87.1,
+      "one_sided": 75.8,
       "order": {
-       "high_to_low": 42.9,
-       "low_to_high": 57.1
+       "high_to_low": 37.5,
+       "low_to_high": 62.5
       }
      },
      "m60": {
-      "days": 61,
-      "both": 34.4,
-      "high_only": 39.3,
-      "low_only": 23.0,
-      "neither": 3.3,
-      "high_taken": 73.7,
-      "low_taken": 57.4,
-      "break_rate": 96.7,
-      "one_sided": 62.3,
+      "days": 70,
+      "both": 31.4,
+      "high_only": 41.4,
+      "low_only": 21.4,
+      "neither": 5.7,
+      "high_taken": 72.8,
+      "low_taken": 52.8,
+      "break_rate": 94.3,
+      "one_sided": 62.8,
       "order": {
-       "high_to_low": 61.9,
-       "low_to_high": 38.1
+       "high_to_low": 59.1,
+       "low_to_high": 40.9
       }
      },
      "sess": {
-      "days": 61,
-      "both": 86.9,
-      "high_only": 8.2,
-      "low_only": 4.9,
+      "days": 70,
+      "both": 85.7,
+      "high_only": 10.0,
+      "low_only": 4.3,
       "neither": 0.0,
-      "high_taken": 95.1,
-      "low_taken": 91.8,
+      "high_taken": 95.7,
+      "low_taken": 90.0,
       "break_rate": 100.0,
-      "one_sided": 13.1,
+      "one_sided": 14.3,
       "order": {
-       "high_to_low": 62.3,
-       "low_to_high": 37.7
+       "high_to_low": 61.7,
+       "low_to_high": 38.3
       }
      }
     },
@@ -160,15 +161,26 @@
        "neither": 13.3
       },
       {
-       "from": "2026-09-09",
-       "to": "2026-10-20",
+       "from": "2026-09-15",
+       "to": "2026-10-26",
+       "n": 30,
+       "high_taken": 53.3,
+       "low_taken": 36.6,
+       "break_rate": 86.7,
+       "one_sided": 83.3,
+       "both": 3.3,
+       "neither": 13.3
+      },
+      {
+       "from": "2026-09-22",
+       "to": "2026-11-02",
        "n": 30,
        "high_taken": 50.0,
-       "low_taken": 43.4,
-       "break_rate": 86.7,
-       "one_sided": 80.0,
-       "both": 6.7,
-       "neither": 13.3
+       "low_taken": 33.3,
+       "break_rate": 80.0,
+       "one_sided": 76.7,
+       "both": 3.3,
+       "neither": 20.0
       }
      ],
      "m60": [
@@ -250,66 +262,77 @@
        "neither": 3.3
       },
       {
-       "from": "2026-09-09",
-       "to": "2026-10-20",
+       "from": "2026-09-15",
+       "to": "2026-10-26",
+       "n": 30,
+       "high_taken": 63.4,
+       "low_taken": 50.0,
+       "break_rate": 96.7,
+       "one_sided": 80.0,
+       "both": 16.7,
+       "neither": 3.3
+      },
+      {
+       "from": "2026-09-22",
+       "to": "2026-11-02",
        "n": 30,
        "high_taken": 60.0,
-       "low_taken": 56.7,
-       "break_rate": 96.7,
-       "one_sided": 76.7,
-       "both": 20.0,
-       "neither": 3.3
+       "low_taken": 40.0,
+       "break_rate": 90.0,
+       "one_sided": 80.0,
+       "both": 10.0,
+       "neither": 10.0
       }
      ]
     }
    },
    "london": {
-    "open_utc": 7,
-    "or_range_avg": 8.86,
+    "open_et": 3,
+    "or_range_avg": 8.68,
     "overall": {
      "m30": {
-      "days": 60,
-      "both": 50.0,
-      "high_only": 35.0,
-      "low_only": 15.0,
+      "days": 69,
+      "both": 52.2,
+      "high_only": 33.3,
+      "low_only": 14.5,
       "neither": 0.0,
-      "high_taken": 85.0,
-      "low_taken": 65.0,
+      "high_taken": 85.5,
+      "low_taken": 66.7,
       "break_rate": 100.0,
-      "one_sided": 50.0,
-      "order": {
-       "high_to_low": 56.7,
-       "low_to_high": 43.3
-      }
-     },
-     "m60": {
-      "days": 60,
-      "both": 65.0,
-      "high_only": 26.7,
-      "low_only": 8.3,
-      "neither": 0.0,
-      "high_taken": 91.7,
-      "low_taken": 73.3,
-      "break_rate": 100.0,
-      "one_sided": 35.0,
-      "order": {
-       "high_to_low": 56.4,
-       "low_to_high": 43.6
-      }
-     },
-     "sess": {
-      "days": 60,
-      "both": 80.0,
-      "high_only": 16.7,
-      "low_only": 3.3,
-      "neither": 0.0,
-      "high_taken": 96.7,
-      "low_taken": 83.3,
-      "break_rate": 100.0,
-      "one_sided": 20.0,
+      "one_sided": 47.8,
       "order": {
        "high_to_low": 58.3,
        "low_to_high": 41.7
+      }
+     },
+     "m60": {
+      "days": 69,
+      "both": 66.7,
+      "high_only": 24.6,
+      "low_only": 8.7,
+      "neither": 0.0,
+      "high_taken": 91.3,
+      "low_taken": 75.4,
+      "break_rate": 100.0,
+      "one_sided": 33.3,
+      "order": {
+       "high_to_low": 58.7,
+       "low_to_high": 41.3
+      }
+     },
+     "sess": {
+      "days": 69,
+      "both": 79.7,
+      "high_only": 15.9,
+      "low_only": 4.3,
+      "neither": 0.0,
+      "high_taken": 95.6,
+      "low_taken": 84.0,
+      "break_rate": 100.0,
+      "one_sided": 20.2,
+      "order": {
+       "high_to_low": 60.0,
+       "low_to_high": 40.0
       }
      }
     },
@@ -391,6 +414,28 @@
        "one_sided": 40.0,
        "both": 60.0,
        "neither": 0.0
+      },
+      {
+       "from": "2026-09-15",
+       "to": "2026-10-26",
+       "n": 30,
+       "high_taken": 96.6,
+       "low_taken": 66.6,
+       "break_rate": 100.0,
+       "one_sided": 36.6,
+       "both": 63.3,
+       "neither": 0.0
+      },
+      {
+       "from": "2026-09-21",
+       "to": "2026-10-30",
+       "n": 30,
+       "high_taken": 93.4,
+       "low_taken": 63.4,
+       "break_rate": 100.0,
+       "one_sided": 43.4,
+       "both": 56.7,
+       "neither": 0.0
       }
      ],
      "m60": [
@@ -470,57 +515,79 @@
        "one_sided": 33.3,
        "both": 66.7,
        "neither": 0.0
+      },
+      {
+       "from": "2026-09-15",
+       "to": "2026-10-26",
+       "n": 30,
+       "high_taken": 96.7,
+       "low_taken": 73.3,
+       "break_rate": 100.0,
+       "one_sided": 30.0,
+       "both": 70.0,
+       "neither": 0.0
+      },
+      {
+       "from": "2026-09-21",
+       "to": "2026-10-30",
+       "n": 30,
+       "high_taken": 93.4,
+       "low_taken": 73.4,
+       "break_rate": 100.0,
+       "one_sided": 33.4,
+       "both": 66.7,
+       "neither": 0.0
       }
      ]
     }
    },
    "ny": {
-    "open_utc": 12,
-    "or_range_avg": 6.72,
+    "open_et": 8,
+    "or_range_avg": 6.73,
     "overall": {
      "m30": {
-      "days": 60,
-      "both": 58.3,
-      "high_only": 25.0,
-      "low_only": 16.7,
-      "neither": 0.0,
-      "high_taken": 83.3,
-      "low_taken": 75.0,
-      "break_rate": 100.0,
-      "one_sided": 41.7,
+      "days": 69,
+      "both": 59.4,
+      "high_only": 21.7,
+      "low_only": 17.4,
+      "neither": 1.4,
+      "high_taken": 81.1,
+      "low_taken": 76.8,
+      "break_rate": 98.6,
+      "one_sided": 39.1,
       "order": {
-       "high_to_low": 42.9,
-       "low_to_high": 57.1
+       "high_to_low": 43.9,
+       "low_to_high": 56.1
       }
      },
      "m60": {
-      "days": 60,
-      "both": 76.7,
-      "high_only": 16.7,
-      "low_only": 6.7,
+      "days": 69,
+      "both": 75.4,
+      "high_only": 15.9,
+      "low_only": 8.7,
       "neither": 0.0,
-      "high_taken": 93.4,
-      "low_taken": 83.4,
+      "high_taken": 91.3,
+      "low_taken": 84.1,
       "break_rate": 100.0,
-      "one_sided": 23.4,
+      "one_sided": 24.6,
       "order": {
-       "high_to_low": 43.5,
-       "low_to_high": 56.5
+       "high_to_low": 44.2,
+       "low_to_high": 55.8
       }
      },
      "sess": {
-      "days": 60,
-      "both": 91.7,
-      "high_only": 5.0,
-      "low_only": 3.3,
+      "days": 69,
+      "both": 91.3,
+      "high_only": 5.8,
+      "low_only": 2.9,
       "neither": 0.0,
-      "high_taken": 96.7,
-      "low_taken": 95.0,
+      "high_taken": 97.1,
+      "low_taken": 94.2,
       "break_rate": 100.0,
-      "one_sided": 8.3,
+      "one_sided": 8.7,
       "order": {
-       "high_to_low": 49.1,
-       "low_to_high": 50.9
+       "high_to_low": 47.6,
+       "low_to_high": 52.4
       }
      }
     },
@@ -602,6 +669,28 @@
        "one_sided": 50.0,
        "both": 50.0,
        "neither": 0.0
+      },
+      {
+       "from": "2026-09-15",
+       "to": "2026-10-26",
+       "n": 30,
+       "high_taken": 80.0,
+       "low_taken": 70.0,
+       "break_rate": 100.0,
+       "one_sided": 50.0,
+       "both": 50.0,
+       "neither": 0.0
+      },
+      {
+       "from": "2026-09-21",
+       "to": "2026-10-30",
+       "n": 30,
+       "high_taken": 80.0,
+       "low_taken": 76.7,
+       "break_rate": 96.7,
+       "one_sided": 36.7,
+       "both": 60.0,
+       "neither": 3.3
       }
      ],
      "m60": [
@@ -681,6 +770,28 @@
        "one_sided": 26.6,
        "both": 73.3,
        "neither": 0.0
+      },
+      {
+       "from": "2026-09-15",
+       "to": "2026-10-26",
+       "n": 30,
+       "high_taken": 90.0,
+       "low_taken": 83.3,
+       "break_rate": 100.0,
+       "one_sided": 26.7,
+       "both": 73.3,
+       "neither": 0.0
+      },
+      {
+       "from": "2026-09-21",
+       "to": "2026-10-30",
+       "n": 30,
+       "high_taken": 93.4,
+       "low_taken": 83.4,
+       "break_rate": 100.0,
+       "one_sided": 23.4,
+       "both": 76.7,
+       "neither": 0.0
       }
      ]
     }
@@ -688,52 +799,52 @@
   },
   "or15": {
    "asia": {
-    "open_utc": 22,
-    "or_range_avg": 11.25,
+    "open_et": 18,
+    "or_range_avg": 11.68,
     "overall": {
      "m30": {
-      "days": 61,
-      "both": 4.9,
-      "high_only": 37.7,
-      "low_only": 27.9,
-      "neither": 29.5,
-      "high_taken": 42.6,
-      "low_taken": 32.8,
-      "break_rate": 70.5,
-      "one_sided": 65.6,
+      "days": 70,
+      "both": 5.7,
+      "high_only": 37.1,
+      "low_only": 25.7,
+      "neither": 31.4,
+      "high_taken": 42.8,
+      "low_taken": 31.4,
+      "break_rate": 68.6,
+      "one_sided": 62.8,
       "order": {
-       "high_to_low": 66.7,
-       "low_to_high": 33.3
+       "high_to_low": 50.0,
+       "low_to_high": 50.0
       }
      },
      "m60": {
-      "days": 61,
-      "both": 21.3,
-      "high_only": 31.1,
-      "low_only": 36.1,
-      "neither": 11.5,
-      "high_taken": 52.4,
-      "low_taken": 57.4,
-      "break_rate": 88.5,
-      "one_sided": 67.2,
+      "days": 70,
+      "both": 20.0,
+      "high_only": 32.9,
+      "low_only": 32.9,
+      "neither": 14.3,
+      "high_taken": 52.9,
+      "low_taken": 52.9,
+      "break_rate": 85.7,
+      "one_sided": 65.8,
       "order": {
-       "high_to_low": 61.5,
-       "low_to_high": 38.5
+       "high_to_low": 57.1,
+       "low_to_high": 42.9
       }
      },
      "sess": {
-      "days": 61,
-      "both": 77.0,
-      "high_only": 9.8,
-      "low_only": 13.1,
+      "days": 70,
+      "both": 77.1,
+      "high_only": 11.4,
+      "low_only": 11.4,
       "neither": 0.0,
-      "high_taken": 86.8,
-      "low_taken": 90.1,
+      "high_taken": 88.5,
+      "low_taken": 88.5,
       "break_rate": 100.0,
-      "one_sided": 22.9,
+      "one_sided": 22.8,
       "order": {
-       "high_to_low": 53.2,
-       "low_to_high": 46.8
+       "high_to_low": 53.7,
+       "low_to_high": 46.3
       }
      }
     },
@@ -817,15 +928,26 @@
        "neither": 20.0
       },
       {
-       "from": "2026-09-09",
-       "to": "2026-10-20",
+       "from": "2026-09-15",
+       "to": "2026-10-26",
        "n": 30,
-       "high_taken": 40.0,
-       "low_taken": 46.7,
+       "high_taken": 43.3,
+       "low_taken": 40.0,
        "break_rate": 80.0,
-       "one_sided": 73.3,
-       "both": 6.7,
+       "one_sided": 76.7,
+       "both": 3.3,
        "neither": 20.0
+      },
+      {
+       "from": "2026-09-22",
+       "to": "2026-11-02",
+       "n": 30,
+       "high_taken": 43.4,
+       "low_taken": 36.7,
+       "break_rate": 73.3,
+       "one_sided": 66.7,
+       "both": 6.7,
+       "neither": 26.7
       }
      ],
      "m60": [
@@ -907,66 +1029,77 @@
        "neither": 10.0
       },
       {
-       "from": "2026-09-09",
-       "to": "2026-10-20",
+       "from": "2026-09-15",
+       "to": "2026-10-26",
        "n": 30,
-       "high_taken": 53.3,
-       "low_taken": 60.0,
+       "high_taken": 56.7,
+       "low_taken": 53.3,
        "break_rate": 90.0,
-       "one_sided": 66.7,
-       "both": 23.3,
+       "one_sided": 70.0,
+       "both": 20.0,
        "neither": 10.0
+      },
+      {
+       "from": "2026-09-22",
+       "to": "2026-11-02",
+       "n": 30,
+       "high_taken": 56.6,
+       "low_taken": 40.0,
+       "break_rate": 83.3,
+       "one_sided": 70.0,
+       "both": 13.3,
+       "neither": 16.7
       }
      ]
     }
    },
    "london": {
-    "open_utc": 7,
-    "or_range_avg": 13.36,
+    "open_et": 3,
+    "or_range_avg": 13.24,
     "overall": {
      "m30": {
-      "days": 60,
-      "both": 28.3,
-      "high_only": 48.3,
-      "low_only": 18.3,
-      "neither": 5.0,
-      "high_taken": 76.6,
-      "low_taken": 46.6,
-      "break_rate": 95.0,
-      "one_sided": 66.6,
+      "days": 69,
+      "both": 26.1,
+      "high_only": 47.8,
+      "low_only": 21.7,
+      "neither": 4.3,
+      "high_taken": 73.9,
+      "low_taken": 47.8,
+      "break_rate": 95.7,
+      "one_sided": 69.5,
       "order": {
-       "high_to_low": 52.9,
-       "low_to_high": 47.1
+       "high_to_low": 55.6,
+       "low_to_high": 44.4
       }
      },
      "m60": {
-      "days": 60,
-      "both": 41.7,
-      "high_only": 38.3,
-      "low_only": 18.3,
-      "neither": 1.7,
-      "high_taken": 80.0,
-      "low_taken": 60.0,
-      "break_rate": 98.3,
-      "one_sided": 56.6,
+      "days": 69,
+      "both": 40.6,
+      "high_only": 37.7,
+      "low_only": 20.3,
+      "neither": 1.4,
+      "high_taken": 78.3,
+      "low_taken": 60.9,
+      "break_rate": 98.6,
+      "one_sided": 58.0,
       "order": {
-       "high_to_low": 60.0,
-       "low_to_high": 40.0
+       "high_to_low": 60.7,
+       "low_to_high": 39.3
       }
      },
      "sess": {
-      "days": 60,
-      "both": 70.0,
-      "high_only": 23.3,
-      "low_only": 6.7,
+      "days": 69,
+      "both": 66.7,
+      "high_only": 23.2,
+      "low_only": 10.1,
       "neither": 0.0,
-      "high_taken": 93.3,
-      "low_taken": 76.7,
+      "high_taken": 89.9,
+      "low_taken": 76.8,
       "break_rate": 100.0,
-      "one_sided": 30.0,
+      "one_sided": 33.3,
       "order": {
-       "high_to_low": 59.5,
-       "low_to_high": 40.5
+       "high_to_low": 60.9,
+       "low_to_high": 39.1
       }
      }
     },
@@ -1048,6 +1181,28 @@
        "one_sided": 73.4,
        "both": 20.0,
        "neither": 6.7
+      },
+      {
+       "from": "2026-09-15",
+       "to": "2026-10-26",
+       "n": 30,
+       "high_taken": 76.6,
+       "low_taken": 40.0,
+       "break_rate": 93.3,
+       "one_sided": 70.0,
+       "both": 23.3,
+       "neither": 6.7
+      },
+      {
+       "from": "2026-09-21",
+       "to": "2026-10-30",
+       "n": 30,
+       "high_taken": 70.0,
+       "low_taken": 46.6,
+       "break_rate": 93.3,
+       "one_sided": 70.0,
+       "both": 23.3,
+       "neither": 6.7
       }
      ],
      "m60": [
@@ -1127,57 +1282,79 @@
        "one_sided": 63.4,
        "both": 33.3,
        "neither": 3.3
+      },
+      {
+       "from": "2026-09-15",
+       "to": "2026-10-26",
+       "n": 30,
+       "high_taken": 76.7,
+       "low_taken": 50.0,
+       "break_rate": 96.7,
+       "one_sided": 66.7,
+       "both": 30.0,
+       "neither": 3.3
+      },
+      {
+       "from": "2026-09-21",
+       "to": "2026-10-30",
+       "n": 30,
+       "high_taken": 73.3,
+       "low_taken": 56.6,
+       "break_rate": 96.7,
+       "one_sided": 63.3,
+       "both": 33.3,
+       "neither": 3.3
       }
      ]
     }
    },
    "ny": {
-    "open_utc": 12,
-    "or_range_avg": 11.18,
+    "open_et": 8,
+    "or_range_avg": 11.01,
     "overall": {
      "m30": {
-      "days": 60,
-      "both": 31.7,
-      "high_only": 43.3,
-      "low_only": 25.0,
+      "days": 69,
+      "both": 30.4,
+      "high_only": 42.0,
+      "low_only": 27.5,
       "neither": 0.0,
-      "high_taken": 75.0,
-      "low_taken": 56.7,
+      "high_taken": 72.4,
+      "low_taken": 57.9,
       "break_rate": 100.0,
-      "one_sided": 68.3,
+      "one_sided": 69.5,
       "order": {
-       "high_to_low": 42.1,
-       "low_to_high": 57.9
+       "high_to_low": 38.1,
+       "low_to_high": 61.9
       }
      },
      "m60": {
-      "days": 60,
-      "both": 51.7,
-      "high_only": 28.3,
-      "low_only": 20.0,
+      "days": 69,
+      "both": 49.3,
+      "high_only": 29.0,
+      "low_only": 21.7,
       "neither": 0.0,
-      "high_taken": 80.0,
-      "low_taken": 71.7,
+      "high_taken": 78.3,
+      "low_taken": 71.0,
       "break_rate": 100.0,
-      "one_sided": 48.3,
+      "one_sided": 50.7,
       "order": {
-       "high_to_low": 54.8,
-       "low_to_high": 45.2
+       "high_to_low": 50.0,
+       "low_to_high": 50.0
       }
      },
      "sess": {
-      "days": 60,
-      "both": 81.7,
-      "high_only": 13.3,
-      "low_only": 5.0,
+      "days": 69,
+      "both": 81.2,
+      "high_only": 14.5,
+      "low_only": 4.3,
       "neither": 0.0,
-      "high_taken": 95.0,
-      "low_taken": 86.7,
+      "high_taken": 95.7,
+      "low_taken": 85.5,
       "break_rate": 100.0,
-      "one_sided": 18.3,
+      "one_sided": 18.8,
       "order": {
-       "high_to_low": 53.1,
-       "low_to_high": 46.9
+       "high_to_low": 48.2,
+       "low_to_high": 51.8
       }
      }
     },
@@ -1259,6 +1436,28 @@
        "one_sided": 73.3,
        "both": 26.7,
        "neither": 0.0
+      },
+      {
+       "from": "2026-09-15",
+       "to": "2026-10-26",
+       "n": 30,
+       "high_taken": 73.3,
+       "low_taken": 46.7,
+       "break_rate": 100.0,
+       "one_sided": 80.0,
+       "both": 20.0,
+       "neither": 0.0
+      },
+      {
+       "from": "2026-09-21",
+       "to": "2026-10-30",
+       "n": 30,
+       "high_taken": 73.4,
+       "low_taken": 53.4,
+       "break_rate": 100.0,
+       "one_sided": 73.4,
+       "both": 26.7,
+       "neither": 0.0
       }
      ],
      "m60": [
@@ -1337,6 +1536,28 @@
        "break_rate": 100.0,
        "one_sided": 50.0,
        "both": 50.0,
+       "neither": 0.0
+      },
+      {
+       "from": "2026-09-15",
+       "to": "2026-10-26",
+       "n": 30,
+       "high_taken": 76.6,
+       "low_taken": 66.6,
+       "break_rate": 100.0,
+       "one_sided": 56.6,
+       "both": 43.3,
+       "neither": 0.0
+      },
+      {
+       "from": "2026-09-21",
+       "to": "2026-10-30",
+       "n": 30,
+       "high_taken": 80.0,
+       "low_taken": 66.7,
+       "break_rate": 100.0,
+       "one_sided": 53.3,
+       "both": 46.7,
        "neither": 0.0
       }
      ]

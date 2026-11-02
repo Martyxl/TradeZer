@@ -43,8 +43,8 @@ def fetch_m5(symbol: str, rng: str = "60d") -> list[tuple]:
     rows = []
     for i, ts in enumerate(res.get("timestamp") or []):
         o, h, lo, c = (q[k][i] for k in ("open", "high", "low", "close"))
-        if None in (o, h, lo, c):
-            continue
+        if None in (o, h, lo, c) or int(ts) % 300:
+            continue  # živý (rozpracovaný) bar má čas mimo 5min mřížku → neukládat, zkreslil by rozsahy
         rows.append((int(ts) * 1000, o, h, lo, c, q["volume"][i] or 0))
     return rows
 

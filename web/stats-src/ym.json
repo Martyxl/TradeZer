@@ -4,95 +4,96 @@
   "label": "DOW (US Wall St 30)",
   "unit": "bodů",
   "from": "2025-06-01",
-  "to": "2026-10-20",
-  "bars_m5": 90832,
-  "days": 343,
-  "weeks": 71,
+  "to": "2026-11-02",
+  "bars_m5": 93287,
+  "days": 352,
+  "weeks": 73,
   "volume": true,
+  "tz": "ET",
   "source": null,
   "note": null
  },
  "session_sizes": {
   "asia": {
-   "avg": 160.4,
-   "median": 130.5,
-   "min": 38.0,
+   "avg": 159.5,
+   "median": 131.5,
+   "min": 48.6,
    "max": 722.0
   },
   "london": {
-   "avg": 202.5,
-   "median": 174.0,
-   "min": 0.0,
+   "avg": 206.8,
+   "median": 175.5,
+   "min": 37.0,
    "max": 1653.0
   },
   "ny": {
-   "avg": 485.5,
-   "median": 437.9,
+   "avg": 485.1,
+   "median": 435.7,
    "min": 67.0,
    "max": 1259.4
   }
  },
  "daily_high_session": {
-  "asia": 11.4,
-  "london": 9.3,
-  "ny": 68.5,
-  "close": 10.8
+  "asia": 10.2,
+  "london": 9.9,
+  "ny": 68.8,
+  "close": 11.1
  },
  "daily_low_session": {
-  "asia": 11.1,
+  "asia": 10.8,
   "london": 11.1,
-  "ny": 63.3,
-  "close": 14.6
+  "ny": 64.2,
+  "close": 13.9
  },
  "daily_open_revisit": {
-  "same": 93.3,
+  "same": 93.2,
   "1": 2.6,
   "2": 0.3,
-  "3": 1.2,
-  "never": 2.6
+  "3": 1.1,
+  "never": 2.8
  },
  "candle_hl_revisit": {
-  "levels": 680,
+  "levels": 698,
   "1": 48.4,
-  "2": 10.7,
+  "2": 10.9,
   "3": 8.5,
-  "never": 32.4
+  "never": 32.2
  },
  "daily_npoc_revisit": {
-  "days": 342,
-  "1": 71.9,
-  "2": 8.8,
-  "3": 2.9,
-  "never": 16.4
+  "days": 351,
+  "1": 72.4,
+  "2": 8.3,
+  "3": 3.1,
+  "never": 16.2
  },
  "session_npoc_revisit": {
   "asia": {
-   "days": 342,
-   "same": 88.9,
-   "1": 6.1,
+   "days": 351,
+   "same": 88.6,
+   "1": 6.0,
    "2": 0.6,
-   "3": 0.9,
-   "never": 3.5
+   "3": 0.6,
+   "never": 4.3
   },
   "london": {
-   "days": 340,
-   "same": 83.5,
-   "1": 6.2,
-   "2": 2.4,
+   "days": 349,
+   "same": 84.8,
+   "1": 6.3,
+   "2": 2.0,
    "3": 0.9,
-   "never": 7.1
+   "never": 6.0
   },
   "ny": {
-   "days": 341,
-   "same": 4.1,
-   "1": 68.9,
-   "2": 7.9,
-   "3": 3.5,
-   "never": 15.5
+   "days": 350,
+   "same": 0.0,
+   "1": 73.7,
+   "2": 7.4,
+   "3": 2.9,
+   "never": 16.0
   }
  },
  "vwap_edge_revisit": {
-  "days": 343,
+  "days": 352,
   "same": 100.0,
   "1": 0.0,
   "2": 0.0,
@@ -100,69 +101,69 @@
   "never": 0.0
  },
  "weekly_high_day": {
-  "Po": 23.9,
-  "Út": 14.1,
-  "St": 12.7,
-  "Čt": 15.5,
-  "Pá": 33.8
+  "Po": 23.3,
+  "Út": 13.7,
+  "St": 13.7,
+  "Čt": 16.4,
+  "Pá": 32.9
  },
  "weekly_low_day": {
-  "Po": 31.0,
-  "Út": 9.9,
-  "St": 12.7,
-  "Čt": 19.7,
-  "Pá": 26.8
+  "Po": 31.5,
+  "Út": 9.6,
+  "St": 12.3,
+  "Čt": 19.2,
+  "Pá": 27.4
  },
  "weekly_open_revisit": {
-  "Po": 90.1,
-  "Út": 7.0,
+  "Po": 89.0,
+  "Út": 6.8,
   "St": 0.0,
   "Čt": 1.4,
   "Pá": 0.0,
-  "Nikdy": 1.4
+  "Nikdy": 2.7
  },
  "asia_both_sides": {
-  "days": 341,
-  "both": 59.8,
+  "days": 350,
+  "both": 60.9,
   "high_only": 21.1,
-  "low_only": 18.8,
+  "low_only": 17.7,
   "neither": 0.3,
   "order": {
-   "low_to_high": 48.5,
-   "high_to_low": 51.5
+   "low_to_high": 50.2,
+   "high_to_low": 49.8
   }
  },
  "globex_both_sides": {
-  "days": 341,
-  "both": 29.6,
-  "high_only": 34.6,
-  "low_only": 31.1,
-  "neither": 4.7,
+  "days": 350,
+  "both": 26.0,
+  "high_only": 36.6,
+  "low_only": 32.9,
+  "neither": 4.6,
   "order": {
-   "low_to_high": 35.6,
-   "high_to_low": 64.4
+   "low_to_high": 33.0,
+   "high_to_low": 67.0
   }
  },
  "first15_range": {
-  "days": 340,
+  "days": 349,
   "c23": {
-   "both": 12.9,
-   "high_only": 40.3,
-   "low_only": 36.8,
-   "neither": 10.0,
+   "both": 11.5,
+   "high_only": 41.0,
+   "low_only": 39.3,
+   "neither": 8.3,
    "order": {
-    "high_to_low": 52.3,
-    "low_to_high": 47.7
+    "high_to_low": 52.5,
+    "low_to_high": 47.5
    }
   },
   "eod": {
-   "both": 56.5,
-   "high_only": 22.1,
-   "low_only": 21.5,
-   "neither": 0.0,
+   "both": 46.4,
+   "high_only": 26.9,
+   "low_only": 26.4,
+   "neither": 0.3,
    "order": {
-    "high_to_low": 52.6,
-    "low_to_high": 47.4
+    "high_to_low": 51.2,
+    "low_to_high": 48.8
    }
   }
  },
@@ -171,8 +172,8 @@
    "months": 6,
    "window_days": 30,
    "step_days": 5,
-   "from": "2026-04-20",
-   "to": "2026-10-20",
+   "from": "2026-05-03",
+   "to": "2026-11-02",
    "horizons": {
     "m30": "30 min",
     "m60": "60 min",
@@ -185,79 +186,57 @@
   },
   "or5": {
    "asia": {
-    "open_utc": 0,
-    "or_range_avg": 30.01,
+    "open_et": 20,
+    "or_range_avg": 30.59,
     "overall": {
      "m30": {
-      "days": 115,
-      "both": 30.4,
-      "high_only": 36.5,
-      "low_only": 31.3,
-      "neither": 1.7,
-      "high_taken": 66.9,
-      "low_taken": 61.7,
-      "break_rate": 98.3,
-      "one_sided": 67.8,
+      "days": 114,
+      "both": 31.6,
+      "high_only": 37.7,
+      "low_only": 28.9,
+      "neither": 1.8,
+      "high_taken": 69.3,
+      "low_taken": 60.5,
+      "break_rate": 98.2,
+      "one_sided": 66.6,
       "order": {
-       "high_to_low": 42.9,
-       "low_to_high": 57.1
+       "high_to_low": 38.9,
+       "low_to_high": 61.1
       }
      },
      "m60": {
-      "days": 115,
-      "both": 45.2,
-      "high_only": 26.1,
-      "low_only": 28.7,
+      "days": 114,
+      "both": 43.9,
+      "high_only": 27.2,
+      "low_only": 28.9,
       "neither": 0.0,
-      "high_taken": 71.3,
-      "low_taken": 73.9,
+      "high_taken": 71.1,
+      "low_taken": 72.8,
       "break_rate": 100.0,
-      "one_sided": 54.8,
+      "one_sided": 56.1,
       "order": {
-       "high_to_low": 53.8,
-       "low_to_high": 46.2
+       "high_to_low": 54.0,
+       "low_to_high": 46.0
       }
      },
      "sess": {
-      "days": 115,
-      "both": 75.7,
-      "high_only": 15.7,
-      "low_only": 8.7,
+      "days": 114,
+      "both": 74.6,
+      "high_only": 16.7,
+      "low_only": 8.8,
       "neither": 0.0,
-      "high_taken": 91.4,
-      "low_taken": 84.4,
+      "high_taken": 91.3,
+      "low_taken": 83.4,
       "break_rate": 100.0,
-      "one_sided": 24.4,
+      "one_sided": 25.5,
       "order": {
-       "high_to_low": 46.0,
-       "low_to_high": 54.0
+       "high_to_low": 45.9,
+       "low_to_high": 54.1
       }
      }
     },
     "rolling": {
      "m30": [
-      {
-       "from": "2026-04-20",
-       "to": "2026-05-29",
-       "n": 30,
-       "high_taken": 60.0,
-       "low_taken": 66.7,
-       "break_rate": 100.0,
-       "one_sided": 73.3,
-       "both": 26.7,
-       "neither": 0.0
-      },
-      {
-       "from": "2026-04-27",
-       "to": "2026-06-05",
-       "n": 30,
-       "high_taken": 56.7,
-       "low_taken": 73.3,
-       "break_rate": 100.0,
-       "one_sided": 70.0,
-       "both": 30.0,
-       "neither": 0.0
-      },
       {
        "from": "2026-05-04",
        "to": "2026-06-12",
@@ -433,31 +412,31 @@
        "one_sided": 73.3,
        "both": 26.7,
        "neither": 0.0
+      },
+      {
+       "from": "2026-09-16",
+       "to": "2026-10-27",
+       "n": 30,
+       "high_taken": 70.0,
+       "low_taken": 56.7,
+       "break_rate": 100.0,
+       "one_sided": 73.3,
+       "both": 26.7,
+       "neither": 0.0
+      },
+      {
+       "from": "2026-09-22",
+       "to": "2026-11-02",
+       "n": 30,
+       "high_taken": 73.3,
+       "low_taken": 60.0,
+       "break_rate": 100.0,
+       "one_sided": 66.7,
+       "both": 33.3,
+       "neither": 0.0
       }
      ],
      "m60": [
-      {
-       "from": "2026-04-20",
-       "to": "2026-05-29",
-       "n": 30,
-       "high_taken": 70.0,
-       "low_taken": 80.0,
-       "break_rate": 100.0,
-       "one_sided": 50.0,
-       "both": 50.0,
-       "neither": 0.0
-      },
-      {
-       "from": "2026-04-27",
-       "to": "2026-06-05",
-       "n": 30,
-       "high_taken": 63.4,
-       "low_taken": 83.4,
-       "break_rate": 100.0,
-       "one_sided": 53.4,
-       "both": 46.7,
-       "neither": 0.0
-      },
       {
        "from": "2026-05-04",
        "to": "2026-06-12",
@@ -633,84 +612,84 @@
        "one_sided": 63.4,
        "both": 36.7,
        "neither": 0.0
-      }
-     ]
-    }
-   },
-   "london": {
-    "open_utc": 7,
-    "or_range_avg": 35.25,
-    "overall": {
-     "m30": {
-      "days": 114,
-      "both": 35.1,
-      "high_only": 34.2,
-      "low_only": 29.8,
-      "neither": 0.9,
-      "high_taken": 69.3,
-      "low_taken": 64.9,
-      "break_rate": 99.1,
-      "one_sided": 64.0,
-      "order": {
-       "high_to_low": 57.5,
-       "low_to_high": 42.5
-      }
-     },
-     "m60": {
-      "days": 114,
-      "both": 50.0,
-      "high_only": 27.2,
-      "low_only": 22.8,
-      "neither": 0.0,
-      "high_taken": 77.2,
-      "low_taken": 72.8,
-      "break_rate": 100.0,
-      "one_sided": 50.0,
-      "order": {
-       "high_to_low": 54.4,
-       "low_to_high": 45.6
-      }
-     },
-     "sess": {
-      "days": 114,
-      "both": 82.5,
-      "high_only": 9.6,
-      "low_only": 7.9,
-      "neither": 0.0,
-      "high_taken": 92.1,
-      "low_taken": 90.4,
-      "break_rate": 100.0,
-      "one_sided": 17.5,
-      "order": {
-       "high_to_low": 54.3,
-       "low_to_high": 45.7
-      }
-     }
-    },
-    "rolling": {
-     "m30": [
+      },
       {
-       "from": "2026-04-20",
-       "to": "2026-05-29",
+       "from": "2026-09-16",
+       "to": "2026-10-27",
        "n": 30,
-       "high_taken": 83.3,
-       "low_taken": 60.0,
+       "high_taken": 73.3,
+       "low_taken": 70.0,
        "break_rate": 100.0,
        "one_sided": 56.7,
        "both": 43.3,
        "neither": 0.0
       },
       {
-       "from": "2026-04-27",
-       "to": "2026-06-05",
+       "from": "2026-09-22",
+       "to": "2026-11-02",
        "n": 30,
-       "high_taken": 83.3,
-       "low_taken": 56.7,
+       "high_taken": 73.4,
+       "low_taken": 73.4,
        "break_rate": 100.0,
-       "one_sided": 60.0,
-       "both": 40.0,
+       "one_sided": 53.4,
+       "both": 46.7,
        "neither": 0.0
-      },
+      }
+     ]
+    }
+   },
+   "london": {
+    "open_et": 3,
+    "or_range_avg": 36.26,
+    "overall": {
+     "m30": {
+      "days": 113,
+      "both": 33.6,
+      "high_only": 32.7,
+      "low_only": 32.7,
+      "neither": 0.9,
+      "high_taken": 66.3,
+      "low_taken": 66.3,
+      "break_rate": 99.1,
+      "one_sided": 65.4,
+      "order": {
+       "high_to_low": 52.6,
+       "low_to_high": 47.4
+      }
+     },
+     "m60": {
+      "days": 113,
+      "both": 48.7,
+      "high_only": 25.7,
+      "low_only": 25.7,
+      "neither": 0.0,
+      "high_taken": 74.4,
+      "low_taken": 74.4,
+      "break_rate": 100.0,
+      "one_sided": 51.4,
+      "order": {
+       "high_to_low": 50.9,
+       "low_to_high": 49.1
+      }
+     },
+     "sess": {
+      "days": 113,
+      "both": 79.6,
+      "high_only": 9.7,
+      "low_only": 10.6,
+      "neither": 0.0,
+      "high_taken": 89.3,
+      "low_taken": 90.2,
+      "break_rate": 100.0,
+      "one_sided": 20.3,
+      "order": {
+       "high_to_low": 51.1,
+       "low_to_high": 48.9
+      }
+     }
+    },
+    "rolling": {
+     "m30": [
       {
        "from": "2026-05-04",
        "to": "2026-06-12",
@@ -877,8 +856,30 @@
        "neither": 0.0
       },
       {
-       "from": "2026-09-08",
-       "to": "2026-10-19",
+       "from": "2026-09-09",
+       "to": "2026-10-20",
+       "n": 30,
+       "high_taken": 60.0,
+       "low_taken": 60.0,
+       "break_rate": 100.0,
+       "one_sided": 80.0,
+       "both": 20.0,
+       "neither": 0.0
+      },
+      {
+       "from": "2026-09-16",
+       "to": "2026-10-27",
+       "n": 30,
+       "high_taken": 60.0,
+       "low_taken": 63.3,
+       "break_rate": 100.0,
+       "one_sided": 76.7,
+       "both": 23.3,
+       "neither": 0.0
+      },
+      {
+       "from": "2026-09-21",
+       "to": "2026-10-30",
        "n": 30,
        "high_taken": 63.3,
        "low_taken": 60.0,
@@ -889,28 +890,6 @@
       }
      ],
      "m60": [
-      {
-       "from": "2026-04-20",
-       "to": "2026-05-29",
-       "n": 30,
-       "high_taken": 90.0,
-       "low_taken": 70.0,
-       "break_rate": 100.0,
-       "one_sided": 40.0,
-       "both": 60.0,
-       "neither": 0.0
-      },
-      {
-       "from": "2026-04-27",
-       "to": "2026-06-05",
-       "n": 30,
-       "high_taken": 86.6,
-       "low_taken": 66.6,
-       "break_rate": 100.0,
-       "one_sided": 46.6,
-       "both": 53.3,
-       "neither": 0.0
-      },
       {
        "from": "2026-05-04",
        "to": "2026-06-12",
@@ -1077,93 +1056,93 @@
        "neither": 0.0
       },
       {
-       "from": "2026-09-08",
-       "to": "2026-10-19",
+       "from": "2026-09-09",
+       "to": "2026-10-20",
        "n": 30,
-       "high_taken": 70.0,
+       "high_taken": 66.7,
        "low_taken": 73.3,
        "break_rate": 100.0,
-       "one_sided": 56.7,
-       "both": 43.3,
+       "one_sided": 60.0,
+       "both": 40.0,
+       "neither": 0.0
+      },
+      {
+       "from": "2026-09-16",
+       "to": "2026-10-27",
+       "n": 30,
+       "high_taken": 70.0,
+       "low_taken": 76.7,
+       "break_rate": 100.0,
+       "one_sided": 53.3,
+       "both": 46.7,
+       "neither": 0.0
+      },
+      {
+       "from": "2026-09-21",
+       "to": "2026-10-30",
+       "n": 30,
+       "high_taken": 73.4,
+       "low_taken": 73.4,
+       "break_rate": 100.0,
+       "one_sided": 53.4,
+       "both": 46.7,
        "neither": 0.0
       }
      ]
     }
    },
    "ny": {
-    "open_utc": 12,
-    "or_range_avg": 32.02,
+    "open_et": 8,
+    "or_range_avg": 33.31,
     "overall": {
      "m30": {
-      "days": 114,
-      "both": 41.2,
-      "high_only": 31.6,
-      "low_only": 27.2,
+      "days": 113,
+      "both": 38.9,
+      "high_only": 32.7,
+      "low_only": 28.3,
       "neither": 0.0,
-      "high_taken": 72.8,
-      "low_taken": 68.4,
+      "high_taken": 71.6,
+      "low_taken": 67.2,
       "break_rate": 100.0,
-      "one_sided": 58.8,
+      "one_sided": 61.0,
       "order": {
-       "high_to_low": 42.6,
-       "low_to_high": 57.4
+       "high_to_low": 45.5,
+       "low_to_high": 54.5
       }
      },
      "m60": {
-      "days": 114,
-      "both": 57.0,
-      "high_only": 21.9,
-      "low_only": 21.1,
+      "days": 113,
+      "both": 54.0,
+      "high_only": 23.0,
+      "low_only": 23.0,
       "neither": 0.0,
-      "high_taken": 78.9,
-      "low_taken": 78.1,
+      "high_taken": 77.0,
+      "low_taken": 77.0,
       "break_rate": 100.0,
-      "one_sided": 43.0,
+      "one_sided": 46.0,
       "order": {
-       "high_to_low": 47.7,
-       "low_to_high": 52.3
+       "high_to_low": 50.8,
+       "low_to_high": 49.2
       }
      },
      "sess": {
-      "days": 114,
-      "both": 91.2,
+      "days": 113,
+      "both": 89.4,
       "high_only": 5.3,
-      "low_only": 3.5,
+      "low_only": 5.3,
       "neither": 0.0,
-      "high_taken": 96.5,
+      "high_taken": 94.7,
       "low_taken": 94.7,
       "break_rate": 100.0,
-      "one_sided": 8.8,
+      "one_sided": 10.6,
       "order": {
-       "high_to_low": 48.1,
-       "low_to_high": 51.9
+       "high_to_low": 50.5,
+       "low_to_high": 49.5
       }
      }
     },
     "rolling": {
      "m30": [
-      {
-       "from": "2026-04-20",
-       "to": "2026-05-29",
-       "n": 30,
-       "high_taken": 73.3,
-       "low_taken": 56.7,
-       "break_rate": 100.0,
-       "one_sided": 70.0,
-       "both": 30.0,
-       "neither": 0.0
-      },
-      {
-       "from": "2026-04-27",
-       "to": "2026-06-05",
-       "n": 30,
-       "high_taken": 66.7,
-       "low_taken": 63.3,
-       "break_rate": 100.0,
-       "one_sided": 70.0,
-       "both": 30.0,
-       "neither": 0.0
-      },
       {
        "from": "2026-05-04",
        "to": "2026-06-12",
@@ -1330,40 +1309,40 @@
        "neither": 0.0
       },
       {
-       "from": "2026-09-08",
-       "to": "2026-10-19",
+       "from": "2026-09-09",
+       "to": "2026-10-20",
        "n": 30,
-       "high_taken": 76.7,
-       "low_taken": 73.3,
+       "high_taken": 73.4,
+       "low_taken": 73.4,
        "break_rate": 100.0,
-       "one_sided": 50.0,
-       "both": 50.0,
+       "one_sided": 53.4,
+       "both": 46.7,
+       "neither": 0.0
+      },
+      {
+       "from": "2026-09-16",
+       "to": "2026-10-27",
+       "n": 30,
+       "high_taken": 73.3,
+       "low_taken": 60.0,
+       "break_rate": 100.0,
+       "one_sided": 66.7,
+       "both": 33.3,
+       "neither": 0.0
+      },
+      {
+       "from": "2026-09-21",
+       "to": "2026-10-30",
+       "n": 30,
+       "high_taken": 73.3,
+       "low_taken": 60.0,
+       "break_rate": 100.0,
+       "one_sided": 66.7,
+       "both": 33.3,
        "neither": 0.0
       }
      ],
      "m60": [
-      {
-       "from": "2026-04-20",
-       "to": "2026-05-29",
-       "n": 30,
-       "high_taken": 83.4,
-       "low_taken": 73.4,
-       "break_rate": 100.0,
-       "one_sided": 43.4,
-       "both": 56.7,
-       "neither": 0.0
-      },
-      {
-       "from": "2026-04-27",
-       "to": "2026-06-05",
-       "n": 30,
-       "high_taken": 76.6,
-       "low_taken": 76.6,
-       "break_rate": 100.0,
-       "one_sided": 46.6,
-       "both": 53.3,
-       "neither": 0.0
-      },
       {
        "from": "2026-05-04",
        "to": "2026-06-12",
@@ -1530,14 +1509,36 @@
        "neither": 0.0
       },
       {
-       "from": "2026-09-08",
-       "to": "2026-10-19",
+       "from": "2026-09-09",
+       "to": "2026-10-20",
        "n": 30,
        "high_taken": 80.0,
        "low_taken": 80.0,
        "break_rate": 100.0,
        "one_sided": 40.0,
        "both": 60.0,
+       "neither": 0.0
+      },
+      {
+       "from": "2026-09-16",
+       "to": "2026-10-27",
+       "n": 30,
+       "high_taken": 76.7,
+       "low_taken": 73.3,
+       "break_rate": 100.0,
+       "one_sided": 50.0,
+       "both": 50.0,
+       "neither": 0.0
+      },
+      {
+       "from": "2026-09-21",
+       "to": "2026-10-30",
+       "n": 30,
+       "high_taken": 76.7,
+       "low_taken": 73.3,
+       "break_rate": 100.0,
+       "one_sided": 50.0,
+       "both": 50.0,
        "neither": 0.0
       }
      ]
@@ -1546,79 +1547,57 @@
   },
   "or15": {
    "asia": {
-    "open_utc": 0,
-    "or_range_avg": 46.66,
+    "open_et": 20,
+    "or_range_avg": 45.49,
     "overall": {
      "m30": {
-      "days": 115,
-      "both": 12.2,
-      "high_only": 39.1,
-      "low_only": 39.1,
-      "neither": 9.6,
-      "high_taken": 51.3,
-      "low_taken": 51.3,
-      "break_rate": 90.4,
-      "one_sided": 78.2,
+      "days": 114,
+      "both": 12.3,
+      "high_only": 40.4,
+      "low_only": 36.8,
+      "neither": 10.5,
+      "high_taken": 52.7,
+      "low_taken": 49.1,
+      "break_rate": 89.5,
+      "one_sided": 77.2,
       "order": {
-       "high_to_low": 78.6,
-       "low_to_high": 21.4
+       "high_to_low": 71.4,
+       "low_to_high": 28.6
       }
      },
      "m60": {
-      "days": 115,
-      "both": 25.2,
-      "high_only": 36.5,
-      "low_only": 38.3,
+      "days": 114,
+      "both": 21.9,
+      "high_only": 37.7,
+      "low_only": 40.4,
       "neither": 0.0,
-      "high_taken": 61.7,
-      "low_taken": 63.5,
+      "high_taken": 59.6,
+      "low_taken": 62.3,
       "break_rate": 100.0,
-      "one_sided": 74.8,
+      "one_sided": 78.1,
       "order": {
-       "high_to_low": 65.5,
-       "low_to_high": 34.5
+       "high_to_low": 68.0,
+       "low_to_high": 32.0
       }
      },
      "sess": {
-      "days": 115,
-      "both": 66.1,
-      "high_only": 20.0,
-      "low_only": 13.9,
+      "days": 114,
+      "both": 64.0,
+      "high_only": 21.9,
+      "low_only": 14.0,
       "neither": 0.0,
-      "high_taken": 86.1,
-      "low_taken": 80.0,
+      "high_taken": 85.9,
+      "low_taken": 78.0,
       "break_rate": 100.0,
-      "one_sided": 33.9,
+      "one_sided": 35.9,
       "order": {
-       "high_to_low": 50.0,
-       "low_to_high": 50.0
+       "high_to_low": 47.9,
+       "low_to_high": 52.1
       }
      }
     },
     "rolling": {
      "m30": [
-      {
-       "from": "2026-04-20",
-       "to": "2026-05-29",
-       "n": 30,
-       "high_taken": 46.7,
-       "low_taken": 56.7,
-       "break_rate": 93.3,
-       "one_sided": 83.4,
-       "both": 10.0,
-       "neither": 6.7
-      },
-      {
-       "from": "2026-04-27",
-       "to": "2026-06-05",
-       "n": 30,
-       "high_taken": 40.0,
-       "low_taken": 56.7,
-       "break_rate": 86.7,
-       "one_sided": 76.7,
-       "both": 10.0,
-       "neither": 13.3
-      },
       {
        "from": "2026-05-04",
        "to": "2026-06-12",
@@ -1794,31 +1773,31 @@
        "one_sided": 86.6,
        "both": 6.7,
        "neither": 6.7
+      },
+      {
+       "from": "2026-09-16",
+       "to": "2026-10-27",
+       "n": 30,
+       "high_taken": 46.7,
+       "low_taken": 46.7,
+       "break_rate": 86.7,
+       "one_sided": 80.0,
+       "both": 6.7,
+       "neither": 13.3
+      },
+      {
+       "from": "2026-09-22",
+       "to": "2026-11-02",
+       "n": 30,
+       "high_taken": 43.4,
+       "low_taken": 50.0,
+       "break_rate": 86.7,
+       "one_sided": 80.0,
+       "both": 6.7,
+       "neither": 13.3
       }
      ],
      "m60": [
-      {
-       "from": "2026-04-20",
-       "to": "2026-05-29",
-       "n": 30,
-       "high_taken": 66.6,
-       "low_taken": 66.6,
-       "break_rate": 100.0,
-       "one_sided": 66.6,
-       "both": 33.3,
-       "neither": 0.0
-      },
-      {
-       "from": "2026-04-27",
-       "to": "2026-06-05",
-       "n": 30,
-       "high_taken": 60.0,
-       "low_taken": 70.0,
-       "break_rate": 100.0,
-       "one_sided": 70.0,
-       "both": 30.0,
-       "neither": 0.0
-      },
       {
        "from": "2026-05-04",
        "to": "2026-06-12",
@@ -1994,84 +1973,84 @@
        "one_sided": 80.0,
        "both": 20.0,
        "neither": 0.0
+      },
+      {
+       "from": "2026-09-16",
+       "to": "2026-10-27",
+       "n": 30,
+       "high_taken": 53.3,
+       "low_taken": 66.7,
+       "break_rate": 100.0,
+       "one_sided": 80.0,
+       "both": 20.0,
+       "neither": 0.0
+      },
+      {
+       "from": "2026-09-22",
+       "to": "2026-11-02",
+       "n": 30,
+       "high_taken": 50.0,
+       "low_taken": 66.7,
+       "break_rate": 100.0,
+       "one_sided": 83.3,
+       "both": 16.7,
+       "neither": 0.0
       }
      ]
     }
    },
    "london": {
-    "open_utc": 7,
-    "or_range_avg": 52.17,
+    "open_et": 3,
+    "or_range_avg": 54.01,
     "overall": {
      "m30": {
-      "days": 114,
-      "both": 17.5,
-      "high_only": 39.5,
-      "low_only": 37.7,
+      "days": 113,
+      "both": 14.2,
+      "high_only": 39.8,
+      "low_only": 40.7,
       "neither": 5.3,
-      "high_taken": 57.0,
-      "low_taken": 55.2,
+      "high_taken": 54.0,
+      "low_taken": 54.9,
       "break_rate": 94.7,
-      "one_sided": 77.2,
+      "one_sided": 80.5,
       "order": {
-       "high_to_low": 50.0,
-       "low_to_high": 50.0
+       "high_to_low": 43.8,
+       "low_to_high": 56.2
       }
      },
      "m60": {
-      "days": 114,
-      "both": 36.8,
-      "high_only": 32.5,
-      "low_only": 30.7,
+      "days": 113,
+      "both": 35.4,
+      "high_only": 31.9,
+      "low_only": 32.7,
       "neither": 0.0,
-      "high_taken": 69.3,
-      "low_taken": 67.5,
+      "high_taken": 67.3,
+      "low_taken": 68.1,
       "break_rate": 100.0,
-      "one_sided": 63.2,
+      "one_sided": 64.6,
       "order": {
-       "high_to_low": 54.8,
-       "low_to_high": 45.2
+       "high_to_low": 52.5,
+       "low_to_high": 47.5
       }
      },
      "sess": {
-      "days": 114,
-      "both": 74.6,
-      "high_only": 14.0,
-      "low_only": 11.4,
+      "days": 113,
+      "both": 73.5,
+      "high_only": 13.3,
+      "low_only": 13.3,
       "neither": 0.0,
-      "high_taken": 88.6,
-      "low_taken": 86.0,
+      "high_taken": 86.8,
+      "low_taken": 86.8,
       "break_rate": 100.0,
-      "one_sided": 25.4,
+      "one_sided": 26.6,
       "order": {
-       "high_to_low": 51.8,
-       "low_to_high": 48.2
+       "high_to_low": 50.6,
+       "low_to_high": 49.4
       }
      }
     },
     "rolling": {
      "m30": [
-      {
-       "from": "2026-04-20",
-       "to": "2026-05-29",
-       "n": 30,
-       "high_taken": 70.0,
-       "low_taken": 53.4,
-       "break_rate": 96.7,
-       "one_sided": 70.0,
-       "both": 26.7,
-       "neither": 3.3
-      },
-      {
-       "from": "2026-04-27",
-       "to": "2026-06-05",
-       "n": 30,
-       "high_taken": 73.3,
-       "low_taken": 50.0,
-       "break_rate": 100.0,
-       "one_sided": 76.7,
-       "both": 23.3,
-       "neither": 0.0
-      },
       {
        "from": "2026-05-04",
        "to": "2026-06-12",
@@ -2238,8 +2217,8 @@
        "neither": 6.7
       },
       {
-       "from": "2026-09-08",
-       "to": "2026-10-19",
+       "from": "2026-09-09",
+       "to": "2026-10-20",
        "n": 30,
        "high_taken": 50.0,
        "low_taken": 50.0,
@@ -2247,31 +2226,31 @@
        "one_sided": 80.0,
        "both": 10.0,
        "neither": 10.0
+      },
+      {
+       "from": "2026-09-16",
+       "to": "2026-10-27",
+       "n": 30,
+       "high_taken": 50.0,
+       "low_taken": 50.0,
+       "break_rate": 90.0,
+       "one_sided": 80.0,
+       "both": 10.0,
+       "neither": 10.0
+      },
+      {
+       "from": "2026-09-21",
+       "to": "2026-10-30",
+       "n": 30,
+       "high_taken": 46.7,
+       "low_taken": 50.0,
+       "break_rate": 86.7,
+       "one_sided": 76.7,
+       "both": 10.0,
+       "neither": 13.3
       }
      ],
      "m60": [
-      {
-       "from": "2026-04-20",
-       "to": "2026-05-29",
-       "n": 30,
-       "high_taken": 80.0,
-       "low_taken": 63.3,
-       "break_rate": 100.0,
-       "one_sided": 56.7,
-       "both": 43.3,
-       "neither": 0.0
-      },
-      {
-       "from": "2026-04-27",
-       "to": "2026-06-05",
-       "n": 30,
-       "high_taken": 80.0,
-       "low_taken": 60.0,
-       "break_rate": 100.0,
-       "one_sided": 60.0,
-       "both": 40.0,
-       "neither": 0.0
-      },
       {
        "from": "2026-05-04",
        "to": "2026-06-12",
@@ -2438,11 +2417,33 @@
        "neither": 0.0
       },
       {
-       "from": "2026-09-08",
-       "to": "2026-10-19",
+       "from": "2026-09-09",
+       "to": "2026-10-20",
        "n": 30,
        "high_taken": 66.7,
        "low_taken": 70.0,
+       "break_rate": 100.0,
+       "one_sided": 63.3,
+       "both": 36.7,
+       "neither": 0.0
+      },
+      {
+       "from": "2026-09-16",
+       "to": "2026-10-27",
+       "n": 30,
+       "high_taken": 70.0,
+       "low_taken": 70.0,
+       "break_rate": 100.0,
+       "one_sided": 60.0,
+       "both": 40.0,
+       "neither": 0.0
+      },
+      {
+       "from": "2026-09-21",
+       "to": "2026-10-30",
+       "n": 30,
+       "high_taken": 70.0,
+       "low_taken": 66.7,
        "break_rate": 100.0,
        "one_sided": 63.3,
        "both": 36.7,
@@ -2452,79 +2453,57 @@
     }
    },
    "ny": {
-    "open_utc": 12,
-    "or_range_avg": 59.66,
+    "open_et": 8,
+    "or_range_avg": 60.64,
     "overall": {
      "m30": {
-      "days": 114,
-      "both": 34.2,
-      "high_only": 30.7,
-      "low_only": 28.9,
-      "neither": 6.1,
-      "high_taken": 64.9,
-      "low_taken": 63.1,
-      "break_rate": 93.9,
-      "one_sided": 59.6,
+      "days": 113,
+      "both": 34.5,
+      "high_only": 32.7,
+      "low_only": 28.3,
+      "neither": 4.4,
+      "high_taken": 67.2,
+      "low_taken": 62.8,
+      "break_rate": 95.6,
+      "one_sided": 61.0,
       "order": {
        "high_to_low": 48.7,
        "low_to_high": 51.3
       }
      },
      "m60": {
-      "days": 114,
-      "both": 45.6,
-      "high_only": 25.4,
-      "low_only": 26.3,
-      "neither": 2.6,
-      "high_taken": 71.0,
-      "low_taken": 71.9,
-      "break_rate": 97.4,
-      "one_sided": 51.7,
+      "days": 113,
+      "both": 45.1,
+      "high_only": 26.5,
+      "low_only": 26.5,
+      "neither": 1.8,
+      "high_taken": 71.6,
+      "low_taken": 71.6,
+      "break_rate": 98.2,
+      "one_sided": 53.0,
       "order": {
-       "high_to_low": 53.8,
-       "low_to_high": 46.2
+       "high_to_low": 56.9,
+       "low_to_high": 43.1
       }
      },
      "sess": {
-      "days": 114,
-      "both": 86.8,
+      "days": 113,
+      "both": 85.0,
       "high_only": 8.8,
-      "low_only": 4.4,
+      "low_only": 6.2,
       "neither": 0.0,
-      "high_taken": 95.6,
+      "high_taken": 93.8,
       "low_taken": 91.2,
       "break_rate": 100.0,
-      "one_sided": 13.2,
+      "one_sided": 15.0,
       "order": {
-       "high_to_low": 47.5,
-       "low_to_high": 52.5
+       "high_to_low": 51.0,
+       "low_to_high": 49.0
       }
      }
     },
     "rolling": {
      "m30": [
-      {
-       "from": "2026-04-20",
-       "to": "2026-05-29",
-       "n": 30,
-       "high_taken": 63.3,
-       "low_taken": 46.7,
-       "break_rate": 90.0,
-       "one_sided": 70.0,
-       "both": 20.0,
-       "neither": 10.0
-      },
-      {
-       "from": "2026-04-27",
-       "to": "2026-06-05",
-       "n": 30,
-       "high_taken": 63.3,
-       "low_taken": 53.3,
-       "break_rate": 93.3,
-       "one_sided": 70.0,
-       "both": 23.3,
-       "neither": 6.7
-      },
       {
        "from": "2026-05-04",
        "to": "2026-06-12",
@@ -2691,8 +2670,8 @@
        "neither": 3.3
       },
       {
-       "from": "2026-09-08",
-       "to": "2026-10-19",
+       "from": "2026-09-09",
+       "to": "2026-10-20",
        "n": 30,
        "high_taken": 70.0,
        "low_taken": 76.7,
@@ -2700,31 +2679,31 @@
        "one_sided": 46.7,
        "both": 50.0,
        "neither": 3.3
+      },
+      {
+       "from": "2026-09-16",
+       "to": "2026-10-27",
+       "n": 30,
+       "high_taken": 66.7,
+       "low_taken": 66.7,
+       "break_rate": 96.7,
+       "one_sided": 60.0,
+       "both": 36.7,
+       "neither": 3.3
+      },
+      {
+       "from": "2026-09-21",
+       "to": "2026-10-30",
+       "n": 30,
+       "high_taken": 70.0,
+       "low_taken": 66.7,
+       "break_rate": 96.7,
+       "one_sided": 56.7,
+       "both": 40.0,
+       "neither": 3.3
       }
      ],
      "m60": [
-      {
-       "from": "2026-04-20",
-       "to": "2026-05-29",
-       "n": 30,
-       "high_taken": 73.4,
-       "low_taken": 70.0,
-       "break_rate": 96.7,
-       "one_sided": 50.0,
-       "both": 46.7,
-       "neither": 3.3
-      },
-      {
-       "from": "2026-04-27",
-       "to": "2026-06-05",
-       "n": 30,
-       "high_taken": 73.3,
-       "low_taken": 73.3,
-       "break_rate": 96.7,
-       "one_sided": 46.6,
-       "both": 50.0,
-       "neither": 3.3
-      },
       {
        "from": "2026-05-04",
        "to": "2026-06-12",
@@ -2891,14 +2870,36 @@
        "neither": 3.3
       },
       {
-       "from": "2026-09-08",
-       "to": "2026-10-19",
+       "from": "2026-09-09",
+       "to": "2026-10-20",
        "n": 30,
        "high_taken": 70.0,
        "low_taken": 80.0,
        "break_rate": 96.7,
        "one_sided": 43.4,
        "both": 53.3,
+       "neither": 3.3
+      },
+      {
+       "from": "2026-09-16",
+       "to": "2026-10-27",
+       "n": 30,
+       "high_taken": 66.6,
+       "low_taken": 73.3,
+       "break_rate": 96.7,
+       "one_sided": 53.3,
+       "both": 43.3,
+       "neither": 3.3
+      },
+      {
+       "from": "2026-09-21",
+       "to": "2026-10-30",
+       "n": 30,
+       "high_taken": 70.0,
+       "low_taken": 73.4,
+       "break_rate": 96.7,
+       "one_sided": 50.0,
+       "both": 46.7,
        "neither": 3.3
       }
      ]
@@ -2908,90 +2909,90 @@
  },
  "ny_entry": {
   "up": {
-   "n": 145,
-   "offset_pct": 0.19,
-   "offset_p75_pct": 0.345,
-   "median_min": 15,
-   "within_30min": 59.0,
-   "within_60min": 72.0,
-   "follow_pct": 0.885,
+   "n": 148,
+   "offset_pct": 0.166,
+   "offset_p75_pct": 0.351,
+   "median_min": 9,
+   "within_30min": 71.0,
+   "within_60min": 80.0,
+   "follow_pct": 0.882,
    "reach_2x_offset_pct": 100.0
   },
   "down": {
-   "n": 144,
-   "offset_pct": 0.188,
-   "offset_p75_pct": 0.333,
-   "median_min": 17,
-   "within_30min": 56.0,
-   "within_60min": 72.0,
-   "follow_pct": 0.914,
+   "n": 142,
+   "offset_pct": 0.194,
+   "offset_p75_pct": 0.327,
+   "median_min": 9,
+   "within_30min": 69.0,
+   "within_60min": 77.0,
+   "follow_pct": 0.893,
    "reach_2x_offset_pct": 100.0
   }
  },
  "trade_sim": {
   "up": {
-   "n_days": 145,
-   "filled": 73,
+   "n_days": 148,
+   "filled": 74,
    "fill_rate": 50.0,
-   "offset_pct": 0.19,
-   "win_rate": 81.0,
+   "offset_pct": 0.166,
+   "win_rate": 77.0,
    "targets": {
-    "1.0": 81.0,
-    "1.5": 73.0,
-    "2.0": 66.0,
-    "2.5": 59.0,
-    "3.0": 53.0
+    "1.0": 77.0,
+    "1.5": 68.0,
+    "2.0": 57.0,
+    "2.5": 50.0,
+    "3.0": 46.0
    },
-   "avg_max_r": 3.23,
-   "median_max_r": 3.09,
-   "entry_min": 20,
-   "run_min": 140
+   "avg_max_r": 3.08,
+   "median_max_r": 2.45,
+   "entry_min": 0,
+   "run_min": 55
   },
   "down": {
-   "n_days": 144,
-   "filled": 72,
+   "n_days": 142,
+   "filled": 71,
    "fill_rate": 50.0,
-   "offset_pct": 0.188,
-   "win_rate": 82.0,
+   "offset_pct": 0.194,
+   "win_rate": 85.0,
    "targets": {
-    "1.0": 82.0,
-    "1.5": 64.0,
-    "2.0": 57.0,
-    "2.5": 49.0,
-    "3.0": 47.0
+    "1.0": 85.0,
+    "1.5": 69.0,
+    "2.0": 68.0,
+    "2.5": 59.0,
+    "3.0": 56.0
    },
-   "avg_max_r": 3.12,
-   "median_max_r": 2.43,
-   "entry_min": 15,
-   "run_min": 102
+   "avg_max_r": 3.64,
+   "median_max_r": 3.29,
+   "entry_min": 5,
+   "run_min": 145
   }
  },
  "by_hour": {
   "volatility": [
-   247.6,
-   217.7,
-   170.9,
-   151.6,
-   141.0,
-   173.5,
-   215.3,
-   273.7,
-   300.8,
-   253.3,
-   258.4,
-   291.9,
-   351.0,
-   606.2,
-   710.2,
-   605.4,
-   499.7,
-   460.4,
-   442.7,
-   454.6,
-   380.6,
-   378.3,
-   241.1,
-   203.2
+   143.8,
+   180.3,
+   222.1,
+   299.9,
+   293.1,
+   249.9,
+   267.3,
+   302.2,
+   367.4,
+   727.1,
+   713.6,
+   560.9,
+   479.2,
+   447.7,
+   440.3,
+   459.2,
+   306.4,
+   0.0,
+   246.3,
+   193.6,
+   250.0,
+   208.8,
+   168.5,
+   147.3
   ],
   "volume": [
    0.0,
@@ -3003,3437 +3004,2588 @@
    0.0,
    0.0,
    0.0,
+   0.1,
+   0.1,
+   0.1,
+   0.1,
+   0.1,
+   0.1,
+   0.1,
    0.0,
    0.0,
    0.0,
    0.0,
-   0.1,
-   0.1,
-   0.1,
-   0.1,
-   0.1,
-   0.1,
-   0.1,
    0.0,
    0.0,
    0.0,
    0.0
   ]
  },
- "prev": {
+ "edge": {
   "meta": {
-   "instrument": "YM",
-   "label": "DOW (US Wall St 30)",
-   "unit": "bodů",
-   "from": "2025-08-01",
-   "to": "2026-09-17",
-   "bars_m5": 54495,
-   "days": 207,
-   "weeks": 44
-  },
-  "session_sizes": {
-   "asia": {
-    "avg": 176.6,
-    "median": 149.4,
-    "min": 48.6,
-    "max": 722.0
-   },
-   "london": {
-    "avg": 233.0,
-    "median": 196.6,
-    "min": 67.5,
-    "max": 1653.0
-   },
-   "ny": {
-    "avg": 516.1,
-    "median": 476.0,
-    "min": 140.7,
-    "max": 1259.4
-   }
-  },
-  "daily_high_session": {
-   "asia": 13.5,
-   "london": 8.7,
-   "ny": 68.6,
-   "close": 9.2
-  },
-  "daily_low_session": {
-   "asia": 13.5,
-   "london": 9.2,
-   "ny": 61.4,
-   "close": 15.9
-  },
-  "daily_open_revisit": {
-   "same": 93.7,
-   "1": 1.9,
-   "2": 1.0,
-   "3": 1.0,
-   "never": 2.4
-  },
-  "candle_hl_revisit": {
-   "levels": 408,
-   "1": 48.0,
-   "2": 12.7,
-   "3": 7.4,
-   "never": 31.9
-  },
-  "daily_npoc_revisit": {
-   "days": 206,
-   "1": 72.8,
-   "2": 6.8,
-   "3": 2.9,
-   "never": 17.5
-  },
-  "session_npoc_revisit": {
-   "asia": {
-    "days": 205,
-    "same": 86.8,
-    "1": 5.9,
-    "2": 2.0,
-    "3": 0.5,
-    "never": 4.9
-   },
-   "london": {
-    "days": 205,
-    "same": 81.5,
-    "1": 7.8,
-    "2": 2.4,
-    "3": 1.0,
-    "never": 7.3
-   },
-   "ny": {
-    "days": 205,
-    "same": 5.9,
-    "1": 67.8,
-    "2": 6.8,
-    "3": 3.4,
-    "never": 16.1
-   }
-  },
-  "vwap_edge_revisit": {
-   "days": 207,
-   "same": 100.0,
-   "1": 0.0,
-   "2": 0.0,
-   "3": 0.0,
-   "never": 0.0
-  },
-  "weekly_high_day": {
-   "Po": 18.2,
-   "Út": 18.2,
-   "St": 13.6,
-   "Čt": 22.7,
-   "Pá": 27.3
-  },
-  "weekly_low_day": {
-   "Po": 31.8,
-   "Út": 6.8,
-   "St": 13.6,
-   "Čt": 22.7,
-   "Pá": 25.0
-  },
-  "weekly_open_revisit": {
-   "Po": 90.9,
-   "Út": 0.0,
-   "St": 0.0,
-   "Čt": 0.0,
-   "Pá": 4.5,
-   "Nikdy": 4.5
-  },
-  "asia_both_sides": {
-   "days": 205,
-   "both": 54.6,
-   "high_only": 24.4,
-   "low_only": 20.5,
-   "neither": 0.5,
-   "order": {
-    "low_to_high": 45.5,
-    "high_to_low": 54.5
-   }
-  },
-  "globex_both_sides": {
-   "days": 205,
-   "both": 27.8,
-   "high_only": 36.6,
-   "low_only": 30.2,
-   "neither": 5.4,
-   "order": {
-    "low_to_high": 31.6,
-    "high_to_low": 68.4
-   }
-  },
-  "first15_range": {
-   "days": 204,
-   "c23": {
-    "both": 11.8,
-    "high_only": 38.2,
-    "low_only": 37.7,
-    "neither": 12.3,
-    "order": {
-     "high_to_low": 54.2,
-     "low_to_high": 45.8
-    }
-   },
-   "eod": {
-    "both": 50.0,
-    "high_only": 23.5,
-    "low_only": 26.0,
-    "neither": 0.5,
-    "order": {
-     "high_to_low": 52.0,
-     "low_to_high": 48.0
-    }
-   }
-  },
-  "orb_sessions": {
-   "_meta": {
-    "months": 6,
-    "window_days": 30,
-    "step_days": 5,
-    "from": "2026-03-19",
-    "to": "2026-09-18",
-    "horizons": {
-     "m30": "30 min",
-     "m60": "60 min",
-     "sess": "celá session"
-    },
-    "or_lengths": {
-     "or5": "5 min",
-     "or15": "15 min"
-    }
-   },
-   "or5": {
-    "asia": {
-     "open_utc": 0,
-     "or_range_avg": 33.38,
-     "overall": {
-      "m30": {
-       "days": 130,
-       "both": 35.4,
-       "high_only": 34.6,
-       "low_only": 28.5,
-       "neither": 1.5,
-       "high_taken": 70.0,
-       "low_taken": 63.9,
-       "break_rate": 98.5,
-       "one_sided": 63.1,
-       "order": {
-        "high_to_low": 52.2,
-        "low_to_high": 47.8
-       }
-      },
-      "m60": {
-       "days": 130,
-       "both": 48.5,
-       "high_only": 26.9,
-       "low_only": 24.6,
-       "neither": 0.0,
-       "high_taken": 75.4,
-       "low_taken": 73.1,
-       "break_rate": 100.0,
-       "one_sided": 51.5,
-       "order": {
-        "high_to_low": 55.6,
-        "low_to_high": 44.4
-       }
-      },
-      "sess": {
-       "days": 130,
-       "both": 76.9,
-       "high_only": 15.4,
-       "low_only": 7.7,
-       "neither": 0.0,
-       "high_taken": 92.3,
-       "low_taken": 84.6,
-       "break_rate": 100.0,
-       "one_sided": 23.1,
-       "order": {
-        "high_to_low": 50.0,
-        "low_to_high": 50.0
-       }
-      }
-     },
-     "rolling": {
-      "m30": [
-       {
-        "from": "2026-03-19",
-        "to": "2026-04-30",
-        "n": 30,
-        "high_taken": 70.0,
-        "low_taken": 73.3,
-        "break_rate": 100.0,
-        "one_sided": 56.7,
-        "both": 43.3,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-03-26",
-        "to": "2026-05-07",
-        "n": 30,
-        "high_taken": 63.3,
-        "low_taken": 66.7,
-        "break_rate": 100.0,
-        "one_sided": 70.0,
-        "both": 30.0,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-04-02",
-        "to": "2026-05-14",
-        "n": 30,
-        "high_taken": 70.0,
-        "low_taken": 70.0,
-        "break_rate": 100.0,
-        "one_sided": 60.0,
-        "both": 40.0,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-04-10",
-        "to": "2026-05-21",
-        "n": 30,
-        "high_taken": 63.4,
-        "low_taken": 73.4,
-        "break_rate": 100.0,
-        "one_sided": 63.4,
-        "both": 36.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-04-17",
-        "to": "2026-05-28",
-        "n": 30,
-        "high_taken": 56.7,
-        "low_taken": 70.0,
-        "break_rate": 100.0,
-        "one_sided": 73.3,
-        "both": 26.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-04-24",
-        "to": "2026-06-04",
-        "n": 30,
-        "high_taken": 60.0,
-        "low_taken": 70.0,
-        "break_rate": 100.0,
-        "one_sided": 70.0,
-        "both": 30.0,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-05-01",
-        "to": "2026-06-11",
-        "n": 30,
-        "high_taken": 56.6,
-        "low_taken": 76.6,
-        "break_rate": 100.0,
-        "one_sided": 66.6,
-        "both": 33.3,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-05-08",
-        "to": "2026-06-18",
-        "n": 30,
-        "high_taken": 60.0,
-        "low_taken": 70.0,
-        "break_rate": 93.3,
-        "one_sided": 56.6,
-        "both": 36.7,
-        "neither": 6.7
-       },
-       {
-        "from": "2026-05-15",
-        "to": "2026-06-25",
-        "n": 30,
-        "high_taken": 60.0,
-        "low_taken": 63.3,
-        "break_rate": 93.3,
-        "one_sided": 63.3,
-        "both": 30.0,
-        "neither": 6.7
-       },
-       {
-        "from": "2026-05-22",
-        "to": "2026-07-02",
-        "n": 30,
-        "high_taken": 66.6,
-        "low_taken": 60.0,
-        "break_rate": 93.3,
-        "one_sided": 60.0,
-        "both": 33.3,
-        "neither": 6.7
-       },
-       {
-        "from": "2026-05-29",
-        "to": "2026-07-09",
-        "n": 30,
-        "high_taken": 73.4,
-        "low_taken": 56.7,
-        "break_rate": 93.3,
-        "one_sided": 56.7,
-        "both": 36.7,
-        "neither": 6.7
-       },
-       {
-        "from": "2026-06-05",
-        "to": "2026-07-16",
-        "n": 30,
-        "high_taken": 73.3,
-        "low_taken": 50.0,
-        "break_rate": 93.3,
-        "one_sided": 63.3,
-        "both": 30.0,
-        "neither": 6.7
-       },
-       {
-        "from": "2026-06-12",
-        "to": "2026-07-23",
-        "n": 30,
-        "high_taken": 76.7,
-        "low_taken": 43.4,
-        "break_rate": 93.3,
-        "one_sided": 66.7,
-        "both": 26.7,
-        "neither": 6.7
-       },
-       {
-        "from": "2026-06-19",
-        "to": "2026-07-30",
-        "n": 30,
-        "high_taken": 80.0,
-        "low_taken": 53.3,
-        "break_rate": 100.0,
-        "one_sided": 66.7,
-        "both": 33.3,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-06-26",
-        "to": "2026-08-06",
-        "n": 30,
-        "high_taken": 80.0,
-        "low_taken": 46.7,
-        "break_rate": 100.0,
-        "one_sided": 73.3,
-        "both": 26.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-07-03",
-        "to": "2026-08-13",
-        "n": 30,
-        "high_taken": 76.7,
-        "low_taken": 50.0,
-        "break_rate": 100.0,
-        "one_sided": 73.3,
-        "both": 26.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-07-10",
-        "to": "2026-08-20",
-        "n": 30,
-        "high_taken": 70.0,
-        "low_taken": 63.3,
-        "break_rate": 100.0,
-        "one_sided": 66.7,
-        "both": 33.3,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-07-17",
-        "to": "2026-08-27",
-        "n": 30,
-        "high_taken": 70.0,
-        "low_taken": 63.3,
-        "break_rate": 100.0,
-        "one_sided": 66.7,
-        "both": 33.3,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-07-24",
-        "to": "2026-09-03",
-        "n": 30,
-        "high_taken": 73.4,
-        "low_taken": 63.4,
-        "break_rate": 100.0,
-        "one_sided": 63.4,
-        "both": 36.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-07-31",
-        "to": "2026-09-10",
-        "n": 30,
-        "high_taken": 73.4,
-        "low_taken": 63.4,
-        "break_rate": 100.0,
-        "one_sided": 63.4,
-        "both": 36.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-08-07",
-        "to": "2026-09-17",
-        "n": 30,
-        "high_taken": 73.3,
-        "low_taken": 66.7,
-        "break_rate": 100.0,
-        "one_sided": 60.0,
-        "both": 40.0,
-        "neither": 0.0
-       }
-      ],
-      "m60": [
-       {
-        "from": "2026-03-19",
-        "to": "2026-04-30",
-        "n": 30,
-        "high_taken": 83.4,
-        "low_taken": 83.4,
-        "break_rate": 100.0,
-        "one_sided": 33.4,
-        "both": 66.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-03-26",
-        "to": "2026-05-07",
-        "n": 30,
-        "high_taken": 80.0,
-        "low_taken": 76.7,
-        "break_rate": 100.0,
-        "one_sided": 43.3,
-        "both": 56.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-04-02",
-        "to": "2026-05-14",
-        "n": 30,
-        "high_taken": 80.0,
-        "low_taken": 80.0,
-        "break_rate": 100.0,
-        "one_sided": 40.0,
-        "both": 60.0,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-04-10",
-        "to": "2026-05-21",
-        "n": 30,
-        "high_taken": 73.4,
-        "low_taken": 83.4,
-        "break_rate": 100.0,
-        "one_sided": 43.4,
-        "both": 56.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-04-17",
-        "to": "2026-05-28",
-        "n": 30,
-        "high_taken": 66.7,
-        "low_taken": 80.0,
-        "break_rate": 100.0,
-        "one_sided": 53.3,
-        "both": 46.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-04-24",
-        "to": "2026-06-04",
-        "n": 30,
-        "high_taken": 66.7,
-        "low_taken": 83.3,
-        "break_rate": 100.0,
-        "one_sided": 50.0,
-        "both": 50.0,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-05-01",
-        "to": "2026-06-11",
-        "n": 30,
-        "high_taken": 60.0,
-        "low_taken": 83.3,
-        "break_rate": 100.0,
-        "one_sided": 56.7,
-        "both": 43.3,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-05-08",
-        "to": "2026-06-18",
-        "n": 30,
-        "high_taken": 63.3,
-        "low_taken": 80.0,
-        "break_rate": 100.0,
-        "one_sided": 56.7,
-        "both": 43.3,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-05-15",
-        "to": "2026-06-25",
-        "n": 30,
-        "high_taken": 63.4,
-        "low_taken": 73.4,
-        "break_rate": 100.0,
-        "one_sided": 63.4,
-        "both": 36.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-05-22",
-        "to": "2026-07-02",
-        "n": 30,
-        "high_taken": 70.0,
-        "low_taken": 70.0,
-        "break_rate": 100.0,
-        "one_sided": 60.0,
-        "both": 40.0,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-05-29",
-        "to": "2026-07-09",
-        "n": 30,
-        "high_taken": 76.6,
-        "low_taken": 66.6,
-        "break_rate": 100.0,
-        "one_sided": 56.6,
-        "both": 43.3,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-06-05",
-        "to": "2026-07-16",
-        "n": 30,
-        "high_taken": 76.6,
-        "low_taken": 66.6,
-        "break_rate": 100.0,
-        "one_sided": 56.6,
-        "both": 43.3,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-06-12",
-        "to": "2026-07-23",
-        "n": 30,
-        "high_taken": 80.0,
-        "low_taken": 60.0,
-        "break_rate": 100.0,
-        "one_sided": 60.0,
-        "both": 40.0,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-06-19",
-        "to": "2026-07-30",
-        "n": 30,
-        "high_taken": 80.0,
-        "low_taken": 66.7,
-        "break_rate": 100.0,
-        "one_sided": 53.3,
-        "both": 46.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-06-26",
-        "to": "2026-08-06",
-        "n": 30,
-        "high_taken": 83.3,
-        "low_taken": 60.0,
-        "break_rate": 100.0,
-        "one_sided": 56.7,
-        "both": 43.3,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-07-03",
-        "to": "2026-08-13",
-        "n": 30,
-        "high_taken": 80.0,
-        "low_taken": 60.0,
-        "break_rate": 100.0,
-        "one_sided": 60.0,
-        "both": 40.0,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-07-10",
-        "to": "2026-08-20",
-        "n": 30,
-        "high_taken": 73.4,
-        "low_taken": 73.4,
-        "break_rate": 100.0,
-        "one_sided": 53.4,
-        "both": 46.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-07-17",
-        "to": "2026-08-27",
-        "n": 30,
-        "high_taken": 73.3,
-        "low_taken": 70.0,
-        "break_rate": 100.0,
-        "one_sided": 56.7,
-        "both": 43.3,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-07-24",
-        "to": "2026-09-03",
-        "n": 30,
-        "high_taken": 76.7,
-        "low_taken": 70.0,
-        "break_rate": 100.0,
-        "one_sided": 53.3,
-        "both": 46.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-07-31",
-        "to": "2026-09-10",
-        "n": 30,
-        "high_taken": 76.7,
-        "low_taken": 70.0,
-        "break_rate": 100.0,
-        "one_sided": 53.3,
-        "both": 46.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-08-07",
-        "to": "2026-09-17",
-        "n": 30,
-        "high_taken": 73.4,
-        "low_taken": 73.4,
-        "break_rate": 100.0,
-        "one_sided": 53.4,
-        "both": 46.7,
-        "neither": 0.0
-       }
-      ]
-     }
-    },
-    "london": {
-     "open_utc": 7,
-     "or_range_avg": 36.24,
-     "overall": {
-      "m30": {
-       "days": 130,
-       "both": 37.7,
-       "high_only": 33.1,
-       "low_only": 27.7,
-       "neither": 1.5,
-       "high_taken": 70.8,
-       "low_taken": 65.4,
-       "break_rate": 98.5,
-       "one_sided": 60.8,
-       "order": {
-        "high_to_low": 55.1,
-        "low_to_high": 44.9
-       }
-      },
-      "m60": {
-       "days": 130,
-       "both": 51.5,
-       "high_only": 24.6,
-       "low_only": 23.8,
-       "neither": 0.0,
-       "high_taken": 76.1,
-       "low_taken": 75.3,
-       "break_rate": 100.0,
-       "one_sided": 48.4,
-       "order": {
-        "high_to_low": 56.7,
-        "low_to_high": 43.3
-       }
-      },
-      "sess": {
-       "days": 130,
-       "both": 83.8,
-       "high_only": 9.2,
-       "low_only": 6.9,
-       "neither": 0.0,
-       "high_taken": 93.0,
-       "low_taken": 90.7,
-       "break_rate": 100.0,
-       "one_sided": 16.1,
-       "order": {
-        "high_to_low": 53.2,
-        "low_to_high": 46.8
-       }
-      }
-     },
-     "rolling": {
-      "m30": [
-       {
-        "from": "2026-03-19",
-        "to": "2026-04-30",
-        "n": 30,
-        "high_taken": 73.3,
-        "low_taken": 66.7,
-        "break_rate": 100.0,
-        "one_sided": 60.0,
-        "both": 40.0,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-03-26",
-        "to": "2026-05-07",
-        "n": 30,
-        "high_taken": 73.3,
-        "low_taken": 56.7,
-        "break_rate": 100.0,
-        "one_sided": 70.0,
-        "both": 30.0,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-04-02",
-        "to": "2026-05-14",
-        "n": 30,
-        "high_taken": 76.7,
-        "low_taken": 60.0,
-        "break_rate": 100.0,
-        "one_sided": 63.3,
-        "both": 36.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-04-10",
-        "to": "2026-05-21",
-        "n": 30,
-        "high_taken": 83.3,
-        "low_taken": 60.0,
-        "break_rate": 100.0,
-        "one_sided": 56.7,
-        "both": 43.3,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-04-17",
-        "to": "2026-05-28",
-        "n": 30,
-        "high_taken": 83.3,
-        "low_taken": 56.7,
-        "break_rate": 100.0,
-        "one_sided": 60.0,
-        "both": 40.0,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-04-24",
-        "to": "2026-06-04",
-        "n": 30,
-        "high_taken": 83.4,
-        "low_taken": 53.4,
-        "break_rate": 100.0,
-        "one_sided": 63.4,
-        "both": 36.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-05-01",
-        "to": "2026-06-11",
-        "n": 30,
-        "high_taken": 83.3,
-        "low_taken": 56.7,
-        "break_rate": 100.0,
-        "one_sided": 60.0,
-        "both": 40.0,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-05-08",
-        "to": "2026-06-18",
-        "n": 30,
-        "high_taken": 76.6,
-        "low_taken": 66.6,
-        "break_rate": 100.0,
-        "one_sided": 56.6,
-        "both": 43.3,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-05-15",
-        "to": "2026-06-25",
-        "n": 30,
-        "high_taken": 76.7,
-        "low_taken": 63.3,
-        "break_rate": 100.0,
-        "one_sided": 60.0,
-        "both": 40.0,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-05-22",
-        "to": "2026-07-02",
-        "n": 30,
-        "high_taken": 73.4,
-        "low_taken": 63.4,
-        "break_rate": 100.0,
-        "one_sided": 63.4,
-        "both": 36.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-05-29",
-        "to": "2026-07-09",
-        "n": 30,
-        "high_taken": 73.4,
-        "low_taken": 63.4,
-        "break_rate": 100.0,
-        "one_sided": 63.4,
-        "both": 36.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-06-05",
-        "to": "2026-07-16",
-        "n": 30,
-        "high_taken": 70.0,
-        "low_taken": 70.0,
-        "break_rate": 100.0,
-        "one_sided": 60.0,
-        "both": 40.0,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-06-12",
-        "to": "2026-07-23",
-        "n": 30,
-        "high_taken": 63.3,
-        "low_taken": 70.0,
-        "break_rate": 100.0,
-        "one_sided": 66.7,
-        "both": 33.3,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-06-19",
-        "to": "2026-07-30",
-        "n": 30,
-        "high_taken": 66.6,
-        "low_taken": 63.3,
-        "break_rate": 96.7,
-        "one_sided": 63.3,
-        "both": 33.3,
-        "neither": 3.3
-       },
-       {
-        "from": "2026-06-26",
-        "to": "2026-08-06",
-        "n": 30,
-        "high_taken": 66.7,
-        "low_taken": 60.0,
-        "break_rate": 96.7,
-        "one_sided": 66.7,
-        "both": 30.0,
-        "neither": 3.3
-       },
-       {
-        "from": "2026-07-03",
-        "to": "2026-08-13",
-        "n": 30,
-        "high_taken": 66.6,
-        "low_taken": 63.3,
-        "break_rate": 96.7,
-        "one_sided": 63.3,
-        "both": 33.3,
-        "neither": 3.3
-       },
-       {
-        "from": "2026-07-10",
-        "to": "2026-08-20",
-        "n": 30,
-        "high_taken": 63.4,
-        "low_taken": 70.0,
-        "break_rate": 96.7,
-        "one_sided": 60.0,
-        "both": 36.7,
-        "neither": 3.3
-       },
-       {
-        "from": "2026-07-17",
-        "to": "2026-08-27",
-        "n": 30,
-        "high_taken": 63.4,
-        "low_taken": 70.0,
-        "break_rate": 96.7,
-        "one_sided": 60.0,
-        "both": 36.7,
-        "neither": 3.3
-       },
-       {
-        "from": "2026-07-24",
-        "to": "2026-09-03",
-        "n": 30,
-        "high_taken": 66.6,
-        "low_taken": 70.0,
-        "break_rate": 93.3,
-        "one_sided": 50.0,
-        "both": 43.3,
-        "neither": 6.7
-       },
-       {
-        "from": "2026-07-31",
-        "to": "2026-09-10",
-        "n": 30,
-        "high_taken": 66.7,
-        "low_taken": 76.7,
-        "break_rate": 96.7,
-        "one_sided": 50.0,
-        "both": 46.7,
-        "neither": 3.3
-       },
-       {
-        "from": "2026-08-07",
-        "to": "2026-09-17",
-        "n": 30,
-        "high_taken": 63.3,
-        "low_taken": 76.6,
-        "break_rate": 96.7,
-        "one_sided": 53.3,
-        "both": 43.3,
-        "neither": 3.3
-       }
-      ],
-      "m60": [
-       {
-        "from": "2026-03-19",
-        "to": "2026-04-30",
-        "n": 30,
-        "high_taken": 83.4,
-        "low_taken": 73.4,
-        "break_rate": 100.0,
-        "one_sided": 43.4,
-        "both": 56.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-03-26",
-        "to": "2026-05-07",
-        "n": 30,
-        "high_taken": 83.3,
-        "low_taken": 70.0,
-        "break_rate": 100.0,
-        "one_sided": 46.7,
-        "both": 53.3,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-04-02",
-        "to": "2026-05-14",
-        "n": 30,
-        "high_taken": 86.7,
-        "low_taken": 73.3,
-        "break_rate": 100.0,
-        "one_sided": 40.0,
-        "both": 60.0,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-04-10",
-        "to": "2026-05-21",
-        "n": 30,
-        "high_taken": 90.0,
-        "low_taken": 70.0,
-        "break_rate": 100.0,
-        "one_sided": 40.0,
-        "both": 60.0,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-04-17",
-        "to": "2026-05-28",
-        "n": 30,
-        "high_taken": 90.0,
-        "low_taken": 66.7,
-        "break_rate": 100.0,
-        "one_sided": 43.3,
-        "both": 56.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-04-24",
-        "to": "2026-06-04",
-        "n": 30,
-        "high_taken": 86.6,
-        "low_taken": 66.6,
-        "break_rate": 100.0,
-        "one_sided": 46.6,
-        "both": 53.3,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-05-01",
-        "to": "2026-06-11",
-        "n": 30,
-        "high_taken": 86.6,
-        "low_taken": 66.6,
-        "break_rate": 100.0,
-        "one_sided": 46.6,
-        "both": 53.3,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-05-08",
-        "to": "2026-06-18",
-        "n": 30,
-        "high_taken": 86.7,
-        "low_taken": 70.0,
-        "break_rate": 100.0,
-        "one_sided": 43.3,
-        "both": 56.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-05-15",
-        "to": "2026-06-25",
-        "n": 30,
-        "high_taken": 83.3,
-        "low_taken": 66.7,
-        "break_rate": 100.0,
-        "one_sided": 50.0,
-        "both": 50.0,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-05-22",
-        "to": "2026-07-02",
-        "n": 30,
-        "high_taken": 80.0,
-        "low_taken": 66.7,
-        "break_rate": 100.0,
-        "one_sided": 53.3,
-        "both": 46.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-05-29",
-        "to": "2026-07-09",
-        "n": 30,
-        "high_taken": 83.3,
-        "low_taken": 66.7,
-        "break_rate": 100.0,
-        "one_sided": 50.0,
-        "both": 50.0,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-06-05",
-        "to": "2026-07-16",
-        "n": 30,
-        "high_taken": 80.0,
-        "low_taken": 70.0,
-        "break_rate": 100.0,
-        "one_sided": 50.0,
-        "both": 50.0,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-06-12",
-        "to": "2026-07-23",
-        "n": 30,
-        "high_taken": 73.3,
-        "low_taken": 70.0,
-        "break_rate": 100.0,
-        "one_sided": 56.7,
-        "both": 43.3,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-06-19",
-        "to": "2026-07-30",
-        "n": 30,
-        "high_taken": 70.0,
-        "low_taken": 70.0,
-        "break_rate": 100.0,
-        "one_sided": 60.0,
-        "both": 40.0,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-06-26",
-        "to": "2026-08-06",
-        "n": 30,
-        "high_taken": 70.0,
-        "low_taken": 70.0,
-        "break_rate": 100.0,
-        "one_sided": 60.0,
-        "both": 40.0,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-07-03",
-        "to": "2026-08-13",
-        "n": 30,
-        "high_taken": 70.0,
-        "low_taken": 73.3,
-        "break_rate": 100.0,
-        "one_sided": 56.7,
-        "both": 43.3,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-07-10",
-        "to": "2026-08-20",
-        "n": 30,
-        "high_taken": 63.3,
-        "low_taken": 80.0,
-        "break_rate": 100.0,
-        "one_sided": 56.7,
-        "both": 43.3,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-07-17",
-        "to": "2026-08-27",
-        "n": 30,
-        "high_taken": 63.3,
-        "low_taken": 80.0,
-        "break_rate": 100.0,
-        "one_sided": 56.7,
-        "both": 43.3,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-07-24",
-        "to": "2026-09-03",
-        "n": 30,
-        "high_taken": 66.7,
-        "low_taken": 83.3,
-        "break_rate": 100.0,
-        "one_sided": 50.0,
-        "both": 50.0,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-07-31",
-        "to": "2026-09-10",
-        "n": 30,
-        "high_taken": 66.7,
-        "low_taken": 90.0,
-        "break_rate": 100.0,
-        "one_sided": 43.3,
-        "both": 56.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-08-07",
-        "to": "2026-09-17",
-        "n": 30,
-        "high_taken": 63.4,
-        "low_taken": 93.4,
-        "break_rate": 100.0,
-        "one_sided": 43.4,
-        "both": 56.7,
-        "neither": 0.0
-       }
-      ]
-     }
-    },
-    "ny": {
-     "open_utc": 12,
-     "or_range_avg": 33.64,
-     "overall": {
-      "m30": {
-       "days": 130,
-       "both": 42.3,
-       "high_only": 31.5,
-       "low_only": 26.2,
-       "neither": 0.0,
-       "high_taken": 73.8,
-       "low_taken": 68.5,
-       "break_rate": 100.0,
-       "one_sided": 57.7,
-       "order": {
-        "high_to_low": 49.1,
-        "low_to_high": 50.9
-       }
-      },
-      "m60": {
-       "days": 130,
-       "both": 56.9,
-       "high_only": 22.3,
-       "low_only": 20.8,
-       "neither": 0.0,
-       "high_taken": 79.2,
-       "low_taken": 77.7,
-       "break_rate": 100.0,
-       "one_sided": 43.1,
-       "order": {
-        "high_to_low": 52.7,
-        "low_to_high": 47.3
-       }
-      },
-      "sess": {
-       "days": 130,
-       "both": 90.8,
-       "high_only": 3.8,
-       "low_only": 5.4,
-       "neither": 0.0,
-       "high_taken": 94.6,
-       "low_taken": 96.2,
-       "break_rate": 100.0,
-       "one_sided": 9.2,
-       "order": {
-        "high_to_low": 53.4,
-        "low_to_high": 46.6
-       }
-      }
-     },
-     "rolling": {
-      "m30": [
-       {
-        "from": "2026-03-19",
-        "to": "2026-04-30",
-        "n": 30,
-        "high_taken": 83.3,
-        "low_taken": 66.7,
-        "break_rate": 100.0,
-        "one_sided": 50.0,
-        "both": 50.0,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-03-26",
-        "to": "2026-05-07",
-        "n": 30,
-        "high_taken": 83.4,
-        "low_taken": 63.4,
-        "break_rate": 100.0,
-        "one_sided": 53.4,
-        "both": 46.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-04-02",
-        "to": "2026-05-14",
-        "n": 30,
-        "high_taken": 86.7,
-        "low_taken": 63.3,
-        "break_rate": 100.0,
-        "one_sided": 50.0,
-        "both": 50.0,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-04-10",
-        "to": "2026-05-21",
-        "n": 30,
-        "high_taken": 80.0,
-        "low_taken": 53.3,
-        "break_rate": 100.0,
-        "one_sided": 66.7,
-        "both": 33.3,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-04-17",
-        "to": "2026-05-28",
-        "n": 30,
-        "high_taken": 76.7,
-        "low_taken": 53.3,
-        "break_rate": 100.0,
-        "one_sided": 70.0,
-        "both": 30.0,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-04-24",
-        "to": "2026-06-04",
-        "n": 30,
-        "high_taken": 66.7,
-        "low_taken": 63.3,
-        "break_rate": 100.0,
-        "one_sided": 70.0,
-        "both": 30.0,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-05-01",
-        "to": "2026-06-11",
-        "n": 30,
-        "high_taken": 70.0,
-        "low_taken": 56.7,
-        "break_rate": 100.0,
-        "one_sided": 73.3,
-        "both": 26.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-05-08",
-        "to": "2026-06-18",
-        "n": 30,
-        "high_taken": 70.0,
-        "low_taken": 63.3,
-        "break_rate": 100.0,
-        "one_sided": 66.7,
-        "both": 33.3,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-05-15",
-        "to": "2026-06-25",
-        "n": 30,
-        "high_taken": 63.3,
-        "low_taken": 66.7,
-        "break_rate": 100.0,
-        "one_sided": 70.0,
-        "both": 30.0,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-05-22",
-        "to": "2026-07-02",
-        "n": 30,
-        "high_taken": 63.3,
-        "low_taken": 70.0,
-        "break_rate": 100.0,
-        "one_sided": 66.7,
-        "both": 33.3,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-05-29",
-        "to": "2026-07-09",
-        "n": 30,
-        "high_taken": 63.4,
-        "low_taken": 63.4,
-        "break_rate": 100.0,
-        "one_sided": 73.4,
-        "both": 26.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-06-05",
-        "to": "2026-07-16",
-        "n": 30,
-        "high_taken": 70.0,
-        "low_taken": 66.7,
-        "break_rate": 100.0,
-        "one_sided": 63.3,
-        "both": 36.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-06-12",
-        "to": "2026-07-23",
-        "n": 30,
-        "high_taken": 63.4,
-        "low_taken": 73.4,
-        "break_rate": 100.0,
-        "one_sided": 63.4,
-        "both": 36.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-06-19",
-        "to": "2026-07-30",
-        "n": 30,
-        "high_taken": 63.4,
-        "low_taken": 73.4,
-        "break_rate": 100.0,
-        "one_sided": 63.4,
-        "both": 36.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-06-26",
-        "to": "2026-08-06",
-        "n": 30,
-        "high_taken": 70.0,
-        "low_taken": 70.0,
-        "break_rate": 100.0,
-        "one_sided": 60.0,
-        "both": 40.0,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-07-03",
-        "to": "2026-08-13",
-        "n": 30,
-        "high_taken": 76.7,
-        "low_taken": 73.3,
-        "break_rate": 100.0,
-        "one_sided": 50.0,
-        "both": 50.0,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-07-10",
-        "to": "2026-08-20",
-        "n": 30,
-        "high_taken": 73.4,
-        "low_taken": 83.4,
-        "break_rate": 100.0,
-        "one_sided": 43.4,
-        "both": 56.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-07-17",
-        "to": "2026-08-27",
-        "n": 30,
-        "high_taken": 70.0,
-        "low_taken": 76.7,
-        "break_rate": 100.0,
-        "one_sided": 53.3,
-        "both": 46.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-07-24",
-        "to": "2026-09-03",
-        "n": 30,
-        "high_taken": 80.0,
-        "low_taken": 73.3,
-        "break_rate": 100.0,
-        "one_sided": 46.7,
-        "both": 53.3,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-07-31",
-        "to": "2026-09-10",
-        "n": 30,
-        "high_taken": 76.7,
-        "low_taken": 73.3,
-        "break_rate": 100.0,
-        "one_sided": 50.0,
-        "both": 50.0,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-08-07",
-        "to": "2026-09-17",
-        "n": 30,
-        "high_taken": 76.6,
-        "low_taken": 76.6,
-        "break_rate": 100.0,
-        "one_sided": 46.6,
-        "both": 53.3,
-        "neither": 0.0
-       }
-      ],
-      "m60": [
-       {
-        "from": "2026-03-19",
-        "to": "2026-04-30",
-        "n": 30,
-        "high_taken": 90.0,
-        "low_taken": 76.7,
-        "break_rate": 100.0,
-        "one_sided": 33.3,
-        "both": 66.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-03-26",
-        "to": "2026-05-07",
-        "n": 30,
-        "high_taken": 90.0,
-        "low_taken": 73.3,
-        "break_rate": 100.0,
-        "one_sided": 36.7,
-        "both": 63.3,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-04-02",
-        "to": "2026-05-14",
-        "n": 30,
-        "high_taken": 93.3,
-        "low_taken": 76.7,
-        "break_rate": 100.0,
-        "one_sided": 30.0,
-        "both": 70.0,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-04-10",
-        "to": "2026-05-21",
-        "n": 30,
-        "high_taken": 86.6,
-        "low_taken": 66.6,
-        "break_rate": 100.0,
-        "one_sided": 46.6,
-        "both": 53.3,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-04-17",
-        "to": "2026-05-28",
-        "n": 30,
-        "high_taken": 86.7,
-        "low_taken": 70.0,
-        "break_rate": 100.0,
-        "one_sided": 43.3,
-        "both": 56.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-04-24",
-        "to": "2026-06-04",
-        "n": 30,
-        "high_taken": 76.6,
-        "low_taken": 76.6,
-        "break_rate": 100.0,
-        "one_sided": 46.6,
-        "both": 53.3,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-05-01",
-        "to": "2026-06-11",
-        "n": 30,
-        "high_taken": 73.4,
-        "low_taken": 73.4,
-        "break_rate": 100.0,
-        "one_sided": 53.4,
-        "both": 46.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-05-08",
-        "to": "2026-06-18",
-        "n": 30,
-        "high_taken": 73.3,
-        "low_taken": 76.7,
-        "break_rate": 100.0,
-        "one_sided": 50.0,
-        "both": 50.0,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-05-15",
-        "to": "2026-06-25",
-        "n": 30,
-        "high_taken": 70.0,
-        "low_taken": 76.7,
-        "break_rate": 100.0,
-        "one_sided": 53.3,
-        "both": 46.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-05-22",
-        "to": "2026-07-02",
-        "n": 30,
-        "high_taken": 73.4,
-        "low_taken": 83.4,
-        "break_rate": 100.0,
-        "one_sided": 43.4,
-        "both": 56.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-05-29",
-        "to": "2026-07-09",
-        "n": 30,
-        "high_taken": 73.4,
-        "low_taken": 73.4,
-        "break_rate": 100.0,
-        "one_sided": 53.4,
-        "both": 46.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-06-05",
-        "to": "2026-07-16",
-        "n": 30,
-        "high_taken": 80.0,
-        "low_taken": 73.3,
-        "break_rate": 100.0,
-        "one_sided": 46.7,
-        "both": 53.3,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-06-12",
-        "to": "2026-07-23",
-        "n": 30,
-        "high_taken": 73.3,
-        "low_taken": 80.0,
-        "break_rate": 100.0,
-        "one_sided": 46.7,
-        "both": 53.3,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-06-19",
-        "to": "2026-07-30",
-        "n": 30,
-        "high_taken": 73.3,
-        "low_taken": 80.0,
-        "break_rate": 100.0,
-        "one_sided": 46.7,
-        "both": 53.3,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-06-26",
-        "to": "2026-08-06",
-        "n": 30,
-        "high_taken": 76.6,
-        "low_taken": 76.6,
-        "break_rate": 100.0,
-        "one_sided": 46.6,
-        "both": 53.3,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-07-03",
-        "to": "2026-08-13",
-        "n": 30,
-        "high_taken": 80.0,
-        "low_taken": 76.7,
-        "break_rate": 100.0,
-        "one_sided": 43.3,
-        "both": 56.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-07-10",
-        "to": "2026-08-20",
-        "n": 30,
-        "high_taken": 73.3,
-        "low_taken": 86.7,
-        "break_rate": 100.0,
-        "one_sided": 40.0,
-        "both": 60.0,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-07-17",
-        "to": "2026-08-27",
-        "n": 30,
-        "high_taken": 70.0,
-        "low_taken": 83.3,
-        "break_rate": 100.0,
-        "one_sided": 46.7,
-        "both": 53.3,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-07-24",
-        "to": "2026-09-03",
-        "n": 30,
-        "high_taken": 80.0,
-        "low_taken": 76.7,
-        "break_rate": 100.0,
-        "one_sided": 43.3,
-        "both": 56.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-07-31",
-        "to": "2026-09-10",
-        "n": 30,
-        "high_taken": 80.0,
-        "low_taken": 80.0,
-        "break_rate": 100.0,
-        "one_sided": 40.0,
-        "both": 60.0,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-08-07",
-        "to": "2026-09-17",
-        "n": 30,
-        "high_taken": 80.0,
-        "low_taken": 83.3,
-        "break_rate": 100.0,
-        "one_sided": 36.7,
-        "both": 63.3,
-        "neither": 0.0
-       }
-      ]
-     }
-    }
-   },
-   "or15": {
-    "asia": {
-     "open_utc": 0,
-     "or_range_avg": 51.45,
-     "overall": {
-      "m30": {
-       "days": 130,
-       "both": 14.6,
-       "high_only": 40.8,
-       "low_only": 35.4,
-       "neither": 9.2,
-       "high_taken": 55.4,
-       "low_taken": 50.0,
-       "break_rate": 90.8,
-       "one_sided": 76.2,
-       "order": {
-        "high_to_low": 68.4,
-        "low_to_high": 31.6
-       }
-      },
-      "m60": {
-       "days": 130,
-       "both": 27.7,
-       "high_only": 37.7,
-       "low_only": 33.1,
-       "neither": 1.5,
-       "high_taken": 65.4,
-       "low_taken": 60.8,
-       "break_rate": 98.5,
-       "one_sided": 70.8,
-       "order": {
-        "high_to_low": 61.1,
-        "low_to_high": 38.9
-       }
-      },
-      "sess": {
-       "days": 130,
-       "both": 65.4,
-       "high_only": 20.0,
-       "low_only": 14.6,
-       "neither": 0.0,
-       "high_taken": 85.4,
-       "low_taken": 80.0,
-       "break_rate": 100.0,
-       "one_sided": 34.6,
-       "order": {
-        "high_to_low": 54.1,
-        "low_to_high": 45.9
-       }
-      }
-     },
-     "rolling": {
-      "m30": [
-       {
-        "from": "2026-03-19",
-        "to": "2026-04-30",
-        "n": 30,
-        "high_taken": 60.0,
-        "low_taken": 53.3,
-        "break_rate": 93.3,
-        "one_sided": 73.3,
-        "both": 20.0,
-        "neither": 6.7
-       },
-       {
-        "from": "2026-03-26",
-        "to": "2026-05-07",
-        "n": 30,
-        "high_taken": 60.0,
-        "low_taken": 43.3,
-        "break_rate": 90.0,
-        "one_sided": 76.7,
-        "both": 13.3,
-        "neither": 10.0
-       },
-       {
-        "from": "2026-04-02",
-        "to": "2026-05-14",
-        "n": 30,
-        "high_taken": 53.4,
-        "low_taken": 43.4,
-        "break_rate": 90.0,
-        "one_sided": 83.4,
-        "both": 6.7,
-        "neither": 10.0
-       },
-       {
-        "from": "2026-04-10",
-        "to": "2026-05-21",
-        "n": 30,
-        "high_taken": 50.0,
-        "low_taken": 46.7,
-        "break_rate": 90.0,
-        "one_sided": 83.3,
-        "both": 6.7,
-        "neither": 10.0
-       },
-       {
-        "from": "2026-04-17",
-        "to": "2026-05-28",
-        "n": 30,
-        "high_taken": 43.4,
-        "low_taken": 53.4,
-        "break_rate": 90.0,
-        "one_sided": 83.4,
-        "both": 6.7,
-        "neither": 10.0
-       },
-       {
-        "from": "2026-04-24",
-        "to": "2026-06-04",
-        "n": 30,
-        "high_taken": 43.3,
-        "low_taken": 60.0,
-        "break_rate": 90.0,
-        "one_sided": 76.7,
-        "both": 13.3,
-        "neither": 10.0
-       },
-       {
-        "from": "2026-05-01",
-        "to": "2026-06-11",
-        "n": 30,
-        "high_taken": 43.3,
-        "low_taken": 56.6,
-        "break_rate": 86.7,
-        "one_sided": 73.3,
-        "both": 13.3,
-        "neither": 13.3
-       },
-       {
-        "from": "2026-05-08",
-        "to": "2026-06-18",
-        "n": 30,
-        "high_taken": 46.6,
-        "low_taken": 53.3,
-        "break_rate": 86.7,
-        "one_sided": 73.3,
-        "both": 13.3,
-        "neither": 13.3
-       },
-       {
-        "from": "2026-05-15",
-        "to": "2026-06-25",
-        "n": 30,
-        "high_taken": 46.6,
-        "low_taken": 50.0,
-        "break_rate": 83.3,
-        "one_sided": 70.0,
-        "both": 13.3,
-        "neither": 16.7
-       },
-       {
-        "from": "2026-05-22",
-        "to": "2026-07-02",
-        "n": 30,
-        "high_taken": 53.3,
-        "low_taken": 46.6,
-        "break_rate": 86.7,
-        "one_sided": 73.3,
-        "both": 13.3,
-        "neither": 13.3
-       },
-       {
-        "from": "2026-05-29",
-        "to": "2026-07-09",
-        "n": 30,
-        "high_taken": 60.0,
-        "low_taken": 40.0,
-        "break_rate": 86.7,
-        "one_sided": 73.4,
-        "both": 13.3,
-        "neither": 13.3
-       },
-       {
-        "from": "2026-06-05",
-        "to": "2026-07-16",
-        "n": 30,
-        "high_taken": 60.0,
-        "low_taken": 36.7,
-        "break_rate": 86.7,
-        "one_sided": 76.7,
-        "both": 10.0,
-        "neither": 13.3
-       },
-       {
-        "from": "2026-06-12",
-        "to": "2026-07-23",
-        "n": 30,
-        "high_taken": 60.0,
-        "low_taken": 36.7,
-        "break_rate": 86.7,
-        "one_sided": 76.7,
-        "both": 10.0,
-        "neither": 13.3
-       },
-       {
-        "from": "2026-06-19",
-        "to": "2026-07-30",
-        "n": 30,
-        "high_taken": 60.0,
-        "low_taken": 43.3,
-        "break_rate": 90.0,
-        "one_sided": 76.7,
-        "both": 13.3,
-        "neither": 10.0
-       },
-       {
-        "from": "2026-06-26",
-        "to": "2026-08-06",
-        "n": 30,
-        "high_taken": 66.6,
-        "low_taken": 40.0,
-        "break_rate": 93.3,
-        "one_sided": 80.0,
-        "both": 13.3,
-        "neither": 6.7
-       },
-       {
-        "from": "2026-07-03",
-        "to": "2026-08-13",
-        "n": 30,
-        "high_taken": 56.7,
-        "low_taken": 43.3,
-        "break_rate": 90.0,
-        "one_sided": 80.0,
-        "both": 10.0,
-        "neither": 10.0
-       },
-       {
-        "from": "2026-07-10",
-        "to": "2026-08-20",
-        "n": 30,
-        "high_taken": 50.0,
-        "low_taken": 56.7,
-        "break_rate": 90.0,
-        "one_sided": 73.3,
-        "both": 16.7,
-        "neither": 10.0
-       },
-       {
-        "from": "2026-07-17",
-        "to": "2026-08-27",
-        "n": 30,
-        "high_taken": 50.0,
-        "low_taken": 56.7,
-        "break_rate": 90.0,
-        "one_sided": 73.3,
-        "both": 16.7,
-        "neither": 10.0
-       },
-       {
-        "from": "2026-07-24",
-        "to": "2026-09-03",
-        "n": 30,
-        "high_taken": 56.7,
-        "low_taken": 53.4,
-        "break_rate": 93.3,
-        "one_sided": 76.7,
-        "both": 16.7,
-        "neither": 6.7
-       },
-       {
-        "from": "2026-07-31",
-        "to": "2026-09-10",
-        "n": 30,
-        "high_taken": 53.4,
-        "low_taken": 56.7,
-        "break_rate": 93.3,
-        "one_sided": 76.7,
-        "both": 16.7,
-        "neither": 6.7
-       },
-       {
-        "from": "2026-08-07",
-        "to": "2026-09-17",
-        "n": 30,
-        "high_taken": 53.4,
-        "low_taken": 56.7,
-        "break_rate": 93.3,
-        "one_sided": 76.7,
-        "both": 16.7,
-        "neither": 6.7
-       }
-      ],
-      "m60": [
-       {
-        "from": "2026-03-19",
-        "to": "2026-04-30",
-        "n": 30,
-        "high_taken": 76.6,
-        "low_taken": 63.3,
-        "break_rate": 96.7,
-        "one_sided": 53.3,
-        "both": 43.3,
-        "neither": 3.3
-       },
-       {
-        "from": "2026-03-26",
-        "to": "2026-05-07",
-        "n": 30,
-        "high_taken": 80.0,
-        "low_taken": 53.4,
-        "break_rate": 96.7,
-        "one_sided": 60.0,
-        "both": 36.7,
-        "neither": 3.3
-       },
-       {
-        "from": "2026-04-02",
-        "to": "2026-05-14",
-        "n": 30,
-        "high_taken": 76.7,
-        "low_taken": 50.0,
-        "break_rate": 96.7,
-        "one_sided": 66.7,
-        "both": 30.0,
-        "neither": 3.3
-       },
-       {
-        "from": "2026-04-10",
-        "to": "2026-05-21",
-        "n": 30,
-        "high_taken": 70.0,
-        "low_taken": 56.7,
-        "break_rate": 96.7,
-        "one_sided": 66.7,
-        "both": 30.0,
-        "neither": 3.3
-       },
-       {
-        "from": "2026-04-17",
-        "to": "2026-05-28",
-        "n": 30,
-        "high_taken": 63.3,
-        "low_taken": 63.3,
-        "break_rate": 96.7,
-        "one_sided": 66.6,
-        "both": 30.0,
-        "neither": 3.3
-       },
-       {
-        "from": "2026-04-24",
-        "to": "2026-06-04",
-        "n": 30,
-        "high_taken": 60.0,
-        "low_taken": 73.3,
-        "break_rate": 100.0,
-        "one_sided": 66.7,
-        "both": 33.3,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-05-01",
-        "to": "2026-06-11",
-        "n": 30,
-        "high_taken": 60.0,
-        "low_taken": 66.7,
-        "break_rate": 100.0,
-        "one_sided": 73.3,
-        "both": 26.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-05-08",
-        "to": "2026-06-18",
-        "n": 30,
-        "high_taken": 63.4,
-        "low_taken": 63.4,
-        "break_rate": 100.0,
-        "one_sided": 73.4,
-        "both": 26.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-05-15",
-        "to": "2026-06-25",
-        "n": 30,
-        "high_taken": 60.0,
-        "low_taken": 63.3,
-        "break_rate": 100.0,
-        "one_sided": 76.7,
-        "both": 23.3,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-05-22",
-        "to": "2026-07-02",
-        "n": 30,
-        "high_taken": 63.3,
-        "low_taken": 56.7,
-        "break_rate": 100.0,
-        "one_sided": 80.0,
-        "both": 20.0,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-05-29",
-        "to": "2026-07-09",
-        "n": 30,
-        "high_taken": 70.0,
-        "low_taken": 50.0,
-        "break_rate": 100.0,
-        "one_sided": 80.0,
-        "both": 20.0,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-06-05",
-        "to": "2026-07-16",
-        "n": 30,
-        "high_taken": 70.0,
-        "low_taken": 50.0,
-        "break_rate": 100.0,
-        "one_sided": 80.0,
-        "both": 20.0,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-06-12",
-        "to": "2026-07-23",
-        "n": 30,
-        "high_taken": 63.4,
-        "low_taken": 50.0,
-        "break_rate": 96.7,
-        "one_sided": 80.0,
-        "both": 16.7,
-        "neither": 3.3
-       },
-       {
-        "from": "2026-06-19",
-        "to": "2026-07-30",
-        "n": 30,
-        "high_taken": 60.0,
-        "low_taken": 60.0,
-        "break_rate": 96.7,
-        "one_sided": 73.4,
-        "both": 23.3,
-        "neither": 3.3
-       },
-       {
-        "from": "2026-06-26",
-        "to": "2026-08-06",
-        "n": 30,
-        "high_taken": 70.0,
-        "low_taken": 53.4,
-        "break_rate": 96.7,
-        "one_sided": 70.0,
-        "both": 26.7,
-        "neither": 3.3
-       },
-       {
-        "from": "2026-07-03",
-        "to": "2026-08-13",
-        "n": 30,
-        "high_taken": 63.3,
-        "low_taken": 53.3,
-        "break_rate": 96.7,
-        "one_sided": 76.6,
-        "both": 20.0,
-        "neither": 3.3
-       },
-       {
-        "from": "2026-07-10",
-        "to": "2026-08-20",
-        "n": 30,
-        "high_taken": 56.7,
-        "low_taken": 70.0,
-        "break_rate": 96.7,
-        "one_sided": 66.7,
-        "both": 30.0,
-        "neither": 3.3
-       },
-       {
-        "from": "2026-07-17",
-        "to": "2026-08-27",
-        "n": 30,
-        "high_taken": 56.7,
-        "low_taken": 66.7,
-        "break_rate": 96.7,
-        "one_sided": 70.0,
-        "both": 26.7,
-        "neither": 3.3
-       },
-       {
-        "from": "2026-07-24",
-        "to": "2026-09-03",
-        "n": 30,
-        "high_taken": 63.4,
-        "low_taken": 63.4,
-        "break_rate": 100.0,
-        "one_sided": 73.4,
-        "both": 26.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-07-31",
-        "to": "2026-09-10",
-        "n": 30,
-        "high_taken": 60.0,
-        "low_taken": 63.3,
-        "break_rate": 100.0,
-        "one_sided": 76.7,
-        "both": 23.3,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-08-07",
-        "to": "2026-09-17",
-        "n": 30,
-        "high_taken": 56.6,
-        "low_taken": 66.6,
-        "break_rate": 100.0,
-        "one_sided": 76.6,
-        "both": 23.3,
-        "neither": 0.0
-       }
-      ]
-     }
-    },
-    "london": {
-     "open_utc": 7,
-     "or_range_avg": 54.69,
-     "overall": {
-      "m30": {
-       "days": 130,
-       "both": 21.5,
-       "high_only": 37.7,
-       "low_only": 34.6,
-       "neither": 6.2,
-       "high_taken": 59.2,
-       "low_taken": 56.1,
-       "break_rate": 93.8,
-       "one_sided": 72.3,
-       "order": {
-        "high_to_low": 50.0,
-        "low_to_high": 50.0
-       }
-      },
-      "m60": {
-       "days": 130,
-       "both": 38.5,
-       "high_only": 30.0,
-       "low_only": 30.0,
-       "neither": 1.5,
-       "high_taken": 68.5,
-       "low_taken": 68.5,
-       "break_rate": 98.5,
-       "one_sided": 60.0,
-       "order": {
-        "high_to_low": 56.0,
-        "low_to_high": 44.0
-       }
-      },
-      "sess": {
-       "days": 130,
-       "both": 77.7,
-       "high_only": 13.1,
-       "low_only": 9.2,
-       "neither": 0.0,
-       "high_taken": 90.8,
-       "low_taken": 86.9,
-       "break_rate": 100.0,
-       "one_sided": 22.3,
-       "order": {
-        "high_to_low": 51.5,
-        "low_to_high": 48.5
-       }
-      }
-     },
-     "rolling": {
-      "m30": [
-       {
-        "from": "2026-03-19",
-        "to": "2026-04-30",
-        "n": 30,
-        "high_taken": 60.0,
-        "low_taken": 56.7,
-        "break_rate": 86.7,
-        "one_sided": 56.7,
-        "both": 30.0,
-        "neither": 13.3
-       },
-       {
-        "from": "2026-03-26",
-        "to": "2026-05-07",
-        "n": 30,
-        "high_taken": 63.4,
-        "low_taken": 50.0,
-        "break_rate": 86.7,
-        "one_sided": 60.0,
-        "both": 26.7,
-        "neither": 13.3
-       },
-       {
-        "from": "2026-04-02",
-        "to": "2026-05-14",
-        "n": 30,
-        "high_taken": 66.7,
-        "low_taken": 43.3,
-        "break_rate": 90.0,
-        "one_sided": 70.0,
-        "both": 20.0,
-        "neither": 10.0
-       },
-       {
-        "from": "2026-04-10",
-        "to": "2026-05-21",
-        "n": 30,
-        "high_taken": 70.0,
-        "low_taken": 50.0,
-        "break_rate": 90.0,
-        "one_sided": 60.0,
-        "both": 30.0,
-        "neither": 10.0
-       },
-       {
-        "from": "2026-04-17",
-        "to": "2026-05-28",
-        "n": 30,
-        "high_taken": 70.0,
-        "low_taken": 50.0,
-        "break_rate": 93.3,
-        "one_sided": 66.6,
-        "both": 26.7,
-        "neither": 6.7
-       },
-       {
-        "from": "2026-04-24",
-        "to": "2026-06-04",
-        "n": 30,
-        "high_taken": 73.4,
-        "low_taken": 53.4,
-        "break_rate": 100.0,
-        "one_sided": 73.4,
-        "both": 26.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-05-01",
-        "to": "2026-06-11",
-        "n": 30,
-        "high_taken": 73.3,
-        "low_taken": 50.0,
-        "break_rate": 100.0,
-        "one_sided": 76.7,
-        "both": 23.3,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-05-08",
-        "to": "2026-06-18",
-        "n": 30,
-        "high_taken": 70.0,
-        "low_taken": 53.4,
-        "break_rate": 96.7,
-        "one_sided": 70.0,
-        "both": 26.7,
-        "neither": 3.3
-       },
-       {
-        "from": "2026-05-15",
-        "to": "2026-06-25",
-        "n": 30,
-        "high_taken": 70.0,
-        "low_taken": 60.0,
-        "break_rate": 96.7,
-        "one_sided": 63.4,
-        "both": 33.3,
-        "neither": 3.3
-       },
-       {
-        "from": "2026-05-22",
-        "to": "2026-07-02",
-        "n": 30,
-        "high_taken": 66.6,
-        "low_taken": 53.3,
-        "break_rate": 96.7,
-        "one_sided": 73.3,
-        "both": 23.3,
-        "neither": 3.3
-       },
-       {
-        "from": "2026-05-29",
-        "to": "2026-07-09",
-        "n": 30,
-        "high_taken": 66.6,
-        "low_taken": 53.3,
-        "break_rate": 96.7,
-        "one_sided": 73.3,
-        "both": 23.3,
-        "neither": 3.3
-       },
-       {
-        "from": "2026-06-05",
-        "to": "2026-07-16",
-        "n": 30,
-        "high_taken": 63.3,
-        "low_taken": 56.6,
-        "break_rate": 96.7,
-        "one_sided": 73.3,
-        "both": 23.3,
-        "neither": 3.3
-       },
-       {
-        "from": "2026-06-12",
-        "to": "2026-07-23",
-        "n": 30,
-        "high_taken": 60.0,
-        "low_taken": 56.6,
-        "break_rate": 93.3,
-        "one_sided": 70.0,
-        "both": 23.3,
-        "neither": 6.7
-       },
-       {
-        "from": "2026-06-19",
-        "to": "2026-07-30",
-        "n": 30,
-        "high_taken": 60.0,
-        "low_taken": 53.4,
-        "break_rate": 96.7,
-        "one_sided": 80.0,
-        "both": 16.7,
-        "neither": 3.3
-       },
-       {
-        "from": "2026-06-26",
-        "to": "2026-08-06",
-        "n": 30,
-        "high_taken": 56.7,
-        "low_taken": 53.4,
-        "break_rate": 93.3,
-        "one_sided": 76.7,
-        "both": 16.7,
-        "neither": 6.7
-       },
-       {
-        "from": "2026-07-03",
-        "to": "2026-08-13",
-        "n": 30,
-        "high_taken": 60.0,
-        "low_taken": 56.6,
-        "break_rate": 93.3,
-        "one_sided": 70.0,
-        "both": 23.3,
-        "neither": 6.7
-       },
-       {
-        "from": "2026-07-10",
-        "to": "2026-08-20",
-        "n": 30,
-        "high_taken": 53.3,
-        "low_taken": 56.7,
-        "break_rate": 90.0,
-        "one_sided": 70.0,
-        "both": 20.0,
-        "neither": 10.0
-       },
-       {
-        "from": "2026-07-17",
-        "to": "2026-08-27",
-        "n": 30,
-        "high_taken": 53.3,
-        "low_taken": 56.7,
-        "break_rate": 90.0,
-        "one_sided": 70.0,
-        "both": 20.0,
-        "neither": 10.0
-       },
-       {
-        "from": "2026-07-24",
-        "to": "2026-09-03",
-        "n": 30,
-        "high_taken": 50.0,
-        "low_taken": 60.0,
-        "break_rate": 93.3,
-        "one_sided": 76.6,
-        "both": 16.7,
-        "neither": 6.7
-       },
-       {
-        "from": "2026-07-31",
-        "to": "2026-09-10",
-        "n": 30,
-        "high_taken": 43.4,
-        "low_taken": 66.7,
-        "break_rate": 93.3,
-        "one_sided": 76.7,
-        "both": 16.7,
-        "neither": 6.7
-       },
-       {
-        "from": "2026-08-07",
-        "to": "2026-09-17",
-        "n": 30,
-        "high_taken": 43.3,
-        "low_taken": 63.3,
-        "break_rate": 96.7,
-        "one_sided": 86.6,
-        "both": 10.0,
-        "neither": 3.3
-       }
-      ],
-      "m60": [
-       {
-        "from": "2026-03-19",
-        "to": "2026-04-30",
-        "n": 30,
-        "high_taken": 76.6,
-        "low_taken": 66.6,
-        "break_rate": 100.0,
-        "one_sided": 56.6,
-        "both": 43.3,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-03-26",
-        "to": "2026-05-07",
-        "n": 30,
-        "high_taken": 80.0,
-        "low_taken": 63.3,
-        "break_rate": 100.0,
-        "one_sided": 56.7,
-        "both": 43.3,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-04-02",
-        "to": "2026-05-14",
-        "n": 30,
-        "high_taken": 80.0,
-        "low_taken": 60.0,
-        "break_rate": 100.0,
-        "one_sided": 60.0,
-        "both": 40.0,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-04-10",
-        "to": "2026-05-21",
-        "n": 30,
-        "high_taken": 83.4,
-        "low_taken": 63.4,
-        "break_rate": 100.0,
-        "one_sided": 53.4,
-        "both": 46.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-04-17",
-        "to": "2026-05-28",
-        "n": 30,
-        "high_taken": 83.3,
-        "low_taken": 60.0,
-        "break_rate": 100.0,
-        "one_sided": 56.7,
-        "both": 43.3,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-04-24",
-        "to": "2026-06-04",
-        "n": 30,
-        "high_taken": 80.0,
-        "low_taken": 63.3,
-        "break_rate": 100.0,
-        "one_sided": 56.7,
-        "both": 43.3,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-05-01",
-        "to": "2026-06-11",
-        "n": 30,
-        "high_taken": 80.0,
-        "low_taken": 56.7,
-        "break_rate": 100.0,
-        "one_sided": 63.3,
-        "both": 36.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-05-08",
-        "to": "2026-06-18",
-        "n": 30,
-        "high_taken": 80.0,
-        "low_taken": 60.0,
-        "break_rate": 100.0,
-        "one_sided": 60.0,
-        "both": 40.0,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-05-15",
-        "to": "2026-06-25",
-        "n": 30,
-        "high_taken": 76.7,
-        "low_taken": 63.3,
-        "break_rate": 100.0,
-        "one_sided": 60.0,
-        "both": 40.0,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-05-22",
-        "to": "2026-07-02",
-        "n": 30,
-        "high_taken": 70.0,
-        "low_taken": 56.7,
-        "break_rate": 100.0,
-        "one_sided": 73.3,
-        "both": 26.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-05-29",
-        "to": "2026-07-09",
-        "n": 30,
-        "high_taken": 70.0,
-        "low_taken": 56.7,
-        "break_rate": 100.0,
-        "one_sided": 73.3,
-        "both": 26.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-06-05",
-        "to": "2026-07-16",
-        "n": 30,
-        "high_taken": 70.0,
-        "low_taken": 60.0,
-        "break_rate": 100.0,
-        "one_sided": 70.0,
-        "both": 30.0,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-06-12",
-        "to": "2026-07-23",
-        "n": 30,
-        "high_taken": 66.7,
-        "low_taken": 60.0,
-        "break_rate": 96.7,
-        "one_sided": 66.7,
-        "both": 30.0,
-        "neither": 3.3
-       },
-       {
-        "from": "2026-06-19",
-        "to": "2026-07-30",
-        "n": 30,
-        "high_taken": 63.4,
-        "low_taken": 60.0,
-        "break_rate": 96.7,
-        "one_sided": 70.0,
-        "both": 26.7,
-        "neither": 3.3
-       },
-       {
-        "from": "2026-06-26",
-        "to": "2026-08-06",
-        "n": 30,
-        "high_taken": 60.0,
-        "low_taken": 60.0,
-        "break_rate": 93.3,
-        "one_sided": 66.6,
-        "both": 26.7,
-        "neither": 6.7
-       },
-       {
-        "from": "2026-07-03",
-        "to": "2026-08-13",
-        "n": 30,
-        "high_taken": 63.4,
-        "low_taken": 66.7,
-        "break_rate": 93.3,
-        "one_sided": 56.7,
-        "both": 36.7,
-        "neither": 6.7
-       },
-       {
-        "from": "2026-07-10",
-        "to": "2026-08-20",
-        "n": 30,
-        "high_taken": 56.7,
-        "low_taken": 73.4,
-        "break_rate": 93.3,
-        "one_sided": 56.7,
-        "both": 36.7,
-        "neither": 6.7
-       },
-       {
-        "from": "2026-07-17",
-        "to": "2026-08-27",
-        "n": 30,
-        "high_taken": 60.0,
-        "low_taken": 73.3,
-        "break_rate": 93.3,
-        "one_sided": 53.3,
-        "both": 40.0,
-        "neither": 6.7
-       },
-       {
-        "from": "2026-07-24",
-        "to": "2026-09-03",
-        "n": 30,
-        "high_taken": 56.7,
-        "low_taken": 80.0,
-        "break_rate": 96.7,
-        "one_sided": 56.7,
-        "both": 40.0,
-        "neither": 3.3
-       },
-       {
-        "from": "2026-07-31",
-        "to": "2026-09-10",
-        "n": 30,
-        "high_taken": 53.3,
-        "low_taken": 86.6,
-        "break_rate": 96.7,
-        "one_sided": 53.3,
-        "both": 43.3,
-        "neither": 3.3
-       },
-       {
-        "from": "2026-08-07",
-        "to": "2026-09-17",
-        "n": 30,
-        "high_taken": 53.3,
-        "low_taken": 90.0,
-        "break_rate": 100.0,
-        "one_sided": 56.7,
-        "both": 43.3,
-        "neither": 0.0
-       }
-      ]
-     }
-    },
-    "ny": {
-     "open_utc": 12,
-     "or_range_avg": 61.88,
-     "overall": {
-      "m30": {
-       "days": 130,
-       "both": 26.9,
-       "high_only": 35.4,
-       "low_only": 31.5,
-       "neither": 6.2,
-       "high_taken": 62.3,
-       "low_taken": 58.4,
-       "break_rate": 93.8,
-       "one_sided": 66.9,
-       "order": {
-        "high_to_low": 51.4,
-        "low_to_high": 48.6
-       }
-      },
-      "m60": {
-       "days": 130,
-       "both": 40.0,
-       "high_only": 30.0,
-       "low_only": 28.5,
-       "neither": 1.5,
-       "high_taken": 70.0,
-       "low_taken": 68.5,
-       "break_rate": 98.5,
-       "one_sided": 58.5,
-       "order": {
-        "high_to_low": 55.8,
-        "low_to_high": 44.2
-       }
-      },
-      "sess": {
-       "days": 130,
-       "both": 86.2,
-       "high_only": 7.7,
-       "low_only": 6.2,
-       "neither": 0.0,
-       "high_taken": 93.9,
-       "low_taken": 92.4,
-       "break_rate": 100.0,
-       "one_sided": 13.9,
-       "order": {
-        "high_to_low": 51.8,
-        "low_to_high": 48.2
-       }
-      }
-     },
-     "rolling": {
-      "m30": [
-       {
-        "from": "2026-03-19",
-        "to": "2026-04-30",
-        "n": 30,
-        "high_taken": 60.0,
-        "low_taken": 56.6,
-        "break_rate": 93.3,
-        "one_sided": 70.0,
-        "both": 23.3,
-        "neither": 6.7
-       },
-       {
-        "from": "2026-03-26",
-        "to": "2026-05-07",
-        "n": 30,
-        "high_taken": 66.6,
-        "low_taken": 46.6,
-        "break_rate": 90.0,
-        "one_sided": 66.6,
-        "both": 23.3,
-        "neither": 10.0
-       },
-       {
-        "from": "2026-04-02",
-        "to": "2026-05-14",
-        "n": 30,
-        "high_taken": 73.3,
-        "low_taken": 50.0,
-        "break_rate": 93.3,
-        "one_sided": 63.3,
-        "both": 30.0,
-        "neither": 6.7
-       },
-       {
-        "from": "2026-04-10",
-        "to": "2026-05-21",
-        "n": 30,
-        "high_taken": 70.0,
-        "low_taken": 46.6,
-        "break_rate": 93.3,
-        "one_sided": 70.0,
-        "both": 23.3,
-        "neither": 6.7
-       },
-       {
-        "from": "2026-04-17",
-        "to": "2026-05-28",
-        "n": 30,
-        "high_taken": 66.7,
-        "low_taken": 43.3,
-        "break_rate": 90.0,
-        "one_sided": 70.0,
-        "both": 20.0,
-        "neither": 10.0
-       },
-       {
-        "from": "2026-04-24",
-        "to": "2026-06-04",
-        "n": 30,
-        "high_taken": 60.0,
-        "low_taken": 53.3,
-        "break_rate": 93.3,
-        "one_sided": 73.3,
-        "both": 20.0,
-        "neither": 6.7
-       },
-       {
-        "from": "2026-05-01",
-        "to": "2026-06-11",
-        "n": 30,
-        "high_taken": 66.7,
-        "low_taken": 46.7,
-        "break_rate": 93.3,
-        "one_sided": 73.4,
-        "both": 20.0,
-        "neither": 6.7
-       },
-       {
-        "from": "2026-05-08",
-        "to": "2026-06-18",
-        "n": 30,
-        "high_taken": 66.6,
-        "low_taken": 53.3,
-        "break_rate": 96.7,
-        "one_sided": 73.3,
-        "both": 23.3,
-        "neither": 3.3
-       },
-       {
-        "from": "2026-05-15",
-        "to": "2026-06-25",
-        "n": 30,
-        "high_taken": 60.0,
-        "low_taken": 56.7,
-        "break_rate": 96.7,
-        "one_sided": 76.7,
-        "both": 20.0,
-        "neither": 3.3
-       },
-       {
-        "from": "2026-05-22",
-        "to": "2026-07-02",
-        "n": 30,
-        "high_taken": 60.0,
-        "low_taken": 63.4,
-        "break_rate": 96.7,
-        "one_sided": 70.0,
-        "both": 26.7,
-        "neither": 3.3
-       },
-       {
-        "from": "2026-05-29",
-        "to": "2026-07-09",
-        "n": 30,
-        "high_taken": 60.0,
-        "low_taken": 63.4,
-        "break_rate": 96.7,
-        "one_sided": 70.0,
-        "both": 26.7,
-        "neither": 3.3
-       },
-       {
-        "from": "2026-06-05",
-        "to": "2026-07-16",
-        "n": 30,
-        "high_taken": 60.0,
-        "low_taken": 53.3,
-        "break_rate": 90.0,
-        "one_sided": 66.7,
-        "both": 23.3,
-        "neither": 10.0
-       },
-       {
-        "from": "2026-06-12",
-        "to": "2026-07-23",
-        "n": 30,
-        "high_taken": 50.0,
-        "low_taken": 60.0,
-        "break_rate": 90.0,
-        "one_sided": 70.0,
-        "both": 20.0,
-        "neither": 10.0
-       },
-       {
-        "from": "2026-06-19",
-        "to": "2026-07-30",
-        "n": 30,
-        "high_taken": 50.0,
-        "low_taken": 60.0,
-        "break_rate": 86.7,
-        "one_sided": 63.4,
-        "both": 23.3,
-        "neither": 13.3
-       },
-       {
-        "from": "2026-06-26",
-        "to": "2026-08-06",
-        "n": 30,
-        "high_taken": 56.6,
-        "low_taken": 53.3,
-        "break_rate": 86.7,
-        "one_sided": 63.3,
-        "both": 23.3,
-        "neither": 13.3
-       },
-       {
-        "from": "2026-07-03",
-        "to": "2026-08-13",
-        "n": 30,
-        "high_taken": 60.0,
-        "low_taken": 50.0,
-        "break_rate": 86.7,
-        "one_sided": 63.4,
-        "both": 23.3,
-        "neither": 13.3
-       },
-       {
-        "from": "2026-07-10",
-        "to": "2026-08-20",
-        "n": 30,
-        "high_taken": 56.7,
-        "low_taken": 60.0,
-        "break_rate": 90.0,
-        "one_sided": 63.3,
-        "both": 26.7,
-        "neither": 10.0
-       },
-       {
-        "from": "2026-07-17",
-        "to": "2026-08-27",
-        "n": 30,
-        "high_taken": 60.0,
-        "low_taken": 66.7,
-        "break_rate": 96.7,
-        "one_sided": 66.7,
-        "both": 30.0,
-        "neither": 3.3
-       },
-       {
-        "from": "2026-07-24",
-        "to": "2026-09-03",
-        "n": 30,
-        "high_taken": 70.0,
-        "low_taken": 60.0,
-        "break_rate": 96.7,
-        "one_sided": 63.4,
-        "both": 33.3,
-        "neither": 3.3
-       },
-       {
-        "from": "2026-07-31",
-        "to": "2026-09-10",
-        "n": 30,
-        "high_taken": 70.0,
-        "low_taken": 66.7,
-        "break_rate": 100.0,
-        "one_sided": 63.3,
-        "both": 36.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-08-07",
-        "to": "2026-09-17",
-        "n": 30,
-        "high_taken": 70.0,
-        "low_taken": 73.3,
-        "break_rate": 100.0,
-        "one_sided": 56.7,
-        "both": 43.3,
-        "neither": 0.0
-       }
-      ],
-      "m60": [
-       {
-        "from": "2026-03-19",
-        "to": "2026-04-30",
-        "n": 30,
-        "high_taken": 66.7,
-        "low_taken": 63.3,
-        "break_rate": 100.0,
-        "one_sided": 70.0,
-        "both": 30.0,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-03-26",
-        "to": "2026-05-07",
-        "n": 30,
-        "high_taken": 73.4,
-        "low_taken": 60.0,
-        "break_rate": 96.7,
-        "one_sided": 60.0,
-        "both": 36.7,
-        "neither": 3.3
-       },
-       {
-        "from": "2026-04-02",
-        "to": "2026-05-14",
-        "n": 30,
-        "high_taken": 80.0,
-        "low_taken": 63.4,
-        "break_rate": 96.7,
-        "one_sided": 50.0,
-        "both": 46.7,
-        "neither": 3.3
-       },
-       {
-        "from": "2026-04-10",
-        "to": "2026-05-21",
-        "n": 30,
-        "high_taken": 76.6,
-        "low_taken": 63.3,
-        "break_rate": 96.7,
-        "one_sided": 53.3,
-        "both": 43.3,
-        "neither": 3.3
-       },
-       {
-        "from": "2026-04-17",
-        "to": "2026-05-28",
-        "n": 30,
-        "high_taken": 76.7,
-        "low_taken": 66.7,
-        "break_rate": 96.7,
-        "one_sided": 50.0,
-        "both": 46.7,
-        "neither": 3.3
-       },
-       {
-        "from": "2026-04-24",
-        "to": "2026-06-04",
-        "n": 30,
-        "high_taken": 70.0,
-        "low_taken": 73.4,
-        "break_rate": 96.7,
-        "one_sided": 50.0,
-        "both": 46.7,
-        "neither": 3.3
-       },
-       {
-        "from": "2026-05-01",
-        "to": "2026-06-11",
-        "n": 30,
-        "high_taken": 70.0,
-        "low_taken": 70.0,
-        "break_rate": 96.7,
-        "one_sided": 53.4,
-        "both": 43.3,
-        "neither": 3.3
-       },
-       {
-        "from": "2026-05-08",
-        "to": "2026-06-18",
-        "n": 30,
-        "high_taken": 70.0,
-        "low_taken": 70.0,
-        "break_rate": 100.0,
-        "one_sided": 60.0,
-        "both": 40.0,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-05-15",
-        "to": "2026-06-25",
-        "n": 30,
-        "high_taken": 66.7,
-        "low_taken": 70.0,
-        "break_rate": 100.0,
-        "one_sided": 63.3,
-        "both": 36.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-05-22",
-        "to": "2026-07-02",
-        "n": 30,
-        "high_taken": 70.0,
-        "low_taken": 73.3,
-        "break_rate": 100.0,
-        "one_sided": 56.7,
-        "both": 43.3,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-05-29",
-        "to": "2026-07-09",
-        "n": 30,
-        "high_taken": 70.0,
-        "low_taken": 70.0,
-        "break_rate": 100.0,
-        "one_sided": 60.0,
-        "both": 40.0,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-06-05",
-        "to": "2026-07-16",
-        "n": 30,
-        "high_taken": 73.4,
-        "low_taken": 60.0,
-        "break_rate": 96.7,
-        "one_sided": 60.0,
-        "both": 36.7,
-        "neither": 3.3
-       },
-       {
-        "from": "2026-06-12",
-        "to": "2026-07-23",
-        "n": 30,
-        "high_taken": 66.7,
-        "low_taken": 66.7,
-        "break_rate": 96.7,
-        "one_sided": 60.0,
-        "both": 36.7,
-        "neither": 3.3
-       },
-       {
-        "from": "2026-06-19",
-        "to": "2026-07-30",
-        "n": 30,
-        "high_taken": 70.0,
-        "low_taken": 66.7,
-        "break_rate": 96.7,
-        "one_sided": 56.7,
-        "both": 40.0,
-        "neither": 3.3
-       },
-       {
-        "from": "2026-06-26",
-        "to": "2026-08-06",
-        "n": 30,
-        "high_taken": 73.3,
-        "low_taken": 63.3,
-        "break_rate": 96.7,
-        "one_sided": 56.6,
-        "both": 40.0,
-        "neither": 3.3
-       },
-       {
-        "from": "2026-07-03",
-        "to": "2026-08-13",
-        "n": 30,
-        "high_taken": 73.4,
-        "low_taken": 60.0,
-        "break_rate": 96.7,
-        "one_sided": 60.0,
-        "both": 36.7,
-        "neither": 3.3
-       },
-       {
-        "from": "2026-07-10",
-        "to": "2026-08-20",
-        "n": 30,
-        "high_taken": 66.7,
-        "low_taken": 70.0,
-        "break_rate": 96.7,
-        "one_sided": 56.7,
-        "both": 40.0,
-        "neither": 3.3
-       },
-       {
-        "from": "2026-07-17",
-        "to": "2026-08-27",
-        "n": 30,
-        "high_taken": 66.6,
-        "low_taken": 76.6,
-        "break_rate": 100.0,
-        "one_sided": 56.6,
-        "both": 43.3,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-07-24",
-        "to": "2026-09-03",
-        "n": 30,
-        "high_taken": 73.3,
-        "low_taken": 66.7,
-        "break_rate": 100.0,
-        "one_sided": 60.0,
-        "both": 40.0,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-07-31",
-        "to": "2026-09-10",
-        "n": 30,
-        "high_taken": 73.4,
-        "low_taken": 73.4,
-        "break_rate": 100.0,
-        "one_sided": 53.4,
-        "both": 46.7,
-        "neither": 0.0
-       },
-       {
-        "from": "2026-08-07",
-        "to": "2026-09-17",
-        "n": 30,
-        "high_taken": 73.3,
-        "low_taken": 76.7,
-        "break_rate": 100.0,
-        "one_sided": 50.0,
-        "both": 50.0,
-        "neither": 0.0
-       }
-      ]
-     }
-    }
-   }
-  },
-  "ny_entry": {
-   "up": {
-    "n": 83,
-    "offset_pct": 0.213,
-    "offset_p75_pct": 0.359,
-    "median_min": 9,
-    "within_30min": 61.0,
-    "within_60min": 72.0,
-    "follow_pct": 0.927,
-    "reach_2x_offset_pct": 100.0
-   },
-   "down": {
-    "n": 88,
-    "offset_pct": 0.203,
-    "offset_p75_pct": 0.38,
-    "median_min": 9,
-    "within_30min": 62.0,
-    "within_60min": 76.0,
-    "follow_pct": 0.933,
-    "reach_2x_offset_pct": 100.0
-   }
-  },
-  "trade_sim": {
-   "up": {
-    "n_days": 83,
-    "filled": 42,
-    "fill_rate": 51.0,
-    "offset_pct": 0.213,
-    "win_rate": 81.0,
-    "targets": {
-     "1.0": 81.0,
-     "1.5": 76.0,
-     "2.0": 71.0,
-     "2.5": 62.0,
-     "3.0": 48.0
-    },
-    "avg_max_r": 3.24,
-    "median_max_r": 2.93,
-    "entry_min": 10,
-    "run_min": 142
-   },
-   "down": {
-    "n_days": 88,
-    "filled": 44,
-    "fill_rate": 50.0,
-    "offset_pct": 0.203,
-    "win_rate": 80.0,
-    "targets": {
-     "1.0": 80.0,
-     "1.5": 70.0,
-     "2.0": 59.0,
-     "2.5": 45.0,
-     "3.0": 45.0
-    },
-    "avg_max_r": 2.88,
-    "median_max_r": 2.33,
-    "entry_min": 12,
-    "run_min": 112
-   }
-  },
-  "by_hour": {
-   "volatility": [
-    275.8,
-    242.0,
-    189.8,
-    167.3,
-    151.6,
-    190.6,
-    231.8,
-    290.9,
-    336.3,
-    287.3,
-    296.0,
-    336.6,
-    395.7,
-    686.9,
-    781.9,
-    646.6,
-    516.3,
-    468.4,
-    454.4,
-    470.4,
-    452.8,
-    413.8,
-    265.6,
-    213.2
+   "rth_et": [
+    9.5,
+    16.0
    ],
-   "volume": [
+   "days": 1674,
+   "from": "2020-02-10",
+   "to": "2026-10-30",
+   "sources": {
+    "twelvedata": 1674
+   },
+   "ref_price": 52093.0,
+   "typical_range_pct": 0.7613,
+   "typical_first30_pct": 0.4271,
+   "typical_after14_pct": 0.3051,
+   "checkpoints": [
+    30,
+    60,
+    90,
+    120,
+    180,
+    240,
+    300
+   ],
+   "qs": [
     0.0,
-    0.0,
-    0.0,
-    0.0,
-    0.0,
-    0.0,
-    0.0,
-    0.0,
-    0.0,
-    0.0,
-    0.0,
-    0.0,
-    0.0,
+    0.05,
     0.1,
-    0.1,
-    0.1,
-    0.1,
-    0.1,
-    0.1,
-    0.1,
-    0.0,
-    0.0,
-    0.0,
-    0.0
+    0.15,
+    0.2,
+    0.25,
+    0.3,
+    0.35,
+    0.4,
+    0.45,
+    0.5,
+    0.55,
+    0.6,
+    0.65,
+    0.7,
+    0.75,
+    0.8,
+    0.85,
+    0.9,
+    0.95,
+    1.0
    ]
+  },
+  "range": {
+   "n": 1664,
+   "ratio": {
+    "n": 1664,
+    "p10": 0.571,
+    "p25": 0.746,
+    "p50": 0.992,
+    "p75": 1.339,
+    "p90": 1.767
+   },
+   "ratio_q": [
+    0.2812,
+    0.4936,
+    0.5712,
+    0.639,
+    0.6951,
+    0.7458,
+    0.7942,
+    0.8336,
+    0.8822,
+    0.9347,
+    0.9924,
+    1.0591,
+    1.1054,
+    1.171,
+    1.255,
+    1.3393,
+    1.454,
+    1.5871,
+    1.7666,
+    2.0949,
+    6.4873
+   ],
+   "range_pct": {
+    "n": 1664,
+    "p25": 0.709,
+    "p50": 0.967,
+    "p75": 1.388,
+    "p90": 1.983
+   },
+   "checkpoints": {
+    "30": {
+     "n": 1664,
+     "so_far_q": [
+      0.1021,
+      0.2284,
+      0.2638,
+      0.291,
+      0.3173,
+      0.3376,
+      0.3572,
+      0.3769,
+      0.3978,
+      0.4202,
+      0.4432,
+      0.4695,
+      0.4944,
+      0.5251,
+      0.5523,
+      0.5933,
+      0.636,
+      0.6905,
+      0.768,
+      0.9388,
+      1.9778
+     ],
+     "ext": {
+      "n": 1664,
+      "p25": 0.307,
+      "p50": 0.52,
+      "p75": 0.805,
+      "p90": 1.178
+     },
+     "buckets": [
+      {
+       "lo": null,
+       "hi": 0.37,
+       "ext": {
+        "n": 555,
+        "p25": 0.314,
+        "p50": 0.507,
+        "p75": 0.749,
+        "p90": 1.009
+       }
+      },
+      {
+       "lo": 0.37,
+       "hi": 0.536,
+       "ext": {
+        "n": 554,
+        "p25": 0.292,
+        "p50": 0.502,
+        "p75": 0.787,
+        "p90": 1.143
+       }
+      },
+      {
+       "lo": 0.536,
+       "hi": null,
+       "ext": {
+        "n": 555,
+        "p25": 0.311,
+        "p50": 0.554,
+        "p75": 0.905,
+        "p90": 1.362
+       }
+      }
+     ]
+    },
+    "60": {
+     "n": 1664,
+     "so_far_q": [
+      0.1651,
+      0.2899,
+      0.3365,
+      0.3685,
+      0.3981,
+      0.4283,
+      0.451,
+      0.4788,
+      0.5072,
+      0.5347,
+      0.5588,
+      0.595,
+      0.6296,
+      0.659,
+      0.7086,
+      0.764,
+      0.821,
+      0.9006,
+      1.0134,
+      1.1976,
+      4.7064
+     ],
+     "ext": {
+      "n": 1664,
+      "p25": 0.192,
+      "p50": 0.381,
+      "p75": 0.63,
+      "p90": 0.985
+     },
+     "buckets": [
+      {
+       "lo": null,
+       "hi": 0.47,
+       "ext": {
+        "n": 555,
+        "p25": 0.2,
+        "p50": 0.367,
+        "p75": 0.594,
+        "p90": 0.857
+       }
+      },
+      {
+       "lo": 0.47,
+       "hi": 0.678,
+       "ext": {
+        "n": 554,
+        "p25": 0.194,
+        "p50": 0.367,
+        "p75": 0.61,
+        "p90": 0.958
+       }
+      },
+      {
+       "lo": 0.678,
+       "hi": null,
+       "ext": {
+        "n": 555,
+        "p25": 0.181,
+        "p50": 0.414,
+        "p75": 0.693,
+        "p90": 1.215
+       }
+      }
+     ]
+    },
+    "90": {
+     "n": 1664,
+     "so_far_q": [
+      0.1671,
+      0.3269,
+      0.3721,
+      0.4142,
+      0.4466,
+      0.4777,
+      0.5059,
+      0.5389,
+      0.5659,
+      0.6027,
+      0.6352,
+      0.6715,
+      0.7066,
+      0.7447,
+      0.7901,
+      0.8391,
+      0.9163,
+      1.0082,
+      1.131,
+      1.3861,
+      4.7064
+     ],
+     "ext": {
+      "n": 1664,
+      "p25": 0.142,
+      "p50": 0.307,
+      "p75": 0.543,
+      "p90": 0.887
+     },
+     "buckets": [
+      {
+       "lo": null,
+       "hi": 0.525,
+       "ext": {
+        "n": 555,
+        "p25": 0.153,
+        "p50": 0.291,
+        "p75": 0.504,
+        "p90": 0.781
+       }
+      },
+      {
+       "lo": 0.525,
+       "hi": 0.761,
+       "ext": {
+        "n": 554,
+        "p25": 0.14,
+        "p50": 0.296,
+        "p75": 0.52,
+        "p90": 0.837
+       }
+      },
+      {
+       "lo": 0.761,
+       "hi": null,
+       "ext": {
+        "n": 555,
+        "p25": 0.127,
+        "p50": 0.331,
+        "p75": 0.626,
+        "p90": 1.044
+       }
+      }
+     ]
+    },
+    "120": {
+     "n": 1664,
+     "so_far_q": [
+      0.2013,
+      0.3608,
+      0.4097,
+      0.4517,
+      0.4857,
+      0.5187,
+      0.5498,
+      0.5812,
+      0.6191,
+      0.6571,
+      0.6901,
+      0.7255,
+      0.7652,
+      0.8041,
+      0.8542,
+      0.9104,
+      0.9883,
+      1.0707,
+      1.2237,
+      1.4557,
+      4.7064
+     ],
+     "ext": {
+      "n": 1664,
+      "p25": 0.085,
+      "p50": 0.245,
+      "p75": 0.467,
+      "p90": 0.779
+     },
+     "buckets": [
+      {
+       "lo": null,
+       "hi": 0.57,
+       "ext": {
+        "n": 555,
+        "p25": 0.116,
+        "p50": 0.226,
+        "p75": 0.42,
+        "p90": 0.667
+       }
+      },
+      {
+       "lo": 0.57,
+       "hi": 0.819,
+       "ext": {
+        "n": 554,
+        "p25": 0.084,
+        "p50": 0.247,
+        "p75": 0.47,
+        "p90": 0.8
+       }
+      },
+      {
+       "lo": 0.819,
+       "hi": null,
+       "ext": {
+        "n": 555,
+        "p25": 0.046,
+        "p50": 0.265,
+        "p75": 0.532,
+        "p90": 0.845
+       }
+      }
+     ]
+    },
+    "180": {
+     "n": 1664,
+     "so_far_q": [
+      0.2233,
+      0.394,
+      0.4555,
+      0.497,
+      0.5368,
+      0.5687,
+      0.6059,
+      0.6451,
+      0.6871,
+      0.7234,
+      0.7624,
+      0.8036,
+      0.8441,
+      0.8974,
+      0.9377,
+      1.0057,
+      1.0918,
+      1.2073,
+      1.3683,
+      1.6091,
+      4.7064
+     ],
+     "ext": {
+      "n": 1664,
+      "p25": 0.024,
+      "p50": 0.158,
+      "p75": 0.356,
+      "p90": 0.653
+     },
+     "buckets": [
+      {
+       "lo": null,
+       "hi": 0.632,
+       "ext": {
+        "n": 555,
+        "p25": 0.055,
+        "p50": 0.167,
+        "p75": 0.333,
+        "p90": 0.589
+       }
+      },
+      {
+       "lo": 0.632,
+       "hi": 0.91,
+       "ext": {
+        "n": 554,
+        "p25": 0.021,
+        "p50": 0.151,
+        "p75": 0.345,
+        "p90": 0.62
+       }
+      },
+      {
+       "lo": 0.91,
+       "hi": null,
+       "ext": {
+        "n": 555,
+        "p25": 0.0,
+        "p50": 0.141,
+        "p75": 0.41,
+        "p90": 0.702
+       }
+      }
+     ]
+    },
+    "240": {
+     "n": 1664,
+     "so_far_q": [
+      0.224,
+      0.4126,
+      0.4802,
+      0.5337,
+      0.5781,
+      0.6185,
+      0.6546,
+      0.6959,
+      0.7343,
+      0.7768,
+      0.82,
+      0.8566,
+      0.9082,
+      0.9701,
+      1.0337,
+      1.1067,
+      1.1953,
+      1.3025,
+      1.4672,
+      1.7414,
+      5.3566
+     ],
+     "ext": {
+      "n": 1664,
+      "p25": 0.0,
+      "p50": 0.094,
+      "p75": 0.265,
+      "p90": 0.509
+     },
+     "buckets": [
+      {
+       "lo": null,
+       "hi": 0.685,
+       "ext": {
+        "n": 555,
+        "p25": 0.0,
+        "p50": 0.114,
+        "p75": 0.241,
+        "p90": 0.473
+       }
+      },
+      {
+       "lo": 0.685,
+       "hi": 0.99,
+       "ext": {
+        "n": 554,
+        "p25": 0.0,
+        "p50": 0.086,
+        "p75": 0.244,
+        "p90": 0.48
+       }
+      },
+      {
+       "lo": 0.99,
+       "hi": null,
+       "ext": {
+        "n": 555,
+        "p25": 0.0,
+        "p50": 0.078,
+        "p75": 0.3,
+        "p90": 0.564
+       }
+      }
+     ]
+    },
+    "300": {
+     "n": 1664,
+     "so_far_q": [
+      0.224,
+      0.4479,
+      0.5115,
+      0.5696,
+      0.6187,
+      0.6622,
+      0.707,
+      0.7531,
+      0.7967,
+      0.834,
+      0.8806,
+      0.9291,
+      0.9865,
+      1.0554,
+      1.1245,
+      1.2076,
+      1.2946,
+      1.406,
+      1.5575,
+      1.8599,
+      5.8794
+     ],
+     "ext": {
+      "n": 1664,
+      "p25": 0.0,
+      "p50": 0.026,
+      "p75": 0.168,
+      "p90": 0.367
+     },
+     "buckets": [
+      {
+       "lo": null,
+       "hi": 0.736,
+       "ext": {
+        "n": 555,
+        "p25": 0.0,
+        "p50": 0.041,
+        "p75": 0.154,
+        "p90": 0.292
+       }
+      },
+      {
+       "lo": 0.736,
+       "hi": 1.078,
+       "ext": {
+        "n": 554,
+        "p25": 0.0,
+        "p50": 0.026,
+        "p75": 0.17,
+        "p90": 0.324
+       }
+      },
+      {
+       "lo": 1.078,
+       "hi": null,
+       "ext": {
+        "n": 555,
+        "p25": 0.0,
+        "p50": 0.003,
+        "p75": 0.186,
+        "p90": 0.495
+       }
+      }
+     ]
+    }
+   }
+  },
+  "extremes": {
+   "n": 1674,
+   "first30": {
+    "high": {
+     "pct": 30.5,
+     "k": 510,
+     "n": 1674,
+     "ci": [
+      28.3,
+      32.7
+     ],
+     "coin": false
+    },
+    "low": {
+     "pct": 31.4,
+     "k": 525,
+     "n": 1674,
+     "ci": [
+      29.2,
+      33.6
+     ],
+     "coin": false
+    },
+    "either": {
+     "pct": 61.2,
+     "k": 1024,
+     "n": 1674,
+     "ci": [
+      58.8,
+      63.5
+     ],
+     "coin": false
+    },
+    "both": {
+     "pct": 0.7,
+     "k": 11,
+     "n": 1674,
+     "ci": [
+      0.4,
+      1.2
+     ],
+     "coin": false
+    }
+   },
+   "first60": {
+    "high": {
+     "pct": 38.2,
+     "k": 640,
+     "n": 1674,
+     "ci": [
+      35.9,
+      40.6
+     ],
+     "coin": false
+    },
+    "low": {
+     "pct": 41.5,
+     "k": 695,
+     "n": 1674,
+     "ci": [
+      39.2,
+      43.9
+     ],
+     "coin": false
+    },
+    "either": {
+     "pct": 75.9,
+     "k": 1271,
+     "n": 1674,
+     "ci": [
+      73.8,
+      77.9
+     ],
+     "coin": false
+    },
+    "both": {
+     "pct": 3.8,
+     "k": 64,
+     "n": 1674,
+     "ci": [
+      3.0,
+      4.9
+     ],
+     "coin": false
+    }
+   },
+   "slots": [
+    {
+     "from": 0,
+     "high": {
+      "pct": 30.5,
+      "k": 510,
+      "n": 1674,
+      "ci": [
+       28.3,
+       32.7
+      ],
+      "coin": false
+     },
+     "low": {
+      "pct": 31.4,
+      "k": 525,
+      "n": 1674,
+      "ci": [
+       29.2,
+       33.6
+      ],
+      "coin": false
+     }
+    },
+    {
+     "from": 30,
+     "high": {
+      "pct": 7.8,
+      "k": 130,
+      "n": 1674,
+      "ci": [
+       6.6,
+       9.1
+      ],
+      "coin": false
+     },
+     "low": {
+      "pct": 10.2,
+      "k": 170,
+      "n": 1674,
+      "ci": [
+       8.8,
+       11.7
+      ],
+      "coin": false
+     }
+    },
+    {
+     "from": 60,
+     "high": {
+      "pct": 5.4,
+      "k": 90,
+      "n": 1674,
+      "ci": [
+       4.4,
+       6.6
+      ],
+      "coin": false
+     },
+     "low": {
+      "pct": 6.9,
+      "k": 115,
+      "n": 1674,
+      "ci": [
+       5.8,
+       8.2
+      ],
+      "coin": false
+     }
+    },
+    {
+     "from": 90,
+     "high": {
+      "pct": 4.8,
+      "k": 81,
+      "n": 1674,
+      "ci": [
+       3.9,
+       6.0
+      ],
+      "coin": false
+     },
+     "low": {
+      "pct": 5.0,
+      "k": 83,
+      "n": 1674,
+      "ci": [
+       4.0,
+       6.1
+      ],
+      "coin": false
+     }
+    },
+    {
+     "from": 120,
+     "high": {
+      "pct": 3.8,
+      "k": 64,
+      "n": 1674,
+      "ci": [
+       3.0,
+       4.9
+      ],
+      "coin": false
+     },
+     "low": {
+      "pct": 4.4,
+      "k": 73,
+      "n": 1674,
+      "ci": [
+       3.5,
+       5.4
+      ],
+      "coin": false
+     }
+    },
+    {
+     "from": 150,
+     "high": {
+      "pct": 3.0,
+      "k": 51,
+      "n": 1674,
+      "ci": [
+       2.3,
+       4.0
+      ],
+      "coin": false
+     },
+     "low": {
+      "pct": 3.3,
+      "k": 55,
+      "n": 1674,
+      "ci": [
+       2.5,
+       4.3
+      ],
+      "coin": false
+     }
+    },
+    {
+     "from": 180,
+     "high": {
+      "pct": 3.1,
+      "k": 52,
+      "n": 1674,
+      "ci": [
+       2.4,
+       4.1
+      ],
+      "coin": false
+     },
+     "low": {
+      "pct": 3.6,
+      "k": 61,
+      "n": 1674,
+      "ci": [
+       2.8,
+       4.7
+      ],
+      "coin": false
+     }
+    },
+    {
+     "from": 210,
+     "high": {
+      "pct": 3.3,
+      "k": 55,
+      "n": 1674,
+      "ci": [
+       2.5,
+       4.3
+      ],
+      "coin": false
+     },
+     "low": {
+      "pct": 3.3,
+      "k": 56,
+      "n": 1674,
+      "ci": [
+       2.6,
+       4.3
+      ],
+      "coin": false
+     }
+    },
+    {
+     "from": 240,
+     "high": {
+      "pct": 3.3,
+      "k": 56,
+      "n": 1674,
+      "ci": [
+       2.6,
+       4.3
+      ],
+      "coin": false
+     },
+     "low": {
+      "pct": 3.7,
+      "k": 62,
+      "n": 1674,
+      "ci": [
+       2.9,
+       4.7
+      ],
+      "coin": false
+     }
+    },
+    {
+     "from": 270,
+     "high": {
+      "pct": 4.1,
+      "k": 68,
+      "n": 1674,
+      "ci": [
+       3.2,
+       5.1
+      ],
+      "coin": false
+     },
+     "low": {
+      "pct": 4.0,
+      "k": 67,
+      "n": 1674,
+      "ci": [
+       3.2,
+       5.1
+      ],
+      "coin": false
+     }
+    },
+    {
+     "from": 300,
+     "high": {
+      "pct": 3.7,
+      "k": 62,
+      "n": 1674,
+      "ci": [
+       2.9,
+       4.7
+      ],
+      "coin": false
+     },
+     "low": {
+      "pct": 4.4,
+      "k": 73,
+      "n": 1674,
+      "ci": [
+       3.5,
+       5.4
+      ],
+      "coin": false
+     }
+    },
+    {
+     "from": 330,
+     "high": {
+      "pct": 6.5,
+      "k": 109,
+      "n": 1674,
+      "ci": [
+       5.4,
+       7.8
+      ],
+      "coin": false
+     },
+     "low": {
+      "pct": 4.8,
+      "k": 80,
+      "n": 1674,
+      "ci": [
+       3.9,
+       5.9
+      ],
+      "coin": false
+     }
+    },
+    {
+     "from": 360,
+     "high": {
+      "pct": 20.7,
+      "k": 346,
+      "n": 1674,
+      "ci": [
+       18.8,
+       22.7
+      ],
+      "coin": false
+     },
+     "low": {
+      "pct": 15.2,
+      "k": 254,
+      "n": 1674,
+      "ci": [
+       13.5,
+       17.0
+      ],
+      "coin": false
+     }
+    }
+   ],
+   "checkpoints": {
+    "30": {
+     "high_done": {
+      "pct": 30.5,
+      "k": 510,
+      "n": 1674,
+      "ci": [
+       28.3,
+       32.7
+      ],
+      "coin": false
+     },
+     "low_done": {
+      "pct": 31.4,
+      "k": 525,
+      "n": 1674,
+      "ci": [
+       29.2,
+       33.6
+      ],
+      "coin": false
+     },
+     "both_done": {
+      "pct": 0.7,
+      "k": 11,
+      "n": 1674,
+      "ci": [
+       0.4,
+       1.2
+      ],
+      "coin": false
+     },
+     "high_done_aged": {
+      "pct": 43.1,
+      "k": 282,
+      "n": 654,
+      "ci": [
+       39.4,
+       46.9
+      ],
+      "coin": false
+     },
+     "low_done_aged": {
+      "pct": 46.6,
+      "k": 291,
+      "n": 624,
+      "ci": [
+       42.8,
+       50.6
+      ],
+      "coin": true
+     }
+    },
+    "60": {
+     "high_done": {
+      "pct": 38.2,
+      "k": 640,
+      "n": 1674,
+      "ci": [
+       35.9,
+       40.6
+      ],
+      "coin": false
+     },
+     "low_done": {
+      "pct": 41.5,
+      "k": 695,
+      "n": 1674,
+      "ci": [
+       39.2,
+       43.9
+      ],
+      "coin": false
+     },
+     "both_done": {
+      "pct": 3.8,
+      "k": 64,
+      "n": 1674,
+      "ci": [
+       3.0,
+       4.9
+      ],
+      "coin": false
+     },
+     "high_done_aged": {
+      "pct": 51.8,
+      "k": 553,
+      "n": 1068,
+      "ci": [
+       48.8,
+       54.8
+      ],
+      "coin": true
+     },
+     "low_done_aged": {
+      "pct": 52.9,
+      "k": 574,
+      "n": 1086,
+      "ci": [
+       49.9,
+       55.8
+      ],
+      "coin": true
+     }
+    },
+    "90": {
+     "high_done": {
+      "pct": 43.6,
+      "k": 730,
+      "n": 1674,
+      "ci": [
+       41.2,
+       46.0
+      ],
+      "coin": false
+     },
+     "low_done": {
+      "pct": 48.4,
+      "k": 810,
+      "n": 1674,
+      "ci": [
+       46.0,
+       50.8
+      ],
+      "coin": true
+     },
+     "both_done": {
+      "pct": 8.0,
+      "k": 134,
+      "n": 1674,
+      "ci": [
+       6.8,
+       9.4
+      ],
+      "coin": false
+     },
+     "high_done_aged": {
+      "pct": 53.1,
+      "k": 665,
+      "n": 1252,
+      "ci": [
+       50.3,
+       55.9
+      ],
+      "coin": false
+     },
+     "low_done_aged": {
+      "pct": 57.1,
+      "k": 722,
+      "n": 1264,
+      "ci": [
+       54.4,
+       59.8
+      ],
+      "coin": false
+     }
+    },
+    "120": {
+     "high_done": {
+      "pct": 48.4,
+      "k": 811,
+      "n": 1674,
+      "ci": [
+       46.1,
+       50.8
+      ],
+      "coin": true
+     },
+     "low_done": {
+      "pct": 53.3,
+      "k": 893,
+      "n": 1674,
+      "ci": [
+       51.0,
+       55.7
+      ],
+      "coin": false
+     },
+     "both_done": {
+      "pct": 12.4,
+      "k": 208,
+      "n": 1674,
+      "ci": [
+       10.9,
+       14.1
+      ],
+      "coin": false
+     },
+     "high_done_aged": {
+      "pct": 57.4,
+      "k": 744,
+      "n": 1296,
+      "ci": [
+       54.7,
+       60.1
+      ],
+      "coin": false
+     },
+     "low_done_aged": {
+      "pct": 61.7,
+      "k": 825,
+      "n": 1337,
+      "ci": [
+       59.1,
+       64.3
+      ],
+      "coin": false
+     }
+    },
+    "180": {
+     "high_done": {
+      "pct": 55.3,
+      "k": 926,
+      "n": 1674,
+      "ci": [
+       52.9,
+       57.7
+      ],
+      "coin": false
+     },
+     "low_done": {
+      "pct": 61.0,
+      "k": 1021,
+      "n": 1674,
+      "ci": [
+       58.6,
+       63.3
+      ],
+      "coin": false
+     },
+     "both_done": {
+      "pct": 22.0,
+      "k": 368,
+      "n": 1674,
+      "ci": [
+       20.1,
+       24.0
+      ],
+      "coin": false
+     },
+     "high_done_aged": {
+      "pct": 63.1,
+      "k": 883,
+      "n": 1399,
+      "ci": [
+       60.6,
+       65.6
+      ],
+      "coin": false
+     },
+     "low_done_aged": {
+      "pct": 68.0,
+      "k": 973,
+      "n": 1431,
+      "ci": [
+       65.5,
+       70.4
+      ],
+      "coin": false
+     }
+    },
+    "240": {
+     "high_done": {
+      "pct": 61.7,
+      "k": 1033,
+      "n": 1674,
+      "ci": [
+       59.4,
+       64.0
+      ],
+      "coin": false
+     },
+     "low_done": {
+      "pct": 68.0,
+      "k": 1138,
+      "n": 1674,
+      "ci": [
+       65.7,
+       70.2
+      ],
+      "coin": false
+     },
+     "both_done": {
+      "pct": 32.5,
+      "k": 544,
+      "n": 1674,
+      "ci": [
+       30.3,
+       34.8
+      ],
+      "coin": false
+     },
+     "high_done_aged": {
+      "pct": 69.3,
+      "k": 989,
+      "n": 1427,
+      "ci": [
+       66.9,
+       71.6
+      ],
+      "coin": false
+     },
+     "low_done_aged": {
+      "pct": 74.8,
+      "k": 1089,
+      "n": 1456,
+      "ci": [
+       72.5,
+       77.0
+      ],
+      "coin": false
+     }
+    },
+    "300": {
+     "high_done": {
+      "pct": 69.1,
+      "k": 1157,
+      "n": 1674,
+      "ci": [
+       66.9,
+       71.3
+      ],
+      "coin": false
+     },
+     "low_done": {
+      "pct": 75.7,
+      "k": 1267,
+      "n": 1674,
+      "ci": [
+       73.6,
+       77.7
+      ],
+      "coin": false
+     },
+     "both_done": {
+      "pct": 45.6,
+      "k": 763,
+      "n": 1674,
+      "ci": [
+       43.2,
+       48.0
+      ],
+      "coin": false
+     },
+     "high_done_aged": {
+      "pct": 77.0,
+      "k": 1106,
+      "n": 1436,
+      "ci": [
+       74.8,
+       79.1
+      ],
+      "coin": false
+     },
+     "low_done_aged": {
+      "pct": 83.0,
+      "k": 1216,
+      "n": 1465,
+      "ci": [
+       81.0,
+       84.8
+      ],
+      "coin": false
+     }
+    }
+   }
+  },
+  "trend": {
+   "n": 1674,
+   "der": {
+    "n": 1674,
+    "p10": 0.02,
+    "p25": 0.05,
+    "p50": 0.106,
+    "p75": 0.178,
+    "p90": 0.254
+   },
+   "der_random_walk": 0.113,
+   "der_share": {
+    "low": {
+     "pct": 89.2,
+     "k": 1494,
+     "n": 1674,
+     "ci": [
+      87.7,
+      90.6
+     ],
+     "coin": false
+    },
+    "mixed": {
+     "pct": 10.8,
+     "k": 180,
+     "n": 1674,
+     "ci": [
+      9.4,
+      12.3
+     ],
+     "coin": false
+    },
+    "high": {
+     "pct": 0.0,
+     "k": 0,
+     "n": 1674,
+     "ci": [
+      0.0,
+      0.2
+     ],
+     "coin": false
+    },
+    "very_high": {
+     "pct": 0.0,
+     "k": 0,
+     "n": 1674,
+     "ci": [
+      0.0,
+      0.2
+     ],
+     "coin": false
+    }
+   },
+   "close_location": {
+    "near_high": {
+     "pct": 27.5,
+     "k": 460,
+     "n": 1674,
+     "ci": [
+      25.4,
+      29.7
+     ],
+     "coin": false
+    },
+    "upper": {
+     "pct": 19.5,
+     "k": 326,
+     "n": 1674,
+     "ci": [
+      17.6,
+      21.4
+     ],
+     "coin": false
+    },
+    "mid": {
+     "pct": 16.6,
+     "k": 278,
+     "n": 1674,
+     "ci": [
+      14.9,
+      18.5
+     ],
+     "coin": false
+    },
+    "lower": {
+     "pct": 16.3,
+     "k": 273,
+     "n": 1674,
+     "ci": [
+      14.6,
+      18.2
+     ],
+     "coin": false
+    },
+    "near_low": {
+     "pct": 20.1,
+     "k": 337,
+     "n": 1674,
+     "ci": [
+      18.3,
+      22.1
+     ],
+     "coin": false
+    }
+   },
+   "retracement": {
+    "shallow": {
+     "pct": 4.7,
+     "k": 79,
+     "n": 1674,
+     "ci": [
+      3.8,
+      5.8
+     ],
+     "coin": false
+    },
+    "moderate": {
+     "pct": 29.6,
+     "k": 495,
+     "n": 1674,
+     "ci": [
+      27.4,
+      31.8
+     ],
+     "coin": false
+    },
+    "deep": {
+     "pct": 31.5,
+     "k": 528,
+     "n": 1674,
+     "ci": [
+      29.4,
+      33.8
+     ],
+     "coin": false
+    },
+    "full": {
+     "pct": 34.2,
+     "k": 572,
+     "n": 1674,
+     "ci": [
+      31.9,
+      36.5
+     ],
+     "coin": false
+    }
+   },
+   "trend_day": {
+    "bull": {
+     "pct": 0.0,
+     "k": 0,
+     "n": 1674,
+     "ci": [
+      0.0,
+      0.2
+     ],
+     "coin": false
+    },
+    "bear": {
+     "pct": 0.0,
+     "k": 0,
+     "n": 1674,
+     "ci": [
+      0.0,
+      0.2
+     ],
+     "coin": false
+    },
+    "any": {
+     "pct": 0.0,
+     "k": 0,
+     "n": 1674,
+     "ci": [
+      0.0,
+      0.2
+     ],
+     "coin": false
+    }
+   },
+   "strong_day": {
+    "bull": {
+     "pct": 5.7,
+     "k": 96,
+     "n": 1674,
+     "ci": [
+      4.7,
+      7.0
+     ],
+     "coin": false
+    },
+    "bear": {
+     "pct": 3.5,
+     "k": 59,
+     "n": 1674,
+     "ci": [
+      2.7,
+      4.5
+     ],
+     "coin": false
+    },
+    "any": {
+     "pct": 9.3,
+     "k": 155,
+     "n": 1674,
+     "ci": [
+      8.0,
+      10.7
+     ],
+     "coin": false
+    }
+   },
+   "first30_continuation": {
+    "pct": 51.3,
+    "k": 856,
+    "n": 1670,
+    "ci": [
+     48.9,
+     53.6
+    ],
+    "coin": true
+   },
+   "definition": {
+    "der_min": 0.5,
+    "cl_min": 0.8,
+    "retr_max": 0.5,
+    "strong_der_min": 0.254
+   },
+   "checkpoints": {
+    "30": {
+     "n": 1670,
+     "buckets": [
+      {
+       "lo": null,
+       "hi": 0.248,
+       "trend_day": {
+        "pct": 3.6,
+        "k": 20,
+        "n": 557,
+        "ci": [
+         2.3,
+         5.5
+        ],
+        "coin": false
+       },
+       "continues": {
+        "pct": 51.7,
+        "k": 288,
+        "n": 557,
+        "ci": [
+         47.6,
+         55.8
+        ],
+        "coin": true
+       }
+      },
+      {
+       "lo": 0.248,
+       "hi": 0.56,
+       "trend_day": {
+        "pct": 6.3,
+        "k": 35,
+        "n": 556,
+        "ci": [
+         4.6,
+         8.6
+        ],
+        "coin": false
+       },
+       "continues": {
+        "pct": 48.4,
+        "k": 269,
+        "n": 556,
+        "ci": [
+         44.3,
+         52.5
+        ],
+        "coin": true
+       }
+      },
+      {
+       "lo": 0.56,
+       "hi": null,
+       "trend_day": {
+        "pct": 14.0,
+        "k": 78,
+        "n": 557,
+        "ci": [
+         11.4,
+         17.1
+        ],
+        "coin": false
+       },
+       "continues": {
+        "pct": 53.7,
+        "k": 299,
+        "n": 557,
+        "ci": [
+         49.5,
+         57.8
+        ],
+        "coin": true
+       }
+      }
+     ]
+    },
+    "60": {
+     "n": 1668,
+     "buckets": [
+      {
+       "lo": null,
+       "hi": 0.173,
+       "trend_day": {
+        "pct": 2.5,
+        "k": 14,
+        "n": 556,
+        "ci": [
+         1.5,
+         4.2
+        ],
+        "coin": false
+       },
+       "continues": {
+        "pct": 53.4,
+        "k": 297,
+        "n": 556,
+        "ci": [
+         49.3,
+         57.5
+        ],
+        "coin": true
+       }
+      },
+      {
+       "lo": 0.173,
+       "hi": 0.379,
+       "trend_day": {
+        "pct": 5.6,
+        "k": 31,
+        "n": 556,
+        "ci": [
+         4.0,
+         7.8
+        ],
+        "coin": false
+       },
+       "continues": {
+        "pct": 49.3,
+        "k": 274,
+        "n": 556,
+        "ci": [
+         45.1,
+         53.4
+        ],
+        "coin": true
+       }
+      },
+      {
+       "lo": 0.379,
+       "hi": null,
+       "trend_day": {
+        "pct": 17.1,
+        "k": 95,
+        "n": 556,
+        "ci": [
+         14.2,
+         20.4
+        ],
+        "coin": false
+       },
+       "continues": {
+        "pct": 51.1,
+        "k": 284,
+        "n": 556,
+        "ci": [
+         46.9,
+         55.2
+        ],
+        "coin": true
+       }
+      }
+     ]
+    },
+    "90": {
+     "n": 1671,
+     "buckets": [
+      {
+       "lo": null,
+       "hi": 0.144,
+       "trend_day": {
+        "pct": 2.5,
+        "k": 14,
+        "n": 557,
+        "ci": [
+         1.5,
+         4.2
+        ],
+        "coin": false
+       },
+       "continues": {
+        "pct": 50.8,
+        "k": 283,
+        "n": 557,
+        "ci": [
+         46.7,
+         54.9
+        ],
+        "coin": true
+       }
+      },
+      {
+       "lo": 0.144,
+       "hi": 0.312,
+       "trend_day": {
+        "pct": 4.1,
+        "k": 23,
+        "n": 557,
+        "ci": [
+         2.8,
+         6.1
+        ],
+        "coin": false
+       },
+       "continues": {
+        "pct": 47.6,
+        "k": 265,
+        "n": 557,
+        "ci": [
+         43.5,
+         51.7
+        ],
+        "coin": true
+       }
+      },
+      {
+       "lo": 0.312,
+       "hi": null,
+       "trend_day": {
+        "pct": 19.4,
+        "k": 108,
+        "n": 557,
+        "ci": [
+         16.3,
+         22.9
+        ],
+        "coin": false
+       },
+       "continues": {
+        "pct": 51.9,
+        "k": 289,
+        "n": 557,
+        "ci": [
+         47.7,
+         56.0
+        ],
+        "coin": true
+       }
+      }
+     ]
+    },
+    "120": {
+     "n": 1673,
+     "buckets": [
+      {
+       "lo": null,
+       "hi": 0.12,
+       "trend_day": {
+        "pct": 1.3,
+        "k": 7,
+        "n": 558,
+        "ci": [
+         0.6,
+         2.6
+        ],
+        "coin": false
+       },
+       "continues": {
+        "pct": 46.6,
+        "k": 260,
+        "n": 558,
+        "ci": [
+         42.5,
+         50.7
+        ],
+        "coin": true
+       }
+      },
+      {
+       "lo": 0.12,
+       "hi": 0.27,
+       "trend_day": {
+        "pct": 3.9,
+        "k": 22,
+        "n": 557,
+        "ci": [
+         2.6,
+         5.9
+        ],
+        "coin": false
+       },
+       "continues": {
+        "pct": 48.5,
+        "k": 270,
+        "n": 557,
+        "ci": [
+         44.3,
+         52.6
+        ],
+        "coin": true
+       }
+      },
+      {
+       "lo": 0.27,
+       "hi": null,
+       "trend_day": {
+        "pct": 21.3,
+        "k": 119,
+        "n": 558,
+        "ci": [
+         18.1,
+         24.9
+        ],
+        "coin": false
+       },
+       "continues": {
+        "pct": 50.7,
+        "k": 283,
+        "n": 558,
+        "ci": [
+         46.6,
+         54.8
+        ],
+        "coin": true
+       }
+      }
+     ]
+    },
+    "180": {
+     "n": 1670,
+     "buckets": [
+      {
+       "lo": null,
+       "hi": 0.097,
+       "trend_day": {
+        "pct": 0.9,
+        "k": 5,
+        "n": 557,
+        "ci": [
+         0.4,
+         2.1
+        ],
+        "coin": false
+       },
+       "continues": {
+        "pct": 51.0,
+        "k": 284,
+        "n": 557,
+        "ci": [
+         46.8,
+         55.1
+        ],
+        "coin": true
+       }
+      },
+      {
+       "lo": 0.097,
+       "hi": 0.22,
+       "trend_day": {
+        "pct": 2.3,
+        "k": 13,
+        "n": 556,
+        "ci": [
+         1.4,
+         4.0
+        ],
+        "coin": false
+       },
+       "continues": {
+        "pct": 51.3,
+        "k": 285,
+        "n": 556,
+        "ci": [
+         47.1,
+         55.4
+        ],
+        "coin": true
+       }
+      },
+      {
+       "lo": 0.22,
+       "hi": null,
+       "trend_day": {
+        "pct": 23.7,
+        "k": 132,
+        "n": 557,
+        "ci": [
+         20.4,
+         27.4
+        ],
+        "coin": false
+       },
+       "continues": {
+        "pct": 49.0,
+        "k": 273,
+        "n": 557,
+        "ci": [
+         44.9,
+         53.2
+        ],
+        "coin": true
+       }
+      }
+     ]
+    },
+    "240": {
+     "n": 1673,
+     "buckets": [
+      {
+       "lo": null,
+       "hi": 0.086,
+       "trend_day": {
+        "pct": 0.4,
+        "k": 2,
+        "n": 558,
+        "ci": [
+         0.1,
+         1.3
+        ],
+        "coin": false
+       },
+       "continues": {
+        "pct": 50.4,
+        "k": 281,
+        "n": 558,
+        "ci": [
+         46.2,
+         54.5
+        ],
+        "coin": true
+       }
+      },
+      {
+       "lo": 0.086,
+       "hi": 0.192,
+       "trend_day": {
+        "pct": 1.4,
+        "k": 8,
+        "n": 557,
+        "ci": [
+         0.7,
+         2.8
+        ],
+        "coin": false
+       },
+       "continues": {
+        "pct": 48.5,
+        "k": 270,
+        "n": 557,
+        "ci": [
+         44.3,
+         52.6
+        ],
+        "coin": true
+       }
+      },
+      {
+       "lo": 0.192,
+       "hi": null,
+       "trend_day": {
+        "pct": 25.3,
+        "k": 141,
+        "n": 558,
+        "ci": [
+         21.8,
+         29.0
+        ],
+        "coin": false
+       },
+       "continues": {
+        "pct": 51.8,
+        "k": 289,
+        "n": 558,
+        "ci": [
+         47.6,
+         55.9
+        ],
+        "coin": true
+       }
+      }
+     ]
+    },
+    "300": {
+     "n": 1672,
+     "buckets": [
+      {
+       "lo": null,
+       "hi": 0.078,
+       "trend_day": {
+        "pct": 0.0,
+        "k": 0,
+        "n": 557,
+        "ci": [
+         0.0,
+         0.7
+        ],
+        "coin": false
+       },
+       "continues": {
+        "pct": 48.7,
+        "k": 271,
+        "n": 557,
+        "ci": [
+         44.5,
+         52.8
+        ],
+        "coin": true
+       }
+      },
+      {
+       "lo": 0.078,
+       "hi": 0.175,
+       "trend_day": {
+        "pct": 1.1,
+        "k": 6,
+        "n": 557,
+        "ci": [
+         0.5,
+         2.3
+        ],
+        "coin": false
+       },
+       "continues": {
+        "pct": 49.2,
+        "k": 274,
+        "n": 557,
+        "ci": [
+         45.1,
+         53.3
+        ],
+        "coin": true
+       }
+      },
+      {
+       "lo": 0.175,
+       "hi": null,
+       "trend_day": {
+        "pct": 26.5,
+        "k": 148,
+        "n": 558,
+        "ci": [
+         23.0,
+         30.3
+        ],
+        "coin": false
+       },
+       "continues": {
+        "pct": 50.5,
+        "k": 282,
+        "n": 558,
+        "ci": [
+         46.4,
+         54.7
+        ],
+        "coin": true
+       }
+      }
+     ]
+    }
+   }
+  },
+  "macro": {
+   "none": {
+    "n": 1384,
+    "rth": {
+     "n": 1384,
+     "p25": 0.733,
+     "p50": 0.965,
+     "p75": 1.303
+    },
+    "rth_ci": [
+     0.934,
+     0.995
+    ]
+   },
+   "fomc": {
+    "n": 53,
+    "rth": {
+     "n": 53,
+     "p25": 1.015,
+     "p50": 1.419,
+     "p75": 1.811
+    },
+    "rth_ci": [
+     1.222,
+     1.666
+    ],
+    "big_day": {
+     "pct": 35.8,
+     "k": 19,
+     "n": 53,
+     "ci": [
+      24.3,
+      49.3
+     ],
+     "coin": false
+    },
+    "window": "after14",
+    "win": {
+     "n": 53,
+     "p25": 1.791,
+     "p50": 2.535,
+     "p75": 3.6
+    },
+    "win_ci": [
+     2.09,
+     3.2
+    ],
+    "win_none": {
+     "n": 1384,
+     "p50": 0.948
+    }
+   },
+   "cpi": {
+    "n": 78,
+    "rth": {
+     "n": 78,
+     "p25": 0.842,
+     "p50": 1.069,
+     "p75": 1.406
+    },
+    "rth_ci": [
+     0.955,
+     1.274
+    ],
+    "big_day": {
+     "pct": 16.7,
+     "k": 13,
+     "n": 78,
+     "ci": [
+      10.0,
+      26.5
+     ],
+     "coin": false
+    },
+    "window": "first30",
+    "win": {
+     "n": 78,
+     "p25": 0.919,
+     "p50": 1.151,
+     "p75": 1.523
+    },
+    "win_ci": [
+     1.066,
+     1.32
+    ],
+    "win_none": {
+     "n": 1384,
+     "p50": 0.974
+    }
+   },
+   "nfp": {
+    "n": 75,
+    "rth": {
+     "n": 75,
+     "p25": 0.793,
+     "p50": 1.09,
+     "p75": 1.459
+    },
+    "rth_ci": [
+     0.986,
+     1.261
+    ],
+    "big_day": {
+     "pct": 18.7,
+     "k": 14,
+     "n": 75,
+     "ci": [
+      11.5,
+      28.9
+     ],
+     "coin": false
+    },
+    "window": "first30",
+    "win": {
+     "n": 75,
+     "p25": 0.823,
+     "p50": 1.039,
+     "p75": 1.377
+    },
+    "win_ci": [
+     0.939,
+     1.144
+    ],
+    "win_none": {
+     "n": 1384,
+     "p50": 0.974
+    }
+   },
+   "ppi": {
+    "n": 79,
+    "rth": {
+     "n": 79,
+     "p25": 0.88,
+     "p50": 1.073,
+     "p75": 1.319
+    },
+    "rth_ci": [
+     0.994,
+     1.144
+    ],
+    "big_day": {
+     "pct": 11.4,
+     "k": 9,
+     "n": 79,
+     "ci": [
+      6.1,
+      20.3
+     ],
+     "coin": false
+    },
+    "window": "first30",
+    "win": {
+     "n": 79,
+     "p25": 0.739,
+     "p50": 0.946,
+     "p75": 1.33
+    },
+    "win_ci": [
+     0.869,
+     1.065
+    ],
+    "win_none": {
+     "n": 1384,
+     "p50": 0.974
+    }
+   },
+   "_big_day_ratio": 1.727
+  },
+  "sessions": {
+   "n": 335,
+   "windows_et": {
+    "asia": [
+     20.0,
+     24.0
+    ],
+    "pre": [
+     0.0,
+     2.0
+    ],
+    "london": [
+     2.0,
+     5.0
+    ],
+    "ny": [
+     8.0,
+     16.0
+    ]
+   },
+   "london_vs_asia": {
+    "high": {
+     "pct": 59.7,
+     "k": 200,
+     "n": 335,
+     "ci": [
+      54.4,
+      64.8
+     ],
+     "coin": false
+    },
+    "low": {
+     "pct": 51.0,
+     "k": 171,
+     "n": 335,
+     "ci": [
+      45.7,
+      56.4
+     ],
+     "coin": true
+    },
+    "both": {
+     "pct": 17.3,
+     "k": 58,
+     "n": 335,
+     "ci": [
+      13.6,
+      21.7
+     ],
+     "coin": false
+    },
+    "inside": {
+     "pct": 6.6,
+     "k": 22,
+     "n": 335,
+     "ci": [
+      4.4,
+      9.7
+     ],
+     "coin": false
+    }
+   },
+   "pre_london": {
+    "pre_high": {
+     "pct": 36.7,
+     "k": 123,
+     "n": 335,
+     "ci": [
+      31.7,
+      42.0
+     ],
+     "coin": false
+    },
+    "pre_low": {
+     "pct": 31.3,
+     "k": 105,
+     "n": 335,
+     "ci": [
+      26.6,
+      36.5
+     ],
+     "coin": false
+    },
+    "after_pre_high": {
+     "london_ext_high": {
+      "pct": 81.3,
+      "k": 100,
+      "n": 123,
+      "ci": [
+       73.5,
+       87.2
+      ],
+      "coin": false
+     },
+     "london_low": {
+      "pct": 24.4,
+      "k": 30,
+      "n": 123,
+      "ci": [
+       17.7,
+       32.7
+      ],
+      "coin": false
+     }
+    },
+    "after_pre_low": {
+     "london_ext_low": {
+      "pct": 62.9,
+      "k": 66,
+      "n": 105,
+      "ci": [
+       53.3,
+       71.5
+      ],
+      "coin": false
+     },
+     "london_high": {
+      "pct": 35.2,
+      "k": 37,
+      "n": 105,
+      "ci": [
+       26.8,
+       44.7
+      ],
+      "coin": false
+     }
+    },
+    "narrow_after_pre_high": {
+     "pct": 78.3,
+     "k": 36,
+     "n": 46,
+     "ci": [
+      64.4,
+      87.7
+     ],
+     "coin": false
+    },
+    "narrow_after_pre_low": {
+     "pct": 70.0,
+     "k": 28,
+     "n": 40,
+     "ci": [
+      54.6,
+      81.9
+     ],
+     "coin": false
+    },
+    "narrow_edge": 0.835
+   },
+   "ny_by_scenario": {
+    "both": {
+     "n": 58,
+     "share": {
+      "pct": 17.3,
+      "k": 58,
+      "n": 335,
+      "ci": [
+       13.6,
+       21.7
+      ],
+      "coin": false
+     },
+     "ny_london_high": {
+      "pct": 75.9,
+      "k": 44,
+      "n": 58,
+      "ci": [
+       63.5,
+       85.0
+      ],
+      "coin": false
+     },
+     "ny_london_low": {
+      "pct": 81.0,
+      "k": 47,
+      "n": 58,
+      "ci": [
+       69.1,
+       89.1
+      ],
+      "coin": false
+     }
+    },
+    "inside": {
+     "n": 22,
+     "share": {
+      "pct": 6.6,
+      "k": 22,
+      "n": 335,
+      "ci": [
+       4.4,
+       9.7
+      ],
+      "coin": false
+     },
+     "ny_london_high": {
+      "pct": 90.9,
+      "k": 20,
+      "n": 22,
+      "ci": [
+       72.2,
+       97.5
+      ],
+      "coin": false
+     },
+     "ny_london_low": {
+      "pct": 81.8,
+      "k": 18,
+      "n": 22,
+      "ci": [
+       61.5,
+       92.7
+      ],
+      "coin": false
+     }
+    },
+    "high_only": {
+     "n": 142,
+     "share": {
+      "pct": 42.4,
+      "k": 142,
+      "n": 335,
+      "ci": [
+       37.2,
+       47.7
+      ],
+      "coin": false
+     },
+     "ny_london_high": {
+      "pct": 83.8,
+      "k": 119,
+      "n": 142,
+      "ci": [
+       76.9,
+       89.0
+      ],
+      "coin": false
+     },
+     "ny_london_low": {
+      "pct": 73.9,
+      "k": 105,
+      "n": 142,
+      "ci": [
+       66.2,
+       80.5
+      ],
+      "coin": false
+     }
+    },
+    "low_only": {
+     "n": 113,
+     "share": {
+      "pct": 33.7,
+      "k": 113,
+      "n": 335,
+      "ci": [
+       28.9,
+       39.0
+      ],
+      "coin": false
+     },
+     "ny_london_high": {
+      "pct": 73.5,
+      "k": 83,
+      "n": 113,
+      "ci": [
+       64.6,
+       80.7
+      ],
+      "coin": false
+     },
+     "ny_london_low": {
+      "pct": 77.9,
+      "k": 88,
+      "n": 113,
+      "ci": [
+       69.4,
+       84.5
+      ],
+      "coin": false
+     }
+    }
+   },
+   "high_only_low_first": {
+    "pct": 64.6,
+    "k": 42,
+    "n": 65,
+    "ci": [
+     52.5,
+     75.1
+    ],
+    "coin": false
+   },
+   "low_only_high_first": {
+    "pct": 57.1,
+    "k": 32,
+    "n": 56,
+    "ci": [
+     44.1,
+     69.2
+    ],
+    "coin": true
+   },
+   "from": "2025-06-02",
+   "to": "2026-10-30"
   }
- }
+ },
+ "prev": null
 }

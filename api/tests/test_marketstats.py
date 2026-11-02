@@ -67,3 +67,19 @@ async def test_stats_gated_by_plan():
 def test_cdn_cache_only_for_orb():
     assert _cache_header("/api/marketstats/orb/nq")
     assert _cache_header("/api/marketstats/stats/nq") is None
+
+
+@pytest.mark.asyncio
+async def test_live_day_gated_and_not_cached():
+    live = {"meta": {"instrument": "NQ", "to": "2026-11-02"}, "phase": "rth", "range": {"so_far_pts": 210.5}}
+    async with _client() as c:
+        assert (await c.put("/api/marketstats/live/nq", json=live)).status_code == 401
+        assert (await c.put("/api/marketstats/live/nq", json=live, headers=TOKEN)).status_code == 200
+        assert (await c.get("/api/marketstats/live/nq")).status_code == 401
+        free = await auth_headers(c, "free2@x.cz")
+        assert (await c.get("/api/marketstats/live/nq", headers=free)).status_code == 403
+        trader = await auth_headers(c, "tr2@x.cz", plan="trader")
+        r = await c.get("/api/marketstats/live/nq", headers=trader)
+        assert r.status_code == 200 and r.json()["range"]["so_far_pts"] == 210.5
+        assert r.headers["cache-control"] == "no-store"
+    assert _cache_header("/api/marketstats/live/nq") is None
