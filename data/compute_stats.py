@@ -800,6 +800,17 @@ def compute(key: str, cfg: dict) -> dict:
     }
 
 
+def choose_prev(old: dict | None, meta: dict) -> dict | None:
+    """Baseline pro šipky ▲▼ = stav z konce MINULÉHO měsíce (přepočet běží denně kvůli čerstvému
+    „typickému dni“, srovnání ale zůstává meziměsíční). Starý výpočet v UTC se nesrovnává."""
+    if not old or old.get("meta", {}).get("tz") != "ET":
+        return None
+    old_prev = old.pop("prev", None)
+    if str(old.get("meta", {}).get("to", ""))[:7] == str(meta.get("to", ""))[:7]:
+        return old_prev            # stejný měsíc → drž baseline z minulého měsíce
+    return old                     # nový měsíc → poslední stav minulého měsíce je nová baseline
+
+
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     ORB_OUT.mkdir(parents=True, exist_ok=True)
@@ -815,19 +826,9 @@ def main() -> None:
             failed.append(key)
             continue
 
-        # Meziměsíční porovnání: předchozí stav ulož do "prev".
-        # Při přepočtu nad stejnými daty (stejné meta.to) zachovej původní baseline.
         out_file = OUT / f"{key}.json"
-        stats["prev"] = None
-        if out_file.exists():
-            old = json.loads(out_file.read_text(encoding="utf-8"))
-            old_prev = old.pop("prev", None)
-            if old.get("meta", {}).get("tz") != "ET":
-                stats["prev"] = None   # starý výpočet v UTC → jiná metodika, nesrovnávat
-            elif old.get("meta", {}).get("to") == stats["meta"]["to"]:
-                stats["prev"] = old_prev
-            else:
-                stats["prev"] = old
+        old = json.loads(out_file.read_text(encoding="utf-8")) if out_file.exists() else None
+        stats["prev"] = choose_prev(old, stats["meta"])
 
         out_file.write_text(json.dumps(stats, ensure_ascii=False, indent=1), encoding="utf-8")
         # ORB zdarma → jen výřez orb_sessions (bez placených statistik) do web/public/orb.

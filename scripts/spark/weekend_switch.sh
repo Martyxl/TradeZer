@@ -10,7 +10,7 @@ set -uo pipefail
 
 LOOPS="tradezer-refresh tradezer-predictor tradezer-help tradezer-calibrate tradezer-outlookeval
        tradezer-portfolio-quotes tradezer-regime tradezer-vision tradezer-warm tradezer-fund
-       tradezer-discovery tradezer-gamma tradezer-smartmoney tradezer-earnings"
+       tradezer-discovery tradezer-gamma tradezer-smartmoney tradezer-earnings tradezer-edge-live"
 T="$HOME/tradezer"
 STATE="$T/.weekend_state"
 LAST_TICK="$T/.weekend_last_tick"

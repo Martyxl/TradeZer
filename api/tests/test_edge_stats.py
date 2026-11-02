@@ -272,3 +272,14 @@ def test_live_state_premarket_has_no_range():
     st = es.live_state(bars_from([(datetime(2026, 3, 4, 8, 0), 100, 101, 99, 100)]), edge,
                        datetime(2026, 3, 4, 13, 10, tzinfo=timezone.utc), [])
     assert st["phase"] == "pre" and "range" not in st
+
+
+def test_prev_baseline_stays_month_over_month():
+    import compute_stats as cs
+    utc_old = {"meta": {"to": "2026-10-31"}, "x": 1}
+    assert cs.choose_prev(utc_old, {"to": "2026-11-03"}) is None          # starý UTC výpočet
+    oct_end = {"meta": {"tz": "ET", "to": "2026-10-30"}, "x": 2, "prev": None}
+    nov_1 = {"meta": {"tz": "ET", "to": "2026-11-02"}, "x": 3, "prev": {"meta": {"to": "2026-10-30"}, "x": 2}}
+    assert cs.choose_prev(dict(oct_end), {"to": "2026-11-02"})["x"] == 2   # nový měsíc → konec října
+    assert cs.choose_prev(dict(nov_1), {"to": "2026-11-03"})["x"] == 2     # dál v listopadu drží říjen
+    assert cs.choose_prev(None, {"to": "2026-11-03"}) is None
