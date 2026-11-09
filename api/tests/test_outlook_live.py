@@ -74,6 +74,8 @@ async def test_ingest_and_outlook(monkeypatch):
         return [{"title": title, "impact": "high", "currency": "USD", "time_utc": ev_t.isoformat(),
                  "forecast": "0.3%", "previous": "0.2%", "actual": "0.5%"}]
     monkeypatch.setattr(outlook_service, "get_upcoming_events", fake_events)
+    from app.config import settings
+    monkeypatch.setattr(settings, "outlook_live_enabled", True)
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         item = {"event_title": title, "event_time_utc": ev_t.isoformat(), "ticker": "EURUSD", "p0": 1.1,
                 "points": {"1": -0.02, "5": -0.11, "99": 5}, "last_pct": -0.15, "last_at": now.isoformat()}
@@ -88,3 +90,9 @@ async def test_ingest_and_outlook(monkeypatch):
     live = out["scenarios"][0]["live"]
     assert live["points"] == {"1": -0.02, "5": -0.11, "15": -0.2}   # neznámý bod zahozen, upsert
     assert live["last_pct"] == -0.15 and live["thr_pct"] == 0.05 and live["proxy"] is None
+    assert out["live_feature"] == "on"
+    # bez licence (výchozí) se uložená data neukazují a web dostane signál pro zašedlou ukázku
+    monkeypatch.setattr(settings, "outlook_live_enabled", False)
+    async with session_context() as s:
+        out = await outlook_service.build_outlook("EURUSD", s)
+    assert out["scenarios"][0]["live"] is None and out["live_feature"] == "elite"

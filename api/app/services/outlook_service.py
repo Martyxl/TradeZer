@@ -200,7 +200,9 @@ async def build_outlook(ticker_symbol: str, session=None) -> dict:
         except Exception as ex:  # noqa: BLE001 — výhled musí jít zobrazit i bez skutečných hodnot
             log.warning("Outlook actuals failed", error=str(ex)[:200])
 
-    live = await _live_rows(session, ticker_symbol, now.date()) if session is not None else {}
+    from app.config import settings
+    live_on = settings.outlook_live_enabled
+    live = await _live_rows(session, ticker_symbol, now.date()) if session is not None and live_on else {}
     scenarios = []
     for e in events:
         if e.get("impact") not in ("high", "medium"):
@@ -220,7 +222,8 @@ async def build_outlook(ticker_symbol: str, session=None) -> dict:
             "actual_source": e.get("actual_source"), **sc,
             "live": live.get((e.get("title") or "")[:200]),
         })
-    return {"ticker": ticker_symbol, "date": today_iso, "events": events, "scenarios": scenarios}
+    return {"ticker": ticker_symbol, "date": today_iso, "events": events, "scenarios": scenarios,
+            "live_feature": "on" if live_on else "elite"}
 
 
 LIVE_WINDOW_MIN = 65   # jak dlouho po vydání worker sleduje cenu (body 1/5/15/30/60 min)

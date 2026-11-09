@@ -127,3 +127,20 @@ async def test_apply_subscription_canceled_downgrades():
     async with session_context() as s:
         u = await s.get(User, uid)
         assert u.plan == "free"
+
+
+
+@pytest.mark.asyncio
+async def test_elite_not_for_sale_even_with_price(monkeypatch):
+    from app.config import settings
+    monkeypatch.setattr(settings, "stripe_price_elite_month", "price_elite_m")
+    monkeypatch.setattr(settings, "stripe_price_pro_month", "price_pro_m")
+    monkeypatch.setattr("app.routers.billing._require_stripe", lambda: object())
+    async with _client() as c:
+        d = (await c.get("/api/billing/config")).json()
+        assert "elite" not in d["buyable"] and d["buyable"]["pro"] == {"month": True}
+        h = await auth_headers(c, "elite@example.com")
+        r = await c.post("/api/billing/checkout", json={"tier": "elite", "interval": "month"}, headers=h)
+        assert r.status_code == 400 and "není v prodeji" in r.json()["detail"]
+        monkeypatch.setattr(settings, "elite_for_sale", True)
+        assert "elite" in (await c.get("/api/billing/config")).json()["buyable"]

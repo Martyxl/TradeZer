@@ -766,9 +766,10 @@ async def ticker_earnings(ticker: str, session: AsyncSession = Depends(get_sessi
     return {"ticker": t, "reports": [E.report_out(r, name) for r in rows]}
 
 
-@router.get("/{ticker}/analysts", dependencies=_TRADER)
+@router.get("/{ticker}/analysts", dependencies=[Depends(require_plan("elite"))])
 async def ticker_analysts(ticker: str, session: AsyncSession = Depends(get_session)):
-    """Analytici a vlastníci (Twelve Data, obnova 1× denně). 404, dokud data nejsou."""
+    """Analytici a vlastníci (Twelve Data — licence zatím není → jen Elite, který se zatím neprodává;
+    ostatní dostanou 403 a web ukáže zašedlou ukázku). 404, dokud data nejsou."""
     from app.valuation.models import ValAnalyst
     row = await session.get(ValAnalyst, ticker.upper())
     if row is None:

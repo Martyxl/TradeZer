@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Building2, Users } from "lucide-react";
 import { authHeaders } from "@/lib/auth";
+import { EliteBadge, EliteGhost } from "@/components/EliteSoon";
 
 interface Counts { strong_buy: number; buy: number; hold: number; sell: number; strong_sell: number }
 interface Revision {
@@ -74,15 +75,53 @@ const buyShare = (c: Counts | null | undefined) => {
   return t ? Math.round(((c.strong_buy + c.buy) / t) * 100) : null;
 };
 
-/** Detail firmy: co si o ní myslí analytici a kdo ji vlastní (Twelve Data, obnova 1× denně). */
+/** Ilustrační ukázka pro plány bez Elite (žádná skutečná čísla). */
+const SAMPLE: Analysts = {
+  ticker: "", updated_at: null,
+  price_target: { low: 80, median: 110, average: 112, high: 140, current: 100, upside_pct: 12 },
+  recommendations: { now: { strong_buy: 8, buy: 14, hold: 9, sell: 2, strong_sell: 0 }, "3m_ago": null },
+  revisions: [
+    { period: "current_year", date: null, eps: 4.2, chg_7d: null, chg_30d: 1.8, chg_90d: 4.1, up_month: 6, down_month: 1 },
+    { period: "next_year", date: null, eps: 5.0, chg_7d: null, chg_30d: 0.9, chg_90d: 2.2, up_month: 4, down_month: 2 },
+  ],
+  growth: { current_year: 14, next_year: 19 },
+};
+
+function ElitePreview() {
+  return (
+    <div className="mb-3 space-y-2">
+      <h3 className="flex flex-wrap items-center gap-2 text-sm font-semibold text-white">
+        <Users size={14} className="text-gray-500" /> Analytici a vlastníci <EliteBadge />
+      </h3>
+      <p className="text-[11px] text-gray-500">
+        Cílové ceny, doporučení, revize odhadů zisku, akce analytiků a největší vlastníci. Funkce je hotová — čeká na
+        licenci dat a bude součástí plánu Elite. Níže jen ilustrační ukázka.
+      </p>
+      <EliteGhost><Body d={SAMPLE} /></EliteGhost>
+    </div>
+  );
+}
+
+/** Detail firmy: co si o ní myslí analytici a kdo ji vlastní (Twelve Data, jen Elite). */
 export function AnalystPanel({ ticker }: { ticker: string }) {
   const [d, setD] = useState<Analysts | null>(null);
+  const [locked, setLocked] = useState(false);
   useEffect(() => {
     setD(null);
+    setLocked(false);
     fetch(`/api/valuation/${ticker}/analysts`, { cache: "no-store", headers: authHeaders() })
-      .then((r) => (r.ok ? r.json() : null)).then(setD).catch(() => setD(null));
+      .then((r) => {
+        if (r.status === 403) { setLocked(true); return null; }
+        return r.ok ? r.json() : null;
+      })
+      .then(setD).catch(() => setD(null));
   }, [ticker]);
+  if (locked) return <ElitePreview />;
   if (!d) return null;
+  return <Body d={d} />;
+}
+
+function Body({ d }: { d: Analysts }) {
   const t = d.price_target, rec = d.recommendations;
   const share = buyShare(rec?.now), share3 = buyShare(rec?.["3m_ago"]);
   const g = d.growth ?? {};

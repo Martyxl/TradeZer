@@ -46,6 +46,12 @@ class Settings(BaseSettings):
     # Paywall — server-side vynucení plánů na placených modulech. True = zamčeno
     # (Free nevidí Trader/Pro data). Kill-switch: PAYWALL_ENABLED=false vše odemkne.
     paywall_enabled: bool = Field(default=True, alias="PAYWALL_ENABLED")
+    # Elite (placená real-time data, např. Twelve Data) zatím nejde koupit — checkout ho odmítne
+    # i s nastaveným Stripe price. Spuštění = ELITE_FOR_SALE=true + price ID.
+    elite_for_sale: bool = Field(default=False, alias="ELITE_FOR_SALE")
+    # Živá reakce trhu na makra (Twelve Data 1min) ve výhledu — bez licence vypnuto; výhled je
+    # veřejný a v CDN cache, proto nejde gatovat podle plánu → web ukáže zašedlou ukázku „Elite“.
+    outlook_live_enabled: bool = Field(default=False, alias="OUTLOOK_LIVE_ENABLED")
     refresh_interval_minutes: int = Field(default=5, alias="REFRESH_INTERVAL_MINUTES")
     internal_api_token: str = Field(default="", alias="INTERNAL_API_TOKEN")
 

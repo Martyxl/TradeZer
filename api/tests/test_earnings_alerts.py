@@ -156,7 +156,7 @@ async def test_upcoming_ingest_and_pre_alert(outbox, monkeypatch):
 @pytest.mark.asyncio
 async def test_analysts_ingest_and_detail():
     async with _client() as c:
-        h = await auth_headers(c, "an@x.cz", plan="trader")
+        h = await auth_headers(c, "an@x.cz", plan="elite")
         assert (await c.get("/api/valuation/NVDA/analysts", headers=h)).status_code == 404
         item = {"ticker": "nvda", "price_target": {"average": 330, "current": 205, "upside_pct": 61},
                 "revisions": [{"period": "current_year", "eps": 9.3, "chg_30d": 0.1, "up_month": 2, "down_month": 0}],
@@ -168,3 +168,6 @@ async def test_analysts_ingest_and_detail():
         assert d["price_target"]["upside_pct"] == 61 and d["growth"]["next_year"] == 70.9 and "evil" not in d
         free = await auth_headers(c, "fr@x.cz")
         assert (await c.get("/api/valuation/NVDA/analysts", headers=free)).status_code == 403
+        # bez licence dat jen Elite → Pro (nejvyšší prodávaný plán) dostane 403 a web ukáže ukázku
+        pro = await auth_headers(c, "pr@x.cz", plan="pro")
+        assert (await c.get("/api/valuation/NVDA/analysts", headers=pro)).status_code == 403

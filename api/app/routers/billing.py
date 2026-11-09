@@ -64,7 +64,7 @@ async def billing_config():
     pm = _price_map()
     prices = {}
     for (tier, interval), price in pm.items():
-        if price:
+        if price and (tier != "elite" or settings.elite_for_sale):
             prices.setdefault(tier, {})[interval] = True
     return {
         "enabled": bool(settings.stripe_secret_key),
@@ -85,6 +85,8 @@ async def create_checkout(
     interval = (payload.get("interval") or "month").strip().lower()
     if tier not in ("trader", "pro", "elite"):
         raise HTTPException(status_code=400, detail="Neplatný tier")
+    if tier == "elite" and not settings.elite_for_sale:
+        raise HTTPException(status_code=400, detail="Elite zatím není v prodeji")
     if interval not in _INTERVALS:
         raise HTTPException(status_code=400, detail="Neplatný interval")
     price_id = _price_map().get((tier, interval))

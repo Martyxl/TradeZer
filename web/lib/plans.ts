@@ -64,6 +64,8 @@ export const PLANS: Plan[] = [
       "Živá (real-time) data místo zpožděných",
       "Real-time options flow a gamma úrovně",
       "Okamžité alerty na zprávy a klíčové úrovně",
+      "Živá reakce trhu na makra minutu po minutě po vydání",
+      "Analytici a vlastníci firem — cílové ceny, doporučení, revize odhadů",
     ],
   },
 ];

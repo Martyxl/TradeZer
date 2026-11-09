@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { EliteBadge, EliteGhost } from "@/components/EliteSoon";
 import { Activity, CalendarClock, TrendingUp, TrendingDown, Minus, Loader2, CheckCircle2, Clock } from "lucide-react";
 
 interface Leg { dir: "up" | "down" | "flat"; text: string }
@@ -22,6 +23,7 @@ interface Outlook {
   events: EventRow[]; scenarios: Scenario[];
   bias: { direction: string; trust_score: number } | null;
   narrative: string;
+  live_feature?: "on" | "elite";   // "elite" = živá reakce bez licence dat → zašedlá ukázka
 }
 
 // Očisti případný markdown z LLM narativu (starší cache může mít #, **).
@@ -114,6 +116,25 @@ function LiveMove({ s, ticker }: { s: Scenario; ticker: string }) {
   );
 }
 
+/** Živá reakce bez licence dat: ilustrační zašedlý řádek + štítek Elite (žádná skutečná čísla). */
+function LiveGhost() {
+  return (
+    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 pl-11 text-[12px]">
+      <span className="inline-flex items-center gap-1 text-gray-500">
+        <Activity size={12} /> Jak se trh hýbe minutu po minutě po vydání
+      </span>
+      <EliteGhost>
+        <span className="flex gap-1">
+          {["1", "5", "15", "30", "60"].map((k) => (
+            <span key={k} className="rounded bg-[#0f1117] px-1.5 py-0.5 text-[10.5px] text-gray-400">{k} min ±0,00 %</span>
+          ))}
+        </span>
+      </EliteGhost>
+      <EliteBadge />
+    </div>
+  );
+}
+
 const SCEN_ROWS: { key: "hot" | "inline" | "cool"; label: string }[] = [
   { key: "hot", label: "🔥 Nad forecastem" },
   { key: "inline", label: "➖ V souladu" },
@@ -139,7 +160,7 @@ export function OutlookCard({ ticker }: { ticker: string }) {
   // Dokud má dnešek nevyhodnocené eventy, obnovuj každé 2 min — skutečná čísla dorazí pár minut po vydání.
   // Hodinu po vydání každých 30 s (živá reakce ceny).
   const pending = !!d?.scenarios.some((s) => !s.realized && !staleRelease(s));
-  const liveNow = !!d?.scenarios.some(liveWindow);
+  const liveNow = d?.live_feature !== "elite" && !!d?.scenarios.some(liveWindow);
   useEffect(() => {
     if (!pending && !liveNow) return;
     const id = setInterval(() => { if (document.visibilityState === "visible") load(true); }, liveNow ? 30_000 : 120_000);
@@ -203,6 +224,7 @@ export function OutlookCard({ ticker }: { ticker: string }) {
                         </span>
                       )}
                       <LiveMove s={s} ticker={d.ticker} />
+                      {d.live_feature === "elite" && (s.released || s.actual) && <LiveGhost />}
                     </li>
                   );
                 })}
@@ -289,7 +311,7 @@ export function OutlookCard({ ticker }: { ticker: string }) {
 
           <p className="mt-4 text-[10px] leading-relaxed text-gray-600">
             Skutečné hodnoty vydaných zpráv doplňujeme z investingLive pár minut po vydání (karta se sama obnovuje).
-            Pohyb trhu po vydání měříme z minutových dat od ceny těsně před vydáním (indexy přes ETF SPY/QQQ/DIA).{" "}
+            {d.live_feature !== "elite" && <>Pohyb trhu po vydání měříme z minutových dat od ceny těsně před vydáním (indexy přes ETF SPY/QQQ/DIA).{" "}</>}
             <span className="text-gray-500">⌀ badge</span> = jak často predikovaný směr scénáře seděl se
             skutečným pohybem ceny ~1h po eventu (90 dní, počet v závorce). Edukativní mapování typických
             makro reakcí (pravidla + AI komentář), ne investiční doporučení — skutečný pohyb závisí na
