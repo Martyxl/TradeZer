@@ -147,3 +147,11 @@ async def test_stats_track_record_with_interval(db_session):
     assert tr["ny"] == {"k": 10, "n": 20, "pct": 50.0, "ci": [29.9, 70.1], "coin": True}   # sobota se nepočítá
     assert tr["london"]["k"] == 12 and tr["london"]["n"] == 20
     assert tr["v2"]["london"]["n"] == 8 and tr["v2"]["london"]["pct"] == 100.0 and tr["v2"]["signal_days"] == 8
+
+
+@pytest.mark.asyncio
+async def test_manual_run_requires_internal_token():
+    from httpx import ASGITransport, AsyncClient
+    from app.main import app
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        assert (await c.post("/api/bias/run")).status_code in (401, 403)

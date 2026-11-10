@@ -363,9 +363,10 @@ async def bias_entry(
     }
 
 
-@router.post("/run")
+@router.post("/run", dependencies=[Depends(_verify_token)])
 async def bias_run(session: AsyncSession = Depends(get_session)):
-    """Ruční trigger snapshotu + vyhodnocení (jinak běží po refreshi)."""
+    """Ruční trigger snapshotu + vyhodnocení (jinak běží po refreshi). Jen s interním tokenem —
+    spouští dotazy na Yahoo a přepočet v2, nesmí jít zvenku."""
     ticker_repo = TickerRepository(session)
     tickers = list(await ticker_repo.get_all_enabled())
     created = await bias_service.ensure_snapshots(session, tickers)
