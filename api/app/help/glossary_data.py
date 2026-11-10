@@ -420,9 +420,9 @@ GLOSSARY = [
   "desc": "Směrový náklon dne (LONG/SHORT/NEUTRAL) z AI predikcí dopadu zpráv. Snapshot v 9:00 (London open), předtím průběžný."
  },
  {
-  "term": "Trust score",
+  "term": "Úspěšnost biasu",
   "cat": "Bias & Výhled",
-  "desc": "Důvěryhodnost biasu 0–100 (síla a konzistence podkladových predikcí). ≥65 vysoká, ≥40 střední, jinak nízká."
+  "desc": "Historická úspěšnost biasu: jak často směrový bias (LONG/SHORT) trefil směr NY session, s 95% intervalem spolehlivosti a počtem dní. „≈ náhoda“ = interval obsahuje 50 %. Nahradila dřívější „trust score“, které se s úspěšností ukázalo jako nesouvisející (11/2026)."
  },
  {
   "term": "Pravděpodobnosti ↑ / → / ↓",

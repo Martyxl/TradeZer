@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { TrendingUp, TrendingDown, MoveRight, Target, HelpCircle } from "lucide-react";
 import { dashFetch } from "@/lib/dashboardData";
+import { useAuth } from "@/lib/auth";
 
 interface BiasSnapshot {
   prob_down: number; prob_neutral: number; prob_up: number;
@@ -10,6 +11,7 @@ interface BiasSnapshot {
   snapshot_at: string;
   realized_direction: string | null; realized_pct: number | null;
   ny_realized_direction?: string | null; ny_realized_pct?: number | null;
+  v2_direction?: string | null; v2_cats?: string | null;
 }
 interface BiasLive {
   prob_down: number; prob_neutral: number; prob_up: number;
@@ -19,7 +21,10 @@ interface BiasToday {
   ticker: string; date: string;
   snapshot: BiasSnapshot | null; live: BiasLive;
 }
+interface Track { k: number; n: number; pct: number | null; ci: [number, number] | null; coin: boolean }
 interface BiasStats {
+  track?: { since: string | null; ny: Track; london: Track;
+            v2: { ny: Track; london: Track; signal_days: number; days: number } };
   total: number; accuracy: number | null;
   directional_total: number; directional_accuracy: number | null;
   directional_total_london?: number;
@@ -36,10 +41,15 @@ const DIR_META: Record<string, { label: string; color: string; Icon: typeof Tren
   unknown: { label: "NELZE URČIT", color: "#94a3b8", Icon: HelpCircle },
 };
 
-function trustLabel(score: number): { text: string; color: string } {
-  if (score >= 65) return { text: "Vysoká důvěryhodnost", color: "#4ade80" };
-  if (score >= 40) return { text: "Střední důvěryhodnost", color: "#eab308" };
-  return { text: "Nízká důvěryhodnost", color: "#f87171" };
+const ci = (t: Track) => (t.ci ? `${t.ci[0].toFixed(0)}–${t.ci[1].toFixed(0)} %` : "");
+
+/** Historická úspěšnost s intervalem (nahradila trust score, které s úspěšností nesouviselo). */
+function trackLabel(t?: Track): { text: string; color: string; title: string } | null {
+  if (!t || !t.n) return null;
+  const title = `${t.k} z ${t.n} směrových dní, 95% interval ${ci(t)}`;
+  if (t.n < 20) return { text: `historicky ${t.pct?.toFixed(0)} % · málo dat (${t.n} dní)`, color: "#94a3b8", title };
+  if (t.coin) return { text: `historicky ${t.pct?.toFixed(0)} % · ≈ náhoda`, color: "#eab308", title };
+  return { text: `historicky ${t.pct?.toFixed(0)} % (${ci(t)})`, color: (t.pct ?? 0) > 50 ? "#4ade80" : "#f87171", title };
 }
 
 function ProbRow({ b }: { b: { prob_down: number; prob_neutral: number; prob_up: number } }) {
@@ -56,6 +66,7 @@ export function BiasCard({ ticker }: { ticker: string }) {
   const [data, setData] = useState<BiasToday | null>(null);
   const [stats, setStats] = useState<BiasStats | null>(null);
   const [gamma, setGamma] = useState<GammaLite | null>(null);
+  const { user } = useAuth();
 
   useEffect(() => {
     setData(null);
@@ -79,7 +90,7 @@ export function BiasCard({ ticker }: { ticker: string }) {
   const snap = data.snapshot;
   const bias = snap ?? data.live;
   const meta = DIR_META[bias.direction] ?? DIR_META.neutral;
-  const trust = trustLabel(bias.trust_score);
+  const track = trackLabel(stats?.track?.ny);
   const { Icon } = meta;
   const isUnknown = bias.direction === "unknown";
 
@@ -98,8 +109,8 @@ export function BiasCard({ ticker }: { ticker: string }) {
              style={{ borderColor: meta.color + "55", background: meta.color + "14" }}>
           <Icon size={16} style={{ color: meta.color }} />
           <span className="text-sm font-bold" style={{ color: meta.color }}>{meta.label}</span>
-          {!isUnknown && (
-            <span className="text-[10px]" style={{ color: trust.color }}>· {trust.text} ({bias.trust_score.toFixed(0)})</span>
+          {!isUnknown && track && (
+            <span className="text-[10px]" style={{ color: track.color }} title={track.title}>· {track.text}</span>
           )}
         </div>
       </div>
@@ -142,10 +153,28 @@ export function BiasCard({ ticker }: { ticker: string }) {
             )}
           </span>
         )}
+        {stats?.track && stats.track.ny.n > 0 && (
+          <span title="Celá historie, jen dny se směrovým biasem (LONG/SHORT) a směrovým pohybem NY session. Interval = 95% spolehlivost.">
+            Celkem od {stats.track.since}: <span className="text-gray-300">{stats.track.ny.pct?.toFixed(0)} %</span>
+            {" "}({ci(stats.track.ny)}, n={stats.track.ny.n}){stats.track.ny.coin && <span className="text-yellow-500/80"> · ≈ náhoda</span>}
+          </span>
+        )}
         {stats && stats.total === 0 && (
           <span>{stats.directional_total_london ? "Úspěšnost na NY session se právě dopočítává." : "Statistika úspěšnosti se začne tvořit od zítřka."}</span>
         )}
       </div>
+
+      {user?.is_admin && stats?.track && (
+        <div className="mt-2 rounded-lg border border-dashed border-[#2f3b55] px-2.5 py-1.5 text-[11px] text-gray-400">
+          <span className="font-medium text-blue-300">Bias v2 (stín, jen admin):</span>{" "}
+          dnes {snap?.v2_direction ? (DIR_META[snap.v2_direction]?.label ?? "bez signálu") : "—"}
+          {snap?.v2_cats ? <span className="text-gray-500"> ({snap.v2_cats})</span> : null}
+          {" · "}London→close {stats.track.v2.london.pct ?? "—"} % ({ci(stats.track.v2.london)}, n={stats.track.v2.london.n})
+          {" · "}NY {stats.track.v2.ny.pct ?? "—"} % (n={stats.track.v2.ny.n})
+          {" · "}signál {stats.track.v2.signal_days}/{stats.track.v2.days} dní
+          <span className="text-gray-600"> · vs. současný London {stats.track.london.pct ?? "—"} % (n={stats.track.london.n})</span>
+        </div>
+      )}
 
       {gamma && (
         <div className="mt-2 flex items-start gap-2 rounded-lg border border-[#232735] bg-[#151823] px-2.5 py-1.5 text-[11px]">

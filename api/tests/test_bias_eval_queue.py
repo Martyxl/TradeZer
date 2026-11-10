@@ -28,6 +28,7 @@ async def test_newest_first_and_old_rows_do_not_starve(db_session, monkeypatch):
         asked.append(d)
         return []   # bez dat → nevyhodnotí, ale musí se aspoň zkusit nové dny
     monkeypatch.setattr("app.sources.yahoo_finance_adapter.YahooFinanceAdapter.fetch_day_bars", fake_bars)
+    monkeypatch.setattr("app.sources.yahoo_finance_adapter.YahooFinanceAdapter.fetch_hour_bars", lambda *a: [])
     await bias_service.evaluate_pending(db_session, {t.id: t})
     assert sorted(asked, reverse=True) == recent
 

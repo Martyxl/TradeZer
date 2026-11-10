@@ -180,7 +180,7 @@ export function EntryCard({ ticker }: { ticker: string }) {
           Historicky: po NY open cena v {leg.within_30min}% dní udělá {waitFor} proti biasu do 30 min
           (medián {leg.offset_pct}%, p75 {leg.offset_p75_pct}%) — to je limit pro vstup ve směru biasu.
           P/L počítá pohyb do NY close ve směru biasu včetně zisku z lepší ceny (offsetu).
-          Čísla platí <em>pokud</em> bias směr sedí; kombinuj s trust score. Není to obchodní doporučení.
+          Čísla platí <em>pokud</em> bias směr sedí; sleduj historickou úspěšnost biasu v kartě BIAS. Není to obchodní doporučení.
         </p>
       )}
     </div>

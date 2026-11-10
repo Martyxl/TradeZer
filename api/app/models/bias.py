@@ -44,3 +44,10 @@ class DailyBias(Base):
     entry_filled: Mapped[bool | None] = mapped_column(nullable=True)
     entry_pnl_pct: Mapped[float | None] = mapped_column(Float, nullable=True)  # ve směru biasu, vč. offsetu
     entry_win: Mapped[bool | None] = mapped_column(nullable=True)
+
+    # Bias v2 (stínový režim od 11/2026): jen zprávy z kategorií, jejichž tipy prokazatelně
+    # trefovaly reakci trhu (naučeno jen z minulosti); směr = znaménko up−down, „none“ = bez signálu.
+    v2_direction: Mapped[str | None] = mapped_column(String(10), nullable=True)   # up/down/none
+    v2_score: Mapped[float | None] = mapped_column(Float, nullable=True)         # vážené up−down
+    v2_n_news: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    v2_cats: Mapped[str | None] = mapped_column(String(200), nullable=True)      # použité kategorie

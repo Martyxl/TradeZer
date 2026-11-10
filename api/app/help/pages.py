@@ -17,7 +17,8 @@ PAGES: dict[str, str] = {
   nahoru / do strany (neutral) / dolů v následujících ~30 minutách a důležitost zprávy. Reakce se měří od ceny těsně
   před zprávou; u vydaných makro dat (např. „194K vs 200K expected“) od plánovaného času vydání.
 - BIAS: denní směrový náklon (LONG/SHORT/NEUTRAL) složený z predikcí zpráv obchodního dne; snapshot po London open
-  (07:00 UTC). Pondělní bias zahrnuje i zprávy z víkendu. Trust score = důvěryhodnost (≥65 vysoká).
+  (07:00 UTC). Pondělní bias zahrnuje i zprávy z víkendu. Karta ukazuje historickou úspěšnost biasu
+  (NY session, 95% interval; „≈ náhoda“ = neliší se od 50 %) — dřívější trust score se ukázalo jako nespolehlivé.
 - Entry karta: plán vstupu po NY open (13:30 UTC) — limit proti směru biasu o offset, drženo do NY close; ukazuje
   i reálnou úspěšnost tohoto plánu z minulých dní.
 - Výhled (Outlook): dnešní plánované US události a scénáře hot / inline / cool (co se stane, když číslo vyjde nad /

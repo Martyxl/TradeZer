@@ -280,6 +280,7 @@ class NewsAggregator:
             from app.services import bias_service
             tickers_list = list(enabled_tickers)
             await bias_service.ensure_snapshots(self.session, tickers_list)
+            await bias_service.fill_v2_missing(self.session)
             await bias_service.evaluate_pending(self.session, {t.id: t for t in tickers_list})
         except Exception as e:
             log.warning("Bias hook failed", error=str(e))

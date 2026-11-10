@@ -50,6 +50,8 @@ async def bias_today(
             "realized_pct": snapshot.realized_pct,
             "ny_realized_direction": snapshot.ny_realized_direction,
             "ny_realized_pct": snapshot.ny_realized_pct,
+            "v2_direction": snapshot.v2_direction,      # stínový bias v2 (na webu jen pro admina)
+            "v2_cats": snapshot.v2_cats,
         },
         "live": live,
     }
@@ -187,6 +189,44 @@ def _t_stat(xs: list[float]) -> float | None:
     return round(m / sd * len(xs) ** 0.5, 2) if sd else None
 
 
+def _prop(k: int, n: int) -> dict:
+    """Úspěšnost s 95% Wilsonovým intervalem; coin = interval obsahuje 50 % (neodlišitelné od náhody)."""
+    import math
+    if n <= 0:
+        return {"k": 0, "n": 0, "pct": None, "ci": None, "coin": True}
+    z, p = 1.96, k / n
+    d = 1 + z * z / n
+    c = (p + z * z / (2 * n)) / d
+    h = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / d
+    lo, hi = round(max(0.0, c - h) * 100, 1), round(min(1.0, c + h) * 100, 1)
+    return {"k": k, "n": n, "pct": round(100 * p, 1), "ci": [lo, hi], "coin": lo <= 50 <= hi}
+
+
+def _track(rows: list, dir_attr: str, real_attr: str) -> dict:
+    """Směrové tipy (up/down) vs. směrová realita (up/down) — neutrální dny se nepočítají."""
+    sel = [b for b in rows if getattr(b, dir_attr) in ("up", "down") and getattr(b, real_attr) in ("up", "down")]
+    return _prop(sum(getattr(b, dir_attr) == getattr(b, real_attr) for b in sel), len(sel))
+
+
+async def _track_record(session: AsyncSession, ticker_id: int) -> dict:
+    """Celá historie (ne jen 30 dní): současný bias i stínový v2, NY session i London→close."""
+    rows = [b for b in (await session.execute(
+        select(DailyBias).where(DailyBias.ticker_id == ticker_id, DailyBias.realized_direction.is_not(None))
+    )).scalars().all() if b.bias_date.weekday() < 5]
+    days = [b.bias_date for b in rows]
+    return {
+        "since": str(min(days)) if days else None,
+        "ny": _track(rows, "direction", "ny_realized_direction"),
+        "london": _track(rows, "direction", "realized_direction"),
+        "v2": {
+            "ny": _track(rows, "v2_direction", "ny_realized_direction"),
+            "london": _track(rows, "v2_direction", "realized_direction"),
+            "signal_days": sum(b.v2_direction in ("up", "down") for b in rows),
+            "days": sum(b.v2_direction is not None for b in rows),
+        },
+    }
+
+
 @router.get("/stats")
 async def bias_stats(
     ticker: str = Query(...),
@@ -206,8 +246,9 @@ async def bias_stats(
         .order_by(DailyBias.bias_date.desc())
     )).scalars().all()
 
-    # "unknown" (nešlo určit) se do úspěšnosti nepočítá — nebyl to výrok o směru
-    rows = [b for b in rows if b.direction != "unknown"]
+    # "unknown" (nešlo určit) se do úspěšnosti nepočítá — nebyl to výrok o směru.
+    # Víkendové řádky (staré, z doby před opravou snapshotů) nejsou obchodní dny.
+    rows = [b for b in rows if b.direction != "unknown" and b.bias_date.weekday() < 5]
     # Hlavní metrika = NY session (9:30 → 16:00 ET). London→close obsahuje i premarket/gap,
     # takže úspěšnost zkresluje (držíme ji jen pro srovnání jako *_london).
     ny_rows = [b for b in rows if b.ny_realized_direction is not None]
@@ -249,6 +290,9 @@ async def bias_stats(
         "directional_total_london": len(directional),
         "directional_accuracy_london": round(lon_dir_correct / len(directional), 4) if directional else None,
         "entry": entry,
+        # Skutečná historická úspěšnost s intervalem (nahrazuje „důvěryhodnost“ trust score, která
+        # se ukázala jako antikorelovaná s úspěšností — rozbor 11/2026). v2 = stínový bias.
+        "track": await _track_record(session, t.id),
         "history": [
             {
                 "date": str(b.bias_date),
@@ -325,5 +369,6 @@ async def bias_run(session: AsyncSession = Depends(get_session)):
     ticker_repo = TickerRepository(session)
     tickers = list(await ticker_repo.get_all_enabled())
     created = await bias_service.ensure_snapshots(session, tickers)
+    v2 = await bias_service.fill_v2_missing(session)
     evaluated = await bias_service.evaluate_pending(session, {t.id: t for t in tickers})
-    return {"snapshots_created": created, "evaluated": evaluated}
+    return {"snapshots_created": created, "v2_filled": v2, "evaluated": evaluated}

@@ -43,7 +43,7 @@ const PAGE_HINT: Record<string, string> = {
   valuation: "Jak číst bublinovou mapu?",
   history: "Co je trefa směru a IC?",
   stats: "Co znamená t-stat u živých výsledků?",
-  dashboard: "Co je denní bias a trust score?",
+  dashboard: "Co je denní bias a jak spolehlivý je?",
   orb: "Co znamená one-sided u ORB?",
 };
 

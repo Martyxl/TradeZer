@@ -251,8 +251,7 @@ export function OutlookCard({ ticker }: { ticker: string }) {
                 style={{ color: d.bias.direction === "up" ? "#4ade80" : d.bias.direction === "down" ? "#f87171" : "#eab308" }}
               >
                 {d.bias.direction === "up" ? "LONG" : d.bias.direction === "down" ? "SHORT" : d.bias.direction === "neutral" ? "NEUTRAL" : "—"}
-              </span>{" "}
-              <span className="text-gray-600">(trust {d.bias.trust_score})</span>
+              </span>
             </div>
           )}
 

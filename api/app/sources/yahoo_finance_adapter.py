@@ -165,6 +165,16 @@ class YahooFinanceAdapter:
         period2 = int(day_end.timestamp())
         return _fetch_chart(yahoo_sym, period1, period2, interval="5m")
 
+    def fetch_hour_bars(self, ticker_symbol: str, for_date: date) -> list[dict]:
+        """Hodinové bary (Yahoo drží ~730 dní) — vyhodnocení starších dní mimo dosah 5m dat."""
+        yahoo_sym = SYMBOL_MAP.get(ticker_symbol, ticker_symbol)
+        day_start = datetime(for_date.year, for_date.month, for_date.day, tzinfo=timezone.utc)
+        bars = _fetch_chart(yahoo_sym, int(day_start.timestamp()), int((day_start + timedelta(days=2)).timestamp()),
+                            interval="1h")
+        for b in bars:
+            b["s"] = 3600       # délka svíčky pro _close_before
+        return bars
+
     def fetch_range_bars(self, ticker_symbol: str, start: date, end: date) -> list[dict]:
         """5min bary pro rozsah [start, end) — pro gap reakci na zprávy při zavřeném trhu."""
         yahoo_sym = SYMBOL_MAP.get(ticker_symbol, ticker_symbol)

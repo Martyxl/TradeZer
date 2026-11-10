@@ -6,6 +6,7 @@ prvním zpracování po 07:00 UTC (London open) z predikcí zpráv publikovanýc
 od začátku obchodního dne.
 """
 import asyncio
+import bisect
 import math
 from datetime import datetime, date, time, timedelta, timezone
 from zoneinfo import ZoneInfo
@@ -15,7 +16,8 @@ from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import DailyBias, NewsItem, NewsPrediction, Ticker
-from app.sources.yahoo_finance_adapter import YahooFinanceAdapter, _find_close_at
+from app.models.news import DirectionEnum, MarketReaction, NewsCategory, NewsItemCategory
+from app.sources.yahoo_finance_adapter import YahooFinanceAdapter, _close_before, _find_close_at
 
 log = structlog.get_logger(__name__)
 
@@ -126,6 +128,115 @@ async def compute_bias(session: AsyncSession, ticker: Ticker, tday: date,
         "trust_score": round(trust, 1),
         "avg_confidence": round(avg_conf, 3),
     }
+
+
+# ---------------------------------------------------------------- bias v2 (stínový režim)
+# Rozbor 11/2026: tipy zpráv celkově ~51 % (hod mincí), trust score antikorelovaný se skutečnou
+# úspěšností. Walk-forward test: bias složený JEN ze zpráv v kategoriích, jejichž tipy v minulosti
+# prokazatelně trefovaly reakci trhu, trefil London→close v 59,8 % (51,3–67,8 %, 132 dní).
+# Běží vedle současného biasu; na dashboard až po ověření na nových dnech.
+V2_MIN_N = 30          # min. počet vyhodnocených směrových tipů v kategorii
+
+
+def _wilson_low(k: int, n: int, z: float = 1.96) -> float:
+    if n <= 0:
+        return 0.0
+    p = k / n
+    d = 1 + z * z / n
+    return ((p + z * z / (2 * n)) - z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n))) / d
+
+
+def _tip(up: float, down: float, neutral: float) -> str:
+    return "up" if up >= max(down, neutral) else "down" if down >= max(up, neutral) else "neutral"
+
+
+async def load_category_hits(session: AsyncSession) -> list[tuple[datetime, str, bool]]:
+    """[(published_at, kategorie, trefil?)] pro směrové tipy zpráv se směrovou reakcí trhu, seřazeno."""
+    rows = (await session.execute(
+        select(NewsItem.published_at, NewsCategory.name, NewsPrediction.prob_up, NewsPrediction.prob_down,
+               NewsPrediction.prob_neutral, MarketReaction.realized_direction)
+        .join(NewsPrediction, NewsPrediction.news_id == NewsItem.id)
+        .join(MarketReaction, (MarketReaction.news_id == NewsPrediction.news_id)
+              & (MarketReaction.ticker_id == NewsPrediction.ticker_id))
+        .join(NewsItemCategory, NewsItemCategory.news_id == NewsItem.id)
+        .join(NewsCategory, NewsCategory.id == NewsItemCategory.category_id)
+        .where(MarketReaction.skip_reason.is_(None))
+        .where(MarketReaction.realized_direction.in_([DirectionEnum.UP, DirectionEnum.DOWN]))
+    )).all()
+    out = []
+    for pub, cat, up, down, neu, rd in rows:
+        tip = _tip(up, down, neu)
+        if tip == "neutral" or pub is None:
+            continue
+        real = rd.value if hasattr(rd, "value") else str(rd).lower()
+        out.append((pub, cat, tip == real))
+    out.sort(key=lambda x: x[0])
+    return out
+
+
+def verified_categories(hits: list[tuple[datetime, str, bool]], before: datetime) -> set[str]:
+    """Kategorie s trefovaností prokazatelně > 50 % (dolní mez 95% Wilsona) — jen ze zpráv před `before`."""
+    idx = bisect.bisect_left(hits, (before,), key=lambda x: (x[0],))
+    stat: dict[str, list[int]] = {}
+    for _pub, cat, ok in hits[:idx]:
+        a = stat.setdefault(cat, [0, 0])
+        a[0] += ok
+        a[1] += 1
+    return {c for c, (k, n) in stat.items() if n >= V2_MIN_N and _wilson_low(k, n) > 0.5}
+
+
+def v2_signal(preds: list[tuple[float, float, float]]) -> dict:
+    """preds = [(prob_up, prob_down, confidence)] → směr ze znaménka váženého up−down."""
+    tw = sum(max(c, 0.05) for _u, _d, c in preds)
+    if not preds or tw <= 0:
+        return {"direction": "none", "score": None, "n": 0}
+    s = sum(max(c, 0.05) * (u - d) for u, d, c in preds) / tw
+    return {"direction": "up" if s > 0 else "down" if s < 0 else "none", "score": round(s, 4), "n": len(preds)}
+
+
+async def compute_bias_v2(session: AsyncSession, ticker_id: int, tday: date, good: set[str],
+                          until: datetime | None = None) -> dict:
+    """Bias v2 pro obchodní den: zprávy od začátku dne do `until` (London open) jen z ověřených kategorií."""
+    if not good:
+        return {"direction": "none", "score": None, "n": 0, "cats": ""}
+    until = until or london_open_utc(tday)
+    rows = (await session.execute(
+        select(NewsPrediction.id, NewsPrediction.prob_up, NewsPrediction.prob_down, NewsPrediction.confidence,
+               NewsCategory.name)
+        .join(NewsItem, NewsItem.id == NewsPrediction.news_id)
+        .join(NewsItemCategory, NewsItemCategory.news_id == NewsItem.id)
+        .join(NewsCategory, NewsCategory.id == NewsItemCategory.category_id)
+        .where(NewsPrediction.ticker_id == ticker_id)
+        .where(NewsItem.published_at >= _day_start_utc(tday), NewsItem.published_at <= until)
+        .where(NewsPrediction.confidence > 0.0)
+        .where(NewsCategory.name.in_(sorted(good)))
+    )).all()
+    preds: dict[int, tuple[float, float, float]] = {}
+    used: set[str] = set()
+    for pid, up, down, conf, cat in rows:
+        preds[pid] = (up, down, conf)
+        used.add(cat)
+    return {**v2_signal(list(preds.values())), "cats": ",".join(sorted(used))[:200]}
+
+
+async def fill_v2_missing(session: AsyncSession, limit: int = 400) -> int:
+    """Doplní bias v2 ke snapshotům, které ho nemají (nové dny i zpětně). Kategorie se pro každý den
+    učí jen ze zpráv PŘED začátkem toho dne → žádný pohled do budoucnosti."""
+    rows = [b for b in (await session.execute(
+        select(DailyBias).where(DailyBias.v2_direction.is_(None)).order_by(DailyBias.bias_date)
+    )).scalars().all() if b.bias_date.weekday() < 5][:limit]
+    if not rows:
+        return 0
+    hits = await load_category_hits(session)
+    cache: dict[date, set[str]] = {}
+    for b in rows:
+        if b.bias_date not in cache:
+            cache[b.bias_date] = verified_categories(hits, _day_start_utc(b.bias_date))
+        r = await compute_bias_v2(session, b.ticker_id, b.bias_date, cache[b.bias_date])
+        b.v2_direction, b.v2_score, b.v2_n_news, b.v2_cats = r["direction"], r["score"], r["n"], r["cats"]
+    await session.commit()
+    log.info("Bias v2 doplněn", rows=len(rows))
+    return len(rows)
 
 
 async def ensure_snapshots(session: AsyncSession, tickers: list[Ticker]) -> int:
@@ -274,6 +385,41 @@ async def evaluate_pending(session: AsyncSession, ticker_map: dict[int, Ticker],
                      bias=b.direction, realized=realized, pct=round(pct * 100, 2))
         except Exception as e:
             log.warning("Bias evaluation failed", ticker_id=b.ticker_id, error=str(e))
+    evaluated += await _evaluate_old_hourly(session, ticker_map, today, now)
     if evaluated:
         await session.commit()
     return evaluated
+
+
+async def _evaluate_old_hourly(session: AsyncSession, ticker_map: dict[int, Ticker], today: date,
+                               now: datetime, limit: int = 5) -> int:
+    """Dny starší než dosah Yahoo 5m dat (např. celý srpen 2026) → London open → close z HODINOVÝCH
+    barů (Yahoo ~730 dní). NY session / entry potřebují 5 min, ty zůstanou prázdné."""
+    stmt = (select(DailyBias)
+            .where(DailyBias.realized_direction.is_(None),
+                   DailyBias.bias_date < today - timedelta(days=58),
+                   DailyBias.bias_date >= today - timedelta(days=700))
+            .order_by(DailyBias.bias_date.desc()))
+    pending = [b for b in (await session.execute(stmt)).scalars().all() if b.bias_date.weekday() < 5][:limit]
+    yahoo = YahooFinanceAdapter()
+    done = 0
+    for b in pending:
+        ticker = ticker_map.get(b.ticker_id)
+        if not ticker:
+            continue
+        try:
+            bars = await asyncio.to_thread(yahoo.fetch_hour_bars, ticker.symbol, b.bias_date)
+            p_open = _close_before(bars, london_open_utc(b.bias_date).replace(tzinfo=timezone.utc), 60)
+            p_close = _close_before(bars, ny_close_utc(b.bias_date).replace(tzinfo=timezone.utc), 60)
+            if not p_open or not p_close:
+                continue
+            pct = (p_close - p_open) / p_open
+            thr = ticker.neutral_threshold * 2
+            b.realized_direction = "up" if pct > thr else ("down" if pct < -thr else "neutral")
+            b.realized_pct = round(pct, 5)
+            b.evaluated_at = now
+            done += 1
+            log.info("Bias evaluated (1h)", ticker=ticker.symbol, date=str(b.bias_date), pct=round(pct * 100, 2))
+        except Exception as e:  # noqa: BLE001
+            log.warning("Bias hourly evaluation failed", ticker_id=b.ticker_id, error=str(e))
+    return done

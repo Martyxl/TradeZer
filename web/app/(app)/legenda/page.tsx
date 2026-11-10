@@ -211,8 +211,8 @@ const TERMS: Term[] = [
   // ── Bias & Výhled ─────────────────────────────────────────────────────────
   { term: "Denní BIAS", cat: "Bias & Výhled",
     desc: "Směrový náklon dne (LONG/SHORT/NEUTRAL) z AI predikcí dopadu zpráv. Snapshot v 9:00 (London open), předtím průběžný." },
-  { term: "Trust score", cat: "Bias & Výhled",
-    desc: "Důvěryhodnost biasu 0–100 (síla a konzistence podkladových predikcí). ≥65 vysoká, ≥40 střední, jinak nízká." },
+  { term: "Úspěšnost biasu", cat: "Bias & Výhled",
+    desc: "Historická úspěšnost biasu: jak často směrový bias (LONG/SHORT) trefil směr NY session, s 95% intervalem spolehlivosti a počtem dní. „≈ náhoda“ = interval obsahuje 50 %. Nahradila dřívější „trust score“, které se s úspěšností ukázalo jako nesouvisející (11/2026)." },
   { term: "Pravděpodobnosti ↑ / → / ↓", abbr: "prob_up / prob_neutral / prob_down", cat: "Bias & Výhled",
     desc: "Rozložení očekávaného směru dne v procentech (nahoru / do strany / dolů)." },
   { term: "Výhledový scénář (hot / inline / cool)", cat: "Bias & Výhled",
