@@ -56,7 +56,7 @@ export function ValuationDetail({ ticker, onClose }: { ticker: string; onClose: 
 
   return (
     <div className="fixed inset-0 z-50 bg-black/70 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
-      <div className="bg-[#12141c] border border-[#2a2d3a] rounded-2xl max-w-2xl w-full p-6 my-8"
+      <div className="bg-sunken border border-line rounded-2xl max-w-2xl w-full p-6 my-8"
            onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between mb-4">
           <div>
@@ -80,7 +80,7 @@ export function ValuationDetail({ ticker, onClose }: { ticker: string; onClose: 
 
         {err && <p className="text-sm text-yellow-300">Nedostatek dat pro hodnocení.</p>}
         {!d && !err && (
-          <div className="flex h-40 flex-col items-center justify-center gap-2 rounded-xl bg-[#151823] text-gray-400">
+          <div className="flex h-40 flex-col items-center justify-center gap-2 rounded-xl bg-panel-2 text-gray-400">
             <Loader2 size={24} className="animate-spin text-blue-400" />
             <span className="text-xs">Načítám detail…</span>
           </div>
@@ -95,7 +95,7 @@ export function ValuationDetail({ ticker, onClose }: { ticker: string; onClose: 
             )}
 
             {/* Rozpad skóre */}
-            <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-4 mb-3">
+            <div className="rounded-xl border border-line bg-panel-2 p-4 mb-3">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-semibold text-white">Rozpad skóre</h3>
                 <span className="text-xs text-gray-500">
@@ -109,7 +109,7 @@ export function ValuationDetail({ ticker, onClose }: { ticker: string; onClose: 
                   return (
                     <div key={k} className="flex items-center gap-2 text-xs">
                       <span className="w-16 shrink-0 text-gray-400">{label}</span>
-                      <div className="flex-1 h-2.5 rounded-full bg-[#232735] overflow-hidden">
+                      <div className="flex-1 h-2.5 rounded-full bg-raised overflow-hidden">
                         <div className="h-full rounded-full" style={{ width: `${s ?? 0}%`, background: scoreColor(s) }} />
                       </div>
                       <span className="w-8 text-right font-medium" style={{ color: scoreColor(s) }}>
@@ -123,7 +123,7 @@ export function ValuationDetail({ ticker, onClose }: { ticker: string; onClose: 
 
             {/* Drivers */}
             <div className="grid grid-cols-2 gap-3 mb-3">
-              <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-3">
+              <div className="rounded-xl border border-line bg-panel-2 p-3">
                 <div className="text-[10px] uppercase tracking-wider text-green-400 mb-2">Táhne nahoru</div>
                 {(d.drivers.positive ?? []).map((x, i) => (
                   <div key={i} className="flex justify-between text-[11px] text-gray-300 py-0.5">
@@ -132,7 +132,7 @@ export function ValuationDetail({ ticker, onClose }: { ticker: string; onClose: 
                 ))}
                 {!(d.drivers.positive?.length) && <div className="text-[11px] text-gray-600">—</div>}
               </div>
-              <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-3">
+              <div className="rounded-xl border border-line bg-panel-2 p-3">
                 <div className="text-[10px] uppercase tracking-wider text-red-400 mb-2">Táhne dolů</div>
                 {(d.drivers.negative ?? []).map((x, i) => (
                   <div key={i} className="flex justify-between text-[11px] text-gray-300 py-0.5">
@@ -148,7 +148,7 @@ export function ValuationDetail({ ticker, onClose }: { ticker: string; onClose: 
 
             {/* Poslední výsledky + odhady */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-              <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-3">
+              <div className="rounded-xl border border-line bg-panel-2 p-3">
                 <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-2">Poslední výsledky (Q)</div>
                 {d.latest_financials.slice(0, 3).map((f) => (
                   <div key={f.period_end} className="flex justify-between text-[11px] text-gray-300 py-0.5">
@@ -157,7 +157,7 @@ export function ValuationDetail({ ticker, onClose }: { ticker: string; onClose: 
                   </div>
                 ))}
               </div>
-              <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-3">
+              <div className="rounded-xl border border-line bg-panel-2 p-3">
                 <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-2">Očekávání (konsenzus)</div>
                 {d.estimates.filter((e) => e.metric === "eps").slice(0, 3).map((e, i) => (
                   <div key={i} className="flex justify-between text-[11px] text-gray-300 py-0.5">

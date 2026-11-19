@@ -9,31 +9,32 @@ interface TickerFilterProps {
   onChange: (symbol: string) => void;
 }
 
-const ASSET_COLORS: Record<string, string> = {
-  forex: "border-blue-700 data-[active=true]:bg-blue-700 data-[active=true]:text-white",
-  commodity: "border-yellow-700 data-[active=true]:bg-yellow-700 data-[active=true]:text-white",
-  crypto: "border-orange-700 data-[active=true]:bg-orange-700 data-[active=true]:text-white",
-  futures: "border-purple-700 data-[active=true]:bg-purple-700 data-[active=true]:text-white",
+// Třída aktiva jako malá tečka (forex / komodity / krypto / futures), výběr jako segmentový přepínač.
+const ASSET_DOT: Record<string, string> = {
+  forex: "bg-sky-400",
+  commodity: "bg-amber-300",
+  crypto: "bg-orange-400",
+  futures: "bg-violet-400",
 };
 
 export function TickerFilter({ tickers, selected, onChange }: TickerFilterProps) {
   return (
-    <div className="flex flex-wrap gap-2">
+    <div role="group" aria-label="Instrument" className="inline-flex flex-wrap gap-0.5 rounded-full border border-line bg-raised p-1">
       {tickers.map((ticker) => {
-        const colorClass = ASSET_COLORS[ticker.asset_class] ?? ASSET_COLORS.forex;
         const isActive = ticker.symbol === selected;
         return (
           <button
             key={ticker.symbol}
-            data-active={isActive}
+            type="button"
+            aria-pressed={isActive}
+            title={ticker.name}
             onClick={() => onChange(ticker.symbol)}
             className={cn(
-              "rounded-full border px-4 py-1.5 text-sm font-medium transition-all",
-              "text-gray-300 hover:text-white",
-              colorClass,
-              isActive ? "opacity-100" : "opacity-60 hover:opacity-80"
+              "flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors",
+              isActive ? "bg-[#0a0f0d] text-white" : "text-gray-400 hover:text-white"
             )}
           >
+            <span className={cn("h-1.5 w-1.5 rounded-full", ASSET_DOT[ticker.asset_class] ?? ASSET_DOT.forex)} />
             {ticker.symbol}
           </button>
         );

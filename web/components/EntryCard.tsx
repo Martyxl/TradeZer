@@ -66,7 +66,7 @@ export function EntryCard({ ticker }: { ticker: string }) {
   const rr = leg ? (leg.follow_pct / leg.offset_pct).toFixed(1) : null;
 
   return (
-    <div className="rounded-xl border border-[#2a2d3a] bg-[#1a1d27] p-4">
+    <div className="rounded-xl border border-line bg-panel p-4">
       <div className="flex items-center gap-2 mb-3">
         <LogIn size={15} className="text-blue-400" />
         <h2 className="text-sm font-semibold text-white">Entry plán po NY open · {ticker}</h2>
@@ -94,7 +94,7 @@ export function EntryCard({ ticker }: { ticker: string }) {
           </div>
         </div>
       ) : (
-        <div className="rounded-lg border border-[#2a2d3a] bg-[#0f1117] px-3 py-2.5 text-[11px] text-gray-400">
+        <div className="rounded-lg border border-line bg-sunken px-3 py-2.5 text-[11px] text-gray-400">
           Dnešní bias je <span className="font-medium text-yellow-500">neutrální</span> → pro dnešek žádný směrový
           entry setup. Konkrétní plán (LONG/SHORT limit po open) se ukáže, jakmile bias určí směr.
           Níže je úspěšnost plánu z minulých dní.
@@ -103,7 +103,7 @@ export function EntryCard({ ticker }: { ticker: string }) {
 
       {/* Reálná úspěšnost entry plánu (roste den po dni) */}
       {perf && perf.filled > 0 ? (
-        <div className="mt-3 pt-3 border-t border-[#232735] flex flex-wrap items-center gap-x-5 gap-y-1 text-[11px]">
+        <div className="mt-3 pt-3 border-t border-line flex flex-wrap items-center gap-x-5 gap-y-1 text-[11px]">
           <span className="text-gray-400 font-medium">Úspěšnost plánu (90 dní):</span>
           <span className="text-gray-500">Fill <span className="text-gray-300">{((perf.fill_rate ?? 0) * 100).toFixed(0)}%</span> ({perf.filled}/{perf.directional_days})</span>
           <span className="text-gray-500">Win <span style={{ color: (perf.win_rate ?? 0) >= 0.5 ? "#4ade80" : "#f87171" }}>{((perf.win_rate ?? 0) * 100).toFixed(0)}%</span> ({perf.wins}/{perf.filled})</span>
@@ -115,7 +115,7 @@ export function EntryCard({ ticker }: { ticker: string }) {
           )}
         </div>
       ) : (
-        <p className="mt-3 pt-3 border-t border-[#232735] text-[11px] text-gray-500">
+        <p className="mt-3 pt-3 border-t border-line text-[11px] text-gray-500">
           📊 Statistika se teprve <strong>tvoří</strong> — každý den po NY close (23:00) přibude jeden vyhodnocený
           záznam. Prázdné hodnoty za dnešek a čerstvé dny <strong>nejsou chyba</strong>, jen se ještě čeká na
           uzavření obchodního dne. Smysluplný vzorek bude za ~2–3 týdny.
@@ -147,7 +147,7 @@ export function EntryCard({ ticker }: { ticker: string }) {
                 </thead>
                 <tbody>
                   {history.slice(0, 10).map((h) => (
-                    <tr key={h.date} className="border-t border-[#232735]">
+                    <tr key={h.date} className="border-t border-line">
                       <td className="py-1 pr-3 text-gray-400">{h.date.slice(5)}</td>
                       <td className="py-1 pr-3 font-medium" style={{ color: h.bias === "up" ? "#4ade80" : h.bias === "down" ? "#f87171" : "#eab308" }}>
                         {h.bias === "up" ? "LONG" : h.bias === "down" ? "SHORT" : "—"}
@@ -164,7 +164,7 @@ export function EntryCard({ ticker }: { ticker: string }) {
                   ))}
                 </tbody>
               </table>
-              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-gray-500 border-t border-[#232735] pt-2">
+              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-gray-500 border-t border-line pt-2">
                 <span><span className="text-gray-400">✓ / no-fill</span> = limit se vyplnil / protipohyb nedosáhl offsetu</span>
                 <span><span style={{ color: "#4ade80" }}>WIN</span> / <span style={{ color: "#f87171" }}>LOSS</span> = P/L do NY close kladný / záporný</span>
                 <span><span className="text-gray-500">—</span> = ještě nevyhodnoceno (den probíhá; hodnotí se po NY close 23:00)</span>
@@ -191,7 +191,7 @@ function Metric({ label, value, sub, accent }: {
   label: string; value: string; sub: string; accent?: string;
 }) {
   return (
-    <div className="rounded-lg bg-[#0f1117] border border-[#2a2d3a] px-3 py-2">
+    <div className="rounded-lg bg-sunken border border-line px-3 py-2">
       <div className="text-[10px] uppercase tracking-wider text-gray-500">{label}</div>
       <div className="text-sm font-semibold" style={{ color: accent ?? "#e5e7eb" }}>{value}</div>
       <div className="text-[9px] text-gray-600">{sub}</div>

@@ -1,22 +1,30 @@
-import { Sidebar, MobileNav } from "@/components/Sidebar";
+import { Plus_Jakarta_Sans } from "next/font/google";
+import { Sidebar, MobileNav, AppTopbar } from "@/components/Sidebar";
 import { Footer } from "@/components/Footer";
 import { HelpChat } from "@/components/HelpChat";
 
-// Chrome přihlášené/aplikační části (sidebar + user menu). Landing na `/` ho nemá.
+const jakarta = Plus_Jakarta_Sans({ subsets: ["latin", "latin-ext"], display: "swap" });
+
+// Chrome přihlášené/aplikační části ve skleněném motivu (.tz-glass, viz globals.css):
+// plovoucí menu vlevo, pilulková lišta nahoře a jedna velká skleněná plocha s obsahem.
+// Landing na `/` a auth stránky ho nemají.
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <>
+    <div className={`tz-glass flow-root ${jakarta.className}`}>
       <MobileNav />
-      <div className="flex">
+      <div className="flex gap-5 p-3 md:p-5">
         <Sidebar />
-        <main className="flex-1 min-w-0 px-4 py-6 md:px-8">
-          <div className="mx-auto max-w-6xl">
-            {children}
+        <div className="flex min-w-0 flex-1 flex-col gap-5">
+          <AppTopbar />
+          <main className="tz-pane min-w-0 rounded-[24px] px-4 py-5 md:rounded-[30px] md:px-7 md:py-7">
+            <div className="mx-auto max-w-6xl">{children}</div>
+          </main>
+          <div className="mx-auto w-full max-w-6xl px-2 [&>footer]:mt-0 [&>footer]:border-0 [&>footer]:pt-0">
             <Footer />
           </div>
-        </main>
+        </div>
       </div>
       <HelpChat />
-    </>
+    </div>
   );
 }

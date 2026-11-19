@@ -110,7 +110,7 @@ export function BubbleMap({ items, onSelect, zones, alerts = {} }: {
 
   if (plotted.length === 0) {
     return (
-      <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] h-[460px] flex items-center justify-center text-gray-500 text-sm">
+      <div className="rounded-xl border border-line bg-panel-2 h-[460px] flex items-center justify-center text-gray-500 text-sm">
         Nedostatek dat pro hodnocení
       </div>
     );
@@ -126,11 +126,11 @@ export function BubbleMap({ items, onSelect, zones, alerts = {} }: {
     ? `${pts(sell)} ${xPos(sell[sell.length - 1][0]).toFixed(1)},${yPos(Y_MIN)} ${xPos(sell[0][0]).toFixed(1)},${yPos(Y_MIN)}` : "";
 
   return (
-    <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-2 overflow-x-auto">
+    <div className="rounded-xl border border-line bg-panel-2 p-2 overflow-x-auto">
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full min-w-[560px]" role="img" aria-label="Bublinová mapa valuace">
         {/* kvadranty */}
-        <line x1={x50} y1={PAD.t} x2={x50} y2={PAD.t + PLOT_H} stroke="#2a2d3a" strokeDasharray="4 4" />
-        <line x1={PAD.l} y1={y0} x2={PAD.l + PLOT_W} y2={y0} stroke="#2a2d3a" strokeDasharray="4 4" />
+        <line x1={x50} y1={PAD.t} x2={x50} y2={PAD.t + PLOT_H} stroke="var(--tz-chart-grid)" strokeDasharray="4 4" />
+        <line x1={PAD.l} y1={y0} x2={PAD.l + PLOT_W} y2={y0} stroke="var(--tz-chart-grid)" strokeDasharray="4 4" />
         {buyArea && <polygon points={buyArea} fill="#4ade80" fillOpacity={0.07} />}
         {sellArea && <polygon points={sellArea} fill="#f87171" fillOpacity={0.06} />}
         {buy.length > 1 && <polyline points={pts(buy)} fill="none" stroke="#4ade80" strokeOpacity={0.7} strokeWidth={1.5} strokeDasharray="6 4" />}
@@ -209,7 +209,7 @@ export function BubbleMap({ items, onSelect, zones, alerts = {} }: {
         })}
       </svg>
       {openCluster && (
-        <div className="mt-2 rounded-lg border border-[#2a2d3a] bg-[#10131c] p-3" data-testid="cluster-list">
+        <div className="mt-2 rounded-lg border border-line bg-[#10131c] p-3" data-testid="cluster-list">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs text-gray-400">
               {openCluster.members.length} firem se překrývá — klikni na firmu pro detail
@@ -220,7 +220,7 @@ export function BubbleMap({ items, onSelect, zones, alerts = {} }: {
             {[...openCluster.members].sort((a, b) => (b.it.composite_score ?? -1) - (a.it.composite_score ?? -1)).map(({ it }) => (
               <li key={it.ticker}>
                 <button onClick={() => onSelect(it.ticker)}
-                  className="w-full flex items-center gap-2 rounded px-2 py-1 text-left text-xs hover:bg-[#1a1d27]">
+                  className="w-full flex items-center gap-2 rounded px-2 py-1 text-left text-xs hover:bg-panel">
                   <span className="inline-block h-2 w-2 rounded-full"
                         style={{ background: VERDICT_COLOR[it.valuation_verdict ?? ""] ?? "#64748b" }} />
                   <span className="font-semibold text-white">{it.ticker}</span>

@@ -71,7 +71,7 @@ function Bar({ label, value, prev, accent = "#3b82f6" }: {
   return (
     <div className="flex items-center gap-2 text-xs">
       <span className="w-28 shrink-0 text-gray-400 truncate">{label}</span>
-      <div className="flex-1 h-2 rounded-full bg-[#232735] overflow-hidden">
+      <div className="flex-1 h-2 rounded-full bg-raised overflow-hidden">
         <div className="h-full rounded-full" style={{ width: `${width}%`, background: accent }} />
       </div>
       <span className="w-20 text-right font-medium whitespace-nowrap" style={{ color: value >= 50 ? accent : "#9ca3af" }}>
@@ -158,7 +158,7 @@ function OrbCard({ name, sess, hor, metric }: {
   const v = roll && os.length > 1 ? orbVerdict(os, M.pol) : null;
   const cur = roll && os.length ? os[os.length - 1] : (ov as unknown as Record<string, number>)[metric];
   return (
-    <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-4">
+    <div className="rounded-xl border border-line bg-panel-2 p-4">
       <div className="flex items-start justify-between gap-2">
         <div>
           <h3 className="text-sm font-semibold text-white">{name}</h3>
@@ -193,12 +193,12 @@ function OrbCard({ name, sess, hor, metric }: {
         <BarGroup data={ov as unknown as Record<string, number>} labels={SIDES_LABELS} />
       </div>
 
-      <div className="mt-3 pt-3 border-t border-[#232735] space-y-2">
+      <div className="mt-3 pt-3 border-t border-line space-y-2">
         <Bar label="High vybráno" value={ov.high_taken} accent="#3b82f6" />
         <Bar label="Low vybráno" value={ov.low_taken} accent="#3b82f6" />
       </div>
 
-      <div className="mt-3 pt-3 border-t border-[#232735] space-y-2">
+      <div className="mt-3 pt-3 border-t border-line space-y-2">
         <Bar label="Nejdřív High" value={ov.order?.high_to_low ?? 0} accent="#64748b" />
         <Bar label="Nejdřív Low" value={ov.order?.low_to_high ?? 0} accent="#64748b" />
       </div>
@@ -211,7 +211,7 @@ function OrbCard({ name, sess, hor, metric }: {
 function InfoModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 bg-black/70 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
-      <div className="bg-[#12141c] border border-[#2a2d3a] rounded-2xl max-w-2xl w-full p-6 my-8" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-sunken border border-line rounded-2xl max-w-2xl w-full p-6 my-8" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-white">Jak číst ORB</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-white"><X size={20} /></button>
@@ -300,8 +300,8 @@ export default function OrbPage() {
             disabled={!data[k]}
             className={`rounded-lg px-4 py-2 text-sm font-medium border transition-colors disabled:opacity-40 ${
               selected === k
-                ? "bg-[#1e2536] text-white border-[#2f3b55]"
-                : "bg-[#151823] text-gray-400 border-[#2a2d3a] hover:text-white"
+                ? "bg-raised text-white border-line-2"
+                : "bg-panel-2 text-gray-400 border-line hover:text-white"
             }`}
           >
             {KEY_LABEL[k]}
@@ -325,7 +325,7 @@ export default function OrbPage() {
       {!stats && !error && (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="h-72 rounded-2xl bg-[#151823] animate-pulse border border-[#2a2d3a]" />
+            <div key={i} className="h-72 rounded-2xl bg-panel-2 animate-pulse border border-line" />
           ))}
         </div>
       )}
@@ -345,8 +345,8 @@ export default function OrbPage() {
               {(["or5", "or15"] as const).map((k) => (
                 <button key={k} onClick={() => setOrLen(k)}
                   className={`rounded-md px-3 py-1 text-xs font-medium border transition-colors ${
-                    orLen === k ? "bg-[#1e2536] text-white border-[#2f3b55]"
-                      : "bg-[#151823] text-gray-400 border-[#2a2d3a] hover:text-white"}`}>
+                    orLen === k ? "bg-raised text-white border-line-2"
+                      : "bg-panel-2 text-gray-400 border-line hover:text-white"}`}>
                   {k === "or5" ? "5 min" : "15 min"}
                 </button>
               ))}
@@ -356,8 +356,8 @@ export default function OrbPage() {
               {(["m30", "m60", "sess"] as const).map((k) => (
                 <button key={k} onClick={() => setHor(k)}
                   className={`rounded-md px-3 py-1 text-xs font-medium border transition-colors ${
-                    hor === k ? "bg-[#1e2536] text-white border-[#2f3b55]"
-                      : "bg-[#151823] text-gray-400 border-[#2a2d3a] hover:text-white"}`}>
+                    hor === k ? "bg-raised text-white border-line-2"
+                      : "bg-panel-2 text-gray-400 border-line hover:text-white"}`}>
                   {k === "m30" ? "30 min" : k === "m60" ? "60 min" : "session"}
                 </button>
               ))}
@@ -367,8 +367,8 @@ export default function OrbPage() {
               {METRIC_ORDER.map((k) => (
                 <button key={k} onClick={() => setMetric(k)}
                   className={`rounded-md px-3 py-1 text-xs font-medium border transition-colors ${
-                    metric === k ? "bg-[#1e2536] text-white border-[#2f3b55]"
-                      : "bg-[#151823] text-gray-400 border-[#2a2d3a] hover:text-white"}`}>
+                    metric === k ? "bg-raised text-white border-line-2"
+                      : "bg-panel-2 text-gray-400 border-line hover:text-white"}`}>
                   {METRICS[k].short}
                 </button>
               ))}

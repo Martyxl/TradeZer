@@ -53,7 +53,7 @@ export function GapCard({ ticker }: { ticker: string }) {
   const fillColor = (p: number | null) => (p == null ? "#9ca3af" : p >= 65 ? "#4ade80" : p >= 40 ? "#eab308" : "#fb923c");
 
   return (
-    <div className="rounded-xl border border-[#2a2d3a] bg-[#1a1d27] p-4">
+    <div className="rounded-xl border border-line bg-panel p-4">
       <div className="flex flex-wrap items-center gap-2">
         {down ? <ArrowDownRight size={15} className="text-red-400" /> : <ArrowUpRight size={15} className="text-green-400" />}
         <h2 className="text-sm font-semibold text-white">Gap před openem · {d.etf} ≈ {d.ticker}</h2>
@@ -68,7 +68,7 @@ export function GapCard({ ticker }: { ticker: string }) {
               {d.etf} {fmt(d.price!)} vs close {fmt(d.prev_close)} ({new Date(`${d.prev_date}T12:00:00`).toLocaleDateString("cs-CZ")})
             </div>
           </div>
-          <div className="rounded-lg border border-[#232735] bg-[#151823] px-3 py-2 text-[12px] text-gray-300 space-y-1">
+          <div className="rounded-lg border border-line bg-panel-2 px-3 py-2 text-[12px] text-gray-300 space-y-1">
             {d.filled_today ? (
               <div className="flex items-center gap-1.5 font-semibold text-green-400"><CheckCircle2 size={13} /> Gap se dnes už zavřel (cena se vrátila na včerejší close).</div>
             ) : (
@@ -109,7 +109,7 @@ export function GapCard({ ticker }: { ticker: string }) {
               {d.table.rows.map((r) => {
                 const hit = b && r.lo === b.lo;
                 return (
-                  <tr key={r.lo} className={`border-t border-[#232735] ${hit ? "bg-blue-950/30" : ""}`}>
+                  <tr key={r.lo} className={`border-t border-line ${hit ? "bg-blue-950/30" : ""}`}>
                     <td className="py-1.5 text-gray-200">{range(r.lo, r.hi)}{hit && <span className="ml-1.5 rounded bg-blue-600 px-1 text-[9px] font-semibold text-white">DNES</span>}</td>
                     <td className="text-right text-gray-400">{r.n} ({r.up.n} / {r.down.n})</td>
                     <td className="text-right">

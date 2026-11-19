@@ -32,7 +32,7 @@ export default function FondPage() {
   }, []);
 
   if (err) return <div className="rounded-xl border border-yellow-800 bg-yellow-950/40 p-6 text-sm text-yellow-300">Fond není dostupný.</div>;
-  if (!d) return <div className="h-64 animate-pulse rounded-2xl border border-[#2a2d3a] bg-[#151823]" />;
+  if (!d) return <div className="h-64 animate-pulse rounded-2xl border border-line bg-panel-2" />;
 
   const s = d.state;
 
@@ -50,14 +50,14 @@ export default function FondPage() {
           Náš AI fond obchoduje <b className="text-gray-300">podle vlastních analýz</b> (valuace, momentum, insideři, dark pool).
           Sleduj každý pohyb i proč. Start 1 000 000 Kč, paper-trading.
         </p>
-        <p className="mt-2 inline-block rounded-lg border border-[#2a2d3a] bg-[#12141c] px-3 py-1.5 text-[11px] text-gray-400">
+        <p className="mt-2 inline-block rounded-lg border border-line bg-sunken px-3 py-1.5 text-[11px] text-gray-400">
           <b className="text-gray-300">Konvikce</b> = naše skóre přesvědčení o obchodu <b>0–100</b> (čím vyšší, tím silnější signál).
           Skládá se z valuace, momentum, nákupů insiderů a dark-pool objemu.
         </p>
       </div>
 
       {!s ? (
-        <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-8 text-center text-gray-400">Fond ještě nezačal obchodovat.</div>
+        <div className="rounded-xl border border-line bg-panel-2 p-8 text-center text-gray-400">Fond ještě nezačal obchodovat.</div>
       ) : (
         <>
           {/* strategie / note */}
@@ -95,8 +95,8 @@ export default function FondPage() {
 
           {/* pozice */}
           {d.positions.length > 0 && (
-            <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] overflow-hidden">
-              <div className="border-b border-[#2a2d3a] px-4 py-3 text-sm font-semibold text-white">Pozice fondu</div>
+            <div className="rounded-xl border border-line bg-panel-2 overflow-hidden">
+              <div className="border-b border-line px-4 py-3 text-sm font-semibold text-white">Pozice fondu</div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -112,14 +112,14 @@ export default function FondPage() {
                   </thead>
                   <tbody>
                     {d.positions.map((p) => (
-                      <tr key={p.symbol} className="border-t border-[#20242f]">
+                      <tr key={p.symbol} className="border-t border-line">
                         <td className="px-4 py-2.5"><div className="font-medium text-white">{p.symbol}</div>{p.name && <div className="text-[11px] text-gray-500 truncate max-w-[160px]">{p.name}</div>}</td>
                         <td className="px-4 py-2.5 text-right text-gray-300">{p.quantity.toLocaleString("cs-CZ", { maximumFractionDigits: 2 })}</td>
                         <td className="px-4 py-2.5 text-right text-gray-400">{p.avg_cost.toFixed(2)} {p.currency}</td>
                         <td className="px-4 py-2.5 text-right text-gray-200">{fmt(p.value_czk)} Kč</td>
                         <td className="px-4 py-2.5 text-right text-gray-400">{p.weight_pct ?? "—"} %</td>
                         <td className={`px-4 py-2.5 text-right ${pnlC(p.unrealized_czk)}`}>{p.unrealized_czk == null ? "—" : `${p.unrealized_czk >= 0 ? "+" : ""}${fmt(p.unrealized_czk)}`}</td>
-                        <td className="px-4 py-2.5 text-right"><span className="rounded bg-[#1e2536] px-1.5 py-0.5 text-[11px] text-gray-300">{p.conviction ?? "—"}</span></td>
+                        <td className="px-4 py-2.5 text-right"><span className="rounded bg-raised px-1.5 py-0.5 text-[11px] text-gray-300">{p.conviction ?? "—"}</span></td>
                       </tr>
                     ))}
                   </tbody>
@@ -129,7 +129,7 @@ export default function FondPage() {
           )}
 
           {/* trade log s důvody */}
-          <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-5">
+          <div className="rounded-xl border border-line bg-panel-2 p-5">
             <h2 className="text-sm font-semibold text-white">Deník obchodů — co a proč to fond udělal</h2>
             <p className="mt-0.5 text-[11px] text-gray-500">U každého obchodu je rozepsané, proč nakoupil/prodal a jak silná byla konvikce.</p>
             <div className="mt-3 space-y-2">
@@ -141,7 +141,7 @@ export default function FondPage() {
                 const col = buy ? "text-[#60ff82]" : trim ? "text-amber-300" : "text-[#ff5050]";
                 const bg = buy ? "bg-[rgba(96,255,130,0.1)]" : trim ? "bg-amber-500/10" : "bg-red-500/10";
                 return (
-                  <div key={i} className="flex gap-3 rounded-lg border border-[#20242f] bg-[#12141c] p-3">
+                  <div key={i} className="flex gap-3 rounded-lg border border-line bg-sunken p-3">
                     <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${bg}`}><Icon size={15} className={col} /></div>
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-baseline gap-x-2">
@@ -172,7 +172,7 @@ export default function FondPage() {
 
 function Card({ label, value, sub, color = "text-white", big }: { label: string; value: string; sub?: string; color?: string; big?: boolean }) {
   return (
-    <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-4">
+    <div className="rounded-xl border border-line bg-panel-2 p-4">
       <div className="text-[11px] uppercase text-gray-500">{label}</div>
       <div className={`mt-1 font-bold ${big ? "text-2xl" : "text-lg"} ${color}`}>{value}</div>
       {sub && <div className={`text-xs ${color}`}>{sub}</div>}
@@ -183,7 +183,7 @@ function Card({ label, value, sub, color = "text-white", big }: { label: string;
 function EquityChart({ snaps, start }: { snaps: Snap[]; start: number }) {
   if (snaps.length < 2) {
     return (
-      <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-5">
+      <div className="rounded-xl border border-line bg-panel-2 p-5">
         <h2 className="flex items-center gap-2 text-sm font-semibold text-white"><TrendingUp size={15} className="text-[#60ff82]" /> Vývoj celkové hodnoty fondu</h2>
         <div className="py-8 text-center text-sm text-gray-500">Křivka se plní každý den — zatím {snaps.length === 1 ? "1 bod" : "0 bodů"}. Zítra přibude další.</div>
       </div>
@@ -205,7 +205,7 @@ function EquityChart({ snaps, start }: { snaps: Snap[]; start: number }) {
   const fundRet = (last.equity / start - 1) * 100;
   const benchRet = hasBench && last.benchmark ? (last.benchmark / start - 1) * 100 : null;
   return (
-    <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-5">
+    <div className="rounded-xl border border-line bg-panel-2 p-5">
       <div className="flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-sm font-semibold text-white">
           {up ? <TrendingUp size={15} className="text-[#60ff82]" /> : <TrendingDown size={15} className="text-[#ff5050]" />} Vývoj celkové hodnoty fondu

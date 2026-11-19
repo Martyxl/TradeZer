@@ -73,7 +73,7 @@ function StatusTag({ s }: { s: Scenario }) {
     return <span className="rounded bg-gray-800 px-1.5 py-0.5 text-[10px] text-gray-300">vyšlo · {staleRelease(s) ? "číslo nemáme" : "čekám na čísla"}</span>;
   }
   return (
-    <span className="inline-flex items-center gap-1 rounded bg-[#1e2536] px-1.5 py-0.5 text-[10px] text-blue-300">
+    <span className="inline-flex items-center gap-1 rounded bg-raised px-1.5 py-0.5 text-[10px] text-blue-300">
       <Clock size={11} /> čeká · {cet(s.time_utc)}
     </span>
   );
@@ -106,7 +106,7 @@ function LiveMove({ s, ticker }: { s: Scenario; ticker: string }) {
       <span className="font-semibold" style={{ color: DIR_COLOR[now] }}>{pctTxt(l.last_pct)}</span>
       {mins != null && <span className="text-gray-500">za {mins} min</span>}
       {["1", "5", "15", "30", "60"].filter((k) => l.points[k] != null).map((k) => (
-        <span key={k} className="rounded bg-[#0f1117] px-1.5 py-0.5 text-[10.5px] text-gray-400">
+        <span key={k} className="rounded bg-sunken px-1.5 py-0.5 text-[10.5px] text-gray-400">
           {k} min <span style={{ color: DIR_COLOR[dir(l.points[k])] }}>{pctTxt(l.points[k])}</span>
         </span>
       ))}
@@ -126,7 +126,7 @@ function LiveGhost() {
       <EliteGhost>
         <span className="flex gap-1">
           {["1", "5", "15", "30", "60"].map((k) => (
-            <span key={k} className="rounded bg-[#0f1117] px-1.5 py-0.5 text-[10.5px] text-gray-400">{k} min ±0,00 %</span>
+            <span key={k} className="rounded bg-sunken px-1.5 py-0.5 text-[10.5px] text-gray-400">{k} min ±0,00 %</span>
           ))}
         </span>
       </EliteGhost>
@@ -170,7 +170,7 @@ export function OutlookCard({ ticker }: { ticker: string }) {
   const done = (d?.scenarios || []).filter((s) => s.realized || s.released);
 
   return (
-    <div className="rounded-2xl border border-[#2a2d3a] bg-[#1a1d27] p-6">
+    <div className="rounded-2xl border border-line bg-panel p-6">
       <div className="flex items-center gap-2 mb-3">
         <CalendarClock size={16} className="text-blue-400" />
         <h2 className="text-lg font-semibold text-white">Dnešní výhled — {ticker}</h2>
@@ -236,7 +236,7 @@ export function OutlookCard({ ticker }: { ticker: string }) {
           {d.narrative && (
             <>
             {done.length > 0 && <div className="mb-1 text-[10px] uppercase tracking-wider text-gray-500">Ranní komentář (před zprávami)</div>}
-            <p className="mb-4 whitespace-pre-line rounded-xl border border-[#2a2d3a] bg-[#0f1117] p-3 text-sm leading-relaxed text-gray-200">
+            <p className="mb-4 whitespace-pre-line rounded-xl border border-line bg-sunken p-3 text-sm leading-relaxed text-gray-200">
               {clean(d.narrative)}
             </p>
             </>
@@ -263,7 +263,7 @@ export function OutlookCard({ ticker }: { ticker: string }) {
           ) : (
             <div className="space-y-3">
               {d.scenarios.map((s, i) => (
-                <div key={i} className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-3">
+                <div key={i} className="rounded-xl border border-line bg-panel-2 p-3">
                   <div className="mb-2 flex flex-wrap items-center gap-2">
                     <span className="font-semibold text-white text-sm">{s.title}</span>
                     <span className="text-[10px] uppercase rounded px-1.5 py-0.5"
@@ -292,7 +292,7 @@ export function OutlookCard({ ticker }: { ticker: string }) {
                       const hit = s.realized === key;
                       return (
                         <div key={key}
-                             className={`flex items-start gap-2 rounded-md px-2 py-1 text-[12px] ${hit ? "bg-[#1e2536] ring-1 ring-blue-500/40" : s.realized ? "opacity-40" : ""}`}>
+                             className={`flex items-start gap-2 rounded-md px-2 py-1 text-[12px] ${hit ? "bg-raised ring-1 ring-blue-500/40" : s.realized ? "opacity-40" : ""}`}>
                           <span className="w-28 shrink-0 text-gray-400">{label}</span>
                           <DirTag leg={leg} />
                           <span className="flex-1 text-gray-300">

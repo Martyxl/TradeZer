@@ -26,7 +26,7 @@ const pct = (v: number | null | undefined, d = 1) => (v == null ? "—" : `${v >
 const col = (v: number | null | undefined) => (v == null || v === 0 ? "#9ca3af" : v > 0 ? "#4ade80" : "#f87171");
 const PERIOD = { current_quarter: "tento kvartál", current_year: "letos", next_year: "příští rok" } as Record<string, string>;
 const CHANGE = { Upgrade: "zvýšil", Downgrade: "snížil", Initiates: "začal pokrývat", Maintains: "potvrdil", Reiterates: "potvrdil" } as Record<string, string>;
-const box = "rounded-xl border border-[#2a2d3a] bg-[#151823] p-3";
+const box = "rounded-xl border border-line bg-panel-2 p-3";
 const head = "text-[10px] uppercase tracking-wider text-gray-500 mb-2";
 
 function TargetBar({ t }: { t: NonNullable<Analysts["price_target"]> }) {

@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, History, BarChart3, Sunrise, Target, NotebookPen, Telescope, Landmark, BookOpen, User as UserIcon, LogOut, CreditCard, ShieldCheck, Wallet, Receipt, Waves, Bot, Lock, type LucideIcon } from "lucide-react";
+import { LayoutDashboard, Menu, X, History, BarChart3, Sunrise, Target, NotebookPen, Telescope, Landmark, BookOpen, User as UserIcon, LogOut, CreditCard, ShieldCheck, Wallet, Receipt, Waves, Bot, Lock, type LucideIcon } from "lucide-react";
 import { SupportButton } from "@/components/SupportButton";
 import { useAuth } from "@/lib/auth";
 import { FREE_ACCESS, hasAccess, planRank, type Tier } from "@/lib/config";
@@ -43,34 +44,24 @@ function sortByTier(items: NavItem[]): NavItem[] {
 export const NAV_GROUPS: NavGroup[] = GROUPS.map((g) => ({ ...g, items: sortByTier(g.items) }));
 const TIER_CHIP: Record<string, string> = { trader: "Trader", pro: "Pro", elite: "Elite" };
 
-function PlanBadge({ plan, admin }: { plan: string; admin: boolean }) {
-  if (admin) return <span className="rounded bg-[rgba(96,255,130,0.14)] px-1.5 py-0.5 text-[9px] font-semibold uppercase text-[#8fffab]">Admin</span>;
-  if (FREE_ACCESS) return null;
-  const p = (plan || "free").toLowerCase();
-  if (p === "free") return <span className="rounded bg-[#2a2d3a] px-1.5 py-0.5 text-[9px] font-semibold uppercase text-gray-400">Free</span>;
-  return <span className="rounded bg-[rgba(96,255,130,0.14)] px-1.5 py-0.5 text-[9px] font-semibold uppercase text-[#8fffab]">{p}</span>;
-}
-
-function NavLink({ item, accent, active, locked }: { item: NavItem; accent: string; active: boolean; locked: boolean }) {
+function NavLink({ item, active, locked, onNavigate }: { item: NavItem; active: boolean; locked: boolean; onNavigate?: () => void }) {
   const Icon = item.icon;
   return (
     <Link
       href={item.href}
-      className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] transition-colors ${
-        active
-          ? "bg-[#1e2536] text-white border border-[#2f3b55]"
-          : "text-gray-400 hover:text-white hover:bg-[#1a1d27] border border-transparent"
+      onClick={onNavigate}
+      aria-current={active ? "page" : undefined}
+      className={`flex items-center gap-2.5 rounded-xl border px-3 py-2 text-[13.5px] transition-colors ${
+        active ? "tz-nav-on font-semibold" : "border-transparent text-gray-400 hover:bg-panel hover:text-white"
       }`}
     >
-      <Icon size={16} style={active ? { color: accent } : undefined} />
+      <Icon size={16} className="shrink-0" />
       <span className="flex-1 whitespace-nowrap">{item.label}</span>
       {FREE_ACCESS ? (locked && (
-        <span className="flex shrink-0 items-center rounded bg-[#1c1f2b] px-1 py-0.5 text-gray-500" title="Zdarma po registraci">
-          <Lock size={9} />
-        </span>
+        <span className="flex shrink-0 items-center text-gray-500" title="Zdarma po registraci"><Lock size={11} /></span>
       )) : item.tier !== "free" && (
-        <span className={`flex shrink-0 items-center gap-0.5 rounded px-1 py-0.5 text-[8px] font-semibold uppercase tracking-wide ${
-          locked ? "bg-[#1c1f2b] text-gray-500" : "bg-[rgba(96,255,130,0.10)] text-[#8fffab]"}`}
+        <span className={`flex shrink-0 items-center gap-0.5 rounded-full border px-1.5 py-px text-[10px] font-semibold ${
+          locked ? "border-line text-gray-500" : "border-line-2 text-gray-300"}`}
           title={locked ? `Odemčeno v plánu ${TIER_CHIP[item.tier]}` : `Součást vašeho plánu`}>
           {locked && <Lock size={9} />}{TIER_CHIP[item.tier]}
         </span>
@@ -79,77 +70,79 @@ function NavLink({ item, accent, active, locked }: { item: NavItem; accent: stri
   );
 }
 
+function initials(s: string) {
+  return (s || "?").split("@")[0].slice(0, 2).toUpperCase();
+}
+
 function UserMenu() {
   const { user, loading, logout } = useAuth();
-  if (loading) return <div className="h-9 animate-pulse rounded-lg bg-[#1a1d27]" />;
+  if (loading) return <div className="h-9 animate-pulse rounded-xl bg-panel" />;
   if (!user) {
     return (
       <div className="flex flex-col gap-2">
-        <Link href="/prihlaseni" className="rounded-lg border border-[#2a2d3a] px-3 py-2 text-center text-sm text-gray-300 hover:text-white hover:border-gray-500 transition-colors">
-          Přihlásit
-        </Link>
-        <Link href="/registrace" className="rounded-lg border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.10)] px-3 py-2 text-center text-sm font-medium text-[#8fffab] hover:bg-[rgba(96,255,130,0.18)] transition-colors">
+        <Link href="/registrace" className="rounded-full bg-white px-3 py-2 text-center text-sm font-semibold text-[#0a1a16] transition-colors hover:bg-[#dff3ea]">
           Vytvořit účet
+        </Link>
+        <Link href="/prihlaseni" className="rounded-full border border-line-2 px-3 py-2 text-center text-sm text-gray-300 transition-colors hover:bg-panel hover:text-white">
+          Přihlásit
         </Link>
       </div>
     );
   }
+  const item = "flex items-center gap-2 rounded-xl px-3 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-panel transition-colors";
   return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-center gap-2 px-1 pb-1">
-        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[rgba(96,255,130,0.12)] text-[#8fffab]"><UserIcon size={14} /></div>
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-xs text-gray-300">{user.email || user.username}</div>
-        </div>
-        <PlanBadge plan={user.plan} admin={user.is_admin} />
-      </div>
-      {user.is_admin && <Link href="/admin" className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-[#8fffab] hover:text-white hover:bg-[#1a1d27] transition-colors"><ShieldCheck size={14} /> Admin</Link>}
-      <Link href="/ucet" className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-[#1a1d27] transition-colors"><UserIcon size={14} /> Účet</Link>
-      {!FREE_ACCESS && <Link href="/predplatne" className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-[#1a1d27] transition-colors"><CreditCard size={14} /> Předplatné</Link>}
-      <button onClick={logout} className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-left text-sm text-gray-400 hover:text-white hover:bg-[#1a1d27] transition-colors"><LogOut size={14} /> Odhlásit</button>
+    <div className="flex flex-col gap-0.5">
+      {user.is_admin && <Link href="/admin" className={item}><ShieldCheck size={14} /> Admin</Link>}
+      <Link href="/ucet" className={item}><UserIcon size={14} /> Účet</Link>
+      {!FREE_ACCESS && <Link href="/predplatne" className={item}><CreditCard size={14} /> Předplatné</Link>}
+      <button onClick={logout} className={`${item} text-left`}><LogOut size={14} /> Odhlásit</button>
     </div>
   );
 }
 
-export function Sidebar() {
+function Brand() {
+  return (
+    <Link href="/" className="flex items-center gap-3 rounded-xl px-2 pb-3 pt-1.5">
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-line-2 bg-raised">
+        <span className="h-4 w-4 rounded-full bg-gradient-to-br from-[#6fe0b0] to-[#2f9a80]" />
+      </span>
+      <span>
+        <span className="block font-extrabold leading-tight tracking-tight text-white">Tradezer</span>
+        <span className="block text-[11.5px] leading-tight text-gray-500">Dopad zpráv na trh</span>
+      </span>
+    </Link>
+  );
+}
+
+function NavTree({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const { user } = useAuth();
-
   return (
-    <aside className="hidden md:flex flex-col w-60 shrink-0 border-r border-[#2a2d3a] bg-[#12141c] h-screen sticky top-0 self-start overflow-y-auto">
-      <Link href="/" className="flex items-center gap-2 px-5 py-5 border-b border-[#2a2d3a]">
-        <div className="h-7 w-7 rounded-full bg-gradient-to-br from-green-400 to-blue-500" />
-        <div>
-          <div className="font-bold text-white tracking-tight leading-tight">Tradezer</div>
-          <div className="text-[10px] text-gray-500 leading-tight">News Impact Agent</div>
+    <nav aria-label="Hlavní menu" className="flex flex-col gap-0.5">
+      {NAV_GROUPS.map((g) => (
+        <div key={g.key} className="flex flex-col gap-0.5">
+          {g.title && <div className="px-3 pb-1 pt-3.5 text-[11.5px] font-semibold text-gray-500">{g.title}</div>}
+          {g.items.map((it) => (
+            <NavLink key={it.href} item={it} onNavigate={onNavigate}
+              active={pathname.startsWith(it.href)} locked={!hasAccess(user, it.tier)} />
+          ))}
         </div>
-      </Link>
+      ))}
+      <div className="mt-3 border-t border-line pt-3">
+        <NavLink item={LEGEND} onNavigate={onNavigate} active={pathname.startsWith(LEGEND.href)} locked={false} />
+      </div>
+    </nav>
+  );
+}
 
-      <nav className="flex flex-col gap-3 p-2.5">
-        {NAV_GROUPS.map((g) => (
-          <section key={g.key}
-            className={g.title ? "rounded-xl border border-[#23263a] bg-[#0f1119] p-1.5" : ""}
-            style={g.title ? { borderLeft: `3px solid ${g.accent}` } : undefined}>
-            {g.title && (
-              <div className="flex items-center gap-1.5 px-2.5 pb-1 pt-1">
-                <span className="h-1.5 w-1.5 rounded-full" style={{ background: g.accent }} />
-                <span className="text-[10px] font-semibold uppercase tracking-[0.14em]" style={{ color: g.accent }}>{g.title}</span>
-              </div>
-            )}
-            <div className="flex flex-col gap-0.5">
-              {g.items.map((it) => (
-                <NavLink key={it.href} item={it} accent={g.accent}
-                  active={pathname.startsWith(it.href)} locked={!hasAccess(user, it.tier)} />
-              ))}
-            </div>
-          </section>
-        ))}
-        <div className="border-t border-[#23263a] pt-2">
-          <NavLink item={LEGEND} accent="#9ca3af" active={pathname.startsWith(LEGEND.href)} locked={false} />
-        </div>
-      </nav>
-
-      <div className="mt-auto flex flex-col gap-3 p-3 border-t border-[#2a2d3a]">
+export function Sidebar() {
+  return (
+    <aside className="tz-pane sticky top-5 hidden h-[calc(100vh-2.5rem)] w-[248px] shrink-0 flex-col self-start overflow-hidden rounded-[26px] p-3.5 md:flex">
+      <Brand />
+      <div className="-mx-1 flex-1 overflow-y-auto px-1 [scrollbar-width:none]">
+        <NavTree />
+      </div>
+      <div className="mt-3 flex flex-col gap-2 border-t border-line pt-3">
         <UserMenu />
         <SupportButton variant="sidebar" />
       </div>
@@ -157,41 +150,75 @@ export function Sidebar() {
   );
 }
 
+const EXTRA_TITLES = [
+  { href: "/ucet", label: "Účet" },
+  { href: "/predplatne", label: "Předplatné" },
+  { href: "/admin", label: "Admin" },
+];
+
+/** Název aktuální stránky podle menu (pro horní lištu). */
+function usePageTitle(): string {
+  const pathname = usePathname();
+  const all = [...NAV_GROUPS.flatMap((g) => g.items), LEGEND, ...EXTRA_TITLES];
+  return all.find((i) => pathname.startsWith(i.href))?.label ?? "Tradezer";
+}
+
+function greeting(d: Date) {
+  const h = d.getHours();
+  return h < 5 ? "Dobrou noc" : h < 10 ? "Dobré ráno" : h < 18 ? "Dobrý den" : "Dobrý večer";
+}
+
+/** Horní pilulková lišta: název stránky, pozdrav podle denní doby, odkaz na účet. */
+export function AppTopbar() {
+  const { user, loading } = useAuth();
+  const title = usePageTitle();
+  const [hello, setHello] = useState<string | null>(null);
+  useEffect(() => setHello(greeting(new Date())), []);
+  return (
+    <header className="tz-pane hidden min-h-[54px] items-center gap-3 rounded-full py-1.5 pl-6 pr-1.5 md:flex">
+      <div className="min-w-0 flex-1 truncate">
+        <span className="font-bold text-white">{title}</span>
+        {hello && <span className="ml-3 text-sm text-gray-500">{hello}</span>}
+      </div>
+      {!loading && (user ? (
+        <Link href="/ucet" className="flex items-center gap-2.5 rounded-full p-0.5 pl-3 hover:bg-panel" title="Účet">
+          <span className="hidden text-right lg:block">
+            <span className="block max-w-[220px] truncate text-[13px] font-semibold leading-tight text-white">{user.email || user.username}</span>
+            <span className="block text-[11.5px] leading-tight text-gray-500">{user.is_admin ? "Admin" : FREE_ACCESS ? "Plný přístup" : user.plan}</span>
+          </span>
+          <span className="grid h-10 w-10 place-items-center rounded-full border border-line-2 bg-[#2f9a80] text-[12.5px] font-extrabold text-white">
+            {initials(user.email || user.username || "")}
+          </span>
+        </Link>
+      ) : (
+        <Link href="/prihlaseni" className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#0a1a16] hover:bg-[#dff3ea]">Přihlásit</Link>
+      ))}
+    </header>
+  );
+}
+
 export function MobileNav() {
   const pathname = usePathname();
-  const { user } = useAuth();
-
+  const [open, setOpen] = useState(false);
+  useEffect(() => setOpen(false), [pathname]);
   return (
-    <header className="md:hidden border-b border-[#2a2d3a] bg-[#0f1117]/80 backdrop-blur sticky top-0 z-50">
-      <div className="px-4 py-3 flex items-center gap-3">
+    <header className="sticky top-3 z-50 mx-3 mt-3 md:hidden">
+      <div className="tz-pane flex items-center gap-3 rounded-full py-1.5 pl-4 pr-1.5">
         <Link href="/" className="flex items-center gap-2">
-          <div className="h-6 w-6 rounded-full bg-gradient-to-br from-green-400 to-blue-500" />
-          <span className="font-bold text-white tracking-tight">Tradezer</span>
+          <span className="h-5 w-5 rounded-full bg-gradient-to-br from-[#6fe0b0] to-[#2f9a80]" />
+          <span className="font-extrabold tracking-tight text-white">Tradezer</span>
         </Link>
-        <nav className="ml-auto flex items-center gap-4 text-sm">
-          {[...NAV_GROUPS.map((g) => ({ g, items: g.items })), { g: { key: "legend", accent: "#9ca3af" } as NavGroup, items: [LEGEND] }]
-            .map(({ g, items }, gi) => (
-            <span key={g.key} className={`flex items-center gap-4 ${gi > 0 ? "border-l border-[#2a2d3a] pl-4" : ""}`}>
-              {items.map(({ href, label }) => {
-                const active = pathname.startsWith(href);
-                return (
-                  <Link
-                    key={href}
-                    href={href}
-                    className={active ? "text-white" : "text-gray-400 hover:text-white transition-colors"}
-                    style={active ? { color: g.accent } : undefined}
-                  >
-                    {label}
-                  </Link>
-                );
-              })}
-            </span>
-          ))}
-          <Link href={user ? "/ucet" : "/prihlaseni"} className="text-gray-400 hover:text-white">
-            <UserIcon size={16} />
-          </Link>
-        </nav>
+        <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-label={open ? "Zavřít menu" : "Otevřít menu"}
+          className="ml-auto grid h-9 w-9 place-items-center rounded-full border border-line bg-raised text-white">
+          {open ? <X size={17} /> : <Menu size={17} />}
+        </button>
       </div>
+      {open && (
+        <div className="tz-pane mt-2 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-[22px] p-3" style={{ background: "rgba(12,32,26,0.94)" }}>
+          <NavTree onNavigate={() => setOpen(false)} />
+          <div className="mt-3 border-t border-line pt-3"><UserMenu /></div>
+        </div>
+      )}
     </header>
   );
 }

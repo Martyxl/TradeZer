@@ -70,7 +70,7 @@ export default function AdminPage() {
     catch (e) { setErr(e instanceof Error ? e.message : "Smazání selhalo"); } finally { setBusyId(null); }
   };
 
-  if (loading || (!data && !err)) return <div className="h-40 animate-pulse rounded-xl bg-[#1a1d27]" />;
+  if (loading || (!data && !err)) return <div className="h-40 animate-pulse rounded-xl bg-panel" />;
   if (!user?.is_admin) return null;
   if (err && !data) return <p className="text-sm text-red-400">{err}</p>;
   const s = data!.stats;
@@ -81,7 +81,7 @@ export default function AdminPage() {
         <ShieldCheck size={20} className="text-[#60ff82]" />
         <h1 className="text-2xl font-bold text-white">Admin</h1>
         <Link href="/admin/posta"
-          className="ml-auto flex items-center gap-1.5 rounded-lg border border-[#2a2d3a] px-3 py-1.5 text-sm text-gray-300 hover:text-white">
+          className="ml-auto flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-sm text-gray-300 hover:text-white">
           <Mail size={14} /> Pošta info@tradezer.app
         </Link>
       </div>
@@ -115,15 +115,15 @@ export default function AdminPage() {
       )}
 
       {/* Uživatelé */}
-      <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-[#2a2d3a]">
+      <div className="rounded-xl border border-line bg-panel-2 overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-line">
           <h2 className="text-sm font-semibold text-white">Uživatelé</h2>
           <span className="text-xs text-gray-500">{data!.users.length} zobrazeno</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-[10px] uppercase text-gray-500 border-b border-[#2a2d3a]">
+              <tr className="text-[10px] uppercase text-gray-500 border-b border-line">
                 <th className="text-left px-4 py-2 font-medium">Účet</th>
                 <th className="text-left px-3 py-2 font-medium">Plán</th>
                 <th className="text-left px-3 py-2 font-medium">Registrace</th>
@@ -134,7 +134,7 @@ export default function AdminPage() {
             </thead>
             <tbody>
               {data!.users.map((u) => (
-                <tr key={u.id} className="border-b border-[#1e222e] hover:bg-[#1a1d27]">
+                <tr key={u.id} className="border-b border-[#1e222e] hover:bg-panel">
                   <td className="px-4 py-2 text-gray-200">
                     {u.email || u.username || "—"}
                     {u.is_admin && <span className="ml-2 rounded bg-[rgba(96,255,130,0.14)] px-1.5 py-0.5 text-[9px] font-semibold uppercase text-[#8fffab]">Admin</span>}
@@ -145,7 +145,7 @@ export default function AdminPage() {
                       value={u.plan}
                       onChange={(e) => setPlan(u, e.target.value)}
                       disabled={busyId === u.id}
-                      className="rounded border border-[#2a2d3a] bg-[#151823] px-1.5 py-1 text-[11px] uppercase text-gray-200 focus:outline-none focus:border-[#2f3b55] disabled:opacity-50"
+                      className="rounded border border-line bg-panel-2 px-1.5 py-1 text-[11px] uppercase text-gray-200 focus:outline-none focus:border-line-2 disabled:opacity-50"
                     >
                       {["free", "trader", "pro", "elite"].map((p) => (
                         <option key={p} value={p}>{p}</option>
@@ -172,7 +172,7 @@ export default function AdminPage() {
       </div>
 
       {/* Platby */}
-      <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-5">
+      <div className="rounded-xl border border-line bg-panel-2 p-5">
         <h2 className="text-sm font-semibold text-white">Platby</h2>
         <p className="mt-2 text-sm text-gray-500">Platby zatím nejsou spuštěné live. Až se napojí (Stripe), objeví se tu transakce a předplatná.</p>
       </div>
@@ -183,7 +183,7 @@ export default function AdminPage() {
 function ActionBtn({ children, title, onClick, disabled, danger }: { children: React.ReactNode; title: string; onClick: () => void; disabled?: boolean; danger?: boolean }) {
   return (
     <button title={title} onClick={onClick} disabled={disabled}
-      className={`flex h-7 w-7 items-center justify-center rounded-md border transition-colors disabled:opacity-40 ${danger ? "border-[#3a2020] text-red-400 hover:bg-red-950/40" : "border-[#2a2d3a] text-gray-400 hover:text-white hover:bg-[#1e2230]"}`}>
+      className={`flex h-7 w-7 items-center justify-center rounded-md border transition-colors disabled:opacity-40 ${danger ? "border-[#3a2020] text-red-400 hover:bg-red-950/40" : "border-line text-gray-400 hover:text-white hover:bg-[#1e2230]"}`}>
       {children}
     </button>
   );
@@ -191,7 +191,7 @@ function ActionBtn({ children, title, onClick, disabled, danger }: { children: R
 
 function StatCard({ icon: Icon, label, value, sub }: { icon: LucideIcon; label: string; value: string | number; sub?: string }) {
   return (
-    <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-4">
+    <div className="rounded-xl border border-line bg-panel-2 p-4">
       <div className="flex items-center gap-2 text-xs text-gray-500"><Icon size={14} className="text-[#60ff82]" /> {label}</div>
       <div className="mt-2 text-2xl font-bold text-white">{value}</div>
       {sub && <div className="mt-0.5 text-[11px] text-gray-500">{sub}</div>}
@@ -203,7 +203,7 @@ function RegChart({ data }: { data: { date: string; count: number }[] }) {
   const max = Math.max(1, ...data.map((d) => d.count));
   const total = data.reduce((a, d) => a + d.count, 0);
   return (
-    <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-4">
+    <div className="rounded-xl border border-line bg-panel-2 p-4">
       <div className="flex items-baseline justify-between">
         <h2 className="text-sm font-semibold text-white">Registrace za 30 dní</h2>
         <span className="text-xs text-gray-500">{total} celkem</span>

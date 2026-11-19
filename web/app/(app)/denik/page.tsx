@@ -124,7 +124,7 @@ function nowLocalInput(): string {
 
 function StatCard({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
   return (
-    <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-4">
+    <div className="rounded-xl border border-line bg-panel-2 p-4">
       <div className="text-[10px] uppercase tracking-wider text-gray-500">{label}</div>
       <div className="text-2xl font-bold mt-1" style={{ color: color || "#fff" }}>{value}</div>
       {sub && <div className="text-[11px] text-gray-500 mt-0.5">{sub}</div>}
@@ -135,7 +135,7 @@ function StatCard({ label, value, sub, color }: { label: string; value: string; 
 function BucketTable({ title, rows, nameMap }: { title: string; rows: Bucket[]; nameMap?: Record<string, string> }) {
   if (!rows.length) return null;
   return (
-    <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-4">
+    <div className="rounded-xl border border-line bg-panel-2 p-4">
       <h3 className="text-sm font-semibold text-white mb-3">{title}</h3>
       <table className="w-full text-xs">
         <thead>
@@ -148,7 +148,7 @@ function BucketTable({ title, rows, nameMap }: { title: string; rows: Bucket[]; 
         </thead>
         <tbody>
           {rows.map((b) => (
-            <tr key={b.key} className="border-t border-[#232735]">
+            <tr key={b.key} className="border-t border-line">
               <td className="py-1.5 text-gray-200 truncate max-w-[140px]">{nameMap?.[b.key] || b.key}</td>
               <td className="text-right text-gray-400">{b.n}</td>
               <td className="text-right font-medium" style={{ color: b.win_rate != null && b.win_rate >= 50 ? "#4ade80" : "#9ca3af" }}>
@@ -168,7 +168,7 @@ function BucketTable({ title, rows, nameMap }: { title: string; rows: Bucket[]; 
 function MistakeTable({ rows, losses }: { rows: MistakeBucket[]; losses: { total: number; explained: number } }) {
   if (!losses.total) return null;
   return (
-    <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-4">
+    <div className="rounded-xl border border-line bg-panel-2 p-4">
       <h3 className="text-sm font-semibold text-white mb-1 flex items-center gap-1.5">
         <AlertTriangle size={14} className="text-orange-400" /> Proč obchody nevycházejí
       </h3>
@@ -187,7 +187,7 @@ function MistakeTable({ rows, losses }: { rows: MistakeBucket[]; losses: { total
           </thead>
           <tbody>
             {rows.map((m) => (
-              <tr key={m.key} className="border-t border-[#232735]">
+              <tr key={m.key} className="border-t border-line">
                 <td className="py-1.5 text-gray-200">{m.key}</td>
                 <td className="text-right text-gray-400">{m.n}×</td>
                 <td className="text-right font-medium" style={{ color: rColor(m.r_lost) }}>{m.r_lost ? `${m.r_lost}R` : "—"}</td>
@@ -204,7 +204,7 @@ function Chip({ on, label, onClick, tone = "blue" }: { on: boolean; label: strin
   const onCls = tone === "orange" ? "bg-orange-950/50 text-orange-300 border-orange-800" : "bg-blue-950/50 text-blue-300 border-blue-800";
   return (
     <button type="button" onClick={onClick}
-      className={`rounded-full px-2.5 py-1 text-xs border transition-colors ${on ? onCls : "bg-[#0f1117] text-gray-400 border-[#2a2d3a] hover:text-white"}`}>
+      className={`rounded-full px-2.5 py-1 text-xs border transition-colors ${on ? onCls : "bg-sunken text-gray-400 border-line hover:text-white"}`}>
       {label}
     </button>
   );
@@ -267,7 +267,7 @@ function StrategyTabs({ items, total, active, onSelect, onNew }: {
   onSelect: (id: number | null) => void; onNew: () => void;
 }) {
   const card = (on: boolean) =>
-    `shrink-0 w-44 rounded-xl border p-3 text-left transition-colors ${on ? "border-blue-600 bg-blue-950/30" : "border-[#2a2d3a] bg-[#151823] hover:border-[#3a3f52]"}`;
+    `shrink-0 w-44 rounded-xl border p-3 text-left transition-colors ${on ? "border-blue-600 bg-blue-950/30" : "border-line bg-panel-2 hover:border-[#3a3f52]"}`;
   return (
     <div>
       <div className="mb-2 flex items-baseline justify-between">
@@ -298,7 +298,7 @@ function StrategyTabs({ items, total, active, onSelect, onNew }: {
             ) : <div className="mt-1 text-[11px] text-gray-500">zatím bez obchodů</div>}
           </button>
         ))}
-        <button onClick={onNew} className="shrink-0 w-44 rounded-xl border border-dashed border-[#2f3b55] p-3 text-left text-sm text-[#8fffab] hover:bg-[#151823]">
+        <button onClick={onNew} className="shrink-0 w-44 rounded-xl border border-dashed border-line-2 p-3 text-left text-sm text-[#8fffab] hover:bg-panel-2">
           <Plus size={14} className="mb-1" /> Nový deník strategie
         </button>
       </div>
@@ -337,7 +337,7 @@ function dayValue(a: DayAgg): { v: number | null; label: string } {
   return { v: null, label: "—" };
 }
 function dayStyle(v: number | null): React.CSSProperties {
-  if (v == null || v === 0) return { background: "#1a1d27", borderColor: "#2a2d3a" };
+  if (v == null || v === 0) return { background: "var(--tz-tooltip)", borderColor: "var(--tz-chart-grid)" };
   return v > 0
     ? { background: "rgba(34,197,94,0.14)", borderColor: "rgba(34,197,94,0.45)" }
     : { background: "rgba(239,68,68,0.14)", borderColor: "rgba(239,68,68,0.45)" };
@@ -375,7 +375,7 @@ function JournalCalendar({ entries, selected, onSelect }: {
   const todayKey = dayKey(new Date().toISOString());
 
   return (
-    <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-4">
+    <div className="rounded-xl border border-line bg-panel-2 p-4">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
         <div className="flex items-center gap-2">
           <CalendarDays size={16} className="text-blue-400" />
@@ -427,7 +427,7 @@ function JournalCalendar({ entries, selected, onSelect }: {
                     </button>
                   );
                 })}
-                <div className="h-[72px] rounded-lg border border-dashed border-[#2a2d3a] p-1.5 flex flex-col justify-end">
+                <div className="h-[72px] rounded-lg border border-dashed border-line p-1.5 flex flex-col justify-end">
                   {wAgg.n > 0 ? (
                     <>
                       <span className="text-sm font-bold leading-tight" style={{ color: rColor(wVal.v) }}>{wVal.label}</span>
@@ -546,12 +546,12 @@ function EntryForm({ initial, draft, meta, tagData, defaultStrategyId, onClose, 
     }
   };
 
-  const field = "w-full rounded-lg bg-[#0f1117] border border-[#2a2d3a] px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:border-blue-600 focus:outline-none";
+  const field = "w-full rounded-lg bg-sunken border border-line px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:border-blue-600 focus:outline-none";
   const lab = "text-[10px] uppercase tracking-wider text-gray-500 mb-1 block";
 
   return (
     <div className="fixed inset-0 z-50 bg-black/70 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
-      <div className="bg-[#12141c] border border-[#2a2d3a] rounded-2xl max-w-lg w-full p-6 my-8" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-sunken border border-line rounded-2xl max-w-lg w-full p-6 my-8" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold text-white">{initial ? "Upravit obchod" : "Nový obchod"}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-white"><X size={20} /></button>
@@ -584,7 +584,7 @@ function EntryForm({ initial, draft, meta, tagData, defaultStrategyId, onClose, 
                   className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium border transition-colors ${
                     f.direction === d
                       ? d === "long" ? "bg-green-950/50 text-green-300 border-green-800" : "bg-red-950/50 text-red-300 border-red-800"
-                      : "bg-[#0f1117] text-gray-400 border-[#2a2d3a] hover:text-white"}`}>
+                      : "bg-sunken text-gray-400 border-line hover:text-white"}`}>
                   {d === "long" ? "Long" : "Short"}
                 </button>
               ))}
@@ -621,7 +621,7 @@ function EntryForm({ initial, draft, meta, tagData, defaultStrategyId, onClose, 
                   className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium border transition-colors ${
                     f.outcome === o
                       ? o === "win" ? "bg-green-950/50 text-green-300 border-green-800" : "bg-red-950/50 text-red-300 border-red-800"
-                      : "bg-[#0f1117] text-gray-400 border-[#2a2d3a] hover:text-white"}`}>
+                      : "bg-sunken text-gray-400 border-line hover:text-white"}`}>
                   {l}
                 </button>
               ))}
@@ -650,7 +650,7 @@ function EntryForm({ initial, draft, meta, tagData, defaultStrategyId, onClose, 
             </select>
           </div>
 
-          <div className="col-span-2 rounded-xl border border-[#2a2d3a] bg-[#0f1117]/60 p-3 space-y-3">
+          <div className="col-span-2 rounded-xl border border-line bg-sunken/60 p-3 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-gray-200">Za jaké situace jsi obchod vzal</span>
               <button type="button" onClick={onManageTags} className="text-[11px] text-blue-400 hover:text-blue-300 flex items-center gap-1">
@@ -740,7 +740,7 @@ function EntryForm({ initial, draft, meta, tagData, defaultStrategyId, onClose, 
         {err && <p className="text-sm text-red-400 mt-3">{err}</p>}
 
         <div className="flex justify-end gap-2 mt-5">
-          <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-gray-300 border border-[#2a2d3a] hover:text-white transition-colors">Zrušit</button>
+          <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-gray-300 border border-line hover:text-white transition-colors">Zrušit</button>
           <button onClick={submit} disabled={saving}
             className="rounded-lg px-4 py-2 text-sm font-medium bg-[rgba(96,255,130,0.14)] text-[#8fffab] border border-[rgba(96,255,130,0.4)] hover:bg-[rgba(96,255,130,0.22)] transition-colors disabled:opacity-50">
             {saving ? "Ukládám…" : initial ? "Uložit změny" : "Přidat obchod"}
@@ -773,11 +773,11 @@ function TagsModal({ data, onClose, onChanged }: { data: TagData; onClose: () =>
   const deleteTag = (t: Tag) => {
     if (confirm(`Smazat tag „${t.name}“? Odebere se ze všech obchodů a z pravidel strategií.`)) run(() => jFetch(`/tags/${t.id}`, { method: "DELETE" }));
   };
-  const field = "w-full rounded-lg bg-[#0f1117] border border-[#2a2d3a] px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:border-blue-600 focus:outline-none";
+  const field = "w-full rounded-lg bg-sunken border border-line px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:border-blue-600 focus:outline-none";
 
   return (
     <div className="fixed inset-0 z-50 bg-black/70 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
-      <div className="bg-[#12141c] border border-[#2a2d3a] rounded-2xl max-w-2xl w-full p-6 my-8 space-y-6" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-sunken border border-line rounded-2xl max-w-2xl w-full p-6 my-8 space-y-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold text-white flex items-center gap-2"><Tags size={17} className="text-blue-400" /> Tagy</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-white"><X size={20} /></button>
@@ -790,7 +790,7 @@ function TagsModal({ data, onClose, onChanged }: { data: TagData; onClose: () =>
             <h3 className="text-sm font-semibold text-white mb-2">{KIND_LABEL[k]}</h3>
             <div className="flex flex-wrap gap-1.5 mb-2">
               {data.tags.filter((t) => t.kind === k).map((t) => (
-                <span key={t.id} className="inline-flex items-center gap-1 rounded-full border border-[#2a2d3a] bg-[#0f1117] pl-2.5 pr-1 py-0.5 text-xs text-gray-200">
+                <span key={t.id} className="inline-flex items-center gap-1 rounded-full border border-line bg-sunken pl-2.5 pr-1 py-0.5 text-xs text-gray-200">
                   <button onClick={() => renameTag(t)} title="Přejmenovat" className="hover:text-blue-300">{t.name}</button>
                   <button onClick={() => deleteTag(t)} title="Smazat" className="text-gray-600 hover:text-red-400"><X size={12} /></button>
                 </span>
@@ -800,7 +800,7 @@ function TagsModal({ data, onClose, onChanged }: { data: TagData; onClose: () =>
               <input className={`${field} py-1.5`} value={newName[k]} maxLength={40}
                 placeholder={k === "mistake" ? "Nová chyba, např. „Obchodoval jsem unavený“" : k === "timeframe" ? "např. M3" : "např. Breaker, MSS, Judas swing"}
                 onChange={(e) => setNewName((p) => ({ ...p, [k]: e.target.value }))} />
-              <button type="submit" disabled={!newName[k].trim()} className="rounded-lg px-3 text-xs bg-[#1e2536] text-white border border-[#2f3b55] disabled:opacity-40">Přidat</button>
+              <button type="submit" disabled={!newName[k].trim()} className="rounded-lg px-3 text-xs bg-raised text-white border border-line-2 disabled:opacity-40">Přidat</button>
             </form>
           </section>
         ))}
@@ -824,7 +824,7 @@ function DeleteJournalModal({ st, count, onClose, onDeleted }: {
   };
   return (
     <div className="fixed inset-0 z-[60] bg-black/70 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-[#12141c] border border-red-900/60 rounded-2xl max-w-md w-full p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-sunken border border-red-900/60 rounded-2xl max-w-md w-full p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-lg font-bold text-white flex items-center gap-2"><Trash2 size={17} className="text-red-400" /> Smazat deník „{st.name}“?</h2>
         <p className="text-sm text-gray-400">Smaže se strategie i její pravidla. Tohle nejde vrátit.
           {count > 0 ? ` V deníku je ${count} ${count === 1 ? "obchod" : count < 5 ? "obchody" : "obchodů"} — co s nimi?` : " Deník nemá žádné obchody."}</p>
@@ -832,7 +832,7 @@ function DeleteJournalModal({ st, count, onClose, onDeleted }: {
         <div className="flex flex-col gap-2">
           {count > 0 && (
             <button disabled={busy} onClick={() => del(false)}
-              className="rounded-lg px-4 py-2.5 text-sm text-left text-gray-100 border border-[#2a2d3a] bg-[#151823] hover:border-gray-500 disabled:opacity-50">
+              className="rounded-lg px-4 py-2.5 text-sm text-left text-gray-100 border border-line bg-panel-2 hover:border-gray-500 disabled:opacity-50">
               <div className="font-medium">Smazat deník, obchody ponechat</div>
               <div className="text-[11px] text-gray-500">Obchody zůstanou ve „Všech obchodech“ bez strategie (s tagy, bez checklistu).</div>
             </button>
@@ -897,13 +897,13 @@ function StrategyEditor({ data, initial, onClose, onSaved, onTagsChanged, onDele
     } catch (e) { setErr(e instanceof Error ? e.message : "Uložení selhalo"); setSaving(false); }
   };
 
-  const field = "w-full rounded-lg bg-[#0f1117] border border-[#2a2d3a] px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:border-blue-600 focus:outline-none";
-  const sel = "rounded-md bg-[#0f1117] border border-[#2a2d3a] px-1.5 py-1 text-xs text-gray-200 focus:border-blue-600 focus:outline-none";
+  const field = "w-full rounded-lg bg-sunken border border-line px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:border-blue-600 focus:outline-none";
+  const sel = "rounded-md bg-sunken border border-line px-1.5 py-1 text-xs text-gray-200 focus:border-blue-600 focus:outline-none";
   const reqColor = (r: string) => (r === "must" ? "text-green-300" : r === "opt" ? "text-gray-400" : "text-blue-300");
 
   return (
     <div className="fixed inset-0 z-50 bg-black/70 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
-      <div className="bg-[#12141c] border border-[#2a2d3a] rounded-2xl max-w-2xl w-full p-6 my-8 space-y-4" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-sunken border border-line rounded-2xl max-w-2xl w-full p-6 my-8 space-y-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold text-white">{initial ? "Upravit strategii" : "Nový deník strategie"}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-white"><X size={20} /></button>
@@ -917,7 +917,7 @@ function StrategyEditor({ data, initial, onClose, onSaved, onTagsChanged, onDele
         </div>
 
         {blocks.map((b, i) => (
-          <div key={b.id} className="rounded-xl border border-[#2f3b55] bg-[#0f1117]/60 p-3">
+          <div key={b.id} className="rounded-xl border border-line-2 bg-sunken/60 p-3">
             <div className="flex flex-wrap items-center gap-2">
               <select className={`${sel} font-semibold text-blue-300`} value={b.tf} onChange={(e) => patchBlock(b.id, { tf: e.target.value })}>
                 {TIMEFRAMES.map((tf) => <option key={tf} value={tf}>{tf}</option>)}
@@ -934,7 +934,7 @@ function StrategyEditor({ data, initial, onClose, onSaved, onTagsChanged, onDele
               {b.conds.map((c) => {
                 const acts = actionsFor(nameOf(c.tag_id));
                 return (
-                  <div key={c.id} className="flex flex-wrap items-center gap-1.5 border-t border-[#232735] pt-1.5">
+                  <div key={c.id} className="flex flex-wrap items-center gap-1.5 border-t border-line pt-1.5">
                     <span className="min-w-[70px] text-sm font-medium text-gray-100">{nameOf(c.tag_id) ?? "?"}</span>
                     <select className={sel} value={c.obj_tf ?? ""} title="Timeframe objektu" onChange={(e) => patchCond(b.id, c.id, { obj_tf: e.target.value || null })}>
                       <option value="">z {b.tf}</option>
@@ -957,7 +957,7 @@ function StrategyEditor({ data, initial, onClose, onSaved, onTagsChanged, onDele
               <span className="text-[10px] uppercase tracking-wider text-gray-500">+ přidat</span>
               {objects.map((t) => (
                 <button key={t.id} type="button" onClick={() => addCond(b.id, t.id)}
-                  className="rounded-full border border-[#2a2d3a] bg-[#0f1117] px-2 py-0.5 text-xs text-gray-300 hover:border-blue-700 hover:text-white">{t.name}</button>
+                  className="rounded-full border border-line bg-sunken px-2 py-0.5 text-xs text-gray-300 hover:border-blue-700 hover:text-white">{t.name}</button>
               ))}
             </div>
           </div>
@@ -967,14 +967,14 @@ function StrategyEditor({ data, initial, onClose, onSaved, onTagsChanged, onDele
 
         <form onSubmit={(e) => { e.preventDefault(); addObject(); }} className="flex gap-2">
           <input className={`${field} py-1.5`} value={newObj} maxLength={40} placeholder="Chybí objekt? Přidej vlastní (např. Breaker, MSS)" onChange={(e) => setNewObj(e.target.value)} />
-          <button type="submit" disabled={!newObj.trim()} className="rounded-lg px-3 text-xs bg-[#1e2536] text-white border border-[#2f3b55] disabled:opacity-40">Přidat objekt</button>
+          <button type="submit" disabled={!newObj.trim()} className="rounded-lg px-3 text-xs bg-raised text-white border border-line-2 disabled:opacity-40">Přidat objekt</button>
         </form>
 
         {err && <p className="text-sm text-red-400">{err}</p>}
         <div className="flex items-center gap-2 pt-1">
           {initial && <button onClick={() => onDelete(initial)} className="rounded-lg px-3 py-2 text-xs text-red-300 border border-red-900/60 hover:bg-red-950/30">Smazat deník</button>}
           <span className="flex-1" />
-          <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-gray-300 border border-[#2a2d3a] hover:text-white">Zrušit</button>
+          <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-gray-300 border border-line hover:text-white">Zrušit</button>
           <button onClick={save} disabled={saving}
             className="rounded-lg px-4 py-2 text-sm font-medium bg-[rgba(96,255,130,0.14)] text-[#8fffab] border border-[rgba(96,255,130,0.4)] hover:bg-[rgba(96,255,130,0.22)] disabled:opacity-50">
             {saving ? "Ukládám…" : initial ? "Uložit strategii" : "Vytvořit deník"}
@@ -1061,12 +1061,12 @@ function AnalyzeModal({ isAdmin, onClose, onExtracted }: {
     }
   };
 
-  const field = "w-full rounded-lg bg-[#0f1117] border border-[#2a2d3a] px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:border-blue-600 focus:outline-none";
+  const field = "w-full rounded-lg bg-sunken border border-line px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:border-blue-600 focus:outline-none";
   const lab = "text-[10px] uppercase tracking-wider text-gray-500 mb-1 block";
 
   return (
     <div className="fixed inset-0 z-50 bg-black/70 flex items-start justify-center p-4 overflow-y-auto" onClick={busy ? undefined : onClose}>
-      <div className="bg-[#12141c] border border-[#2a2d3a] rounded-2xl max-w-lg w-full p-6 my-8" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-sunken border border-line rounded-2xl max-w-lg w-full p-6 my-8" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-1">
           <h2 className="text-lg font-bold text-white flex items-center gap-2"><Sparkles size={17} className="text-blue-400" /> Přidat z TradingView</h2>
           {!busy && <button onClick={onClose} className="text-gray-400 hover:text-white"><X size={20} /></button>}
@@ -1082,7 +1082,7 @@ function AnalyzeModal({ isAdmin, onClose, onExtracted }: {
           <div className="mt-3">
             <label className={lab}>…nebo nahraj obrázek {imgName && <span className="text-gray-400 normal-case">— {imgName}</span>}</label>
             <input type="file" accept="image/*" onChange={onFile} disabled={busy}
-              className="text-xs text-gray-400 file:mr-3 file:rounded-md file:border-0 file:bg-[#1e2536] file:px-3 file:py-1.5 file:text-gray-200 file:text-xs" />
+              className="text-xs text-gray-400 file:mr-3 file:rounded-md file:border-0 file:bg-raised file:px-3 file:py-1.5 file:text-gray-200 file:text-xs" />
             <p className="text-[10px] text-gray-600 mt-1">Obrázek se použije jen k analýze, neukládá se.</p>
           </div>
         )}
@@ -1094,8 +1094,8 @@ function AnalyzeModal({ isAdmin, onClose, onExtracted }: {
               {(["claude", "spark"] as const).map((k) => (
                 <button key={k} type="button" onClick={() => setEngine(k)} disabled={busy}
                   className={`flex-1 rounded-lg px-3 py-2 text-xs font-medium border transition-colors ${
-                    engine === k ? "bg-[#1e2536] text-white border-[#2f3b55]"
-                      : "bg-[#0f1117] text-gray-400 border-[#2a2d3a] hover:text-white"}`}>
+                    engine === k ? "bg-raised text-white border-line-2"
+                      : "bg-sunken text-gray-400 border-line hover:text-white"}`}>
                   {k === "claude" ? "Claude (cloud)" : "Spark (lokální)"}
                 </button>
               ))}
@@ -1107,7 +1107,7 @@ function AnalyzeModal({ isAdmin, onClose, onExtracted }: {
         {err && <p className="text-sm text-red-400 mt-3">{err}</p>}
 
         <div className="flex justify-end gap-2 mt-5">
-          <button onClick={onClose} disabled={busy} className="rounded-lg px-4 py-2 text-sm text-gray-300 border border-[#2a2d3a] hover:text-white transition-colors disabled:opacity-40">Zrušit</button>
+          <button onClick={onClose} disabled={busy} className="rounded-lg px-4 py-2 text-sm text-gray-300 border border-line hover:text-white transition-colors disabled:opacity-40">Zrušit</button>
           <button onClick={run} disabled={busy}
             className="rounded-lg px-4 py-2 text-sm font-medium bg-blue-600 text-white hover:bg-blue-500 transition-colors disabled:opacity-50 flex items-center gap-1.5">
             <Sparkles size={14} /> {busy ? "Analyzuji…" : "Analyzovat"}
@@ -1196,7 +1196,7 @@ function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: (create
 
   return (
     <div className="fixed inset-0 z-50 bg-black/70 flex items-start justify-center p-4 overflow-y-auto" onClick={busy ? undefined : onClose}>
-      <div className="bg-[#12141c] border border-[#2a2d3a] rounded-2xl max-w-lg w-full p-6 my-8" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-sunken border border-line rounded-2xl max-w-lg w-full p-6 my-8" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-1">
           <h2 className="text-lg font-bold text-white flex items-center gap-2"><Upload size={17} className="text-blue-400" /> Import CSV</h2>
           {!busy && <button onClick={onClose} className="text-gray-400 hover:text-white"><X size={20} /></button>}
@@ -1204,7 +1204,7 @@ function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: (create
         <p className="text-xs text-gray-500 mb-4">Nahraj CSV s obchody. Sloupce se namapují automaticky podle hlavičky.</p>
 
         <input type="file" accept=".csv,text/csv" onChange={onFile} disabled={busy}
-          className="text-sm text-gray-400 file:mr-3 file:rounded-md file:border-0 file:bg-[#1e2536] file:px-3 file:py-1.5 file:text-gray-200 file:text-xs" />
+          className="text-sm text-gray-400 file:mr-3 file:rounded-md file:border-0 file:bg-raised file:px-3 file:py-1.5 file:text-gray-200 file:text-xs" />
         {fileName && <span className="text-xs text-gray-500 ml-2">{fileName}</span>}
 
         {rows && (
@@ -1212,7 +1212,7 @@ function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: (create
             <div className="text-gray-300">Nalezeno <b className="text-white">{rows.length}</b> obchodů.</div>
             <div className="flex flex-wrap gap-1.5">
               {mapped.map((h) => <span key={h} className="rounded bg-green-950/50 text-green-300 px-2 py-0.5">{h}</span>)}
-              {ignored.map((h) => <span key={h} className="rounded bg-[#232735] text-gray-500 px-2 py-0.5 line-through">{h}</span>)}
+              {ignored.map((h) => <span key={h} className="rounded bg-raised text-gray-500 px-2 py-0.5 line-through">{h}</span>)}
             </div>
             {ignored.length > 0 && <div className="text-[10px] text-gray-600">Přeškrtnuté sloupce se ignorují (nerozpoznaná hlavička).</div>}
           </div>
@@ -1230,7 +1230,7 @@ function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: (create
         {err && <p className="text-sm text-red-400 mt-3">{err}</p>}
 
         <div className="flex justify-end gap-2 mt-5">
-          <button onClick={onClose} disabled={busy} className="rounded-lg px-4 py-2 text-sm text-gray-300 border border-[#2a2d3a] hover:text-white transition-colors disabled:opacity-40">Zrušit</button>
+          <button onClick={onClose} disabled={busy} className="rounded-lg px-4 py-2 text-sm text-gray-300 border border-line hover:text-white transition-colors disabled:opacity-40">Zrušit</button>
           <button onClick={doImport} disabled={busy || !rows?.length}
             className="rounded-lg px-4 py-2 text-sm font-medium bg-blue-600 text-white hover:bg-blue-500 transition-colors disabled:opacity-50 flex items-center gap-1.5">
             <Upload size={14} /> {busy ? "Importuji…" : `Importovat${rows?.length ? ` (${rows.length})` : ""}`}
@@ -1358,17 +1358,17 @@ export default function DenikPage() {
               // AI extrakce z grafu je zatím jen pro adminy (backend vrací 403) — ostatním coming soon
               <button type="button" disabled aria-disabled="true"
                 title="AI čtení grafu z TradingView připravujeme"
-                className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium bg-[#151823] text-gray-500 border border-[#2a2d3a] cursor-not-allowed">
+                className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium bg-panel-2 text-gray-500 border border-line cursor-not-allowed">
                 <Sparkles size={15} /> Z TradingView (AI)
                 <span className="ml-1 rounded bg-blue-950/60 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-300">Coming soon</span>
               </button>
             )}
             <button onClick={() => setTagsOpen(true)}
-              className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium bg-[#151823] text-gray-300 border border-[#2a2d3a] hover:text-white transition-colors">
+              className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium bg-panel-2 text-gray-300 border border-line hover:text-white transition-colors">
               <Tags size={15} /> Tagy
             </button>
             <button onClick={() => setImportOpen(true)}
-              className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium bg-[#151823] text-gray-300 border border-[#2a2d3a] hover:text-white transition-colors">
+              className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium bg-panel-2 text-gray-300 border border-line hover:text-white transition-colors">
               <Upload size={15} /> Import CSV
             </button>
             <button onClick={openNew}
@@ -1380,10 +1380,10 @@ export default function DenikPage() {
       </div>
 
       {!authLoading && !user && (
-        <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-8 text-center">
+        <div className="rounded-xl border border-line bg-panel-2 p-8 text-center">
           <p className="text-gray-300">Deník je dostupný po přihlášení.</p>
           <div className="flex justify-center gap-3 mt-4">
-            <Link href="/prihlaseni" className="rounded-lg px-4 py-2 text-sm bg-[#1e2536] text-white border border-[#2f3b55] hover:border-gray-500 transition-colors">Přihlásit se</Link>
+            <Link href="/prihlaseni" className="rounded-lg px-4 py-2 text-sm bg-raised text-white border border-line-2 hover:border-gray-500 transition-colors">Přihlásit se</Link>
             <Link href="/registrace" className="rounded-lg px-4 py-2 text-sm text-[#8fffab] border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.10)] hover:bg-[rgba(96,255,130,0.18)] transition-colors">Registrovat</Link>
           </div>
         </div>
@@ -1393,7 +1393,7 @@ export default function DenikPage() {
 
       {user && loading && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[0, 1, 2, 3].map((i) => <div key={i} className="h-24 rounded-xl bg-[#151823] animate-pulse border border-[#2a2d3a]" />)}
+          {[0, 1, 2, 3].map((i) => <div key={i} className="h-24 rounded-xl bg-panel-2 animate-pulse border border-line" />)}
         </div>
       )}
 
@@ -1419,7 +1419,7 @@ export default function DenikPage() {
               {cur.blocks.some((b) => b.conds.length) ? (
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   {cur.blocks.filter((b) => b.conds.length).map((b) => (
-                    <div key={b.id} className="rounded-lg border border-[#2f3b55] bg-[#0f1117]/60 px-3 py-2">
+                    <div key={b.id} className="rounded-lg border border-line-2 bg-sunken/60 px-3 py-2">
                       <div className="text-[10px] uppercase tracking-wider text-blue-300">{b.tf}{b.label ? ` · ${b.label}` : ""}</div>
                       {b.conds.map((c) => (
                         <div key={c.id} className="flex items-center gap-1.5 text-[12px] text-gray-200">
@@ -1497,7 +1497,7 @@ export default function DenikPage() {
           {journalEntries.length > 0 && tagData.tags.length > 0 && (
             <div className="flex flex-wrap items-center gap-2 -mb-4">
               <select value={filter} onChange={(e) => setFilter(e.target.value)}
-                className="rounded-lg bg-[#151823] border border-[#2a2d3a] px-3 py-1.5 text-xs text-gray-200">
+                className="rounded-lg bg-panel-2 border border-line px-3 py-1.5 text-xs text-gray-200">
                 <option value="">Všechny tagy</option>
                 {(["setup", "timeframe", "mistake"] as const).map((k) => (
                   <optgroup key={k} label={KIND_LABEL[k]}>
@@ -1514,7 +1514,7 @@ export default function DenikPage() {
             </div>
           )}
           {journalEntries.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-[#2a2d3a] bg-[#12141c] p-10 text-center">
+            <div className="rounded-xl border border-dashed border-line bg-sunken p-10 text-center">
               <TrendingUp size={28} className="mx-auto text-gray-600 mb-3" />
               <p className="text-gray-300 font-medium">{cur ? `V deníku „${cur.name}“ zatím nejsou obchody` : "Zatím žádné obchody"}</p>
               <p className="text-sm text-gray-500 mt-1">
@@ -1522,11 +1522,11 @@ export default function DenikPage() {
               </p>
             </div>
           ) : (
-            <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] overflow-hidden">
+            <div className="rounded-xl border border-line bg-panel-2 overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm min-w-[820px]">
                   <thead>
-                    <tr className="text-gray-500 text-[10px] uppercase bg-[#181b26]">
+                    <tr className="text-gray-500 text-[10px] uppercase bg-panel-2">
                       <th className="text-left px-3 py-2.5">Datum</th>
                       <th className="text-left px-3 py-2.5">Instrument</th>
                       <th className="text-left px-3 py-2.5">Směr</th>
@@ -1542,7 +1542,7 @@ export default function DenikPage() {
                     {shown.map((e) => {
                       const oc = outcomeOf(e);
                       return (
-                        <tr key={e.id} className="border-t border-[#232735] hover:bg-[#181b26]/50">
+                        <tr key={e.id} className="border-t border-line hover:bg-panel-2/50">
                           <td className="px-3 py-2.5 text-gray-400 whitespace-nowrap">{fmtDate(e.traded_at)}</td>
                           <td className="px-3 py-2.5 font-medium text-gray-100">{e.instrument}</td>
                           <td className="px-3 py-2.5">

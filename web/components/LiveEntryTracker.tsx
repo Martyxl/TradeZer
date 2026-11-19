@@ -26,7 +26,7 @@ function EquityCurve({ points }: { points: number[] }) {
   const color = last >= 0 ? "#4ade80" : "#f87171";
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-[70px]" role="img" aria-label="Kumulovaný P/L">
-      <line x1={P} x2={W - P} y1={Y(0)} y2={Y(0)} stroke="#2a2d3a" strokeDasharray="3 3" />
+      <line x1={P} x2={W - P} y1={Y(0)} y2={Y(0)} stroke="var(--tz-chart-grid)" strokeDasharray="3 3" />
       <path d={line} fill="none" stroke={color} strokeWidth={1.6} />
     </svg>
   );
@@ -46,7 +46,7 @@ export function LiveEntryTracker({ ticker, label }: { ticker: string; label: str
     return () => { alive = false; };
   }, [ticker]);
 
-  if (state === "loading") return <div className="h-40 rounded-xl bg-[#151823] animate-pulse border border-[#2a2d3a]" />;
+  if (state === "loading") return <div className="h-40 rounded-xl bg-panel-2 animate-pulse border border-line" />;
   if (state === "error" || !data) {
     return <p className="text-xs text-gray-500">Live výsledky pro {label} se nepodařilo načíst.</p>;
   }
@@ -64,7 +64,7 @@ export function LiveEntryTracker({ ticker, label }: { ticker: string; label: str
   const pct = (v: number | null, d = 2) => (v == null ? "—" : `${v > 0 ? "+" : ""}${v.toFixed(d)} %`);
 
   return (
-    <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-4">
+    <div className="rounded-xl border border-line bg-panel-2 p-4">
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-center">
         <Metric label="Obchodů" value={`${e.filled}`} sub={`z ${e.directional_days} dní se směrem`} />
         <Metric label="Úspěšnost" value={e.win_rate == null ? "—" : `${(e.win_rate * 100).toFixed(0)} %`} sub="obchodů v zisku" />

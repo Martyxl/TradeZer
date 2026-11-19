@@ -175,7 +175,7 @@ export function MarketHoursBar() {
   }, []);
 
   if (!now) {
-    return <div className="h-44 rounded-2xl bg-[#1a1d27] border border-[#2a2d3a] animate-pulse" />;
+    return <div className="h-44 rounded-2xl bg-panel border border-line animate-pulse" />;
   }
 
   const local = getTimeParts(LOCAL_TZ, now);
@@ -203,9 +203,9 @@ export function MarketHoursBar() {
   };
 
   return (
-    <div className="rounded-2xl border border-[#2a2d3a] bg-[#1a1d27] overflow-hidden">
+    <div className="rounded-2xl border border-line bg-panel overflow-hidden">
       {/* ── Clocks row ── */}
-      <div className="flex items-center justify-around gap-2 px-4 py-3 border-b border-[#2a2d3a]">
+      <div className="flex items-center justify-around gap-2 px-4 py-3 border-b border-line">
         {CLOCKS.map((c) => {
           const t = getTimeParts(c.tz, now);
           const market = c.name !== "Praha" ? MARKETS.find(m => m.name === c.name || m.tz === c.tz) : undefined;
@@ -242,7 +242,7 @@ export function MarketHoursBar() {
             style={{ left: nowPct, backgroundColor: "#f97316" }}
           >
             <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full pb-0.5">
-              <span className="text-[11px] font-mono font-bold text-orange-400 bg-[#1a1d27] border border-orange-800/60 rounded px-1 py-0.5 whitespace-nowrap">
+              <span className="text-[11px] font-mono font-bold text-orange-400 bg-panel border border-orange-800/60 rounded px-1 py-0.5 whitespace-nowrap">
                 {local.label}
               </span>
             </div>
@@ -269,7 +269,7 @@ export function MarketHoursBar() {
           </div>
 
           {/* X-axis with hour labels */}
-          <div className="relative h-4 border-t border-[#2a2d3a]/60">
+          <div className="relative h-4 border-t border-line/60">
             {axisHours.map((h) => (
               <span
                 key={h}
@@ -302,7 +302,7 @@ export function MarketHoursBar() {
         </div>
 
         {/* Legend */}
-        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 pt-2 border-t border-[#2a2d3a]/40">
+        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 pt-2 border-t border-line/40">
           {MARKETS.map((m) => {
             const open = isOpen(m);
             return (

@@ -115,7 +115,7 @@ function PricingPage() {
         </div>
       )}
       {banner === "cancel" && (
-        <div className="rounded-lg border border-[#2a2d3a] bg-[#151823] px-4 py-3 text-sm text-gray-300">
+        <div className="rounded-lg border border-line bg-panel-2 px-4 py-3 text-sm text-gray-300">
           Platba zrušena — nic jsme ti nestrhli. Kdykoli to můžeš zkusit znovu.
         </div>
       )}
@@ -126,13 +126,13 @@ function PricingPage() {
       )}
 
       {/* Přepínač měsíčně / ročně */}
-      <div className="inline-flex items-center gap-1 rounded-lg border border-[#2a2d3a] bg-[#151823] p-1 text-sm">
+      <div className="inline-flex items-center gap-1 rounded-lg border border-line bg-panel-2 p-1 text-sm">
         <button onClick={() => setAnnual(false)}
-          className={`rounded-md px-3 py-1.5 transition-colors ${!annual ? "bg-[#1e2536] text-white" : "text-gray-400 hover:text-white"}`}>
+          className={`rounded-md px-3 py-1.5 transition-colors ${!annual ? "bg-raised text-white" : "text-gray-400 hover:text-white"}`}>
           Měsíčně
         </button>
         <button onClick={() => setAnnual(true)}
-          className={`rounded-md px-3 py-1.5 transition-colors ${annual ? "bg-[#1e2536] text-white" : "text-gray-400 hover:text-white"}`}>
+          className={`rounded-md px-3 py-1.5 transition-colors ${annual ? "bg-raised text-white" : "text-gray-400 hover:text-white"}`}>
           Ročně <span className="text-[#8fffab]">−{Math.round(ANNUAL_DISCOUNT * 100)} %</span>
         </button>
       </div>
@@ -175,7 +175,7 @@ function PlanCard({ plan, annual, current, loggedIn, buyable, busy, onBuy, onMan
   const free = plan.priceUsd === 0;
   const accent = plan.highlight;
   const price = free ? "$0" : annual ? `$${annualPerMonth(plan.priceUsd)}` : `$${plan.priceUsd}`;
-  const border = plan.soon ? "border-amber-500/40 bg-amber-500/[0.05]" : accent ? "border-[rgba(96,255,130,0.4)] bg-[#0c1a11]" : "border-[#2a2d3a] bg-[#151823]";
+  const border = plan.soon ? "border-amber-500/40 bg-amber-500/[0.05]" : accent ? "border-[rgba(96,255,130,0.4)] bg-[#0c1a11]" : "border-line bg-panel-2";
 
   return (
     <div className={`relative rounded-2xl border p-5 flex flex-col ${border}`}>
@@ -191,7 +191,7 @@ function PlanCard({ plan, annual, current, loggedIn, buyable, busy, onBuy, onMan
       )}
       <div className="flex items-baseline justify-between">
         <h2 className="text-lg font-semibold text-white">{plan.name}</h2>
-        {current && <span className="rounded bg-[#2a2d3a] px-2 py-0.5 text-[10px] uppercase text-gray-300">Aktuální</span>}
+        {current && <span className="rounded bg-raised px-2 py-0.5 text-[10px] uppercase text-gray-300">Aktuální</span>}
       </div>
       <p className="text-xs text-gray-500">{plan.tagline}</p>
 
@@ -220,35 +220,35 @@ function PlanCard({ plan, annual, current, loggedIn, buyable, busy, onBuy, onMan
         ) : current ? (
           free ? (
             <Link href="/dashboard"
-              className="block w-full rounded-lg border border-[#2a2d3a] bg-[#1a1d27] py-2.5 text-center text-sm text-gray-200 hover:border-gray-500">
+              className="block w-full rounded-lg border border-line bg-panel py-2.5 text-center text-sm text-gray-200 hover:border-gray-500">
               Přejít na dashboard
             </Link>
           ) : (
             <button onClick={onManage} disabled={managing}
-              className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#2a2d3a] bg-[#1a1d27] py-2.5 text-sm text-gray-200 hover:border-gray-500 disabled:opacity-60">
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-line bg-panel py-2.5 text-sm text-gray-200 hover:border-gray-500 disabled:opacity-60">
               {managing && <Loader2 size={14} className="animate-spin" />} Spravovat předplatné
             </button>
           )
         ) : free ? (
           <Link href={loggedIn ? "/dashboard" : "/registrace"}
-            className="block w-full rounded-lg border border-[#2a2d3a] bg-[#1a1d27] py-2.5 text-center text-sm text-gray-200 hover:border-gray-500">
+            className="block w-full rounded-lg border border-line bg-panel py-2.5 text-center text-sm text-gray-200 hover:border-gray-500">
             {loggedIn ? "Přejít na dashboard" : "Vytvořit účet zdarma"}
           </Link>
         ) : !loggedIn ? (
           <Link href="/registrace"
             className={`block w-full rounded-lg py-2.5 text-center text-sm font-medium ${
-              accent ? "border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.12)] text-[#8fffab]" : "border border-[#2a2d3a] bg-[#1a1d27] text-gray-200"
+              accent ? "border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.12)] text-[#8fffab]" : "border border-line bg-panel text-gray-200"
             } hover:opacity-90`}>
             Vyzkoušet
           </Link>
         ) : !buyable ? (
-          <div className="w-full rounded-lg border border-[#2a2d3a] py-2.5 text-center text-sm text-gray-500">
+          <div className="w-full rounded-lg border border-line py-2.5 text-center text-sm text-gray-500">
             Brzy
           </div>
         ) : (
           <button onClick={onBuy} disabled={busy}
             className={`flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium ${
-              accent ? "border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.12)] text-[#8fffab]" : "border border-[#2a2d3a] bg-[#1a1d27] text-gray-200"
+              accent ? "border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.12)] text-[#8fffab]" : "border border-line bg-panel text-gray-200"
             } hover:opacity-90 disabled:opacity-60`}>
             {busy && <Loader2 size={14} className="animate-spin" />} Předplatit
           </button>

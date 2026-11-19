@@ -78,11 +78,11 @@ export function GammaCard({ ticker }: { ticker: string }) {
   // Zatím žádný snapshot (sken ještě neběžel) — decentní placeholder místo zmizení.
   if (state === "waiting") {
     return (
-      <div className="rounded-xl border border-[#2a2d3a] bg-[#1a1d27] p-4">
+      <div className="rounded-xl border border-line bg-panel p-4">
         <div className="flex items-center gap-2">
           <Activity size={16} className="text-indigo-400" />
           <h3 className="text-sm font-semibold text-white">Gamma (GEX)</h3>
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#232735] text-gray-500">čeká na data</span>
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-raised text-gray-500">čeká na data</span>
         </div>
         <p className="mt-2 text-[11px] text-gray-500">
           Gamma exposure se doplní, jakmile poběží sken (<code className="text-gray-400">gamma_scan.py --push</code>
@@ -102,13 +102,13 @@ export function GammaCard({ ticker }: { ticker: string }) {
   const maxAbs = bars.reduce((m, p) => Math.max(m, Math.abs(p.gex)), 1);
 
   return (
-    <div className="rounded-xl border border-[#2a2d3a] bg-[#1a1d27] p-4">
+    <div className="rounded-xl border border-line bg-panel p-4">
       <div className="flex items-center justify-between gap-2 mb-3">
         <div className="flex items-center gap-2">
           <Activity size={16} className="text-indigo-400" />
           <h3 className="text-sm font-semibold text-white">Gamma (GEX)</h3>
           {d && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#232735] text-gray-400 font-mono">
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-raised text-gray-400 font-mono">
               {d.underlying}
             </span>
           )}
@@ -124,7 +124,7 @@ export function GammaCard({ ticker }: { ticker: string }) {
       </div>
 
       {open && (
-        <div className="mb-3 rounded-lg border border-[#2a2d3a] bg-[#151823] p-3 text-[11px] text-gray-400 leading-relaxed space-y-2">
+        <div className="mb-3 rounded-lg border border-line bg-panel-2 p-3 text-[11px] text-gray-400 leading-relaxed space-y-2">
           <p className="text-gray-300 font-semibold">Jak číst gamma (kontext, ne signál):</p>
           <p>
             <span className="text-green-400 font-medium">🟢 Pozitivní gamma</span> = dealeři pohyby
@@ -153,7 +153,7 @@ export function GammaCard({ ticker }: { ticker: string }) {
       )}
 
       {state === "loading" && (
-        <div className="h-40 rounded-lg bg-[#151823] animate-pulse" />
+        <div className="h-40 rounded-lg bg-panel-2 animate-pulse" />
       )}
 
       {d && (
@@ -176,7 +176,7 @@ export function GammaCard({ ticker }: { ticker: string }) {
               { l: "Call wall", v: d.call_wall, c: "#4ade80" },
               { l: "Put wall", v: d.put_wall, c: "#f87171" },
             ].map((x) => (
-              <div key={x.l} className="rounded-lg bg-[#151823] border border-[#232735] py-2">
+              <div key={x.l} className="rounded-lg bg-panel-2 border border-line py-2">
                 <div className="text-[10px] uppercase tracking-wider text-gray-500">{x.l}</div>
                 <div className="font-mono text-sm font-semibold" style={{ color: x.c }}>
                   {x.v != null ? x.v : "—"}

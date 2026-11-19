@@ -67,10 +67,10 @@ export default function InvesticePage() {
       .then((r) => (r.ok ? r.json() : null)).then((d) => setCurve(d?.points ?? [])).catch(() => setCurve([]));
   }, [user, curveDays]);
 
-  if (authLoading) return <div className="h-40 animate-pulse rounded-xl bg-[#1a1d27]" />;
+  if (authLoading) return <div className="h-40 animate-pulse rounded-xl bg-panel" />;
   if (!user)
     return (
-      <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-8 text-center text-gray-400">
+      <div className="rounded-xl border border-line bg-panel-2 p-8 text-center text-gray-400">
         Pro investorský deník se <a href="/prihlaseni" className="text-[#60ff82] underline">přihlas</a>.
       </div>
     );
@@ -87,10 +87,10 @@ export default function InvesticePage() {
           <p className="mt-1 text-sm text-gray-400">Nákupy, prodeje a dividendy — s živou hodnotou a výhledem.</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={load} className="flex items-center gap-1.5 rounded-lg border border-[#2a2d3a] bg-[#1a1d27] px-3 py-2 text-sm text-gray-200 hover:border-gray-500">
+          <button onClick={load} className="flex items-center gap-1.5 rounded-lg border border-line bg-panel px-3 py-2 text-sm text-gray-200 hover:border-gray-500">
             <RefreshCw size={14} /> Obnovit
           </button>
-          <button onClick={() => setShowImport(true)} className="flex items-center gap-1.5 rounded-lg border border-[#2a2d3a] bg-[#1a1d27] px-3 py-2 text-sm text-gray-200 hover:border-gray-500">
+          <button onClick={() => setShowImport(true)} className="flex items-center gap-1.5 rounded-lg border border-line bg-panel px-3 py-2 text-sm text-gray-200 hover:border-gray-500">
             <Upload size={14} /> Import CSV
           </button>
           <button onClick={() => setShowAdd(true)} className="flex items-center gap-1.5 rounded-lg border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.12)] px-3 py-2 text-sm font-medium text-[#8fffab] hover:bg-[rgba(96,255,130,0.18)]">
@@ -115,8 +115,8 @@ export default function InvesticePage() {
       </div>
 
       {/* Holdings */}
-      <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] overflow-hidden">
-        <div className="border-b border-[#2a2d3a] px-4 py-3 text-sm font-semibold text-white">Pozice</div>
+      <div className="rounded-xl border border-line bg-panel-2 overflow-hidden">
+        <div className="border-b border-line px-4 py-3 text-sm font-semibold text-white">Pozice</div>
         {loading ? (
           <div className="p-6 text-sm text-gray-500">Načítám…</div>
         ) : !pf?.holdings.length ? (
@@ -138,7 +138,7 @@ export default function InvesticePage() {
               </thead>
               <tbody>
                 {pf.holdings.map((h) => (
-                  <tr key={h.symbol} className="border-t border-[#20242f]">
+                  <tr key={h.symbol} className="border-t border-line">
                     <td className="px-4 py-2.5">
                       <div className="font-medium text-white">{h.symbol}</div>
                       {h.name && <div className="text-[11px] text-gray-500 truncate max-w-[180px]">{h.name}</div>}
@@ -159,7 +159,7 @@ export default function InvesticePage() {
           </div>
         )}
         {pf && !pf.base_totals.complete && (
-          <div className="border-t border-[#2a2d3a] px-4 py-2 text-[11px] text-amber-400/80">
+          <div className="border-t border-line px-4 py-2 text-[11px] text-amber-400/80">
             Živé ceny se plní z externího skenu (Twelve Data, záložně Yahoo). Dokud nedorazí ceny/FX, hodnota je neúplná.
           </div>
         )}
@@ -217,7 +217,7 @@ function SignalSummary({ holdings }: { holdings: Holding[] }) {
   const greens = holdings.filter((h) => h.signal.color === "green");
   if (!reds.length && !greens.length) return null;
   return (
-    <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-5">
+    <div className="rounded-xl border border-line bg-panel-2 p-5">
       <h2 className="text-sm font-semibold text-white">Co zvážit (semafor)</h2>
       <div className="mt-3 grid gap-3 md:grid-cols-2">
         {reds.length > 0 && (
@@ -293,13 +293,13 @@ function PortfolioChart({ points, txs, holdings, days, setDays }: {
   const profit = last ? last.value - last.invested : 0;
 
   return (
-    <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-5">
+    <div className="rounded-xl border border-line bg-panel-2 p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="flex items-center gap-2 text-sm font-semibold text-white"><TrendingUp size={15} className="text-[#60ff82]" /> Růst portfolia</h2>
-        <div className="flex gap-1 rounded-lg border border-[#2a2d3a] p-0.5">
+        <div className="flex gap-1 rounded-lg border border-line p-0.5">
           {ranges.map((r) => (
             <button key={r.d} onClick={() => setDays(r.d)}
-              className={`rounded px-2.5 py-1 text-xs ${days === r.d ? "bg-[#1e2536] text-white" : "text-gray-400 hover:text-white"}`}>{r.label}</button>
+              className={`rounded px-2.5 py-1 text-xs ${days === r.d ? "bg-raised text-white" : "text-gray-400 hover:text-white"}`}>{r.label}</button>
           ))}
         </div>
       </div>
@@ -333,7 +333,7 @@ function PortfolioChart({ points, txs, holdings, days, setDays }: {
                   <div className="absolute bottom-0 left-1/2 w-px -translate-x-1/2 bg-white/10" style={{ height: "14rem" }} />
                   <div className={`relative z-10 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold ${buy ? "bg-[#60ff82] text-[#06120a]" : "bg-[#ff5050] text-white"}`}>{buy ? "B" : "S"}</div>
                   {active && (
-                    <div className="absolute bottom-6 left-1/2 z-20 w-52 -translate-x-1/2 rounded-lg border border-[#2a2d3a] bg-[#0f1117] px-2.5 py-1.5 text-[11px] shadow-lg">
+                    <div className="absolute bottom-6 left-1/2 z-20 w-52 -translate-x-1/2 rounded-lg border border-line bg-sunken px-2.5 py-1.5 text-[11px] shadow-lg">
                       <div className="font-semibold text-white">{buy ? "Nákup" : "Prodej"} {m.symbol}</div>
                       <div className="text-gray-400">{fmt(m.quantity)} ks @ {fmt(m.price, m.currency)} · {m.executed_at?.slice(0, 10)}</div>
                       {free && <div className="text-amber-300/90">bez daně od: {free}</div>}
@@ -355,7 +355,7 @@ function PortfolioChart({ points, txs, holdings, days, setDays }: {
 
 function SummaryCard({ label, value, sub, hint, color = "text-white" }: { label: string; value: string; sub?: string; hint?: string; color?: string }) {
   return (
-    <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-4">
+    <div className="rounded-xl border border-line bg-panel-2 p-4">
       <div className="text-[11px] uppercase text-gray-500">{label}</div>
       <div className={`mt-1 text-xl font-bold ${color}`}>{value}</div>
       {sub && <div className={`text-xs ${color}`}>{sub}</div>}
@@ -402,7 +402,7 @@ function ProjectionCalculator({ startValue }: { startValue: number }) {
   const pctH = (v: number) => (v / maxV) * 100;
 
   return (
-    <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-5">
+    <div className="rounded-xl border border-line bg-panel-2 p-5">
       <h2 className="flex items-center gap-2 text-sm font-semibold text-white">
         <Calculator size={15} className="text-[#60ff82]" /> Výhled portfolia (složené úročení)
       </h2>
@@ -447,7 +447,7 @@ function ProjectionCalculator({ startValue }: { startValue: number }) {
               )}
               {/* hover tooltip */}
               {active && (
-                <div className="absolute bottom-full left-1/2 z-20 mb-1 -translate-x-1/2 whitespace-nowrap rounded-lg border border-[#2a2d3a] bg-[#0f1117] px-2.5 py-1.5 text-[11px] shadow-lg">
+                <div className="absolute bottom-full left-1/2 z-20 mb-1 -translate-x-1/2 whitespace-nowrap rounded-lg border border-line bg-sunken px-2.5 py-1.5 text-[11px] shadow-lg">
                   <div className="font-semibold text-white">Rok {d.year}: {fmt(Math.round(d.central))} CZK</div>
                   <div className="text-gray-400">vklady {fmt(Math.round(d.contributed))} + výnos <span className="text-[#8fffab]">{fmt(Math.round(d.central - d.contributed))}</span></div>
                   <div className="text-amber-300/90">rozpětí {fmt(Math.round(d.pess))} – {fmt(Math.round(d.opt))}</div>
@@ -501,8 +501,8 @@ function TxTable({ txs, onDeleted }: { txs: Tx[]; onDeleted: () => void }) {
   const TYPE_LABEL: Record<string, string> = { buy: "Nákup", sell: "Prodej", dividend: "Dividenda", fee: "Poplatek", deposit: "Vklad", withdrawal: "Výběr" };
 
   return (
-    <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] overflow-hidden">
-      <div className="border-b border-[#2a2d3a] px-4 py-3 text-sm font-semibold text-white">Transakce ({txs.length})</div>
+    <div className="rounded-xl border border-line bg-panel-2 overflow-hidden">
+      <div className="border-b border-line px-4 py-3 text-sm font-semibold text-white">Transakce ({txs.length})</div>
       {!txs.length ? (
         <div className="p-6 text-sm text-gray-500">Žádné transakce.</div>
       ) : (
@@ -521,7 +521,7 @@ function TxTable({ txs, onDeleted }: { txs: Tx[]; onDeleted: () => void }) {
             </thead>
             <tbody>
               {txs.map((t) => (
-                <tr key={t.id} className="border-t border-[#20242f]">
+                <tr key={t.id} className="border-t border-line">
                   <td className="px-4 py-2.5 text-gray-400">{t.executed_at ? t.executed_at.slice(0, 10) : "—"}</td>
                   <td className="px-4 py-2.5 text-gray-300">{TYPE_LABEL[t.tx_type] ?? t.tx_type}</td>
                   <td className="px-4 py-2.5 text-white">{t.symbol ?? "—"}</td>
@@ -584,7 +584,7 @@ function AddTxModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => 
         {!needsSymbol && <Field label="Částka (dividenda/vklad)"><input type="number" step="any" className="inv-input" value={f.amount} onChange={(e) => set("amount", e.target.value)} /></Field>}
         {err && <p className="sm:col-span-2 text-sm text-red-400">{err}</p>}
         <div className="sm:col-span-2 mt-1 flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="rounded-lg border border-[#2a2d3a] px-4 py-2 text-sm text-gray-300">Zrušit</button>
+          <button type="button" onClick={onClose} className="rounded-lg border border-line px-4 py-2 text-sm text-gray-300">Zrušit</button>
           <button type="submit" disabled={busy} className="flex items-center gap-1.5 rounded-lg border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.12)] px-4 py-2 text-sm font-medium text-[#8fffab] disabled:opacity-50">
             {busy && <Loader2 size={14} className="animate-spin" />} Uložit
           </button>
@@ -631,12 +631,12 @@ function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
             <option value="manual">Obecné CSV</option>
           </select>
         </Field>
-        <Field label="Soubor CSV"><input type="file" accept=".csv,text/csv" onChange={onFile} className="text-sm text-gray-300 file:mr-3 file:rounded file:border-0 file:bg-[#1e2536] file:px-3 file:py-1.5 file:text-gray-200" /></Field>
+        <Field label="Soubor CSV"><input type="file" accept=".csv,text/csv" onChange={onFile} className="text-sm text-gray-300 file:mr-3 file:rounded file:border-0 file:bg-raised file:px-3 file:py-1.5 file:text-gray-200" /></Field>
         {rows.length > 0 && <p className="text-sm text-gray-400">Načteno {rows.length} řádků{fileName ? ` ze souboru ${fileName}` : ""}. Sloupce se namapují automaticky podle hlaviček (ticker, typ, počet, cena, měna, datum, poplatek).</p>}
         {result && <p className="text-sm text-[#8fffab]">{result}</p>}
         <p className="text-[11px] text-gray-500">Přesné parsery pro XTB a eToro dolaďujeme podle reálných exportů. Zatím funguje obecné mapování sloupců — po dodání vzorků bude detekce 1:1.</p>
         <div className="flex justify-end gap-2">
-          <button onClick={onClose} className="rounded-lg border border-[#2a2d3a] px-4 py-2 text-sm text-gray-300">Zavřít</button>
+          <button onClick={onClose} className="rounded-lg border border-line px-4 py-2 text-sm text-gray-300">Zavřít</button>
           <button onClick={doImport} disabled={busy || !rows.length} className="flex items-center gap-1.5 rounded-lg border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.12)] px-4 py-2 text-sm font-medium text-[#8fffab] disabled:opacity-50">
             {busy && <Loader2 size={14} className="animate-spin" />} Importovat
           </button>
@@ -649,7 +649,7 @@ function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
 function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
-      <div className="w-full max-w-lg rounded-2xl border border-[#2a2d3a] bg-[#12141c] p-5 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+      <div className="w-full max-w-lg rounded-2xl border border-line bg-sunken p-5 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <h2 className="mb-4 text-lg font-semibold text-white">{title}</h2>
         {children}
       </div>

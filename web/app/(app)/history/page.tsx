@@ -36,7 +36,7 @@ function ConfusionMatrix({ data }: { data: HistoryPoint[] }) {
   const total = data.length || 1;
 
   return (
-    <div className="rounded-xl border border-[#2a2d3a] bg-[#1a1d27] p-5">
+    <div className="rounded-xl border border-line bg-panel p-5">
       <h2 className="text-sm font-semibold text-gray-300 mb-1">Confusion matrix</h2>
       <p className="text-xs text-gray-600 mb-4">řádky = realizované, sloupce = predikované</p>
       <table className="w-full text-xs text-center">
@@ -55,7 +55,7 @@ function ConfusionMatrix({ data }: { data: HistoryPoint[] }) {
           {dirs.map(real => {
             const rowTotal = dirs.reduce((s, p) => s + matrix[real][p], 0);
             return (
-              <tr key={real} className="border-t border-[#2a2d3a]/40">
+              <tr key={real} className="border-t border-line/40">
                 <td className="py-2 pr-2 text-left font-semibold" style={{ color: DIR_COLORS[real] }}>
                   {real.toUpperCase()}
                 </td>
@@ -102,7 +102,7 @@ function MultiTickerBar({ days, gap }: { days: number; gap: boolean }) {
     });
   }, [days, gap]);
 
-  if (loading) return <div className="h-24 rounded-xl bg-[#1a1d27] animate-pulse border border-[#2a2d3a]" />;
+  if (loading) return <div className="h-24 rounded-xl bg-panel animate-pulse border border-line" />;
 
   const bars = TICKERS
     .map(t => ({
@@ -116,7 +116,7 @@ function MultiTickerBar({ days, gap }: { days: number; gap: boolean }) {
   if (bars.length === 0) return null;
 
   return (
-    <div className="rounded-xl border border-[#2a2d3a] bg-[#1a1d27] p-5">
+    <div className="rounded-xl border border-line bg-panel p-5">
       <h2 className="text-sm font-semibold text-gray-300 mb-1">Trefa směru podle tickeru</h2>
       <p className="text-[11px] text-gray-500 mb-4">
         Kolikrát model trefil směr, když ho tipl a trh se opravdu pohnul. Náhoda = 50 %. V závorce počet případů a korelace s pohybem (IC).
@@ -128,7 +128,7 @@ function MultiTickerBar({ days, gap }: { days: number; gap: boolean }) {
           return (
             <div key={ticker} className="flex items-center gap-3">
               <span className="w-16 text-xs font-mono text-gray-300 shrink-0">{ticker}</span>
-              <div className="flex-1 bg-[#0d0f17] rounded-full h-4 overflow-hidden">
+              <div className="flex-1 bg-sunken rounded-full h-4 overflow-hidden">
                 <div
                   className="h-full rounded-full transition-all duration-700"
                   style={{ width: `${pct}%`, backgroundColor: color + "99", border: `1px solid ${color}` }}
@@ -166,12 +166,12 @@ function BiasAnalysis({ data }: { data: HistoryPoint[] }) {
   ] as const;
 
   return (
-    <div className="rounded-xl border border-[#2a2d3a] bg-[#1a1d27] p-5">
+    <div className="rounded-xl border border-line bg-panel p-5">
       <h2 className="text-sm font-semibold text-gray-300 mb-4">Bias analýza — predikce vs. realita</h2>
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
-            <tr className="text-gray-500 border-b border-[#2a2d3a]">
+            <tr className="text-gray-500 border-b border-line">
               <th className="text-left py-2 pr-4">Směr</th>
               <th className="text-right py-2 px-3">Predikováno</th>
               <th className="text-right py-2 px-3">Realizováno</th>
@@ -187,7 +187,7 @@ function BiasAnalysis({ data }: { data: HistoryPoint[] }) {
               const pPct = total > 0 ? (p / total) * 100 : 0;
               const rPct = total > 0 ? (r / total) * 100 : 0;
               return (
-                <tr key={key} className="border-b border-[#2a2d3a]/40">
+                <tr key={key} className="border-b border-line/40">
                   <td className="py-2 pr-4 font-semibold" style={{ color }}>{label}</td>
                   <td className="text-right px-3 text-gray-300">{p} <span className="text-gray-600">({pPct.toFixed(0)}%)</span></td>
                   <td className="text-right px-3 text-gray-300">{r} <span className="text-gray-600">({rPct.toFixed(0)}%)</span></td>
@@ -195,7 +195,7 @@ function BiasAnalysis({ data }: { data: HistoryPoint[] }) {
                     {diff > 0 ? `+${diff}` : diff}
                   </td>
                   <td className="py-2 px-3">
-                    <div className="relative h-3 w-40 bg-[#0d0f17] rounded">
+                    <div className="relative h-3 w-40 bg-sunken rounded">
                       <div className="absolute top-0 left-0 h-full rounded opacity-40" style={{ width: `${rPct}%`, backgroundColor: color }} />
                       <div className="absolute top-0 left-0 h-full rounded border" style={{ width: `${pPct}%`, borderColor: color }} />
                     </div>
@@ -288,10 +288,10 @@ export default function HistoryPage() {
       <div className="flex flex-wrap items-center gap-4">
         <h1 className="text-xl font-bold text-white">Historie predikcí</h1>
         <div className="ml-auto flex flex-wrap gap-3">
-          <div className="flex rounded-lg border border-[#2a2d3a] overflow-hidden text-sm" role="group" aria-label="Druh reakce">
+          <div className="flex rounded-lg border border-line overflow-hidden text-sm" role="group" aria-label="Druh reakce">
             {([[false, "Běžné reakce"], [true, "Gap (víkend / zavřený trh)"]] as const).map(([g, label]) => (
               <button key={label} onClick={() => setGap(g)}
-                className={`px-3 py-1.5 ${gap === g ? "bg-[#1e2536] text-white" : "bg-[#1a1d27] text-gray-400 hover:text-white"}`}>
+                className={`px-3 py-1.5 ${gap === g ? "bg-raised text-white" : "bg-panel text-gray-400 hover:text-white"}`}>
                 {label}
               </button>
             ))}
@@ -299,7 +299,7 @@ export default function HistoryPage() {
           <select
             value={ticker}
             onChange={(e) => setTicker(e.target.value)}
-            className="rounded-lg border border-[#2a2d3a] bg-[#1a1d27] px-3 py-1.5 text-sm text-gray-300"
+            className="rounded-lg border border-line bg-panel px-3 py-1.5 text-sm text-gray-300"
           >
             {TICKERS.map((t) => (
               <option key={t} value={t}>{t}</option>
@@ -308,7 +308,7 @@ export default function HistoryPage() {
           <select
             value={days}
             onChange={(e) => setDays(Number(e.target.value))}
-            className="rounded-lg border border-[#2a2d3a] bg-[#1a1d27] px-3 py-1.5 text-sm text-gray-300"
+            className="rounded-lg border border-line bg-panel px-3 py-1.5 text-sm text-gray-300"
           >
             {[30, 60, 90, 180, 365].map((d) => (
               <option key={d} value={d}>{d} dní</option>
@@ -362,7 +362,7 @@ export default function HistoryPage() {
             sub: `${ticker} / ${days}d · kategorií ${catRows.length}`,
           },
         ].map(({ label, value, sub }) => (
-          <div key={label} className="rounded-xl border border-[#2a2d3a] bg-[#1a1d27] p-4 text-center">
+          <div key={label} className="rounded-xl border border-line bg-panel p-4 text-center">
             <div className="text-2xl font-bold text-white">{value}</div>
             {sub && <div className="text-[10px] text-gray-600 mt-0.5">{sub}</div>}
             <div className="text-xs text-gray-500 mt-1">{label}</div>
@@ -373,11 +373,11 @@ export default function HistoryPage() {
       {loading ? (
         <div className="space-y-4">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-64 rounded-xl bg-[#1a1d27] animate-pulse border border-[#2a2d3a]" />
+            <div key={i} className="h-64 rounded-xl bg-panel animate-pulse border border-line" />
           ))}
         </div>
       ) : data.length === 0 ? (
-        <div className="rounded-xl border border-[#2a2d3a] bg-[#1a1d27] p-8 text-center text-gray-500 text-sm">
+        <div className="rounded-xl border border-line bg-panel p-8 text-center text-gray-500 text-sm">
           Žádná historická data. Spusť <code className="text-orange-400">/api/calibrate</code> pro záznam tržních reakcí (min. 15 min po vydání zprávy).
         </div>
       ) : (
@@ -385,7 +385,7 @@ export default function HistoryPage() {
           {/* Charts row */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Accuracy over time */}
-            <div className="rounded-xl border border-[#2a2d3a] bg-[#1a1d27] p-5">
+            <div className="rounded-xl border border-line bg-panel p-5">
               <h2 className="text-sm font-semibold text-gray-300 mb-4">Přesnost v čase (posl. 30 dní)</h2>
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={byDate}>
@@ -393,7 +393,7 @@ export default function HistoryPage() {
                     tickFormatter={(v) => v.slice(5)} />
                   <YAxis domain={[0, 100]} unit="%" tick={{ fontSize: 10, fill: "#6b7280" }} tickLine={false} />
                   <Tooltip
-                    contentStyle={{ background: "#1a1d27", border: "1px solid #2a2d3a", borderRadius: 8 }}
+                    contentStyle={{ background: "var(--tz-tooltip)", border: "1px solid #2a2d3a", borderRadius: 8 }}
                     formatter={(v: number) => [`${v.toFixed(0)}%`, "Přesnost"]}
                     labelFormatter={(l) => `Datum: ${l}`}
                   />
@@ -407,7 +407,7 @@ export default function HistoryPage() {
             </div>
 
             {/* Realized direction distribution */}
-            <div className="rounded-xl border border-[#2a2d3a] bg-[#1a1d27] p-5">
+            <div className="rounded-xl border border-line bg-panel p-5">
               <h2 className="text-sm font-semibold text-gray-300 mb-4">Realizované směry — {ticker}</h2>
               <ResponsiveContainer width="100%" height={200}>
                 <PieChart>
@@ -428,7 +428,7 @@ export default function HistoryPage() {
                     ))}
                   </Pie>
                   <Tooltip
-                    contentStyle={{ background: "#1a1d27", border: "1px solid #2a2d3a", borderRadius: 8 }}
+                    contentStyle={{ background: "var(--tz-tooltip)", border: "1px solid #2a2d3a", borderRadius: 8 }}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -443,7 +443,7 @@ export default function HistoryPage() {
 
           {/* Category accuracy table */}
           {catRows.length > 0 && (
-            <div className="rounded-xl border border-[#2a2d3a] bg-[#1a1d27] p-5">
+            <div className="rounded-xl border border-line bg-panel p-5">
               <h2 className="text-sm font-semibold text-gray-300 mb-4">
                 Přesnost per kategorie — {ticker}
                 <span className="ml-2 text-gray-600 font-normal text-xs">min. 2 záznamy</span>
@@ -451,7 +451,7 @@ export default function HistoryPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead>
-                    <tr className="text-gray-500 border-b border-[#2a2d3a]">
+                    <tr className="text-gray-500 border-b border-line">
                       <th className="text-left py-2 pr-4 font-medium">Kategorie</th>
                       <th className="text-right py-2 px-3 font-medium">Vzorků</th>
                       <th className="text-right py-2 px-3 font-medium">Přesnost</th>
@@ -471,10 +471,10 @@ export default function HistoryPage() {
                         : v.down >= v.neutral ? "down" : "neutral";
                       const barW = Math.min((v.total / (catRows[0][1].total || 1)) * 100, 100);
                       return (
-                        <tr key={cat} className="border-b border-[#2a2d3a]/40 hover:bg-white/[0.02]">
+                        <tr key={cat} className="border-b border-line/40 hover:bg-white/[0.02]">
                           <td className="py-2 pr-2">
                             <div className="flex items-center gap-2">
-                              <div className="w-16 h-1 bg-[#0d0f17] rounded overflow-hidden shrink-0">
+                              <div className="w-16 h-1 bg-sunken rounded overflow-hidden shrink-0">
                                 <div className="h-full bg-blue-600 rounded" style={{ width: `${barW}%` }} />
                               </div>
                               <span className="text-gray-300 font-mono">{cat}</span>

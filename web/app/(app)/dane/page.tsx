@@ -40,9 +40,9 @@ export default function DanePage() {
       .finally(() => setLoading(false));
   }, [user]);
 
-  if (authLoading) return <div className="h-40 animate-pulse rounded-xl bg-[#1a1d27]" />;
+  if (authLoading) return <div className="h-40 animate-pulse rounded-xl bg-panel" />;
   if (!user)
-    return <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-8 text-center text-gray-400">
+    return <div className="rounded-xl border border-line bg-panel-2 p-8 text-center text-gray-400">
       Pro daňový test se <a href="/prihlaseni" className="text-[#60ff82] underline">přihlas</a>.</div>;
 
   const s = tt?.summary;
@@ -71,7 +71,7 @@ export default function DanePage() {
           <div className="mt-1 text-xl font-bold text-white">{fmt(s?.value_pending, "CZK")}</div>
           <div className="text-xs text-gray-500">{s?.n_pending ?? 0} nákupních pozic</div>
         </div>
-        <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-4">
+        <div className="rounded-xl border border-line bg-panel-2 p-4">
           <div className="text-[11px] uppercase text-gray-500">Nejbližší osvobození</div>
           {tt?.upcoming_12m.length ? (
             <>
@@ -90,7 +90,7 @@ export default function DanePage() {
 
       {/* Blíží se */}
       {tt?.upcoming_12m.length ? (
-        <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-5">
+        <div className="rounded-xl border border-line bg-panel-2 p-5">
           <h2 className="text-sm font-semibold text-white">Blíží se osvobození (do 12 měsíců)</h2>
           <ul className="mt-3 space-y-1.5">
             {tt.upcoming_12m.map((l, i) => (
@@ -105,8 +105,8 @@ export default function DanePage() {
       ) : null}
 
       {/* Všechny loty */}
-      <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] overflow-hidden">
-        <div className="border-b border-[#2a2d3a] px-4 py-3 text-sm font-semibold text-white">Nákupní pozice ({tt?.lots.length ?? 0})</div>
+      <div className="rounded-xl border border-line bg-panel-2 overflow-hidden">
+        <div className="border-b border-line px-4 py-3 text-sm font-semibold text-white">Nákupní pozice ({tt?.lots.length ?? 0})</div>
         {loading ? (
           <div className="p-6 text-sm text-gray-500">Načítám…</div>
         ) : !tt?.lots.length ? (
@@ -126,7 +126,7 @@ export default function DanePage() {
               </thead>
               <tbody>
                 {tt.lots.map((l, i) => (
-                  <tr key={i} className="border-t border-[#20242f]">
+                  <tr key={i} className="border-t border-line">
                     <td className="px-4 py-2.5">
                       <div className="font-medium text-white">{l.symbol}</div>
                       {l.name && <div className="text-[11px] text-gray-500 truncate max-w-[160px]">{l.name}</div>}
@@ -139,7 +139,7 @@ export default function DanePage() {
                       {l.tax_free ? (
                         <span className="inline-flex items-center gap-1 rounded bg-[rgba(96,255,130,0.14)] px-2 py-0.5 text-[11px] text-[#8fffab]"><CheckCircle2 size={11} /> osvobozeno</span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 rounded bg-[#2a2d3a] px-2 py-0.5 text-[11px] text-gray-300"><Clock size={11} /> {remainLabel(l.days_remaining)}</span>
+                        <span className="inline-flex items-center gap-1 rounded bg-raised px-2 py-0.5 text-[11px] text-gray-300"><Clock size={11} /> {remainLabel(l.days_remaining)}</span>
                       )}
                     </td>
                   </tr>
@@ -151,7 +151,7 @@ export default function DanePage() {
       </div>
 
       {/* Vysvětlení + disclaimer */}
-      <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-5 text-[13px] text-gray-300 space-y-2">
+      <div className="rounded-xl border border-line bg-panel-2 p-5 text-[13px] text-gray-300 space-y-2">
         <h2 className="text-sm font-semibold text-white">Jak to funguje</h2>
         <p><strong className="text-white">Časový test 3 roky:</strong> když cenný papír (akcie, ETF) držíš déle než 3 roky, příjem z jeho prodeje je osvobozen od daně z příjmu fyzických osob. Datum osvobození = datum nákupu + 3 roky. U částečných prodejů se dřívější nákupy prodávají první (FIFO).</p>
         <p><strong className="text-white">Limit 100 000 Kč:</strong> pokud je souhrn <em>příjmů</em> (ne zisku) z prodeje cenných papírů za rok do 100 000 Kč, je osvobozen i bez splnění časového testu.</p>

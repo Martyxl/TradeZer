@@ -71,7 +71,7 @@ function DarkPoolInner() {
       </div>
 
       {error && <div className="rounded-xl border border-yellow-800 bg-yellow-950/40 p-4 text-sm text-yellow-300">{error}</div>}
-      {!data && !error && <div className="h-64 rounded-2xl bg-[#151823] animate-pulse border border-[#2a2d3a]" />}
+      {!data && !error && <div className="h-64 rounded-2xl bg-panel-2 animate-pulse border border-line" />}
 
       {data && (
         <>
@@ -83,7 +83,7 @@ function DarkPoolInner() {
 
           <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Hledat ticker / název…"
-              className="rounded-md bg-[#151823] border border-[#2a2d3a] px-3 py-1.5 text-xs text-gray-200 placeholder-gray-600 focus:outline-none focus:border-[#2f3b55] w-56" />
+              className="rounded-md bg-panel-2 border border-line px-3 py-1.5 text-xs text-gray-200 placeholder-gray-600 focus:outline-none focus:border-line-2 w-56" />
             <div className="ml-auto text-xs text-gray-500">
               {rows.length} z {data.count}
               {data.week ? ` · týden ${data.week}` : ""}
@@ -92,11 +92,11 @@ function DarkPoolInner() {
           </div>
 
           {data.items.length > 0 && (
-            <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] overflow-hidden">
+            <div className="rounded-xl border border-line bg-panel-2 overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm min-w-[720px]">
                   <thead>
-                    <tr className="text-gray-500 text-[10px] uppercase bg-[#181b26]">
+                    <tr className="text-gray-500 text-[10px] uppercase bg-panel-2">
                       <th className="text-left px-3 py-2.5 w-10">#</th>
                       <th className="text-left px-3 py-2.5">Ticker</th>
                       <th className="text-right px-3 py-2.5">Objem (notional)</th>
@@ -107,7 +107,7 @@ function DarkPoolInner() {
                   </thead>
                   <tbody>
                     {rows.map((i, idx) => (
-                      <tr key={i.symbol} className="border-t border-[#232735] hover:bg-[#181b26]/50">
+                      <tr key={i.symbol} className="border-t border-line hover:bg-panel-2/50">
                         <td className="px-3 py-2.5 text-gray-600 font-mono text-xs">{idx + 1}</td>
                         <td className="px-3 py-2.5">
                           <a href={`https://www.tradingview.com/chart/?symbol=${i.symbol}`} target="_blank" rel="noopener noreferrer"

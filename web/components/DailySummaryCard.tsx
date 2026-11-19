@@ -20,7 +20,7 @@ function ProbBar({ label, value, color, bgColor }: ProbBarProps) {
   return (
     <div className="flex flex-col items-center gap-2 flex-1">
       <div className="text-xs text-gray-400 font-medium uppercase tracking-wider">{label}</div>
-      <div className="relative h-32 w-full rounded-lg overflow-hidden bg-[#0f1117]">
+      <div className="relative h-32 w-full rounded-lg overflow-hidden bg-sunken">
         <div
           className={`absolute bottom-0 left-0 right-0 transition-all duration-700 rounded-lg ${bgColor}`}
           style={{ height: `${value * 100}%` }}
@@ -36,7 +36,7 @@ function ProbBar({ label, value, color, bgColor }: ProbBarProps) {
 export function DailySummaryCard({ summary, ticker }: DailySummaryCardProps) {
   if (!summary) {
     return (
-      <div className="rounded-2xl border border-[#2a2d3a] bg-[#1a1d27] p-6">
+      <div className="rounded-2xl border border-line bg-panel p-6">
         <h2 className="text-lg font-semibold text-white mb-2">Denní přehled — {ticker}</h2>
         <p className="text-gray-500 text-sm">
           Summary pro dnešní den zatím není k dispozici. Spusťte refresh nebo počkejte na 23:00.
@@ -46,7 +46,7 @@ export function DailySummaryCard({ summary, ticker }: DailySummaryCardProps) {
   }
 
   return (
-    <div className="rounded-2xl border border-[#2a2d3a] bg-[#1a1d27] p-6">
+    <div className="rounded-2xl border border-line bg-panel p-6">
       <div className="flex items-start justify-between gap-4 mb-5">
         <div>
           <h2 className="text-lg font-semibold text-white">Denní přehled — {ticker}</h2>
@@ -87,7 +87,7 @@ export function DailySummaryCard({ summary, ticker }: DailySummaryCardProps) {
 
       {/* Recommendation */}
       {summary.recommendation && (
-        <div className="rounded-xl bg-[#0f1117] border border-[#2a2d3a] p-4">
+        <div className="rounded-xl bg-sunken border border-line p-4">
           <p className="text-xs text-gray-500 mb-1.5 font-medium uppercase tracking-wider">
             Doporučení
           </p>

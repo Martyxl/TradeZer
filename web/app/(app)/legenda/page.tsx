@@ -278,7 +278,7 @@ function GammaGuide() {
         <b>4) Net GEX = síla efektu.</b> Hodně pozitivní = silně „přišpendleno“/klid; kolem nuly nebo
         záporné = nestabilní.
       </p>
-      <p className="rounded-lg bg-[#0f1117] border border-[#232735] px-3 py-2 text-gray-400">
+      <p className="rounded-lg bg-sunken border border-line px-3 py-2 text-gray-400">
         <b className="text-gray-300">Co si vzít:</b> „Jsem nad flipem → pozitivní gamma → dnes spíš
         fadovat rozsah, ne honit breakouty. Klíčová čára je flip; pod ní se to zvrtne v trend/volatilitu,
         u wallů čekej reakci.“
@@ -315,8 +315,8 @@ export default function LegendaPage() {
 
   const chip = (active: boolean) =>
     `rounded-md px-3 py-1 text-xs font-medium border transition-colors ${
-      active ? "bg-[#1e2536] text-white border-[#2f3b55]"
-        : "bg-[#151823] text-gray-400 border-[#2a2d3a] hover:text-white"}`;
+      active ? "bg-raised text-white border-line-2"
+        : "bg-panel-2 text-gray-400 border-line hover:text-white"}`;
 
   return (
     <div className="space-y-6">
@@ -339,7 +339,7 @@ export default function LegendaPage() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Hledat pojem, zkratku nebo význam… (např. P/E, gamma, ROIC, momentum)"
-          className="w-full rounded-lg bg-[#151823] border border-[#2a2d3a] pl-10 pr-3 py-2.5 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-[#2f3b55]"
+          className="w-full rounded-lg bg-panel-2 border border-line pl-10 pr-3 py-2.5 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-line-2"
         />
       </div>
 
@@ -357,20 +357,20 @@ export default function LegendaPage() {
       </div>
 
       {byCat.length === 0 && (
-        <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-8 text-center text-gray-500 text-sm">
+        <div className="rounded-xl border border-line bg-panel-2 p-8 text-center text-gray-500 text-sm">
           Nic nenalezeno. Zkus jiný výraz.
         </div>
       )}
 
       {byCat.map(([category, terms]) => (
         <section key={category} className="space-y-3">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-sky-400/80 border-b border-[#2a2d3a] pb-1.5">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-sky-400/80 border-b border-line pb-1.5">
             {category}
           </h2>
           {category === "Gamma (GEX)" && <GammaGuide />}
           <div className="grid gap-3 sm:grid-cols-2">
             {terms.map((t) => (
-              <div key={t.term} className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-4">
+              <div key={t.term} className="rounded-xl border border-line bg-panel-2 p-4">
                 <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                   <h3 className="font-semibold text-gray-100">{t.term}</h3>
                   {t.abbr && (
@@ -379,7 +379,7 @@ export default function LegendaPage() {
                 </div>
                 <p className="mt-1.5 text-[13px] leading-relaxed text-gray-400">{t.desc}</p>
                 {t.calc && (
-                  <div className="mt-2 rounded-lg bg-[#0f1117] border border-[#232735] px-2.5 py-1.5">
+                  <div className="mt-2 rounded-lg bg-sunken border border-line px-2.5 py-1.5">
                     <div className="text-[9px] uppercase tracking-wider text-gray-600 mb-0.5">Výpočet</div>
                     <code className="text-[11px] text-emerald-300/90 leading-relaxed">{t.calc}</code>
                   </div>

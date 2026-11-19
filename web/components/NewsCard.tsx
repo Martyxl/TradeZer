@@ -150,7 +150,7 @@ export function NewsCard({ item }: NewsCardProps) {
   const withReasoning = impacts.filter((t) => t.llm_reasoning);
 
   return (
-    <article className="rounded-xl border border-[#2a2d3a] bg-[#1a1d27] p-4 transition-all hover:border-gray-600 animate-[fadeIn_0.3s_ease-in-out]">
+    <article className="rounded-xl border border-line bg-panel p-4 transition-all hover:border-gray-600 animate-[fadeIn_0.3s_ease-in-out]">
       {/* ── Main row ── */}
       <div className="flex items-start gap-3">
 
@@ -187,7 +187,7 @@ export function NewsCard({ item }: NewsCardProps) {
         </div>
 
         {/* Right: 4-ticker panel — rows with dots+percentages */}
-        <div className="shrink-0 flex flex-col gap-1.5 pl-3 border-l border-[#2a2d3a]">
+        <div className="shrink-0 flex flex-col gap-1.5 pl-3 border-l border-line">
           {FEATURED.map(({ symbol, label }) => (
             <TickerRow
               key={symbol}
@@ -200,7 +200,7 @@ export function NewsCard({ item }: NewsCardProps) {
 
       {/* ── Expandable reasoning per ticker ── */}
       {withReasoning.length > 0 && (
-        <div className="mt-3 pt-2 border-t border-[#2a2d3a]/50">
+        <div className="mt-3 pt-2 border-t border-line/50">
           <button
             onClick={() => setExpanded(!expanded)}
             className="flex items-center gap-1 text-[11px] text-gray-500 hover:text-gray-300 transition-colors"
@@ -215,7 +215,7 @@ export function NewsCard({ item }: NewsCardProps) {
                 const badge = importanceBadge(impact.importance_weight);
                 const max = Math.max(impact.prob_up, impact.prob_neutral, impact.prob_down);
                 return (
-                  <div key={impact.symbol} className="rounded-lg bg-[#0f1117] border border-[#2a2d3a] p-3">
+                  <div key={impact.symbol} className="rounded-lg bg-sunken border border-line p-3">
                     <div className="flex items-center gap-2 mb-1.5">
                       <span className="text-[11px] font-bold font-mono text-gray-300">
                         {impact.symbol}

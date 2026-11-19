@@ -63,8 +63,8 @@ function SmartMoneyInner() {
 
   const chip = (active: boolean) =>
     `rounded-md px-3 py-1 text-xs font-medium border transition-colors ${
-      active ? "bg-[#1e2536] text-white border-[#2f3b55]"
-        : "bg-[#151823] text-gray-400 border-[#2a2d3a] hover:text-white"}`;
+      active ? "bg-raised text-white border-line-2"
+        : "bg-panel-2 text-gray-400 border-line hover:text-white"}`;
 
   return (
     <div className="space-y-6">
@@ -88,7 +88,7 @@ function SmartMoneyInner() {
       </div>
 
       {error && <div className="rounded-xl border border-yellow-800 bg-yellow-950/40 p-4 text-sm text-yellow-300">{error}</div>}
-      {!data && !error && <div className="h-64 rounded-2xl bg-[#151823] animate-pulse border border-[#2a2d3a]" />}
+      {!data && !error && <div className="h-64 rounded-2xl bg-panel-2 animate-pulse border border-line" />}
 
       {data && (
         <>
@@ -131,7 +131,7 @@ function SmartMoneyInner() {
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Hledat ticker / jméno…"
-              className="rounded-md bg-[#151823] border border-[#2a2d3a] px-3 py-1.5 text-xs text-gray-200 placeholder-gray-600 focus:outline-none focus:border-[#2f3b55] w-56"
+              className="rounded-md bg-panel-2 border border-line px-3 py-1.5 text-xs text-gray-200 placeholder-gray-600 focus:outline-none focus:border-line-2 w-56"
             />
             <div className="ml-auto text-xs text-gray-500">
               {rows.length} z {data.count} · {data.buys} nákupů / {data.sells} prodejů
@@ -139,11 +139,11 @@ function SmartMoneyInner() {
             </div>
           </div>
 
-          <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] overflow-hidden">
+          <div className="rounded-xl border border-line bg-panel-2 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm min-w-[820px]">
                 <thead>
-                  <tr className="text-gray-500 text-[10px] uppercase bg-[#181b26]">
+                  <tr className="text-gray-500 text-[10px] uppercase bg-panel-2">
                     <th className="text-left px-3 py-2.5">Datum</th>
                     <th className="text-left px-3 py-2.5">Insider</th>
                     <th className="text-left px-3 py-2.5">Ticker</th>
@@ -155,7 +155,7 @@ function SmartMoneyInner() {
                 </thead>
                 <tbody>
                   {rows.map((i, idx) => (
-                    <tr key={idx} className="border-t border-[#232735] hover:bg-[#181b26]/50">
+                    <tr key={idx} className="border-t border-line hover:bg-panel-2/50">
                       <td className="px-3 py-2.5 text-gray-400 font-mono text-xs whitespace-nowrap">{i.date}</td>
                       <td className="px-3 py-2.5">
                         <div className="text-gray-200">{i.person}</div>
@@ -188,7 +188,7 @@ function SmartMoneyInner() {
             </div>
           </div>
 
-          <div className="rounded-lg border border-[#2a2d3a] bg-[#151823] px-3 py-2 text-[11px] text-gray-500">
+          <div className="rounded-lg border border-line bg-panel-2 px-3 py-2 text-[11px] text-gray-500">
             <b className="text-gray-400">Congress obchody</b> (Senate/House) — připravuje se. Volné mirrory
             mezitím zmizely; hledá se spolehlivý free zdroj.
           </div>

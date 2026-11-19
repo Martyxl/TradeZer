@@ -78,8 +78,8 @@ function DiscoveryInner() {
 
   const chip = (active: boolean) =>
     `rounded-md px-3 py-1 text-xs font-medium border transition-colors ${
-      active ? "bg-[#1e2536] text-white border-[#2f3b55]"
-        : "bg-[#151823] text-gray-400 border-[#2a2d3a] hover:text-white"}`;
+      active ? "bg-raised text-white border-line-2"
+        : "bg-panel-2 text-gray-400 border-line hover:text-white"}`;
 
   return (
     <div className="space-y-6">
@@ -104,7 +104,7 @@ function DiscoveryInner() {
 
       {error && <div className="rounded-xl border border-yellow-800 bg-yellow-950/40 p-4 text-sm text-yellow-300">{error}</div>}
       {!data && !error && (
-        <div className="h-64 rounded-2xl bg-[#151823] animate-pulse border border-[#2a2d3a]" />
+        <div className="h-64 rounded-2xl bg-panel-2 animate-pulse border border-line" />
       )}
 
       {data && (
@@ -146,11 +146,11 @@ function DiscoveryInner() {
             </div>
           )}
 
-          <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] overflow-hidden">
+          <div className="rounded-xl border border-line bg-panel-2 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm min-w-[900px]">
                 <thead>
-                  <tr className="text-gray-500 text-[10px] uppercase bg-[#181b26]">
+                  <tr className="text-gray-500 text-[10px] uppercase bg-panel-2">
                     <th className="text-left px-3 py-2.5">#</th>
                     <th className="text-left px-3 py-2.5">Ticker</th>
                     <th className="text-right px-3 py-2.5">Cena</th>
@@ -167,7 +167,7 @@ function DiscoveryInner() {
                 </thead>
                 <tbody>
                   {rows.map((i, idx) => (
-                    <tr key={i.ticker} className="border-t border-[#232735] hover:bg-[#181b26]/50">
+                    <tr key={i.ticker} className="border-t border-line hover:bg-panel-2/50">
                       <td className="px-3 py-2.5 text-gray-600">{idx + 1}</td>
                       <td className="px-3 py-2.5">
                         <a href={`https://www.tradingview.com/chart/?symbol=${i.ticker}`} target="_blank" rel="noopener noreferrer"
@@ -188,14 +188,14 @@ function DiscoveryInner() {
                       </td>
                       <td className="px-3 py-2.5 text-right font-mono text-gray-400">{fmtPct(i.from_high_pct)}</td>
                       <td className="px-3 py-2.5">
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded mr-1 ${i.above_sma20 ? "bg-green-950/60 text-green-300" : "bg-[#232735] text-gray-500"}`}>20</span>
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${i.above_sma50 ? "bg-green-950/60 text-green-300" : "bg-[#232735] text-gray-500"}`}>50</span>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded mr-1 ${i.above_sma20 ? "bg-green-950/60 text-green-300" : "bg-raised text-gray-500"}`}>20</span>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${i.above_sma50 ? "bg-green-950/60 text-green-300" : "bg-raised text-gray-500"}`}>50</span>
                       </td>
                       <td className="px-3 py-2.5">
                         {i.days_to_earnings != null ? (
                           <span
                             className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
-                              i.days_to_earnings <= 10 ? "bg-amber-950/60 text-amber-300 border border-amber-800/50" : "bg-[#232735] text-gray-400"}`}
+                              i.days_to_earnings <= 10 ? "bg-amber-950/60 text-amber-300 border border-amber-800/50" : "bg-raised text-gray-400"}`}
                             title={i.earnings_date ?? undefined}
                           >
                             📅 {i.days_to_earnings}d
@@ -211,7 +211,7 @@ function DiscoveryInner() {
                       </td>
                       <td className="px-3 py-2.5 text-right">
                         <div className="inline-flex items-center gap-2">
-                          <div className="w-14 h-1.5 rounded-full bg-[#232735] overflow-hidden">
+                          <div className="w-14 h-1.5 rounded-full bg-raised overflow-hidden">
                             <div className="h-full rounded-full bg-blue-500" style={{ width: `${Math.min(100, i.score)}%` }} />
                           </div>
                           <span className="font-mono text-gray-200 w-9 text-right">{i.score}</span>

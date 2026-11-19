@@ -92,7 +92,7 @@ function Bar({ label, value, prev, accent = "#3b82f6", max = 100, n, binary = fa
   return (
     <div className="flex items-center gap-2 text-xs" title={tip}>
       <span className="w-28 shrink-0 text-gray-400 truncate">{label}</span>
-      <div className="relative flex-1 h-2 rounded-full bg-[#232735] overflow-hidden">
+      <div className="relative flex-1 h-2 rounded-full bg-raised overflow-hidden">
         <div className="h-full rounded-full" style={{ width: `${width}%`, background: coin ? "#4b5563" : accent }} />
         {ci && max === 100 && <div className="absolute top-0 h-full bg-white/20" style={{ left: `${ci[0]}%`, width: `${Math.max(0.5, ci[1] - ci[0])}%` }} />}
       </div>
@@ -135,7 +135,7 @@ function Card({ title, subtitle, children }: {
   title: string; subtitle?: string; children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-4">
+    <div className="rounded-xl border border-line bg-panel-2 p-4">
       <h3 className="text-sm font-semibold text-white">{title}</h3>
       {subtitle ? (
         <p className="text-[10px] uppercase tracking-wider text-gray-500 mt-0.5 mb-3">{subtitle}</p>
@@ -192,7 +192,7 @@ function LegendModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 bg-black/70 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
       <div
-        className="bg-[#12141c] border border-[#2a2d3a] rounded-2xl max-w-3xl w-full p-6 my-8"
+        className="bg-sunken border border-line rounded-2xl max-w-3xl w-full p-6 my-8"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
@@ -205,25 +205,25 @@ function LegendModal({ onClose }: { onClose: () => void }) {
           {" "}<span className="text-blue-400">newyorském čase (ET)</span> včetně letního času — v ČR obvykle +6 h
           (2 týdny v březnu a týden na přelomu října/listopadu +5 h). Obchodní den začíná v <span className="text-blue-400">18:00 ET</span>.
         </p>
-        <div className="text-xs text-gray-400 mb-4 rounded-lg border border-[#2a2d3a] overflow-hidden">
+        <div className="text-xs text-gray-400 mb-4 rounded-lg border border-line overflow-hidden">
           <table className="w-full">
             <thead>
-              <tr className="text-blue-400 bg-[#181b26]">
+              <tr className="text-blue-400 bg-panel-2">
                 <th className="text-left px-3 py-2">TRH</th><th className="text-left px-3 py-2">ASIA</th>
                 <th className="text-left px-3 py-2">LONDON</th><th className="text-left px-3 py-2">NY</th>
                 <th className="text-left px-3 py-2">RTH</th>
               </tr>
             </thead>
             <tbody>
-              <tr className="border-t border-[#2a2d3a]"><td className="px-3 py-2">NQ / YM</td><td className="px-3 py-2">20–03</td><td className="px-3 py-2">03–08</td><td className="px-3 py-2">08–17</td><td className="px-3 py-2">9:30–16:00</td></tr>
-              <tr className="border-t border-[#2a2d3a]"><td className="px-3 py-2">GOLD</td><td className="px-3 py-2">18–03</td><td className="px-3 py-2">03–08</td><td className="px-3 py-2">08–17</td><td className="px-3 py-2">8:20–13:30 (COMEX)</td></tr>
-              <tr className="border-t border-[#2a2d3a]"><td className="px-3 py-2">FOREX</td><td className="px-3 py-2">18–03</td><td className="px-3 py-2">03–08</td><td className="px-3 py-2">08–17</td><td className="px-3 py-2">9:30–17:00</td></tr>
+              <tr className="border-t border-line"><td className="px-3 py-2">NQ / YM</td><td className="px-3 py-2">20–03</td><td className="px-3 py-2">03–08</td><td className="px-3 py-2">08–17</td><td className="px-3 py-2">9:30–16:00</td></tr>
+              <tr className="border-t border-line"><td className="px-3 py-2">GOLD</td><td className="px-3 py-2">18–03</td><td className="px-3 py-2">03–08</td><td className="px-3 py-2">08–17</td><td className="px-3 py-2">8:20–13:30 (COMEX)</td></tr>
+              <tr className="border-t border-line"><td className="px-3 py-2">FOREX</td><td className="px-3 py-2">18–03</td><td className="px-3 py-2">03–08</td><td className="px-3 py-2">08–17</td><td className="px-3 py-2">9:30–17:00</td></tr>
             </tbody>
           </table>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {LEGEND.map(([t, d]) => (
-            <div key={t} className="rounded-lg border border-[#2a2d3a] bg-[#151823] p-3">
+            <div key={t} className="rounded-lg border border-line bg-panel-2 p-3">
               <div className="text-blue-400 text-sm font-medium mb-1">{t}</div>
               <div className="text-xs text-gray-400">{d}</div>
             </div>
@@ -239,7 +239,7 @@ function LegendModal({ onClose }: { onClose: () => void }) {
 function HourChart({ title, values, unit, tz = "ET" }: { title: string; values: number[]; unit: string; tz?: string }) {
   const max = Math.max(...values, 1);
   return (
-    <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-4">
+    <div className="rounded-xl border border-line bg-panel-2 p-4">
       <h3 className="text-sm font-semibold text-white mb-1">{title}</h3>
       <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-3">{unit} · {tz}</p>
       <div className="flex items-end gap-[3px] h-24">
@@ -334,8 +334,8 @@ function StatsInner() {
             disabled={!data[k]}
             className={`rounded-lg px-4 py-2 text-sm font-medium border transition-colors disabled:opacity-40 ${
               selected === k
-                ? "bg-[#1e2536] text-white border-[#2f3b55]"
-                : "bg-[#151823] text-gray-400 border-[#2a2d3a] hover:text-white"
+                ? "bg-raised text-white border-line-2"
+                : "bg-panel-2 text-gray-400 border-line hover:text-white"
             }`}
           >
             {KEY_LABEL[k]}
@@ -360,7 +360,7 @@ function StatsInner() {
       {!stats && !error && (
         <div className="space-y-4">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="h-40 rounded-2xl bg-[#151823] animate-pulse border border-[#2a2d3a]" />
+            <div key={i} className="h-40 rounded-2xl bg-panel-2 animate-pulse border border-line" />
           ))}
         </div>
       )}
@@ -388,7 +388,7 @@ function StatsInner() {
                 </thead>
                 <tbody>
                   {Object.entries(stats.session_sizes).map(([k, v]) => (
-                    <tr key={k} className="border-t border-[#232735]">
+                    <tr key={k} className="border-t border-line">
                       <td className="py-1.5 font-medium" style={{ color: k === "asia" ? "#a855f7" : k === "ny" ? "#eab308" : "#3b82f6" }}>
                         {SESSION_NAME[k]}
                       </td>
@@ -432,7 +432,7 @@ function StatsInner() {
             {stats.first15_range && (
               <Card title="First 15m Range — 2. + 3. svíčka" subtitle={`${stats.first15_range.days} dní · sweep high/low první 15min po RTH open`}>
                 <BarGroup data={stats.first15_range.c23} prevData={prev?.first15_range?.c23} labels={SIDES_LABELS} n={stats.first15_range.days} />
-                <div className="mt-3 pt-3 border-t border-[#232735] space-y-2">
+                <div className="mt-3 pt-3 border-t border-line space-y-2">
                   <Bar label="High → Low" value={stats.first15_range.c23.order?.high_to_low ?? 0} prev={prev?.first15_range?.c23?.order?.high_to_low} accent="#64748b" binary n={orderN(stats.first15_range.days, stats.first15_range.c23.both)} />
                   <Bar label="Low → High" value={stats.first15_range.c23.order?.low_to_high ?? 0} prev={prev?.first15_range?.c23?.order?.low_to_high} accent="#64748b" binary n={orderN(stats.first15_range.days, stats.first15_range.c23.both)} />
                 </div>
@@ -442,7 +442,7 @@ function StatsInner() {
             {stats.first15_range && (
               <Card title="First 15m Range — do konce RTH" subtitle={`${stats.first15_range.days} dní · sweep do konce seance`}>
                 <BarGroup data={stats.first15_range.eod} prevData={prev?.first15_range?.eod} labels={SIDES_LABELS} n={stats.first15_range.days} />
-                <div className="mt-3 pt-3 border-t border-[#232735] space-y-2">
+                <div className="mt-3 pt-3 border-t border-line space-y-2">
                   <Bar label="High → Low" value={stats.first15_range.eod.order?.high_to_low ?? 0} prev={prev?.first15_range?.eod?.order?.high_to_low} accent="#64748b" binary n={orderN(stats.first15_range.days, stats.first15_range.eod.both)} />
                   <Bar label="Low → High" value={stats.first15_range.eod.order?.low_to_high ?? 0} prev={prev?.first15_range?.eod?.order?.low_to_high} accent="#64748b" binary n={orderN(stats.first15_range.days, stats.first15_range.eod.both)} />
                 </div>
@@ -463,7 +463,7 @@ function StatsInner() {
 
             <Card title="Asia — Both Sides" subtitle={`${stats.asia_both_sides.days} dní · during London+NY`}>
               <BarGroup data={stats.asia_both_sides} prevData={prev?.asia_both_sides} labels={SIDES_LABELS} n={stats.asia_both_sides.days} />
-              <div className="mt-3 pt-3 border-t border-[#232735] space-y-2">
+              <div className="mt-3 pt-3 border-t border-line space-y-2">
                 <Bar label="Low → High" value={stats.asia_both_sides.order?.low_to_high ?? 0} prev={prev?.asia_both_sides?.order?.low_to_high} accent="#64748b" binary n={orderN(stats.asia_both_sides.days, stats.asia_both_sides.both)} />
                 <Bar label="High → Low" value={stats.asia_both_sides.order?.high_to_low ?? 0} prev={prev?.asia_both_sides?.order?.high_to_low} accent="#64748b" binary n={orderN(stats.asia_both_sides.days, stats.asia_both_sides.both)} />
               </div>
@@ -471,7 +471,7 @@ function StatsInner() {
 
             <Card title="Globex — Both Sides" subtitle={`${stats.globex_both_sides.days} dní · during NY RTH`}>
               <BarGroup data={stats.globex_both_sides} prevData={prev?.globex_both_sides} labels={SIDES_LABELS} n={stats.globex_both_sides.days} />
-              <div className="mt-3 pt-3 border-t border-[#232735] space-y-2">
+              <div className="mt-3 pt-3 border-t border-line space-y-2">
                 <Bar label="Low → High" value={stats.globex_both_sides.order?.low_to_high ?? 0} prev={prev?.globex_both_sides?.order?.low_to_high} accent="#64748b" binary n={orderN(stats.globex_both_sides.days, stats.globex_both_sides.both)} />
                 <Bar label="High → Low" value={stats.globex_both_sides.order?.high_to_low ?? 0} prev={prev?.globex_both_sides?.order?.high_to_low} accent="#64748b" binary n={orderN(stats.globex_both_sides.days, stats.globex_both_sides.both)} />
               </div>

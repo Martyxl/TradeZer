@@ -16,7 +16,7 @@ export default function AccountPage() {
   }, [loading, user, router]);
 
   if (loading || !user) {
-    return <div className="h-40 animate-pulse rounded-xl bg-[#1a1d27]" />;
+    return <div className="h-40 animate-pulse rounded-xl bg-panel" />;
   }
 
   return (
@@ -26,7 +26,7 @@ export default function AccountPage() {
         <div>
           <h1 className="text-xl font-semibold text-white">{user.email || user.username}</h1>
           <div className="mt-1 flex items-center gap-2 text-xs">
-            <span className="rounded bg-[#2a2d3a] px-2 py-0.5 uppercase text-gray-300">Plán: {user.plan}</span>
+            <span className="rounded bg-raised px-2 py-0.5 uppercase text-gray-300">Plán: {user.plan}</span>
             {user.is_admin && <span className="inline-flex items-center gap-1 rounded bg-[rgba(96,255,130,0.14)] px-2 py-0.5 uppercase text-[#8fffab]"><ShieldCheck size={11} /> Admin</span>}
           </div>
         </div>
@@ -61,7 +61,7 @@ function SubscriptionCard({ plan, isAdmin }: { plan: string; isAdmin: boolean })
   };
 
   return (
-    <div className="max-w-md rounded-xl border border-[#2a2d3a] bg-[#151823] p-5">
+    <div className="max-w-md rounded-xl border border-line bg-panel-2 p-5">
       <h2 className="flex items-center gap-2 text-sm font-semibold text-white">
         <CreditCard size={15} className="text-[#60ff82]" /> {FREE_ACCESS ? "Přístup" : "Předplatné"}
       </h2>
@@ -78,7 +78,7 @@ function SubscriptionCard({ plan, isAdmin }: { plan: string; isAdmin: boolean })
       <div className="mt-4">
         {paid ? (
           <button onClick={openPortal} disabled={busy}
-            className="flex items-center justify-center gap-2 rounded-lg border border-[#2a2d3a] bg-[#1a1d27] px-4 py-2 text-sm text-gray-200 hover:border-gray-500 disabled:opacity-60">
+            className="flex items-center justify-center gap-2 rounded-lg border border-line bg-panel px-4 py-2 text-sm text-gray-200 hover:border-gray-500 disabled:opacity-60">
             {busy && <Loader2 size={14} className="animate-spin" />} Spravovat předplatné
           </button>
         ) : !FREE_ACCESS && (
@@ -116,7 +116,7 @@ function ChangePasswordCard({ onChange }: { onChange: (o: string, n: string) => 
   };
 
   return (
-    <div className="max-w-md rounded-xl border border-[#2a2d3a] bg-[#151823] p-5">
+    <div className="max-w-md rounded-xl border border-line bg-panel-2 p-5">
       <h2 className="text-sm font-semibold text-white">Změna hesla</h2>
       <form onSubmit={submit} className="mt-4 flex flex-col gap-3">
         <label className="flex flex-col gap-1.5">
@@ -179,7 +179,7 @@ function PrivacyCard({ isAdmin, onDeleted }: { isAdmin: boolean; onDeleted: () =
   };
 
   return (
-    <div className="max-w-md rounded-xl border border-[#2a2d3a] bg-[#151823] p-5">
+    <div className="max-w-md rounded-xl border border-line bg-panel-2 p-5">
       <h2 className="text-sm font-semibold text-white">Moje data a soukromí</h2>
       <p className="mt-2 text-xs leading-5 text-gray-400">
         Můžeš si stáhnout všechna svá data (účet, deník, investiční transakce) ve strojově čitelném formátu, nebo účet
@@ -188,7 +188,7 @@ function PrivacyCard({ isAdmin, onDeleted }: { isAdmin: boolean; onDeleted: () =
       {err && <p className="mt-3 text-sm text-red-400">{err}</p>}
       <div className="mt-4 flex flex-wrap gap-2">
         <button onClick={exportData} disabled={busy !== null}
-          className="flex items-center gap-2 rounded-lg border border-[#2a2d3a] bg-[#1a1d27] px-4 py-2 text-sm text-gray-200 hover:border-gray-500 disabled:opacity-60">
+          className="flex items-center gap-2 rounded-lg border border-line bg-panel px-4 py-2 text-sm text-gray-200 hover:border-gray-500 disabled:opacity-60">
           {busy === "export" ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} Stáhnout moje data
         </button>
         {!isAdmin && !confirming && (
@@ -205,14 +205,14 @@ function PrivacyCard({ isAdmin, onDeleted }: { isAdmin: boolean; onDeleted: () =
             bez vrácení poměrné části ceny. Pro potvrzení zadej heslo.
           </p>
           <input type="password" required value={pw} onChange={(e) => setPw(e.target.value)} placeholder="Heslo"
-            className="min-h-9 rounded-lg border border-[#2a2d3a] bg-[#0f1117] px-3 text-sm text-gray-100 outline-none focus:border-red-400" autoComplete="current-password" />
+            className="min-h-9 rounded-lg border border-line bg-sunken px-3 text-sm text-gray-100 outline-none focus:border-red-400" autoComplete="current-password" />
           <div className="flex gap-2">
             <button type="submit" disabled={busy !== null || !pw}
               className="flex items-center gap-2 rounded-lg border border-red-500/50 bg-red-500/20 px-4 py-2 text-sm font-medium text-red-100 hover:bg-red-500/30 disabled:opacity-50">
               {busy === "delete" && <Loader2 size={14} className="animate-spin" />} Trvale smazat
             </button>
             <button type="button" onClick={() => { setConfirming(false); setPw(""); setErr(null); }} disabled={busy !== null}
-              className="rounded-lg border border-[#2a2d3a] px-4 py-2 text-sm text-gray-300 hover:text-white">Zrušit</button>
+              className="rounded-lg border border-line px-4 py-2 text-sm text-gray-300 hover:text-white">Zrušit</button>
           </div>
         </form>
       )}

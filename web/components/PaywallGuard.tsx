@@ -13,13 +13,13 @@ export function PaywallGuard({ tier, name, children }: {
   const { user, loading } = useAuth();
 
   if (!PAYWALL_ENABLED) return <>{children}</>;
-  if (loading) return <div className="h-64 animate-pulse rounded-xl bg-[#1a1d27]" />;
+  if (loading) return <div className="h-64 animate-pulse rounded-xl bg-panel" />;
 
   if (hasAccess(user, tier)) return <>{children}</>;
 
   if (FREE_ACCESS && tier !== "elite") {
     return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 rounded-2xl border border-[#2a2d3a] bg-[#151823] p-8 text-center">
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 rounded-2xl border border-line bg-panel-2 p-8 text-center">
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[rgba(96,255,130,0.12)] text-[#8fffab]">
           <Lock size={22} />
         </div>
@@ -32,7 +32,7 @@ export function PaywallGuard({ tier, name, children }: {
             className="rounded-lg border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.10)] px-4 py-2 text-sm font-medium text-[#8fffab] hover:bg-[rgba(96,255,130,0.18)]">
             Vytvořit účet zdarma
           </Link>
-          <Link href="/prihlaseni" className="rounded-lg border border-[#2a2d3a] px-4 py-2 text-sm text-gray-300 hover:text-white">
+          <Link href="/prihlaseni" className="rounded-lg border border-line px-4 py-2 text-sm text-gray-300 hover:text-white">
             Přihlásit se
           </Link>
         </div>
@@ -41,7 +41,7 @@ export function PaywallGuard({ tier, name, children }: {
   }
 
   return (
-    <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 rounded-2xl border border-[#2a2d3a] bg-[#151823] p-8 text-center">
+    <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 rounded-2xl border border-line bg-panel-2 p-8 text-center">
       <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[rgba(96,255,130,0.12)] text-[#8fffab]">
         <Lock size={22} />
       </div>
@@ -57,7 +57,7 @@ export function PaywallGuard({ tier, name, children }: {
         >
           {user ? "Zobrazit předplatné" : "Vytvořit účet"}
         </Link>
-        <Link href="/funkce" className="rounded-lg border border-[#2a2d3a] px-4 py-2 text-sm text-gray-300 hover:text-white">
+        <Link href="/funkce" className="rounded-lg border border-line px-4 py-2 text-sm text-gray-300 hover:text-white">
           Co je v plánech
         </Link>
       </div>

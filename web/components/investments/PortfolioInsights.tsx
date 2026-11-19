@@ -18,7 +18,7 @@ interface Insights {
 const money = (v: number | null | undefined, ccy: string, d = 0) =>
   v == null ? "—" : `${v.toLocaleString("cs-CZ", { minimumFractionDigits: d, maximumFractionDigits: d })} ${ccy}`;
 const COLORS = ["#60ff82", "#60a5fa", "#f59e0b", "#a78bfa", "#f472b6", "#34d399", "#fb923c", "#94a3b8", "#22d3ee", "#e879f9"];
-const box = "rounded-xl border border-[#2a2d3a] bg-[#151823] p-4";
+const box = "rounded-xl border border-line bg-panel-2 p-4";
 
 function Bars({ rows, ccy }: { rows: Share[]; ccy: string }) {
   return (
@@ -29,7 +29,7 @@ function Bars({ rows, ccy }: { rows: Share[]; ccy: string }) {
             <span className="truncate" title={r.name}>{r.name}</span>
             <span className="shrink-0 text-gray-400" title={money(r.value, ccy)}>{r.pct.toLocaleString("cs-CZ")} %</span>
           </div>
-          <div className="mt-0.5 h-1.5 rounded-full bg-[#0f1117]">
+          <div className="mt-0.5 h-1.5 rounded-full bg-sunken">
             <div className="h-1.5 rounded-full" style={{ width: `${Math.min(100, r.pct)}%`, background: r.name === "Nezařazeno" ? "#4b5563" : COLORS[i % COLORS.length] }} />
           </div>
         </div>
@@ -65,10 +65,10 @@ export function PortfolioInsights({ reloadKey }: { reloadKey?: unknown }) {
             <table className="w-full text-[12px]">
               <tbody>
                 {shown.map((p, i) => (
-                  <tr key={i} className="border-t border-[#20242f]">
+                  <tr key={i} className="border-t border-line">
                     <td className="py-1.5 text-gray-400">{new Date(p.ex_date).toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric", year: "2-digit" })}</td>
                     <td className="py-1.5"><span className="font-medium text-white">{p.symbol}</span>
-                      <span className={`ml-1.5 rounded px-1 py-0.5 text-[10px] ${p.status === "announced" ? "bg-[#14532d55] text-[#86efac]" : "bg-[#1e2536] text-gray-400"}`}>
+                      <span className={`ml-1.5 rounded px-1 py-0.5 text-[10px] ${p.status === "announced" ? "bg-[#14532d55] text-[#86efac]" : "bg-raised text-gray-400"}`}>
                         {p.status === "announced" ? "vyhlášeno" : "odhad"}
                       </span>
                     </td>
@@ -105,7 +105,7 @@ export function PortfolioInsights({ reloadKey }: { reloadKey?: unknown }) {
                 <div className="mb-1.5 text-[10px] uppercase tracking-wider text-gray-500">Největší skutečné pozice (vč. firem uvnitř ETF)</div>
                 <div className="flex flex-wrap gap-1.5">
                   {al.top_exposure.map((r) => (
-                    <span key={r.name} className="rounded bg-[#0f1117] px-2 py-1 text-[11px] text-gray-300" title={money(r.value, d.base)}>
+                    <span key={r.name} className="rounded bg-sunken px-2 py-1 text-[11px] text-gray-300" title={money(r.value, d.base)}>
                       {r.name} <span className="text-gray-500">{r.pct.toLocaleString("cs-CZ")} %</span>
                     </span>
                   ))}

@@ -41,7 +41,7 @@ export function EarningsReportCard({ r, open: initialOpen = false, onTicker }: {
   const [open, setOpen] = useState(initialOpen);
   const v = r.verdict ? VERDICT[r.verdict] : null;
   return (
-    <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-3">
+    <div className="rounded-xl border border-line bg-panel-2 p-3">
       <button onClick={() => setOpen((o) => !o)} className="w-full text-left">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm font-bold text-white" onClick={(e) => { if (onTicker) { e.stopPropagation(); onTicker(r.ticker); } }}
@@ -63,14 +63,14 @@ export function EarningsReportCard({ r, open: initialOpen = false, onTicker }: {
       </button>
 
       {open && (
-        <div className="mt-3 space-y-3 border-t border-[#232735] pt-3">
+        <div className="mt-3 space-y-3 border-t border-line pt-3">
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-            <div className="rounded-lg bg-[#0f1117] px-3 py-2">
+            <div className="rounded-lg bg-sunken px-3 py-2">
               <div className="text-[10px] uppercase tracking-wider text-gray-500">Tržby</div>
               <div className="text-sm font-semibold text-white">{bn(r.revenue)}</div>
               {r.revenue_yoy_pct != null && <div className="text-[11px]" style={{ color: sign(r.revenue_yoy_pct) }}>{pct(r.revenue_yoy_pct)} meziročně</div>}
             </div>
-            <div className="rounded-lg bg-[#0f1117] px-3 py-2">
+            <div className="rounded-lg bg-sunken px-3 py-2">
               <div className="text-[10px] uppercase tracking-wider text-gray-500">Zisk na akcii (EPS)</div>
               <div className="text-sm font-semibold text-white">{num(r.eps_actual)} USD</div>
               {r.eps_estimate != null && (
@@ -79,7 +79,7 @@ export function EarningsReportCard({ r, open: initialOpen = false, onTicker }: {
                 </div>
               )}
             </div>
-            <div className="rounded-lg bg-[#0f1117] px-3 py-2">
+            <div className="rounded-lg bg-sunken px-3 py-2">
               <div className="text-[10px] uppercase tracking-wider text-gray-500">Reakce akcie</div>
               <div className="text-sm font-semibold" style={{ color: sign(r.reaction_pct) }}>{pct(r.reaction_pct)}</div>
               {r.price_before != null && r.price_now != null && (
@@ -195,7 +195,7 @@ export function useUpcoming() {
 function UpcomingRow({ u, onTicker }: { u: Upcoming; onTicker?: (t: string) => void }) {
   const yoy = u.eps_estimate != null && u.eps_year_ago ? ((u.eps_estimate / u.eps_year_ago - 1) * 100) : null;
   return (
-    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 rounded-lg bg-[#0f1117] px-3 py-2 text-[12px]">
+    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 rounded-lg bg-sunken px-3 py-2 text-[12px]">
       <button onClick={() => onTicker?.(u.ticker)} className="font-bold text-white hover:text-blue-300" title="Otevřít detail firmy">{u.ticker}</button>
       {u.name && <span className="max-w-[160px] truncate text-gray-400">{u.name}</span>}
       <span className="text-gray-300">{dayLabel(u.report_date)}{u.time_of_day ? ` · ${TOD[u.time_of_day]}` : ""}</span>
@@ -217,7 +217,7 @@ function UpcomingEarnings({ onTicker }: { onTicker: (t: string) => void }) {
   if (!items || items.length === 0) return null;
   const shown = all ? items : items.slice(0, 5);
   return (
-    <div className="space-y-1.5 rounded-xl border border-[#2a2d3a] bg-[#151823] p-3">
+    <div className="space-y-1.5 rounded-xl border border-line bg-panel-2 p-3">
       <div className="flex items-center gap-2 text-[12px] font-semibold text-gray-200">
         <CalendarDays size={14} className="text-blue-400" /> Brzy zveřejní výsledky
         <span className="font-normal text-gray-500">· termín Nasdaq, odhady analytiků Twelve Data</span>
@@ -246,7 +246,7 @@ export function EarningsFeed({ reports, onTicker }: { reports: EarningsReport[] 
       <EarningsAlertSettings />
       <UpcomingEarnings onTicker={onTicker} />
       {reports.length === 0 ? (
-        <p className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-3 text-[12px] text-gray-500">Zatím žádné zveřejněné výsledky firem z radaru.</p>
+        <p className="rounded-xl border border-line bg-panel-2 p-3 text-[12px] text-gray-500">Zatím žádné zveřejněné výsledky firem z radaru.</p>
       ) : (
         <>
           {shown.map((r, i) => <EarningsReportCard key={r.id} r={r} open={i === 0} onTicker={onTicker} />)}
@@ -311,7 +311,7 @@ function EarningsAlertSettings() {
   const scopeText = sub.scope === "portfolio" ? "firmy v portfoliu" : sub.scope === "custom" ? sub.tickers.join(", ") : "všechny firmy v radaru";
   if (!draft) {
     return (
-      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[#2a2d3a] bg-[#151823] px-3 py-2 text-[12px]">
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-line bg-panel-2 px-3 py-2 text-[12px]">
         {sub.enabled ? <BellRing size={14} className="text-yellow-400" /> : <Bell size={14} className="text-gray-500" />}
         <span className="text-gray-300">
           {sub.enabled
@@ -331,7 +331,7 @@ function EarningsAlertSettings() {
   }
 
   return (
-    <div className="space-y-3 rounded-xl border border-[#2f3b55] bg-[#151823] p-3 text-[12.5px]">
+    <div className="space-y-3 rounded-xl border border-line-2 bg-panel-2 p-3 text-[12.5px]">
       <div className="flex items-center gap-2">
         <BellRing size={14} className="text-yellow-400" />
         <span className="font-semibold text-white">Upozornění na výsledky hospodaření e-mailem</span>
@@ -349,7 +349,7 @@ function EarningsAlertSettings() {
           <div className="ml-6 space-y-1.5">
             <div className="flex flex-wrap gap-1">
               {draft.tickers.map((t) => (
-                <span key={t} className="flex items-center gap-1 rounded bg-[#1e2536] px-1.5 py-0.5 text-[11px] text-white">
+                <span key={t} className="flex items-center gap-1 rounded bg-raised px-1.5 py-0.5 text-[11px] text-white">
                   {t}<button onClick={() => setDraft({ ...draft, tickers: draft.tickers.filter((x) => x !== t) })} aria-label={`Odebrat ${t}`}><X size={10} /></button>
                 </span>
               ))}
@@ -358,8 +358,8 @@ function EarningsAlertSettings() {
               <input value={tickerInput} onChange={(e) => setTickerInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTickers(); } }}
                 placeholder="Tickery, např. GOOGL, MSFT"
-                className="min-w-0 flex-1 rounded-lg border border-[#2a2d3a] bg-[#0f1117] px-2 py-1 text-[12px] text-gray-200 placeholder-gray-600 focus:border-[#60ff82] focus:outline-none" />
-              <button onClick={addTickers} className="rounded-lg border border-[#2a2d3a] px-2 text-[12px] text-gray-300 hover:text-white">Přidat</button>
+                className="min-w-0 flex-1 rounded-lg border border-line bg-sunken px-2 py-1 text-[12px] text-gray-200 placeholder-gray-600 focus:border-[#60ff82] focus:outline-none" />
+              <button onClick={addTickers} className="rounded-lg border border-line px-2 text-[12px] text-gray-300 hover:text-white">Přidat</button>
             </div>
           </div>
         )}
@@ -387,7 +387,7 @@ function EarningsAlertSettings() {
           <button disabled={busy} onClick={async () => {
             const d = await call("POST", "/api/valuation/earnings/alerts/test");
             if (d) setMsg({ ok: true, text: `Zkušební e-mail (${d.ticker}) odeslán na ${d.email}.` });
-          }} className="rounded-lg border border-[#2a2d3a] px-3 py-1.5 text-[12px] text-gray-300 hover:text-white disabled:opacity-50">
+          }} className="rounded-lg border border-line px-3 py-1.5 text-[12px] text-gray-300 hover:text-white disabled:opacity-50">
             Poslat zkušební e-mail
           </button>
         )}

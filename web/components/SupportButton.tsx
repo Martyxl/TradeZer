@@ -19,7 +19,7 @@ function CopyRow({ label, value }: { label: string; value: string }) {
     });
   };
   return (
-    <div className="flex items-center justify-between gap-3 rounded-lg border border-[#2a2d3a] bg-[#151823] px-3 py-2">
+    <div className="flex items-center justify-between gap-3 rounded-lg border border-line bg-panel-2 px-3 py-2">
       <div className="min-w-0">
         <div className="text-[10px] uppercase tracking-wider text-gray-500">{label}</div>
         <div className="text-sm text-white font-mono truncate">{value}</div>
@@ -43,7 +43,7 @@ export function SupportButton({ variant = "sidebar" }: { variant?: "sidebar" | "
       {variant === "sidebar" ? (
         <button
           onClick={() => setOpen(true)}
-          className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-400 hover:text-white hover:bg-[#1a1d27] transition-colors w-full"
+          className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-400 hover:text-white hover:bg-panel transition-colors w-full"
         >
           <Heart size={16} className="text-rose-400" />
           Podpořit
@@ -64,7 +64,7 @@ export function SupportButton({ variant = "sidebar" }: { variant?: "sidebar" | "
           onClick={() => setOpen(false)}
         >
           <div
-            className="bg-[#12141c] border border-[#2a2d3a] rounded-2xl max-w-sm w-full p-6"
+            className="bg-sunken border border-line rounded-2xl max-w-sm w-full p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-1">

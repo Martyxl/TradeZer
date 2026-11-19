@@ -95,7 +95,7 @@ export default function MailPage() {
     } catch (e) { setMsg(e instanceof Error ? e.message : String(e)); }
   }
 
-  if (loading) return <div className="h-40 animate-pulse rounded-xl bg-[#1a1d27]" />;
+  if (loading) return <div className="h-40 animate-pulse rounded-xl bg-panel" />;
   if (!user?.is_admin) return <p className="text-sm text-gray-400">Jen pro admina.</p>;
 
   return (
@@ -107,7 +107,7 @@ export default function MailPage() {
         <span className="text-sm text-gray-500">info@tradezer.app</span>
         <div className="ml-auto flex gap-2">
           <button onClick={sync} disabled={busy}
-            className="flex items-center gap-1.5 rounded-lg border border-[#2a2d3a] px-3 py-1.5 text-sm text-gray-300 hover:text-white disabled:opacity-50">
+            className="flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-sm text-gray-300 hover:text-white disabled:opacity-50">
             <RefreshCw size={14} className={busy ? "animate-spin" : ""} /> Načíst novou poštu
           </button>
           <button onClick={() => { setDetail(null); setDraft({ to: "", cc: "", subject: "", text: "" }); }}
@@ -120,17 +120,17 @@ export default function MailPage() {
 
       <div className="grid gap-4 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
         {/* seznam */}
-        <div className="rounded-xl border border-[#2a2d3a] bg-[#151823]">
-          <div className="flex items-center gap-1 border-b border-[#2a2d3a] p-2">
+        <div className="rounded-xl border border-line bg-panel-2">
+          <div className="flex items-center gap-1 border-b border-line p-2">
             {(["in", "out"] as const).map((f) => (
               <button key={f} onClick={() => { setFolder(f); setDetail(null); }}
-                className={`rounded-lg px-3 py-1 text-sm ${folder === f ? "bg-[#1e2536] text-white" : "text-gray-400 hover:text-white"}`}>
+                className={`rounded-lg px-3 py-1 text-sm ${folder === f ? "bg-raised text-white" : "text-gray-400 hover:text-white"}`}>
                 {f === "in" ? <><Inbox size={13} className="mr-1 inline" />Přijaté{unread ? ` (${unread})` : ""}</> : "Odeslané"}
               </button>
             ))}
             <form onSubmit={(e) => { e.preventDefault(); load(); }} className="ml-auto flex items-center gap-1">
               <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Hledat" maxLength={100}
-                className="w-28 rounded-md border border-[#2a2d3a] bg-[#1a1d27] px-2 py-1 text-xs text-white placeholder-gray-600" />
+                className="w-28 rounded-md border border-line bg-panel px-2 py-1 text-xs text-white placeholder-gray-600" />
               <button type="submit" aria-label="Hledat" className="text-gray-500 hover:text-white"><Search size={14} /></button>
             </form>
           </div>
@@ -139,7 +139,7 @@ export default function MailPage() {
             {items.map((m) => (
               <li key={m.id}>
                 <button onClick={() => open(m.id)}
-                  className={`w-full border-b border-[#1f2230] px-3 py-2 text-left hover:bg-[#1a1d27] ${detail?.id === m.id ? "bg-[#1a1d27]" : ""}`}>
+                  className={`w-full border-b border-[#1f2230] px-3 py-2 text-left hover:bg-panel ${detail?.id === m.id ? "bg-panel" : ""}`}>
                   <div className="flex items-center gap-2 text-xs">
                     {!m.is_read && <span className="h-2 w-2 shrink-0 rounded-full bg-[#60ff82]" />}
                     <span className={`truncate ${m.is_read ? "text-gray-400" : "font-semibold text-white"}`}>
@@ -157,7 +157,7 @@ export default function MailPage() {
         </div>
 
         {/* detail / psaní */}
-        <div className="min-h-[300px] rounded-xl border border-[#2a2d3a] bg-[#151823] p-4">
+        <div className="min-h-[300px] rounded-xl border border-line bg-panel-2 p-4">
           {draft ? (
             <div className="space-y-2">
               <div className="flex items-center">
@@ -167,10 +167,10 @@ export default function MailPage() {
               {(["to", "cc", "subject"] as const).map((k) => (
                 <input key={k} value={draft[k]} onChange={(e) => setDraft({ ...draft, [k]: e.target.value })}
                   placeholder={k === "to" ? "Komu (více adres oddělte čárkou)" : k === "cc" ? "Kopie (nepovinné)" : "Předmět"}
-                  className="w-full rounded-lg border border-[#2a2d3a] bg-[#1a1d27] px-3 py-2 text-sm text-white placeholder-gray-600" />
+                  className="w-full rounded-lg border border-line bg-panel px-3 py-2 text-sm text-white placeholder-gray-600" />
               ))}
               <textarea value={draft.text} onChange={(e) => setDraft({ ...draft, text: e.target.value })} rows={14}
-                className="w-full rounded-lg border border-[#2a2d3a] bg-[#1a1d27] px-3 py-2 font-mono text-sm text-white" />
+                className="w-full rounded-lg border border-line bg-panel px-3 py-2 font-mono text-sm text-white" />
               <div className="flex items-center gap-3">
                 <button onClick={send} disabled={busy || !draft.to.trim() || !draft.subject.trim() || !draft.text.trim()}
                   className="flex items-center gap-1.5 rounded-lg bg-[#60ff82] px-4 py-2 text-sm font-medium text-[#06120a] disabled:opacity-40">
@@ -192,12 +192,12 @@ export default function MailPage() {
               </div>
               <div className="flex flex-wrap gap-2">
                 <button onClick={() => reply(detail)}
-                  className="flex items-center gap-1.5 rounded-lg border border-[#2a2d3a] px-3 py-1.5 text-sm text-gray-300 hover:text-white">
+                  className="flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-sm text-gray-300 hover:text-white">
                   <Reply size={14} /> Odpovědět
                 </button>
                 {detail.html && (
                   <button onClick={() => setShowHtml((v) => !v)}
-                    className="rounded-lg border border-[#2a2d3a] px-3 py-1.5 text-sm text-gray-400 hover:text-white">
+                    className="rounded-lg border border-line px-3 py-1.5 text-sm text-gray-400 hover:text-white">
                     {showHtml ? "Zobrazit text" : "Zobrazit HTML"}
                   </button>
                 )}
@@ -206,7 +206,7 @@ export default function MailPage() {
                 <div className="flex flex-wrap gap-2">
                   {detail.attachments.map((a) => (
                     <button key={a.id} onClick={() => download(detail.id, a.id)}
-                      className="flex items-center gap-1 rounded-md border border-[#2a2d3a] px-2 py-1 text-xs text-blue-300 hover:bg-[#1a1d27]">
+                      className="flex items-center gap-1 rounded-md border border-line px-2 py-1 text-xs text-blue-300 hover:bg-panel">
                       <Paperclip size={12} /> {a.filename}{a.size ? ` (${Math.ceil(a.size / 1024)} kB)` : ""}
                     </button>
                   ))}
@@ -221,7 +221,7 @@ export default function MailPage() {
                 </pre>
               )}
               {detail.thread.length > 0 && (
-                <div className="border-t border-[#2a2d3a] pt-2">
+                <div className="border-t border-line pt-2">
                   <div className="mb-1 text-[11px] uppercase tracking-wider text-gray-500">Ve vlákně</div>
                   {detail.thread.map((t) => (
                     <button key={t.id} onClick={() => open(t.id)} className="block w-full truncate py-0.5 text-left text-xs text-gray-400 hover:text-white">

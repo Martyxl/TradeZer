@@ -97,13 +97,13 @@ function ValuationInner() {
           <span className="text-xs text-gray-500">
             fundamentální filtr pro delší horizont{asOf ? ` · k ${asOf}` : ""}
           </span>
-          <div className="ml-auto flex items-center gap-1 rounded-lg border border-[#2a2d3a] p-0.5">
+          <div className="ml-auto flex items-center gap-1 rounded-lg border border-line p-0.5">
             <button onClick={() => setView("map")}
-              className={`flex items-center gap-1 rounded px-2.5 py-1 text-xs ${view === "map" ? "bg-[#1e2536] text-white" : "text-gray-400"}`}>
+              className={`flex items-center gap-1 rounded px-2.5 py-1 text-xs ${view === "map" ? "bg-raised text-white" : "text-gray-400"}`}>
               <LayoutGrid size={13} /> Mapa
             </button>
             <button onClick={() => setView("table")}
-              className={`flex items-center gap-1 rounded px-2.5 py-1 text-xs ${view === "table" ? "bg-[#1e2536] text-white" : "text-gray-400"}`}>
+              className={`flex items-center gap-1 rounded px-2.5 py-1 text-xs ${view === "table" ? "bg-raised text-white" : "text-gray-400"}`}>
               <Table2 size={13} /> Tabulka
             </button>
           </div>
@@ -116,13 +116,13 @@ function ValuationInner() {
       {/* filtr skupin */}
       <div className="flex flex-wrap gap-1.5">
         <button onClick={() => setGroup(null)}
-          className={`rounded-full px-3 py-1 text-xs border ${!group ? "bg-[#1e2536] text-white border-[#2f3b55]" : "bg-[#151823] text-gray-400 border-[#2a2d3a]"}`}>
+          className={`rounded-full px-3 py-1 text-xs border ${!group ? "bg-raised text-white border-line-2" : "bg-panel-2 text-gray-400 border-line"}`}>
           Vše
         </button>
         {groups.map((g) => (
           <button key={g.key} onClick={() => setGroup(g.key)}
             className={`rounded-full px-3 py-1 text-xs border ${group === g.key ? "text-white" : "text-gray-400"}`}
-            style={{ borderColor: group === g.key ? g.color_hex : "#2a2d3a",
+            style={{ borderColor: group === g.key ? g.color_hex : "var(--tz-chart-grid)",
                      background: group === g.key ? g.color_hex + "22" : "#151823" }}>
             {g.label_cs}
           </button>
@@ -130,7 +130,7 @@ function ValuationInner() {
         <button onClick={() => setPortfolio((v) => !v)}
           className={`ml-auto rounded-full px-3 py-1 text-xs border ${portfolio
             ? "bg-[rgba(96,255,130,0.14)] text-[#8fffab] border-[rgba(96,255,130,0.4)]"
-            : "bg-[#151823] text-gray-400 border-[#2a2d3a] hover:text-white"}`}>
+            : "bg-panel-2 text-gray-400 border-line hover:text-white"}`}>
           {portfolio ? "✓ " : ""}Jen moje portfolio
         </button>
       </div>
@@ -139,7 +139,7 @@ function ValuationInner() {
       <form onSubmit={handleAdd} className="flex flex-wrap items-center gap-2">
         <input value={addQuery} onChange={(e) => setAddQuery(e.target.value)}
           placeholder="Přidat akcii k výpočtu — ticker nebo název (např. AAPL / Palantir)"
-          className="min-w-[280px] flex-1 rounded-lg border border-[#2a2d3a] bg-[#0f1117] px-3 py-2 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-[#60ff82]" />
+          className="min-w-[280px] flex-1 rounded-lg border border-line bg-sunken px-3 py-2 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-[#60ff82]" />
         <button type="submit" disabled={adding || !addQuery.trim()}
           className="flex items-center gap-1.5 rounded-lg border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.12)] px-4 py-2 text-sm font-medium text-[#8fffab] hover:bg-[rgba(96,255,130,0.18)] disabled:opacity-50">
           {adding && <Loader2 size={14} className="animate-spin" />} Přidat
@@ -148,7 +148,7 @@ function ValuationInner() {
       </form>
 
       {loading ? (
-        <div className="flex h-[460px] flex-col items-center justify-center gap-3 rounded-xl border border-[#2a2d3a] bg-[#151823] text-gray-400">
+        <div className="flex h-[460px] flex-col items-center justify-center gap-3 rounded-xl border border-line bg-panel-2 text-gray-400">
           <Loader2 size={30} className="animate-spin text-blue-400" />
           <div className="text-sm font-medium text-gray-300">Načítám data valuace…</div>
           <div className="max-w-xs text-center text-[11px] text-gray-600">
@@ -202,7 +202,7 @@ function Legend() {
 
 function ZoneNote() {
   return (
-    <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-3 text-[11px] leading-relaxed text-gray-400">
+    <div className="rounded-xl border border-line bg-panel-2 p-3 text-[11px] leading-relaxed text-gray-400">
       <div className="mb-1 flex flex-wrap gap-4">
         {(["buy", "hold", "avoid"] as const).map((z) => (
           <span key={z} className="flex items-center gap-1.5">
@@ -239,10 +239,10 @@ function ValuationTable({ items, onSelect, alerts }: {
   items: OverviewItem[]; onSelect: (t: string) => void; alerts: Record<string, EarningsReport>;
 }) {
   return (
-    <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] overflow-x-auto">
+    <div className="rounded-xl border border-line bg-panel-2 overflow-x-auto">
       <table className="w-full text-xs">
         <thead>
-          <tr className="text-gray-500 text-[10px] uppercase border-b border-[#2a2d3a]">
+          <tr className="text-gray-500 text-[10px] uppercase border-b border-line">
             <th className="text-left px-3 py-2">Ticker</th>
             <th className="text-right px-3 py-2">Valuace</th>
             <th className="text-right px-3 py-2">Composite</th>
@@ -254,7 +254,7 @@ function ValuationTable({ items, onSelect, alerts }: {
         </thead>
         <tbody>
           {items.map((it) => (
-            <tr key={it.ticker} className="border-b border-[#232735] hover:bg-[#1a1d27] cursor-pointer"
+            <tr key={it.ticker} className="border-b border-line hover:bg-panel cursor-pointer"
                 onClick={() => onSelect(it.ticker)}>
               <td className="px-3 py-2 font-medium text-white">{it.ticker}
                 {it.bubble_flag && <span className="text-red-400 ml-1">⚠</span>}

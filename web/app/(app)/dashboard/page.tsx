@@ -131,7 +131,7 @@ export default function DashboardPage() {
           <button
             onClick={handleRefresh}
             disabled={refreshing || loading}
-            className="flex items-center gap-2 rounded-lg border border-[#2a2d3a] bg-[#1a1d27] px-3 py-1.5 text-sm text-gray-300 hover:text-white hover:border-gray-500 transition-all disabled:opacity-50"
+            className="flex items-center gap-2 rounded-full border border-line-2 bg-raised px-4 py-2 text-sm font-semibold text-gray-200 hover:text-white hover:bg-panel transition-colors disabled:opacity-50"
           >
             <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />
             {refreshing ? "Stahuji…" : "Refresh"}
@@ -187,19 +187,19 @@ export default function DashboardPage() {
 
       {/* News feed */}
       <div>
-        <h2 className="text-sm font-semibold text-gray-400 mb-3 uppercase tracking-wider">
-          Zprávy · {selectedTicker}
-          <span className="ml-2 text-gray-600 font-normal">({news.length})</span>
+        <h2 className="mb-3 text-[15px] font-bold text-white">
+          Zprávy pro {selectedTicker}
+          <span className="ml-2 font-medium text-gray-500">{news.length}</span>
         </h2>
 
         {loading && news.length === 0 ? (
           <div className="space-y-3">
             {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="h-24 rounded-xl bg-[#1a1d27] animate-pulse border border-[#2a2d3a]" />
+              <div key={i} className="h-24 rounded-xl bg-panel animate-pulse border border-line" />
             ))}
           </div>
         ) : news.length === 0 ? (
-          <div className="rounded-xl border border-[#2a2d3a] bg-[#1a1d27] p-8 text-center text-gray-500 text-sm">
+          <div className="rounded-xl border border-line bg-panel p-8 text-center text-gray-500 text-sm">
             Žádné zprávy pro {selectedTicker} dnes. Spusťte refresh nebo zkontrolujte API klíče.
           </div>
         ) : (

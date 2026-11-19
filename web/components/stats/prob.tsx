@@ -43,7 +43,7 @@ export function ProbBar({ label, p, accent = "#3b82f6", binary = false }: { labe
     <div className="text-xs">
       <div className="flex items-center gap-2">
         <span className="w-40 shrink-0 text-gray-400 truncate" title={label}>{label}</span>
-        <div className="relative flex-1 h-2 rounded-full bg-[#232735] overflow-hidden">
+        <div className="relative flex-1 h-2 rounded-full bg-raised overflow-hidden">
           <div className="h-full rounded-full" style={{ width: `${Math.max(1, v)}%`, background: binary && p?.coin ? "#64748b" : accent }} />
           {ci && <div className="absolute top-0 h-full bg-white/25" style={{ left: `${ci[0]}%`, width: `${Math.max(0.5, ci[1] - ci[0])}%` }} />}
           {binary && <div className="absolute top-[-2px] h-3 w-px bg-yellow-500/60" style={{ left: "50%" }} />}

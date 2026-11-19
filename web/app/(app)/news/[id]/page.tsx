@@ -29,7 +29,7 @@ export default async function NewsDetailPage({ params }: Props) {
         Zpět na dashboard
       </Link>
 
-      <article className="rounded-2xl border border-[#2a2d3a] bg-[#1a1d27] p-6 space-y-5">
+      <article className="rounded-2xl border border-line bg-panel p-6 space-y-5">
         {/* Meta */}
         <div className="flex items-center gap-2 text-xs text-gray-500">
           <span>{item.source_name}</span>
@@ -42,7 +42,7 @@ export default async function NewsDetailPage({ params }: Props) {
 
         {/* Prediction */}
         {pred && (
-          <div className="flex items-center gap-6 rounded-xl bg-[#0f1117] border border-[#2a2d3a] p-4">
+          <div className="flex items-center gap-6 rounded-xl bg-sunken border border-line p-4">
             <TrafficLight
               probs={{ down: pred.prob_down, neutral: pred.prob_neutral, up: pred.prob_up }}
               size="lg"

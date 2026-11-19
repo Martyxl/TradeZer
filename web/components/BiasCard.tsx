@@ -54,7 +54,7 @@ function trackLabel(t?: Track): { text: string; color: string; title: string } |
 
 function ProbRow({ b }: { b: { prob_down: number; prob_neutral: number; prob_up: number } }) {
   return (
-    <div className="flex h-2.5 rounded-full overflow-hidden bg-[#232735]">
+    <div className="flex h-2.5 rounded-full overflow-hidden bg-raised">
       <div style={{ width: `${b.prob_down * 100}%`, background: "#f87171" }} />
       <div style={{ width: `${b.prob_neutral * 100}%`, background: "#64748b" }} />
       <div style={{ width: `${b.prob_up * 100}%`, background: "#4ade80" }} />
@@ -95,7 +95,7 @@ export function BiasCard({ ticker }: { ticker: string }) {
   const isUnknown = bias.direction === "unknown";
 
   return (
-    <div className="rounded-xl border border-[#2a2d3a] bg-[#1a1d27] p-4">
+    <div className="rounded-xl border border-line bg-panel p-4">
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
           <Target size={15} className="text-blue-400" />
@@ -165,7 +165,7 @@ export function BiasCard({ ticker }: { ticker: string }) {
       </div>
 
       {user?.is_admin && stats?.track && (
-        <div className="mt-2 rounded-lg border border-dashed border-[#2f3b55] px-2.5 py-1.5 text-[11px] text-gray-400">
+        <div className="mt-2 rounded-lg border border-dashed border-line-2 px-2.5 py-1.5 text-[11px] text-gray-400">
           <span className="font-medium text-blue-300">Bias v2 (stín, jen admin):</span>{" "}
           dnes {snap?.v2_direction ? (DIR_META[snap.v2_direction]?.label ?? "bez signálu") : "—"}
           {snap?.v2_cats ? <span className="text-gray-500"> ({snap.v2_cats})</span> : null}
@@ -177,7 +177,7 @@ export function BiasCard({ ticker }: { ticker: string }) {
       )}
 
       {gamma && (
-        <div className="mt-2 flex items-start gap-2 rounded-lg border border-[#232735] bg-[#151823] px-2.5 py-1.5 text-[11px]">
+        <div className="mt-2 flex items-start gap-2 rounded-lg border border-line bg-panel-2 px-2.5 py-1.5 text-[11px]">
           <span className="text-indigo-400 font-medium shrink-0">Gamma režim:</span>
           <span className="text-gray-400">
             <span

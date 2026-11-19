@@ -21,6 +21,83 @@
   --tz-grid: rgba(255, 255, 255, 0.035);
   --tz-border: rgba(255, 255, 255, 0.22);
   --tz-surface: rgba(255, 255, 255, 0.04);
+
+  /* Povrchové tokeny (tailwind: panel, sunken, raised, line, gray-200…700).
+     Výchozí = původní tmavý vzhled; aplikace je přepisuje ve třídě .tz-glass. */
+  --tz-panel: #1a1d27;
+  --tz-panel-2: #151823;
+  --tz-sunken: #0f1117;
+  --tz-raised: #232735;
+  --tz-line: #2a2d3a;
+  --tz-line-2: #2f3b55;
+  --tz-mint: #60ff82;
+  --tz-gray-200: #e5e7eb;
+  --tz-gray-300: #d1d5db;
+  --tz-gray-400: #9ca3af;
+  --tz-gray-500: #6b7280;
+  --tz-gray-600: #4b5563;
+  --tz-gray-700: #374151;
+  --tz-r-xl: 0.75rem;
+  --tz-r-2xl: 1rem;
+  --tz-chart-grid: #2a2d3a;
+  --tz-tooltip: #1a1d27;
+}
+
+/* ── Sklo: motiv přihlášené aplikace ──────────────────────────────────────────
+   Tmavě zelený podklad se dvěma měkkými světly; panely jsou průsvitné, rozmazání
+   (backdrop-filter) mají jen tři velké plochy — menu, horní lišta a hlavní plocha —
+   aby stránky s desítkami karet zůstaly plynulé. */
+.tz-glass {
+  --tz-panel: rgba(255, 255, 255, 0.075);
+  --tz-panel-2: rgba(255, 255, 255, 0.05);
+  --tz-sunken: rgba(3, 14, 10, 0.34);
+  --tz-raised: rgba(255, 255, 255, 0.13);
+  --tz-line: rgba(255, 255, 255, 0.13);
+  --tz-line-2: rgba(255, 255, 255, 0.26);
+  --tz-mint: #6fe0b0;
+  --tz-gray-200: #e3efe9;
+  --tz-gray-300: #cadcd3;
+  --tz-gray-400: #a9c2b7;
+  --tz-gray-500: #8ba699;
+  --tz-gray-600: #708c80;
+  --tz-gray-700: #56706a;
+  --tz-r-xl: 1rem;
+  --tz-r-2xl: 1.375rem;
+  --tz-chart-grid: rgba(255, 255, 255, 0.12);
+  --tz-tooltip: #10241d;
+
+  color-scheme: dark;
+  min-height: 100vh;
+  color: #eef6f1;
+  background:
+    radial-gradient(900px 700px at 105% 22%, rgba(156, 134, 62, 0.34), transparent 62%),
+    radial-gradient(900px 800px at -5% -10%, #24634d, transparent 60%),
+    radial-gradient(700px 600px at 40% 120%, #143b2f, transparent 70%),
+    #0a1a16;
+  background-attachment: fixed;
+}
+.tz-glass ::selection { background: rgba(111, 224, 176, 0.35); }
+.tz-glass :focus-visible { outline: 2px solid var(--tz-mint); outline-offset: 2px; }
+.tz-glass .tabular, .tz-glass .num { font-variant-numeric: tabular-nums; }
+
+/* Velké skleněné plochy (menu, lišta, hlavní plocha). */
+.tz-pane {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  box-shadow: 0 24px 60px -30px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+/* Aktivní položka menu. */
+.tz-nav-on {
+  background: linear-gradient(180deg, rgba(111, 224, 176, 0.3), rgba(47, 154, 128, 0.3));
+  border-color: rgba(111, 224, 176, 0.55) !important;
+  color: #fff;
+}
+.tz-glass ::-webkit-scrollbar-track { background: transparent; }
+.tz-glass ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.18); }
+@media (prefers-reduced-transparency: reduce) {
+  .tz-pane { background: rgba(16, 38, 31, 0.96); backdrop-filter: none; -webkit-backdrop-filter: none; }
 }
 
 body {

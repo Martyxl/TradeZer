@@ -94,14 +94,14 @@ export function HelpChat() {
       <button
         onClick={() => setOpen((o) => !o)}
         aria-label={open ? "Zavřít pomocníka" : "Otevřít pomocníka"}
-        className="fixed bottom-5 right-5 z-40 flex h-12 w-12 items-center justify-center rounded-full border border-[#2f3b55] bg-[#1e2536] text-blue-300 shadow-lg hover:bg-[#26304a]"
+        className="fixed bottom-5 right-5 z-40 flex h-12 w-12 items-center justify-center rounded-full border border-line-2 bg-raised text-blue-300 shadow-lg hover:bg-[#26304a]"
       >
         {open ? <X size={20} /> : <HelpCircle size={22} />}
       </button>
 
       {open && (
-        <div className="fixed bottom-20 right-4 left-4 sm:left-auto z-40 flex max-h-[70vh] sm:w-[380px] flex-col rounded-2xl border border-[#2a2d3a] bg-[#11141d] shadow-2xl">
-          <div className="border-b border-[#2a2d3a] px-4 py-3">
+        <div className="fixed bottom-20 right-4 left-4 sm:left-auto z-40 flex max-h-[70vh] sm:w-[380px] flex-col rounded-2xl border border-line bg-[#11141d] shadow-2xl">
+          <div className="border-b border-line px-4 py-3">
             <div className="text-sm font-semibold text-white">Pomocník Tradezeru</div>
             <div className="text-[11px] text-gray-500">Vidí text této stránky a vysvětlí, co čísla znamenají a jak je zapojit do rozhodování. Pokyny k nákupu/prodeji nedává.</div>
           </div>
@@ -118,7 +118,7 @@ export function HelpChat() {
                 <p>Zeptej se, co znamená cokoli na téhle stránce.</p>
                 {PAGE_HINT[page] && (
                   <button onClick={() => send(PAGE_HINT[page])}
-                    className="mt-2 rounded-lg border border-[#2a2d3a] px-2.5 py-1 text-xs text-blue-300 hover:bg-[#1a1d27]">
+                    className="mt-2 rounded-lg border border-line px-2.5 py-1 text-xs text-blue-300 hover:bg-panel">
                     {PAGE_HINT[page]}
                   </button>
                 )}
@@ -127,7 +127,7 @@ export function HelpChat() {
             {msgs.map((m, i) => (
               <div key={i} className={m.role === "user" ? "flex justify-end" : ""}>
                 <div className={
-                  m.role === "user" ? "max-w-[85%] rounded-xl bg-[#1e2536] px-3 py-2 text-white"
+                  m.role === "user" ? "max-w-[85%] rounded-xl bg-raised px-3 py-2 text-white"
                   : m.role === "assistant" ? "max-w-[95%] whitespace-pre-wrap rounded-xl bg-[#171b27] px-3 py-2 text-gray-200"
                   : "text-xs text-yellow-400"}>
                   {m.role === "assistant" ? renderBold(m.text) : m.text}
@@ -139,13 +139,13 @@ export function HelpChat() {
           </div>
 
           {user && !weekend && (
-            <form onSubmit={(e) => { e.preventDefault(); send(input); }} className="flex gap-2 border-t border-[#2a2d3a] p-3">
+            <form onSubmit={(e) => { e.preventDefault(); send(input); }} className="flex gap-2 border-t border-line p-3">
               <input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 maxLength={800}
                 placeholder="Na co se chceš zeptat?"
-                className="flex-1 rounded-lg border border-[#2a2d3a] bg-[#1a1d27] px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none"
+                className="flex-1 rounded-lg border border-line bg-panel px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none"
               />
               <button type="submit" disabled={busy || !input.trim()} aria-label="Odeslat"
                 className="rounded-lg bg-blue-600 px-3 text-white disabled:opacity-40">

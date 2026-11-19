@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="cs">
-      <body className={`min-h-screen bg-[#0f1117] text-gray-100 antialiased ${inter.variable}`}>
+      <body className={`min-h-screen bg-sunken text-gray-100 antialiased ${inter.variable}`}>
         <AuthProvider>{children}</AuthProvider>
         <CookieNotice />
       </body>

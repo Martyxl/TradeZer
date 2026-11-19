@@ -41,7 +41,7 @@ const n0 = (v?: number | null) => (v == null ? "—" : Math.round(v).toLocaleStr
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="grid gap-1 border-t border-[#232735] py-2 sm:grid-cols-[120px,1fr]">
+    <div className="grid gap-1 border-t border-line py-2 sm:grid-cols-[120px,1fr]">
       <div className="text-[11px] uppercase tracking-wider text-gray-500">{label}</div>
       <div className="text-[12px] leading-relaxed text-gray-300">{children}</div>
     </div>
@@ -72,7 +72,7 @@ export function DayLiveCard({ ticker }: { ticker: string }) {
   const bar = r ? Math.min(100, (r.vs_typical / 2.5) * 100) : 0;
 
   return (
-    <div className="rounded-xl border border-[#2a2d3a] bg-[#1a1d27] p-4">
+    <div className="rounded-xl border border-line bg-panel p-4">
       <div className="flex flex-wrap items-center gap-2">
         <BarChart3 size={15} className="text-blue-400" />
         <h2 className="text-sm font-semibold text-white">Dnešní den v číslech · {d.meta.instrument}</h2>
@@ -88,7 +88,7 @@ export function DayLiveCard({ ticker }: { ticker: string }) {
             {r.percentile != null && d.phase === "rth" && <span className="text-gray-500"> · {cz(r.percentile, 0)}. percentil v tuto dobu</span>}
             {r.final_percentile != null && <span className="text-gray-500"> · {cz(r.final_percentile, 0)}. percentil všech dní</span>}
           </div>
-          <div className="relative mt-1.5 h-1.5 rounded-full bg-[#232735]">
+          <div className="relative mt-1.5 h-1.5 rounded-full bg-raised">
             <div className="h-full rounded-full bg-blue-500/80" style={{ width: `${bar}%` }} />
             <div className="absolute top-[-2px] h-2.5 w-px bg-white/60" style={{ left: `${100 / 2.5}%` }} title="typický den" />
           </div>

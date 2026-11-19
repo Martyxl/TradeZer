@@ -71,7 +71,7 @@ function Section({ icon: Icon, title, description, children }: { icon: LucideIco
 
 function Card({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-[#2a2d3a] bg-[#151823] p-4 min-w-0">
+    <div className="rounded-xl border border-line bg-panel-2 p-4 min-w-0">
       <h3 className="text-sm font-semibold text-white">{title}</h3>
       <p className="text-[10px] uppercase tracking-wider text-gray-500 mt-0.5 mb-3">{subtitle}</p>
       {children}
@@ -109,7 +109,7 @@ export function EdgeSections({ edge, unit }: { edge: Edge; unit: string }) {
             <table className="w-full text-xs">
               <tbody>
                 {([["p10", "10 % dní menší než"], ["p25", "čtvrtina dní pod"], ["p50", "medián"], ["p75", "běžný den do (75. pct.)"], ["p90", "extrémní den nad (90. pct.)"]] as const).map(([k, label]) => (
-                  <tr key={k} className="border-t border-[#232735]">
+                  <tr key={k} className="border-t border-line">
                     <td className="py-1.5 text-gray-400">{label}</td>
                     <td className="text-right text-gray-500">{cz(r.ratio[k], 2)}× typického</td>
                     <td className="text-right font-medium text-white">{pts(r.ratio[k])} {unit}</td>
@@ -129,7 +129,7 @@ export function EdgeSections({ edge, unit }: { edge: Edge; unit: string }) {
               </thead>
               <tbody>
                 {Object.entries(r.checkpoints).map(([c, v]) => (
-                  <tr key={c} className="border-t border-[#232735]">
+                  <tr key={c} className="border-t border-line">
                     <td className="py-1.5 text-gray-400">{clock(open, +c)}</td>
                     {v.buckets.map((b, i) => (
                       <td key={i} className="text-right text-gray-300" title={`n=${b.ext.n}`}>
@@ -180,7 +180,7 @@ export function EdgeSections({ edge, unit }: { edge: Edge; unit: string }) {
               </thead>
               <tbody>
                 {Object.entries(ex.checkpoints).map(([c, v]) => (
-                  <tr key={c} className="border-t border-[#232735]">
+                  <tr key={c} className="border-t border-line">
                     <td className="py-1.5 text-gray-400">{clock(open, +c)}</td>
                     <td className="text-right text-gray-200" title={`stojí-li high už 30+ min: ${cz(v.high_done_aged.pct)} %`}>{cz(v.high_done.pct)} %</td>
                     <td className="text-right text-gray-200" title={`stojí-li low už 30+ min: ${cz(v.low_done_aged.pct)} %`}>{cz(v.low_done.pct)} %</td>
@@ -221,7 +221,7 @@ export function EdgeSections({ edge, unit }: { edge: Edge; unit: string }) {
               </thead>
               <tbody>
                 {Object.entries(ss.ny_by_scenario).map(([k, v]) => (
-                  <tr key={k} className="border-t border-[#232735]">
+                  <tr key={k} className="border-t border-line">
                     <td className="py-1.5 text-gray-300">{SCEN[k]}</td>
                     <td className="text-right text-gray-500">{cz(v.share.pct)} %</td>
                     <td className="text-right text-gray-200" title={`95% ${v.ny_london_high.ci?.join("–")} %, n=${v.n}`}>{cz(v.ny_london_high.pct)} %</td>
@@ -244,9 +244,9 @@ export function EdgeSections({ edge, unit }: { edge: Edge; unit: string }) {
           <Card title="Efektivita pohybu (DER)" subtitle="|close − open| / součet všech 5min pohybů">
             <table className="w-full text-xs mb-3">
               <tbody>
-                <tr className="border-t border-[#232735]"><td className="py-1.5 text-gray-400">medián DER</td><td className="text-right text-white font-medium">{cz(tr.der.p50, 3)}</td></tr>
-                <tr className="border-t border-[#232735]"><td className="py-1.5 text-gray-400">náhodná procházka (1/√N)</td><td className="text-right text-gray-300">{cz(tr.der_random_walk, 3)}</td></tr>
-                <tr className="border-t border-[#232735]"><td className="py-1.5 text-gray-400">90 % dní pod</td><td className="text-right text-gray-300">{cz(tr.der.p90, 3)}</td></tr>
+                <tr className="border-t border-line"><td className="py-1.5 text-gray-400">medián DER</td><td className="text-right text-white font-medium">{cz(tr.der.p50, 3)}</td></tr>
+                <tr className="border-t border-line"><td className="py-1.5 text-gray-400">náhodná procházka (1/√N)</td><td className="text-right text-gray-300">{cz(tr.der_random_walk, 3)}</td></tr>
+                <tr className="border-t border-line"><td className="py-1.5 text-gray-400">90 % dní pod</td><td className="text-right text-gray-300">{cz(tr.der.p90, 3)}</td></tr>
               </tbody>
             </table>
             <div className="space-y-2">
@@ -275,7 +275,7 @@ export function EdgeSections({ edge, unit }: { edge: Edge; unit: string }) {
               <div className="mt-3 text-xs text-gray-300">
                 <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">Podle efektivity v {clock(open, 60)} ET</div>
                 {tr.checkpoints["60"].buckets.map((b, i) => (
-                  <div key={i} className="flex flex-wrap justify-between gap-x-3 border-t border-[#232735] py-1">
+                  <div key={i} className="flex flex-wrap justify-between gap-x-3 border-t border-line py-1">
                     <span className="text-gray-400">DER {b.lo == null ? `< ${cz(b.hi, 2)}` : b.hi == null ? `≥ ${cz(b.lo, 2)}` : `${cz(b.lo, 2)}–${cz(b.hi, 2)}`}</span>
                     <span>silný trend: <Prob p={b.trend_day} /></span>
                     <span>pokračuje: <Prob p={b.continues} binary /></span>
@@ -302,7 +302,7 @@ export function EdgeSections({ edge, unit }: { edge: Edge; unit: string }) {
                   const ci = v.rth_ci as [number, number] | null;
                   const sig = ci && (ci[0] > 1 || ci[1] < 1);
                   return (
-                    <tr key={k} className="border-t border-[#232735]">
+                    <tr key={k} className="border-t border-line">
                       <td className="py-1.5 text-gray-300">{EVENT[k]} <span className="text-gray-600">n={v.n}</span></td>
                       <td className="text-right" title={ci ? `95% ${ci.join("–")}` : ""}>
                         <span className={sig ? "font-semibold text-white" : "text-gray-400"}>{cz(v.rth?.p50, 2)}×</span>
@@ -313,7 +313,7 @@ export function EdgeSections({ edge, unit }: { edge: Edge; unit: string }) {
                     </tr>
                   );
                 })}
-                <tr className="border-t border-[#232735]"><td className="py-1.5 text-gray-500">dny bez těchto zpráv</td><td className="text-right text-gray-500">{cz(mc.none?.rth?.p50, 2)}×</td><td /><td className="text-right text-gray-600">10 %</td></tr>
+                <tr className="border-t border-line"><td className="py-1.5 text-gray-500">dny bez těchto zpráv</td><td className="text-right text-gray-500">{cz(mc.none?.rth?.p50, 2)}×</td><td /><td className="text-right text-gray-600">10 %</td></tr>
               </tbody>
             </table>
             <p className="mt-2 text-[10px] text-gray-500">
