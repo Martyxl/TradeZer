@@ -8,6 +8,7 @@ os.environ["APP_ENV"] = "test"
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 os.environ["ANTHROPIC_API_KEY"] = "test-key"
 os.environ["INTERNAL_API_TOKEN"] = "test-token"
+os.environ["FREE_ACCESS"] = "false"   # testy placeného režimu; režim zdarma: test_free_access.py
 
 from app.db.base import Base
 from app.models import *  # noqa

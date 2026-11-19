@@ -46,6 +46,9 @@ class Settings(BaseSettings):
     # Paywall — server-side vynucení plánů na placených modulech. True = zamčeno
     # (Free nevidí Trader/Pro data). Kill-switch: PAYWALL_ENABLED=false vše odemkne.
     paywall_enabled: bool = Field(default=True, alias="PAYWALL_ENABLED")
+    # Vše zdarma (start bez plateb): každý přihlášený má přístup jako Pro, nákup je vypnutý.
+    # Elite (licencovaná data) zůstává zamčený jako ukázka. Zpět na placení: FREE_ACCESS=false.
+    free_access: bool = Field(default=True, alias="FREE_ACCESS")
     # Elite (placená real-time data, např. Twelve Data) zatím nejde koupit — checkout ho odmítne
     # i s nastaveným Stripe price. Spuštění = ELITE_FOR_SALE=true + price ID.
     elite_for_sale: bool = Field(default=False, alias="ELITE_FOR_SALE")

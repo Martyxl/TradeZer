@@ -54,17 +54,25 @@ def plan_rank(plan: str | None) -> int:
     return PLAN_RANK.get((plan or "free").strip().lower(), 0)
 
 
+def entitled(user, min_tier: str) -> bool:
+    """Má uživatel přístup k funkci plánu min_tier? Admin vždy; FREE_ACCESS = každý do úrovně Pro
+    (Elite ne — data na něj nemáme); PAYWALL_ENABLED=false = vše."""
+    from app.config import settings as _s
+    if user.is_admin or not _s.paywall_enabled:
+        return True
+    if _s.free_access and PLAN_RANK[min_tier] <= PLAN_RANK["pro"]:
+        return True
+    return plan_rank(user.plan) >= PLAN_RANK[min_tier]
+
+
 def require_plan(min_tier: str):
     """Dependency: pustí jen uživatele s plánem >= min_tier (admin vždy). Vynucení
     je SERVER-SIDE — data se bez dostatečného plánu vůbec nevrátí (403), nejde obejít
     přímým voláním API. Kill-switch: settings.paywall_enabled=False odemkne vše."""
-    from app.config import settings as _s
-    min_rank = PLAN_RANK[min_tier]
+    PLAN_RANK[min_tier]   # neznámý tier = chyba už při importu
 
     async def _dep(user: User = Depends(current_user)) -> User:
-        if not _s.paywall_enabled or user.is_admin:
-            return user
-        if plan_rank(user.plan) < min_rank:
+        if not entitled(user, min_tier):
             raise HTTPException(status_code=403,
                                 detail=f"Tato funkce vyžaduje plán {min_tier} nebo vyšší")
         return user

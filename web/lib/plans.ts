@@ -122,3 +122,9 @@ export const MODULES: AppModule[] = [
   { name: "Legenda", tier: "free", icon: "BookOpen",
     desc: "Vysvětlivky všech pojmů, zkratek a výpočtů použitých v aplikaci — s vyhledáváním a návodem, jak číst gamma." },
 ];
+
+// Režim „vše zdarma“ (FREE_ACCESS v lib/config): všechno z Free/Trader/Pro v jednom seznamu.
+export const FREE_ALL_FEATURES: string[] = PLANS
+  .filter((p) => p.id !== "elite")
+  .flatMap((p) => p.features.filter((f) => !f.startsWith("Vše z")));
+export const ELITE_PLAN: Plan = PLANS.find((p) => p.id === "elite")!;

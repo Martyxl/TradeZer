@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { User as UserIcon, ShieldCheck, CreditCard, Loader2, Download, Trash2 } from "lucide-react";
 import { useAuth, authHeaders } from "@/lib/auth";
+import { FREE_ACCESS } from "@/lib/config";
 
 export default function AccountPage() {
   const { user, loading, changePassword, logout } = useAuth();
@@ -62,12 +63,17 @@ function SubscriptionCard({ plan, isAdmin }: { plan: string; isAdmin: boolean })
   return (
     <div className="max-w-md rounded-xl border border-[#2a2d3a] bg-[#151823] p-5">
       <h2 className="flex items-center gap-2 text-sm font-semibold text-white">
-        <CreditCard size={15} className="text-[#60ff82]" /> Předplatné
+        <CreditCard size={15} className="text-[#60ff82]" /> {FREE_ACCESS ? "Přístup" : "Předplatné"}
       </h2>
-      <p className="mt-2 text-sm text-gray-400">
+      {FREE_ACCESS ? (
+        <p className="mt-2 text-sm text-gray-400">
+          Tradezer je teď <span className="font-medium text-gray-200">celý zdarma</span> — máš odemčené všechny moduly.
+          {paid && " Dřívější předplatné můžeš zrušit níže."}
+        </p>
+      ) : <p className="mt-2 text-sm text-gray-400">
         Aktuální plán: <span className="font-medium text-gray-200">{plan.toUpperCase()}</span>
         {isAdmin && " (admin — přístup ke všemu)"}
-      </p>
+      </p>}
       {err && <p className="mt-2 text-sm text-red-400">{err}</p>}
       <div className="mt-4">
         {paid ? (
@@ -75,16 +81,16 @@ function SubscriptionCard({ plan, isAdmin }: { plan: string; isAdmin: boolean })
             className="flex items-center justify-center gap-2 rounded-lg border border-[#2a2d3a] bg-[#1a1d27] px-4 py-2 text-sm text-gray-200 hover:border-gray-500 disabled:opacity-60">
             {busy && <Loader2 size={14} className="animate-spin" />} Spravovat předplatné
           </button>
-        ) : (
+        ) : !FREE_ACCESS && (
           <Link href="/predplatne"
             className="inline-block rounded-lg border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.10)] px-4 py-2 text-sm font-medium text-[#8fffab] hover:bg-[rgba(96,255,130,0.18)]">
             Vylepšit plán
           </Link>
         )}
       </div>
-      <p className="mt-3 text-[11px] text-gray-500">
+      {(paid || !FREE_ACCESS) && <p className="mt-3 text-[11px] text-gray-500">
         Změna, zrušení i faktury probíhají bezpečně ve Stripe portálu.
-      </p>
+      </p>}
     </div>
   );
 }

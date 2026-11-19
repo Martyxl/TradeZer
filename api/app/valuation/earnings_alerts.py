@@ -164,10 +164,9 @@ def pre_email_html(items: list[tuple[ValEarningsUpcoming, str | None]], base: st
 async def notify_upcoming(session: AsyncSession, now: datetime | None = None) -> int:
     """Odběratelům s pre_alerts pošle jeden souhrnný e-mail s firmami, které hlásí do ~30 h."""
     from app.models import User
-    from app.routers.auth import plan_rank
+    from app.routers.auth import entitled
     from app.routers.valuation import _held_tickers
     from app.services.email_service import app_url, send_batch
-    from app.config import settings
     from app.valuation import earnings as E
     now = now or datetime.utcnow()
     soon = [u for u in (await session.execute(select(ValEarningsUpcoming).where(
@@ -186,7 +185,7 @@ async def notify_upcoming(session: AsyncSession, now: datetime | None = None) ->
     for s, u in rows:
         if s.pre_alerts is False:
             continue
-        if settings.paywall_enabled and not u.is_admin and plan_rank(u.plan) < plan_rank("trader"):
+        if not entitled(u, "trader"):
             continue
         held = await _held_tickers(session, u.id) if s.scope == "portfolio" else None
         mine = [x for x in soon if _wanted(s, x.ticker, held) and (u.id, x.ticker, x.report_date) not in sent_keys]
@@ -215,10 +214,9 @@ async def notify(session: AsyncSession, r: ValEarningsReport, name: str | None, 
                  only_user_id: int | None = None, force: bool = False) -> int:
     """Pošle report odběratelům, kterým ještě neodešel. force = zkušební e-mail (bez kontrol a záznamu)."""
     from app.models import User
-    from app.routers.auth import plan_rank
+    from app.routers.auth import entitled
     from app.routers.valuation import _held_tickers
     from app.services.email_service import app_url, send_batch
-    from app.config import settings
     if not r.headline_cs:
         return 0
     critical = is_critical(r)
@@ -237,7 +235,7 @@ async def notify(session: AsyncSession, r: ValEarningsReport, name: str | None, 
         if not force:
             if u.id in already or (s.only_critical and not critical):
                 continue
-            if settings.paywall_enabled and not u.is_admin and plan_rank(u.plan) < plan_rank("trader"):
+            if not entitled(u, "trader"):
                 continue
             held = await _held_tickers(session, u.id) if s.scope == "portfolio" else None
             if not _wanted(s, r.ticker, held):

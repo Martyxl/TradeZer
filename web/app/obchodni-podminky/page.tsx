@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LegalLayout, Section, UL, ContactEmail, VatNote, ProviderBlock } from "@/components/LegalLayout";
+import { FREE_ACCESS } from "@/lib/config";
 
 export const metadata: Metadata = {
   title: "Obchodní podmínky — Tradezer",
@@ -45,6 +46,14 @@ export default function ObchodniPodminky() {
       </Section>
 
       <Section n={4} title="Plány a ceny">
+        {FREE_ACCESS && (
+          <p>
+            <b>Služba je v současnosti poskytována celá bezplatně.</b> Placené plány nejsou v nabídce a nelze je uzavřít;
+            ustanovení o cenách, platbě, předplatném a odstoupení (čl. 4 až 6) se uplatní až po případném zavedení
+            placených plánů, které Provozovatel registrovaným uživatelům předem oznámí. Bezplatný přístup nezakládá
+            nárok na jeho trvání v nezměněném rozsahu.
+          </p>
+        )}
         <p>
           Služba je nabízena v plánech Free (zdarma), Trader, Pro a Elite. Aktuální rozsah plánů a ceny jsou uvedeny na
           stránkách <Link href="/funkce" className="text-[#60ff82] hover:underline">Funkce</Link> a{" "}

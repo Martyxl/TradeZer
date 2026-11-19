@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { PLANS, ANNUAL_DISCOUNT, annualTotal, comparisonTotal } from "@/lib/plans";
+import { FREE_ACCESS } from "@/lib/config";
+import { FreeOffer } from "@/components/FreeOffer";
 
 // ── Tradezer brand — Neon Candles (viz handoff/BRAND.md) ────────────────────
 const C = {
@@ -178,7 +180,7 @@ export default function Landing() {
         </span>
         <Link href="/funkce" style={{ color: C.text, textDecoration: "none", fontSize: 14 }} className="tz-navlink">Co umím</Link>
         <a href="#ukazka" style={{ color: C.text, textDecoration: "none", fontSize: 14 }} className="tz-navlink">Ukázka</a>
-        <a href="#pristup" style={{ color: C.text, textDecoration: "none", fontSize: 14 }} className="tz-navlink">Ceník</a>
+        <a href="#pristup" style={{ color: C.text, textDecoration: "none", fontSize: 14 }} className="tz-navlink">{FREE_ACCESS ? "Zdarma" : "Ceník"}</a>
         <Link href="/prihlaseni" style={{ color: C.muted, textDecoration: "none", fontSize: 14 }} className="tz-navlink">Přihlásit</Link>
         <button type="button" onClick={goRegister} style={primaryCta}>Získat výhodu</button>
       </nav>
@@ -300,7 +302,17 @@ export default function Landing() {
 
       {/* Ceník / přístup */}
       <section id="pristup" style={{ maxWidth: 1200, margin: "0 auto", padding: "70px clamp(20px,5vw,72px) 56px", borderTop: "1px solid rgba(255,255,255,0.09)" }}>
-        <span style={{ display: "block", fontSize: 13, letterSpacing: "0.06em", textTransform: "uppercase", color: C.green, marginBottom: 14 }}>Ceník</span>
+        <span style={{ display: "block", fontSize: 13, letterSpacing: "0.06em", textTransform: "uppercase", color: C.green, marginBottom: 14 }}>{FREE_ACCESS ? "Přístup" : "Ceník"}</span>
+        {FREE_ACCESS ? (<>
+        <h3 style={{ fontFamily: FONT, fontWeight: 500, fontSize: 28, margin: 0, color: C.text }}>Celý Tradezer je zdarma.</h3>
+        <p style={{ fontSize: 15.5, lineHeight: "28px", color: "rgba(255,255,255,0.78)", margin: "18px 0 0", maxWidth: "60ch" }}>
+          Žádné placené úrovně, žádná karta. Vytvoř si účet a máš odemčené všechno — predikce, BIAS, statistiky, Valuation Radar, Discovery i Smart Money.
+        </p>
+        <p style={{ fontSize: 14, lineHeight: "24px", margin: "12px 0 0", maxWidth: "60ch", color: C.greenPale }}>
+          Nakoupit to samé zvlášť (gamma, options flow, screener, valuace, deník, news) vyjde jinde přes <b>${comparisonTotal()}/měs</b>.
+        </p>
+        <div style={{ marginTop: 32 }}><FreeOffer ctaHref={null} /></div>
+        </>) : (<>
         <h3 style={{ fontFamily: FONT, fontWeight: 500, fontSize: 28, margin: 0, color: C.text }}>Zaplať jednou, sbírej náskok.</h3>
         <p style={{ fontSize: 15.5, lineHeight: "28px", color: "rgba(255,255,255,0.78)", margin: "18px 0 0", maxWidth: "60ch" }}>
           Začni zdarma — dashboard, deník, ORB Radar a historie. Za ${PLANS[1].priceUsd} odemkneš statistiky a Valuation Radar, za ${PLANS[2].priceUsd} i Discovery a Smart Money. Roční platba se slevou {Math.round(ANNUAL_DISCOUNT * 100)} %.
@@ -335,8 +347,9 @@ export default function Landing() {
             );
           })}
         </div>
+        </>)}
         <div style={{ marginTop: 14 }}>
-          <Link href="/funkce" style={{ color: C.green, textDecoration: "none", fontSize: 14 }} className="tz-navlink">Detailní přehled funkcí a plánů →</Link>
+          <Link href="/funkce" style={{ color: C.green, textDecoration: "none", fontSize: 14 }} className="tz-navlink">{FREE_ACCESS ? "Detailní přehled funkcí →" : "Detailní přehled funkcí a plánů →"}</Link>
         </div>
 
         <h3 style={{ fontFamily: FONT, fontWeight: 500, fontSize: 22, margin: "56px 0 0", color: C.text }}>Trh nečeká. Ty už nemusíš.</h3>

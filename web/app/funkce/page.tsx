@@ -7,12 +7,16 @@ import {
   Telescope, Landmark, BookOpen, Check, ArrowLeft, type LucideIcon,
 } from "lucide-react";
 import { MODULES, PLANS, COMPARISON, comparisonTotal, ANNUAL_DISCOUNT, annualPerMonth, annualTotal, type TierId } from "@/lib/plans";
+import { FREE_ACCESS } from "@/lib/config";
+import { FreeOffer } from "@/components/FreeOffer";
 
 const ICONS: Record<string, LucideIcon> = {
   LayoutDashboard, Activity, NotebookPen, Sunrise, History, BarChart3, Target, Telescope, Landmark, BookOpen,
 };
 
-const TIER_META: Record<TierId, { label: string; cls: string }> = {
+const FREE_CHIP = { label: "Zdarma", cls: "text-[#8fffab] border-[#60ff82]/40 bg-[#60ff82]/10" };
+const TIER_META: Record<TierId, { label: string; cls: string }> = FREE_ACCESS
+  ? { free: FREE_CHIP, trader: FREE_CHIP, pro: FREE_CHIP } : {
   free: { label: "Free", cls: "text-gray-300 border-white/20 bg-white/5" },
   trader: { label: "Trader · $5", cls: "text-[#8fffab] border-[#60ff82]/40 bg-[#60ff82]/10" },
   pro: { label: "Pro · $15", cls: "text-amber-300 border-amber-500/40 bg-amber-500/10" },
@@ -44,7 +48,7 @@ export default function FunkcePage() {
         </h1>
         <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-white/70">
           AI predikce dopadu zpráv, gamma levely, fundamentální valuace, screener příležitostí i insider
-          aktivita — vše na jednom místě. Níže je kompletní přehled modulů a v jakém plánu je najdeš.
+          aktivita — vše na jednom místě. Níže je kompletní přehled modulů{FREE_ACCESS ? " — teď všechny zdarma." : " a v jakém plánu je najdeš."}
         </p>
       </header>
 
@@ -96,19 +100,33 @@ export default function FunkcePage() {
           </div>
           <div className="flex flex-col justify-center rounded-xl border border-[#60ff82]/40 bg-[#60ff82]/[0.06] p-6 text-center">
             <div className="text-[13px] uppercase tracking-wider text-white/60">Tradezer, vše na jednom místě</div>
-            <div className="mt-2 text-4xl font-bold text-[#7dffa0]">od $0</div>
-            <div className="mt-1 text-sm text-white/70">kompletní výbava už za <b className="text-white">$15</b>/měs</div>
-            <div className="mt-3 text-[12px] text-white/50">
-              Ušetříš přes <b className="text-[#8fffab]">${comparisonTotal() - 15}/měs</b> oproti nákupu nástrojů zvlášť.
-            </div>
+            <div className="mt-2 text-4xl font-bold text-[#7dffa0]">{FREE_ACCESS ? "Zdarma" : "od $0"}</div>
+            {FREE_ACCESS ? (
+              <div className="mt-1 text-sm text-white/70">všechny moduly, stačí účet</div>
+            ) : (<>
+              <div className="mt-1 text-sm text-white/70">kompletní výbava už za <b className="text-white">$15</b>/měs</div>
+              <div className="mt-3 text-[12px] text-white/50">
+                Ušetříš přes <b className="text-[#8fffab]">${comparisonTotal() - 15}/měs</b> oproti nákupu nástrojů zvlášť.
+              </div>
+            </>)}
           </div>
         </div>
         <p className="mt-3 text-[11px] text-white/40">
           Orientační ceny konkurence (měsíčně): SpotGamma, Unusual Whales, Trade Ideas, Stock Rover,
-          TradeZella, Benzinga Pro. Tradezer používá zpožděná/EOD data z veřejných zdrojů — proto ta cena.
+          TradeZella, Benzinga Pro. Tradezer používá zpožděná/EOD data z veřejných zdrojů{FREE_ACCESS ? "." : " — proto ta cena."}
         </p>
       </section>
 
+      {FREE_ACCESS ? (<>
+      {/* Přístup — vše zdarma */}
+      <section id="cenik" className="mx-auto max-w-6xl px-5 pb-16 sm:px-8">
+        <span className="text-[13px] uppercase tracking-[0.06em] text-[#60ff82]">Přístup</span>
+        <h2 className="mt-2 mb-6 text-2xl font-medium sm:text-3xl">Celý Tradezer zdarma</h2>
+        <FreeOffer />
+        <p className="mt-6 text-[11px] text-white/40">Obchodování nese riziko; výhoda ho jen zmenšuje.</p>
+      </section>
+
+      </>) : (<>
       {/* Pricing */}
       <section id="cenik" className="mx-auto max-w-6xl px-5 pb-16 sm:px-8">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
@@ -180,6 +198,8 @@ export default function FunkcePage() {
           Obchodování nese riziko; výhoda ho jen zmenšuje.
         </p>
       </section>
+
+      </>)}
 
       <footer className="border-t border-white/10">
         <div className="mx-auto max-w-6xl px-5 py-8 text-[13px] text-white/50 sm:px-8">

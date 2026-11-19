@@ -5,6 +5,8 @@ import { Check, CreditCard, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useAuth, authHeaders } from "@/lib/auth";
 import { PLANS, ANNUAL_DISCOUNT, annualPerMonth, annualTotal, type Plan } from "@/lib/plans";
+import { FREE_ACCESS } from "@/lib/config";
+import { FreeOffer } from "@/components/FreeOffer";
 
 async function postJson(path: string): Promise<{ url?: string; detail?: string }> {
   const res = await fetch(path, {
@@ -15,7 +17,27 @@ async function postJson(path: string): Promise<{ url?: string; detail?: string }
   return res.json().catch(() => ({}));
 }
 
-export default function PricingPage() {
+export default function Page() {
+  return FREE_ACCESS ? <FreePage /> : <PricingPage />;
+}
+
+/** Režim „vše zdarma“: nic se neprodává, jen přehled, co je odemčené. */
+function FreePage() {
+  const { user } = useAuth();
+  return (
+    <div className="mx-auto max-w-5xl">
+      <h1 className="mb-2 flex items-center gap-2 text-xl font-bold text-white">
+        <CreditCard size={20} className="text-[#60ff82]" /> Přístup
+      </h1>
+      <p className="mb-6 text-sm text-gray-400">
+        Celý Tradezer je teď zdarma — bez předplatného a bez platební karty.
+      </p>
+      <FreeOffer ctaHref={user ? "/dashboard" : "/registrace"} ctaLabel={user ? "Pokračovat na dashboard" : "Vytvořit účet zdarma"} />
+    </div>
+  );
+}
+
+function PricingPage() {
   const { user } = useAuth();
   const plan = user?.plan ?? "free";
   const [annual, setAnnual] = useState(false);

@@ -64,10 +64,11 @@ async def billing_config():
     pm = _price_map()
     prices = {}
     for (tier, interval), price in pm.items():
-        if price and (tier != "elite" or settings.elite_for_sale):
+        if price and (tier != "elite" or settings.elite_for_sale) and not settings.free_access:
             prices.setdefault(tier, {})[interval] = True
     return {
-        "enabled": bool(settings.stripe_secret_key),
+        "enabled": bool(settings.stripe_secret_key) and not settings.free_access,
+        "free_access": settings.free_access,
         "publishable_key": settings.stripe_publishable_key,
         "buyable": prices,  # {tier: {month: true, year: true}}
     }
@@ -80,6 +81,8 @@ async def create_checkout(
     session: AsyncSession = Depends(get_session),
 ):
     """Založí Stripe Checkout session pro předplatné (tier × interval) a vrátí URL."""
+    if settings.free_access:
+        raise HTTPException(status_code=400, detail="Tradezer je teď celý zdarma — není co kupovat")
     stripe = _require_stripe()
     tier = (payload.get("tier") or "").strip().lower()
     interval = (payload.get("interval") or "month").strip().lower()

@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { LayoutDashboard, History, BarChart3, Sunrise, Target, NotebookPen, Telescope, Landmark, BookOpen, User as UserIcon, LogOut, CreditCard, ShieldCheck, Wallet, Receipt, Waves, Bot, Lock, type LucideIcon } from "lucide-react";
 import { SupportButton } from "@/components/SupportButton";
 import { useAuth } from "@/lib/auth";
-import { planRank, type Tier } from "@/lib/config";
+import { FREE_ACCESS, hasAccess, planRank, type Tier } from "@/lib/config";
 
 interface NavItem { href: string; label: string; icon: LucideIcon; tier: Tier }
 interface NavGroup { key: string; title: string | null; accent: string; items: NavItem[] }
@@ -45,6 +45,7 @@ const TIER_CHIP: Record<string, string> = { trader: "Trader", pro: "Pro", elite:
 
 function PlanBadge({ plan, admin }: { plan: string; admin: boolean }) {
   if (admin) return <span className="rounded bg-[rgba(96,255,130,0.14)] px-1.5 py-0.5 text-[9px] font-semibold uppercase text-[#8fffab]">Admin</span>;
+  if (FREE_ACCESS) return null;
   const p = (plan || "free").toLowerCase();
   if (p === "free") return <span className="rounded bg-[#2a2d3a] px-1.5 py-0.5 text-[9px] font-semibold uppercase text-gray-400">Free</span>;
   return <span className="rounded bg-[rgba(96,255,130,0.14)] px-1.5 py-0.5 text-[9px] font-semibold uppercase text-[#8fffab]">{p}</span>;
@@ -63,7 +64,11 @@ function NavLink({ item, accent, active, locked }: { item: NavItem; accent: stri
     >
       <Icon size={16} style={active ? { color: accent } : undefined} />
       <span className="flex-1 whitespace-nowrap">{item.label}</span>
-      {item.tier !== "free" && (
+      {FREE_ACCESS ? (locked && (
+        <span className="flex shrink-0 items-center rounded bg-[#1c1f2b] px-1 py-0.5 text-gray-500" title="Zdarma po registraci">
+          <Lock size={9} />
+        </span>
+      )) : item.tier !== "free" && (
         <span className={`flex shrink-0 items-center gap-0.5 rounded px-1 py-0.5 text-[8px] font-semibold uppercase tracking-wide ${
           locked ? "bg-[#1c1f2b] text-gray-500" : "bg-[rgba(96,255,130,0.10)] text-[#8fffab]"}`}
           title={locked ? `Odemčeno v plánu ${TIER_CHIP[item.tier]}` : `Součást vašeho plánu`}>
@@ -100,7 +105,7 @@ function UserMenu() {
       </div>
       {user.is_admin && <Link href="/admin" className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-[#8fffab] hover:text-white hover:bg-[#1a1d27] transition-colors"><ShieldCheck size={14} /> Admin</Link>}
       <Link href="/ucet" className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-[#1a1d27] transition-colors"><UserIcon size={14} /> Účet</Link>
-      <Link href="/predplatne" className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-[#1a1d27] transition-colors"><CreditCard size={14} /> Předplatné</Link>
+      {!FREE_ACCESS && <Link href="/predplatne" className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-[#1a1d27] transition-colors"><CreditCard size={14} /> Předplatné</Link>}
       <button onClick={logout} className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-left text-sm text-gray-400 hover:text-white hover:bg-[#1a1d27] transition-colors"><LogOut size={14} /> Odhlásit</button>
     </div>
   );
@@ -109,7 +114,6 @@ function UserMenu() {
 export function Sidebar() {
   const pathname = usePathname();
   const { user } = useAuth();
-  const myRank = user?.is_admin ? 99 : planRank(user?.plan);
 
   return (
     <aside className="hidden md:flex flex-col w-60 shrink-0 border-r border-[#2a2d3a] bg-[#12141c] h-screen sticky top-0 self-start overflow-y-auto">
@@ -135,7 +139,7 @@ export function Sidebar() {
             <div className="flex flex-col gap-0.5">
               {g.items.map((it) => (
                 <NavLink key={it.href} item={it} accent={g.accent}
-                  active={pathname.startsWith(it.href)} locked={planRank(it.tier) > myRank} />
+                  active={pathname.startsWith(it.href)} locked={!hasAccess(user, it.tier)} />
               ))}
             </div>
           </section>
