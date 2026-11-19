@@ -43,7 +43,7 @@ je zatím jen pro admina („Coming soon“ pro ostatní).""",
 London, NY) a jak často cena během 30/60 minut nebo celé session vezme jeho high, low, obě strany nebo nic.
 Plovoucí okno ukazuje, jestli se chování zpevňuje nebo rozpadá. Zdarma. Pro forex jsou data zatím jen z posledních
 ~60 obchodních dní (Yahoo), u indexů a zlata delší historie.""",
-    "/stats": """Statistiky (plán Trader) — tržní statistiky z 5min dat: velikost session (Asia/London/NY), kde se tiskne
+    "/stats": """Statistiky — tržní statistiky z 5min dat: velikost session (Asia/London/NY), kde se tiskne
 denní high/low, návraty k dennímu open, nPOC, VWAP, týdenní vzory, volatilita a objem po hodinách, ORB.
 Jednotky: body u indexů a zlata, pipy u forexu. Sekce „Trading — živé výsledky entry plánu“ ukazuje SKUTEČNÉ výsledky
 den po dni (bias po London open → limit po NY open → drženo do close): počet obchodů, úspěšnost, průměr na obchod,
@@ -56,7 +56,7 @@ splní test a co by se danilo při prodeji. Orientační výpočet, ne daňové 
 hodnotí jako levné nebo férové, s ohledem na režim trhu (v panice nekupuje „padající nůž“, nevyprodává). Horizont
 3+ roky, prodává jen výjimečně (rozbitá teze), mimo jiné kvůli daňovému časovému testu. Ukazuje pozice, obchody,
 poznámky ke každému rozhodnutí a výkon proti benchmarku. Jen ukázka, ne nabídka investice.""",
-    "/valuation": """Valuation Radar (plán Trader) — fundamentální ocenění amerických akcií: bublinová mapa (osa X =
+    "/valuation": """Valuation Radar — fundamentální ocenění amerických akcií: bublinová mapa (osa X =
 percentil forward P/E vůči vlastní historii firmy, osa Y = očekávaný růst zisku, velikost = tržní kapitalizace,
 barva = verdikt). Překrývající se bubliny se slučují do kolečka s počtem — kliknutím se zobrazí seznam firem.
 Skóre valuace, růstu, kvality, revizí, trendu a kompozitní skóre 0–100, verdikty LEVNÁ/FÉROVÁ/NAPJATÁ/PŘEPÁLENÁ a
@@ -64,19 +64,19 @@ bublinová vlajka. Firmu lze přidat polem nahoře (ticker nebo název).
 Rozhodovací zóny na mapě: nad zelenou čárou „nákupní zóna (k prověření)“, mezi čarami „držet / sledovat“, pod
 červenou „spíše nepřikupovat / zvážit prodej“ — čím dražší vůči vlastní historii, tím vyšší růst musí cenu
 ospravedlnit. Zóna je i ve sloupci tabulky. Orientační pravidlo, zatím neověřené historickou výnosností.""",
-    "/discovery": """Discovery (plán Pro) — screener krátkodobého momenta u malých a středních firem (do ~50 mld. $):
+    "/discovery": """Discovery — screener krátkodobého momenta u malých a středních firem (do ~50 mld. $):
 hledá čerstvé momentum, neobvyklý objem a blízkost 52týdenního maxima. Discovery skóre 0–100 je heuristika, ne
 predikce — hlavní hodnota jsou „důkazy“ pod ním (momentum 5d/20d, relativní objem, vzdálenost od 52w high, poloha
 vůči SMA20/50, blížící se výsledky hospodaření). Rozcestník pro další zkoumání, ne doporučení k nákupu.""",
-    "/smart-money": """Smart Money (plán Pro) — nákupy a prodeje insiderů (vedení, ředitelé, >10% vlastníci) z hlášení
+    "/smart-money": """Smart Money — nákupy a prodeje insiderů (vedení, ředitelé, >10% vlastníci) z hlášení
 SEC Form 4: kdo, role, nákup (P) / prodej (S), hodnota obchodu. Nákupy mají obvykle větší vypovídací hodnotu než
 prodeje (insideři prodávají z mnoha důvodů).""",
-    "/dark-pool": """Dark Pool (plán Pro) — objemy obchodované mimo burzy (ATS/„dark pools“) z veřejných dat FINRA,
+    "/dark-pool": """Dark Pool — objemy obchodované mimo burzy (ATS/„dark pools“) z veřejných dat FINRA,
 týdenně, s přibližně měsíčním zpožděním publikace; žebříček podle objemu v dolarech. Ukazuje, kde se obchoduje
 velký objem mimo burzu — neříká směr (nákup vs prodej).""",
     "/legenda": """Legenda — vysvětlivky všech pojmů, zkratek a vzorců v aplikaci (78 pojmů, filtr podle modulu).""",
-    "/predplatne": """Předplatné — plány Free, Trader, Pro (Elite) a co odemykají; platby přes Stripe.""",
-    "/ucet": """Účet — nastavení účtu, export a smazání osobních údajů (GDPR), přehled předplatného.""",
+    "/predplatne": """Přístup — celý Tradezer je teď zdarma pro registrované (bez předplatného a bez karty). Funkce Elite (živá data, analytici) připravujeme — chybí licence dat, zatím nejdou koupit.""",
+    "/ucet": """Účet — nastavení účtu, export a smazání osobních údajů (GDPR), přístup (vše zdarma).""",
 }
 
 
