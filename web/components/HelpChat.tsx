@@ -94,13 +94,13 @@ export function HelpChat() {
       <button
         onClick={() => setOpen((o) => !o)}
         aria-label={open ? "Zavřít pomocníka" : "Otevřít pomocníka"}
-        className="fixed bottom-5 right-5 z-40 flex h-12 w-12 items-center justify-center rounded-full border border-line-2 bg-raised text-blue-300 shadow-lg hover:bg-[#26304a]"
+        className="fixed bottom-5 right-5 z-40 flex h-12 w-12 items-center justify-center rounded-full border border-line-2 bg-dialog text-blue-300 shadow-lg hover:bg-raised"
       >
         {open ? <X size={20} /> : <HelpCircle size={22} />}
       </button>
 
       {open && (
-        <div className="fixed bottom-20 right-4 left-4 sm:left-auto z-40 flex max-h-[70vh] sm:w-[380px] flex-col rounded-2xl border border-line bg-[#11141d] shadow-2xl">
+        <div className="fixed bottom-20 right-4 left-4 sm:left-auto z-40 flex max-h-[70vh] sm:w-[380px] flex-col rounded-2xl border border-line-2 bg-dialog shadow-2xl">
           <div className="border-b border-line px-4 py-3">
             <div className="text-sm font-semibold text-white">Pomocník Tradezeru</div>
             <div className="text-[11px] text-gray-500">Vidí text této stránky a vysvětlí, co čísla znamenají a jak je zapojit do rozhodování. Pokyny k nákupu/prodeji nedává.</div>

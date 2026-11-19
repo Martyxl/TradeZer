@@ -550,8 +550,8 @@ function EntryForm({ initial, draft, meta, tagData, defaultStrategyId, onClose, 
   const lab = "text-[10px] uppercase tracking-wider text-gray-500 mb-1 block";
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
-      <div className="bg-sunken border border-line rounded-2xl max-w-lg w-full p-6 my-8" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
+      <div className="bg-dialog shadow-2xl border border-line rounded-2xl max-w-lg w-full p-6 my-8" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold text-white">{initial ? "Upravit obchod" : "Nový obchod"}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-white"><X size={20} /></button>
@@ -776,8 +776,8 @@ function TagsModal({ data, onClose, onChanged }: { data: TagData; onClose: () =>
   const field = "w-full rounded-lg bg-sunken border border-line px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:border-blue-600 focus:outline-none";
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
-      <div className="bg-sunken border border-line rounded-2xl max-w-2xl w-full p-6 my-8 space-y-6" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
+      <div className="bg-dialog shadow-2xl border border-line rounded-2xl max-w-2xl w-full p-6 my-8 space-y-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold text-white flex items-center gap-2"><Tags size={17} className="text-blue-400" /> Tagy</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-white"><X size={20} /></button>
@@ -823,8 +823,8 @@ function DeleteJournalModal({ st, count, onClose, onDeleted }: {
     catch (e) { setErr(e instanceof Error ? e.message : "Smazání selhalo"); setBusy(false); }
   };
   return (
-    <div className="fixed inset-0 z-[60] bg-black/70 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-sunken border border-red-900/60 rounded-2xl max-w-md w-full p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-dialog shadow-2xl border border-red-900/60 rounded-2xl max-w-md w-full p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-lg font-bold text-white flex items-center gap-2"><Trash2 size={17} className="text-red-400" /> Smazat deník „{st.name}“?</h2>
         <p className="text-sm text-gray-400">Smaže se strategie i její pravidla. Tohle nejde vrátit.
           {count > 0 ? ` V deníku je ${count} ${count === 1 ? "obchod" : count < 5 ? "obchody" : "obchodů"} — co s nimi?` : " Deník nemá žádné obchody."}</p>
@@ -902,8 +902,8 @@ function StrategyEditor({ data, initial, onClose, onSaved, onTagsChanged, onDele
   const reqColor = (r: string) => (r === "must" ? "text-green-300" : r === "opt" ? "text-gray-400" : "text-blue-300");
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
-      <div className="bg-sunken border border-line rounded-2xl max-w-2xl w-full p-6 my-8 space-y-4" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
+      <div className="bg-dialog shadow-2xl border border-line rounded-2xl max-w-2xl w-full p-6 my-8 space-y-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold text-white">{initial ? "Upravit strategii" : "Nový deník strategie"}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-white"><X size={20} /></button>
@@ -1065,8 +1065,8 @@ function AnalyzeModal({ isAdmin, onClose, onExtracted }: {
   const lab = "text-[10px] uppercase tracking-wider text-gray-500 mb-1 block";
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 flex items-start justify-center p-4 overflow-y-auto" onClick={busy ? undefined : onClose}>
-      <div className="bg-sunken border border-line rounded-2xl max-w-lg w-full p-6 my-8" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto" onClick={busy ? undefined : onClose}>
+      <div className="bg-dialog shadow-2xl border border-line rounded-2xl max-w-lg w-full p-6 my-8" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-1">
           <h2 className="text-lg font-bold text-white flex items-center gap-2"><Sparkles size={17} className="text-blue-400" /> Přidat z TradingView</h2>
           {!busy && <button onClick={onClose} className="text-gray-400 hover:text-white"><X size={20} /></button>}
@@ -1195,8 +1195,8 @@ function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: (create
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 flex items-start justify-center p-4 overflow-y-auto" onClick={busy ? undefined : onClose}>
-      <div className="bg-sunken border border-line rounded-2xl max-w-lg w-full p-6 my-8" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto" onClick={busy ? undefined : onClose}>
+      <div className="bg-dialog shadow-2xl border border-line rounded-2xl max-w-lg w-full p-6 my-8" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-1">
           <h2 className="text-lg font-bold text-white flex items-center gap-2"><Upload size={17} className="text-blue-400" /> Import CSV</h2>
           {!busy && <button onClick={onClose} className="text-gray-400 hover:text-white"><X size={20} /></button>}

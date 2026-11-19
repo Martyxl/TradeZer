@@ -60,11 +60,11 @@ export function SupportButton({ variant = "sidebar" }: { variant?: "sidebar" | "
 
       {open && (
         <div
-          className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
           onClick={() => setOpen(false)}
         >
           <div
-            className="bg-sunken border border-line rounded-2xl max-w-sm w-full p-6"
+            className="bg-dialog shadow-2xl border border-line rounded-2xl max-w-sm w-full p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-1">

@@ -34,6 +34,7 @@ const config: Config = {
         raised: "var(--tz-raised)",
         line: { DEFAULT: "var(--tz-line)", 2: "var(--tz-line-2)" },
         mint: "var(--tz-mint)",
+        dialog: "var(--tz-dialog)",
         gray: {
           50: "#f9fafb", 100: "#f3f4f6",
           200: "var(--tz-gray-200)", 300: "var(--tz-gray-300)", 400: "var(--tz-gray-400)",

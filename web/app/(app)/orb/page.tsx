@@ -210,8 +210,8 @@ function OrbCard({ name, sess, hor, metric }: {
 
 function InfoModal({ onClose }: { onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
-      <div className="bg-sunken border border-line rounded-2xl max-w-2xl w-full p-6 my-8" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
+      <div className="bg-dialog shadow-2xl border border-line rounded-2xl max-w-2xl w-full p-6 my-8" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-white">Jak číst ORB</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-white"><X size={20} /></button>

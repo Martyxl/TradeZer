@@ -203,7 +203,7 @@ export function MobileNav() {
   useEffect(() => setOpen(false), [pathname]);
   return (
     <header className="sticky top-3 z-50 mx-3 mt-3 md:hidden">
-      <div className="tz-pane flex items-center gap-3 rounded-full py-1.5 pl-4 pr-1.5">
+      <div className="tz-pane tz-blur flex items-center gap-3 rounded-full py-1.5 pl-4 pr-1.5">
         <Link href="/" className="flex items-center gap-2">
           <span className="h-5 w-5 rounded-full bg-gradient-to-br from-[#6fe0b0] to-[#2f9a80]" />
           <span className="font-extrabold tracking-tight text-white">Tradezer</span>
