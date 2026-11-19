@@ -90,7 +90,182 @@ REACTION_SYSTEM = (
     "NIKDY nedoporučuj nákup ani prodej. Odpověz jen odrážkami."
 )
 
+VERIFY_SYSTEM = (
+    "Jsi kontrolor faktů. Dostaneš tiskovou zprávu o výsledcích hospodaření, konsenzus EPS a JSON s analýzou, "
+    "kterou napsal jiný analytik. Projdi KAŽDÉ číslo v JSONu (pole i texty) a ověř ho proti tiskové zprávě:\n"
+    "- částka, procento i jednotka musí sedět (USD na akcii ≠ mil. USD ≠ mld. USD; tržby ≠ zisk; čtvrtletí ≠ celý rok);\n"
+    "- eps_gaap je zředěný GAAP EPS za čtvrtletí, eps_adjusted upravený (non-GAAP) — nesmí být prohozené;\n"
+    "- „nad/pod odhadem“ musí odpovídat porovnání EPS s konsenzem (níže máš výsledek porovnání);\n"
+    "- procenta růstu musí patřit ke správné položce (celkové tržby vs. segment).\n"
+    "Automatická kontrola navíc vypíše čísla, která v tiskové zprávě nenašla — ta oprav podle textu, "
+    "nebo větu přeformuluj bez čísla. Nic nedopočítávej ani neodhaduj; co v textu není, dej null nebo vynech. "
+    "Styl, češtinu a strukturu zachovej. Vrať POUZE celý opravený JSON ve stejném formátu (bez markdownu)."
+)
+
 _CZ = re.compile(r"[áčďéěíňóřšťúůýž]", re.I)
+
+# ------------------------------------------------------------------ kontrola čísel (fact-check)
+# Každé číslo v analýze musí jít dohledat v podkladech (tisková zpráva + konsenzus). Měřítko se
+# u zdrojových čísel bere z kontextu („billion“, tabulka v milionech, EPS s desetinami), aby
+# 0,50 USD na akcii nešlo vydávat za 0,5 mld. USD.
+
+_SCALE_CS = {"bil": 1e12, "mld": 1e9, "miliard": 1e9, "mil": 1e6, "tis": 1e3}
+_CLAIM = re.compile(
+    r"(?<![\w.,])([-−–]?)\$?\s?(\d{1,3}(?:[  ]\d{3})+(?:,\d+)?|\d+(?:[.,]\d+)?)"
+    r"(?:\s?(%|procent\w*|p\.\s?b\.|procentn\w* bod\w*|bilion\w*|bil\.|mld\.?|miliard\w*|milion\w*|mil\.|tis\.)"
+    r")?(?:\s?(USD|dolar\w*|\$|cent\w*))?", re.I)
+_SRC = re.compile(r"(?<![\w.])\(?\$?\s?(\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)\)?\s*"
+                  r"(%|trillion|billion|million|thousand|bn\b|mn\b|[BMK]\b)?", re.I)
+_SRC_SCALE = {"trillion": [1e12], "billion": [1e9], "bn": [1e9], "b": [1e9], "million": [1e6], "mn": [1e6],
+              "m": [1e6], "thousand": [1e3], "k": [1e3]}
+
+
+def source_numbers(text: str) -> list[float]:
+    """Čísla z (anglického) podkladu, už vynásobená možnými měřítky."""
+    out = []
+    for m in _SRC.finditer(text or ""):
+        raw, unit = m.group(1), (m.group(2) or "").lower()
+        v = float(raw.replace(",", ""))
+        if unit in _SRC_SCALE:
+            scales = _SRC_SCALE[unit]
+        elif "." in raw and v < 1000:
+            scales = [1]                         # EPS, procenta, poměry
+        else:
+            scales = [1, 1e3, 1e6]               # tabulky „in thousands / millions“
+        out += [v * s for s in scales]
+    return out
+
+
+def claims(text: str, every: bool = False) -> list[dict]:
+    """Číselná tvrzení v českém textu. Bez jednotky a bez desetin (roky, data, počty) se nekontroluje."""
+    out = []
+    for m in _CLAIM.finditer(str(text or "")):
+        raw, unit, cur = m.group(2), (m.group(3) or "").lower(), m.group(4)
+        dollar = "$" in m.group(0)
+        num = raw.replace(" ", "").replace(" ", "")
+        ip, dec = re.split(r"[.,]", num, maxsplit=1) if re.search(r"[.,]", num) else (num, "")
+        if not every and not unit and not cur and not dollar and not dec:
+            continue
+        x = float(f"{ip}.{dec}" if dec else ip)
+        scale = next((s for k, s in _SCALE_CS.items() if unit.startswith(k)), 1.0)
+        if cur and cur.lower().startswith("cent"):
+            scale = 0.01
+        pct = unit.startswith(("%", "procent", "p."))
+        tol = 0.5 * 10 ** -len(dec) if dec else (0.5 if scale > 1 or pct else 0.005)
+        out.append({"text": m.group(0).strip(), "value": x * scale,
+                    "tol": max(tol * scale, x * scale * 0.002), "pct": pct})
+    return out
+
+
+def supported(c: dict, srcs: list[float]) -> bool:
+    v = c["value"]
+    return any(abs(abs(s) - v) <= c["tol"] + 1e-9 for s in srcs)
+
+
+def eps_facts(eps: dict, data: dict) -> tuple[list[float], str]:
+    """Konsenzus a z něj odvozené (překvapení v %, rozdíl) jako povolené zdroje + slovní výsledek porovnání."""
+    est, n = eps.get("eps_estimate"), eps.get("n_estimates")
+    srcs = [float(v) for v in (est, n) if isinstance(v, (int, float))]
+    act = data.get("eps_adjusted") if data.get("eps_adjusted") is not None else data.get("eps_gaap")
+    note = "Konsenzus EPS neznámý."
+    if isinstance(est, (int, float)) and isinstance(act, (int, float)):
+        if est:
+            srcs.append(abs((act - est) / est * 100))
+        srcs.append(abs(act - est))
+        rel = "NAD odhadem" if act > est else "POD odhadem" if act < est else "PŘESNĚ na odhadu"
+        note = f"Porovnání: EPS {act} vs. konsenzus {est} → {rel}."
+    return srcs, note
+
+
+def _bullet_list(v) -> list[str]:
+    if isinstance(v, list):
+        return [str(x).strip() for x in v if str(x).strip()]
+    return [ln.lstrip("-•* ").strip() for ln in str(v or "").splitlines() if ln.strip()]
+
+
+def unverified(data: dict, srcs: list[float]) -> dict:
+    """Co v analýze nejde dohledat v podkladech: pole, titulek, odrážky (index → čísla), výhled."""
+    def bad(text):
+        return [c["text"] for c in claims(text) if not supported(c, srcs)]
+    fields = []
+    for k in ("eps_gaap", "eps_adjusted", "revenue_usd", "revenue_yoy_pct"):
+        v = data.get(k)
+        if isinstance(v, (int, float)) and not isinstance(v, bool) and v != 0:
+            a = abs(float(v))
+            tol = a * 0.005 if k == "revenue_usd" else max(a * 0.002, 0.005 if k.startswith("eps") else 0.05)
+            if not supported({"value": a, "tol": tol}, srcs):
+                fields.append(k)
+    return {"fields": fields, "headline": bad(data.get("headline_cs")),
+            "summary": {i: b for i, s in enumerate(_bullet_list(data.get("summary_cs"))) if (b := bad(s))},
+            "guidance": bad(data.get("guidance_cs"))}
+
+
+def _n_bad(u: dict) -> int:
+    return len(u["fields"]) + len(u["headline"]) + sum(map(len, u["summary"].values())) + len(u["guidance"])
+
+
+def _parse_json(txt: str | None) -> dict | None:
+    m = re.search(r"\{.*\}", txt or "", flags=re.S)
+    try:
+        d = json.loads(m.group(0)) if m else None
+    except ValueError:
+        return None
+    return d if isinstance(d, dict) else None
+
+
+def _valid(d: dict | None) -> bool:
+    return isinstance(d, dict) and bool(d.get("headline_cs")) and is_czech(
+        str(d["headline_cs"]) + " ".join(_bullet_list(d.get("summary_cs"))))
+
+
+def fact_check(ticker: str, press_text: str, eps: dict, data: dict) -> dict | None:
+    """Model si svou analýzu sám zkontroluje proti tiskové zprávě (druhé kolo, dostane i čísla,
+    která automatická kontrola nenašla) a pak ještě deterministická kontrola: neověřitelné pole → null,
+    odrážka/výhled s neověřitelným číslem pryč. None = nezbylo nic ověřeného → zkusit znovu později."""
+    press = press_text[:MAX_PRESS_CHARS]
+    base = source_numbers(press)
+    srcs, note = eps_facts(eps, data)
+    before = unverified(data, base + srcs)
+    listed = before["headline"] + [x for v in before["summary"].values() for x in v] + before["guidance"]
+    hints = (f"Čísla, která automatická kontrola v tiskové zprávě NENAŠLA: {', '.join(listed)}" if listed
+             else "Automatická kontrola nenašla neznámá čísla — ověř hlavně jednotky, přiřazení a GAAP vs. upravený EPS.")
+    if before["fields"]:
+        hints += f"\nPole, jejichž hodnotu v textu nenašla: {', '.join(before['fields'])}"
+    user = (f"Firma: {ticker}\nKonsenzus EPS analytiků: {eps.get('eps_estimate')}\n{note}\n{hints}\n\n"
+            f"JSON k ověření:\n{json.dumps(data, ensure_ascii=False, indent=1)}\n\nTisková zpráva:\n{press}")
+    fixed = _parse_json(llm(VERIFY_SYSTEM, user, 12000))
+    by_model = _valid(fixed)
+    if by_model:
+        data = {**data, **{k: fixed[k] for k in data if k in fixed}}
+    else:
+        log("fact-check: model nevrátil platný JSON, jen automatická kontrola", ticker)
+    srcs, _ = eps_facts(eps, data)
+    after = unverified(data, base + srcs)
+    for k in after["fields"]:
+        data[k] = None
+    kept = [b for i, b in enumerate(_bullet_list(data.get("summary_cs"))) if i not in after["summary"]]
+    data["summary_cs"] = kept
+    if after["guidance"]:
+        data["guidance_cs"] = None
+    if after["headline"]:
+        if not kept:
+            log("fact-check: titulek i odrážky neověřitelné", ticker, after["headline"])
+            return None
+        data["headline_cs"] = kept.pop(0)
+    data["fact_check"] = {"before": _n_bad(before), "after": _n_bad(after), "fixed_by_model": by_model}
+    log("fact-check", ticker, f"neověřeno: před {_n_bad(before)}, po opravě modelem {_n_bad(after)}",
+        json.dumps(after, ensure_ascii=False)[:300] if _n_bad(after) else "")
+    return data
+
+
+def check_explanation(text: str, context: str) -> str:
+    """„Proč trh reaguje“: odrážky s číslem, které v podkladech není, se vynechají."""
+    srcs = [c["value"] for c in claims(context, every=True)] + source_numbers(context)
+    lines = [ln for ln in text.splitlines() if ln.strip()]
+    keep = [ln for ln in lines if all(supported(c, srcs) for c in claims(ln))]
+    if len(keep) < len(lines):
+        log("fact-check vysvětlení: vynecháno", len(lines) - len(keep), "odrážek")
+    return "\n".join(keep)
 
 
 def is_czech(text: str) -> bool:
@@ -145,14 +320,12 @@ def analyze(ticker: str, press_text: str, eps: dict) -> dict | None:
     user = f"Firma: {ticker}\n{cons}\n\nTisková zpráva:\n{press_text[:MAX_PRESS_CHARS]}"
     for attempt in range(2):
         txt = llm(EXTRACT_SYSTEM, user if not attempt else user + "\n\nOdpověz česky.", 12000)
-        m = re.search(r"\{.*\}", txt or "", flags=re.S)
-        try:
-            data = json.loads(m.group(0)) if m else None
-        except ValueError:
-            data = None
-        if isinstance(data, dict) and data.get("headline_cs") and is_czech(
-                data["headline_cs"] + " ".join(map(str, data.get("summary_cs") or []))):
-            return data
+        data = _parse_json(txt)
+        if _valid(data):
+            checked = fact_check(ticker, press_text, eps, data)
+            if checked:
+                return checked
+            continue
         log("analysis unreadable / not Czech", ticker, (txt or "")[:160])
     return None
 
@@ -168,7 +341,7 @@ def explain(c: dict) -> str | None:
     for attempt in range(2):
         txt = llm(REACTION_SYSTEM, user if not attempt else user + "\n\nOdpověz česky.", 8000)
         lines = [ln.strip() for ln in (txt or "").splitlines() if ln.strip().startswith(("-", "•", "*"))]
-        out = "\n".join("- " + ln.lstrip("-•* ").strip() for ln in lines)
+        out = check_explanation("\n".join("- " + ln.lstrip("-•* ").strip() for ln in lines), user)
         if out and is_czech(out):
             return out
         log("explanation not Czech", c["ticker"], (txt or "")[:120])
