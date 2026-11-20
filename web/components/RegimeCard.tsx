@@ -18,7 +18,7 @@ export interface Regime {
 }
 
 const TONE: Record<string, { box: string; dot: string; text: string }> = {
-  calm:       { box: "border-[rgba(96,255,130,0.25)] bg-[#0c1a11]", dot: "#60ff82", text: "text-[#8fffab]" },
+  calm:       { box: "border-[rgba(96,255,130,0.25)] bg-neon-tint", dot: "#60ff82", text: "text-neon-soft" },
   recovering: { box: "border-[rgba(96,180,255,0.3)] bg-[#0c1522]",  dot: "#60b4ff", text: "text-[#9fd0ff]" },
   tension:    { box: "border-[rgba(255,196,64,0.35)] bg-[#1c1608]", dot: "#ffc440", text: "text-[#ffd97a]" },
   panic:      { box: "border-[rgba(255,80,80,0.4)] bg-[#1c0c0c]",   dot: "#ff5050", text: "text-[#ff8f8f]" },
@@ -90,7 +90,7 @@ export function RegimeCard() {
       )}
       <div className="mt-2.5 grid grid-cols-2 gap-2 sm:grid-cols-5">
         {cells.map(([k, v]) => (
-          <div key={k} className="rounded-lg bg-black/25 px-2.5 py-1.5">
+          <div key={k} className="rounded-lg bg-sunken px-2.5 py-1.5">
             <div className="text-[10px] text-gray-500">{k}</div>
             <div className="text-sm font-medium text-gray-100">{v}</div>
           </div>

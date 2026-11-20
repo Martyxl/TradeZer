@@ -20,7 +20,7 @@ export function PaywallGuard({ tier, name, children }: {
   if (FREE_ACCESS && tier !== "elite") {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 rounded-2xl border border-line bg-panel-2 p-8 text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[rgba(96,255,130,0.12)] text-[#8fffab]">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[rgba(96,255,130,0.12)] text-neon-soft">
           <Lock size={22} />
         </div>
         <h2 className="text-lg font-semibold text-white">{name} je zdarma pro registrované</h2>
@@ -29,7 +29,7 @@ export function PaywallGuard({ tier, name, children }: {
         </p>
         <div className="flex gap-3">
           <Link href="/registrace"
-            className="rounded-lg border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.10)] px-4 py-2 text-sm font-medium text-[#8fffab] hover:bg-[rgba(96,255,130,0.18)]">
+            className="rounded-lg border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.10)] px-4 py-2 text-sm font-medium text-neon-soft hover:bg-[rgba(96,255,130,0.18)]">
             Vytvořit účet zdarma
           </Link>
           <Link href="/prihlaseni" className="rounded-lg border border-line px-4 py-2 text-sm text-gray-300 hover:text-white">
@@ -42,7 +42,7 @@ export function PaywallGuard({ tier, name, children }: {
 
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 rounded-2xl border border-line bg-panel-2 p-8 text-center">
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[rgba(96,255,130,0.12)] text-[#8fffab]">
+      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[rgba(96,255,130,0.12)] text-neon-soft">
         <Lock size={22} />
       </div>
       <h2 className="text-lg font-semibold text-white">{name} je v plánu {TIER_LABEL[tier]}</h2>
@@ -53,7 +53,7 @@ export function PaywallGuard({ tier, name, children }: {
       <div className="flex gap-3">
         <Link
           href={user ? "/predplatne" : "/registrace"}
-          className="rounded-lg border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.10)] px-4 py-2 text-sm font-medium text-[#8fffab] hover:bg-[rgba(96,255,130,0.18)]"
+          className="rounded-lg border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.10)] px-4 py-2 text-sm font-medium text-neon-soft hover:bg-[rgba(96,255,130,0.18)]"
         >
           {user ? "Zobrazit předplatné" : "Vytvořit účet"}
         </Link>

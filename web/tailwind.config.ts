@@ -33,13 +33,20 @@ const config: Config = {
         sunken: "var(--tz-sunken)",
         raised: "var(--tz-raised)",
         line: { DEFAULT: "var(--tz-line)", 2: "var(--tz-line-2)" },
-        mint: "var(--tz-mint)",
+        mint: { DEFAULT: "var(--tz-mint)", 2: "var(--tz-mint-2)" },
         dialog: "var(--tz-dialog)",
+        // "Bílá" = nejkontrastnější barva popředí. Ve světlých motivech je tmavá, takže
+        // text-white / bg-white/5 / border-white/10 fungují v obou režimech bez úprav komponent.
+        white: "rgb(var(--tz-ink) / <alpha-value>)",
+        "on-ink": "var(--tz-on-ink)",
+        pill: "var(--tz-pill)",
+        "on-pill": "var(--tz-on-pill)",
+        neon: { DEFAULT: "var(--tz-neon)", soft: "var(--tz-neon-soft)", tint: "var(--tz-neon-tint)" },
         gray: {
-          50: "#f9fafb", 100: "#f3f4f6",
+          50: "#f9fafb", 100: "var(--tz-gray-100)",
           200: "var(--tz-gray-200)", 300: "var(--tz-gray-300)", 400: "var(--tz-gray-400)",
           500: "var(--tz-gray-500)", 600: "var(--tz-gray-600)", 700: "var(--tz-gray-700)",
-          800: "#1f2937", 900: "#111827", 950: "#030712",
+          800: "var(--tz-gray-800)", 900: "#111827", 950: "#030712",
         },
       },
       borderRadius: {

@@ -21,7 +21,7 @@ interface FundData {
 }
 
 const fmt = (n: number | null | undefined) => (n === null || n === undefined ? "—" : Math.round(n).toLocaleString("cs-CZ"));
-const pnlC = (n: number | null | undefined) => (n == null ? "text-gray-400" : n > 0 ? "text-[#60ff82]" : n < 0 ? "text-[#ff5050]" : "text-gray-300");
+const pnlC = (n: number | null | undefined) => (n == null ? "text-gray-400" : n > 0 ? "text-neon" : n < 0 ? "text-[#ff5050]" : "text-gray-300");
 
 export default function FondPage() {
   const [d, setD] = useState<FundData | null>(null);
@@ -41,7 +41,7 @@ export default function FondPage() {
       <div>
         <div className="flex items-center gap-2.5">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[rgba(96,255,130,0.12)] border border-[rgba(96,255,130,0.3)]">
-            <Bot size={16} className="text-[#60ff82]" />
+            <Bot size={16} className="text-neon" />
           </span>
           <h1 className="text-2xl font-bold text-white">TRADEZER investuje</h1>
           <span className="ml-auto"><RegimeChip /></span>
@@ -67,8 +67,8 @@ export default function FondPage() {
             const when = m ? `${+m[3]}. ${+m[2]}.` : null;
             const text = m ? m[4] : s.note;
             return (
-              <div className="rounded-xl border border-[rgba(96,255,130,0.25)] bg-[#0c1a11] px-4 py-3 text-sm text-[#cfeedd]">
-                <span className="text-[11px] uppercase tracking-wider text-[#8fffab]">
+              <div className="rounded-xl border border-[rgba(96,255,130,0.25)] bg-neon-tint px-4 py-3 text-sm text-gray-200">
+                <span className="text-[11px] uppercase tracking-wider text-neon-soft">
                   Poslední tah fondu{when ? ` · ${when}` : ""}
                 </span>
                 <div className="mt-0.5">{text}</div>
@@ -138,7 +138,7 @@ export default function FondPage() {
                 const buy = t.action === "buy";
                 const trim = t.action === "trim";
                 const Icon = buy ? ArrowUpRight : trim ? Scissors : ArrowDownRight;
-                const col = buy ? "text-[#60ff82]" : trim ? "text-amber-300" : "text-[#ff5050]";
+                const col = buy ? "text-neon" : trim ? "text-amber-300" : "text-[#ff5050]";
                 const bg = buy ? "bg-[rgba(96,255,130,0.1)]" : trim ? "bg-amber-500/10" : "bg-red-500/10";
                 return (
                   <div key={i} className="flex gap-3 rounded-lg border border-line bg-sunken p-3">
@@ -184,7 +184,7 @@ function EquityChart({ snaps, start }: { snaps: Snap[]; start: number }) {
   if (snaps.length < 2) {
     return (
       <div className="rounded-xl border border-line bg-panel-2 p-5">
-        <h2 className="flex items-center gap-2 text-sm font-semibold text-white"><TrendingUp size={15} className="text-[#60ff82]" /> Vývoj celkové hodnoty fondu</h2>
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-white"><TrendingUp size={15} className="text-neon" /> Vývoj celkové hodnoty fondu</h2>
         <div className="py-8 text-center text-sm text-gray-500">Křivka se plní každý den — zatím {snaps.length === 1 ? "1 bod" : "0 bodů"}. Zítra přibude další.</div>
       </div>
     );
@@ -208,15 +208,15 @@ function EquityChart({ snaps, start }: { snaps: Snap[]; start: number }) {
     <div className="rounded-xl border border-line bg-panel-2 p-5">
       <div className="flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-sm font-semibold text-white">
-          {up ? <TrendingUp size={15} className="text-[#60ff82]" /> : <TrendingDown size={15} className="text-[#ff5050]" />} Vývoj celkové hodnoty fondu
+          {up ? <TrendingUp size={15} className="text-neon" /> : <TrendingDown size={15} className="text-[#ff5050]" />} Vývoj celkové hodnoty fondu
         </h2>
         <span className="text-[11px] text-gray-500">{snaps[0].date} → {last.date}</span>
       </div>
       {benchRet != null && (
         <div className="mt-1 flex flex-wrap gap-x-4 text-[11px]">
-          <span className="flex items-center gap-1.5"><span className="inline-block h-0.5 w-3" style={{ background: up ? "#60ff82" : "#ff5050" }} /> Fond <b className={fundRet >= 0 ? "text-[#60ff82]" : "text-[#ff5050]"}>{fundRet >= 0 ? "+" : ""}{fundRet.toFixed(1)} %</b></span>
+          <span className="flex items-center gap-1.5"><span className="inline-block h-0.5 w-3" style={{ background: up ? "#60ff82" : "#ff5050" }} /> Fond <b className={fundRet >= 0 ? "text-neon" : "text-[#ff5050]"}>{fundRet >= 0 ? "+" : ""}{fundRet.toFixed(1)} %</b></span>
           <span className="flex items-center gap-1.5"><span className="inline-block h-0.5 w-3 bg-gray-500" /> S&amp;P 500 <b className="text-gray-300">{benchRet >= 0 ? "+" : ""}{benchRet.toFixed(1)} %</b></span>
-          <span className={fundRet >= benchRet ? "text-[#60ff82]" : "text-[#ff8080]"}>{fundRet >= benchRet ? "poráží index" : "zaostává za indexem"} o {Math.abs(fundRet - benchRet).toFixed(1)} b.</span>
+          <span className={fundRet >= benchRet ? "text-neon" : "text-[#ff8080]"}>{fundRet >= benchRet ? "poráží index" : "zaostává za indexem"} o {Math.abs(fundRet - benchRet).toFixed(1)} b.</span>
         </div>
       )}
       <div className="relative mt-3 h-52 w-full">

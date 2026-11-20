@@ -43,7 +43,7 @@ export default function DanePage() {
   if (authLoading) return <div className="h-40 animate-pulse rounded-xl bg-panel" />;
   if (!user)
     return <div className="rounded-xl border border-line bg-panel-2 p-8 text-center text-gray-400">
-      Pro daňový test se <a href="/prihlaseni" className="text-[#60ff82] underline">přihlas</a>.</div>;
+      Pro daňový test se <a href="/prihlaseni" className="text-neon underline">přihlas</a>.</div>;
 
   const s = tt?.summary;
 
@@ -51,7 +51,7 @@ export default function DanePage() {
     <div className="space-y-6">
       <div>
         <h1 className="flex items-center gap-2 text-2xl font-bold text-white">
-          <Receipt size={20} className="text-[#60ff82]" /> Daňový časový test
+          <Receipt size={20} className="text-neon" /> Daňový časový test
         </h1>
         <p className="mt-1 text-sm text-gray-400">
           Cenné papíry držené <strong>déle než 3 roky</strong> → zisk z prodeje je v ČR osvobozen od daně z příjmu.
@@ -61,8 +61,8 @@ export default function DanePage() {
 
       {/* Souhrn */}
       <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-xl border border-[rgba(96,255,130,0.3)] bg-[#0c1a11] p-4">
-          <div className="flex items-center gap-1.5 text-[11px] uppercase text-[#8fffab]"><CheckCircle2 size={13} /> Osvobozeno (přes 3 roky)</div>
+        <div className="rounded-xl border border-[rgba(96,255,130,0.3)] bg-neon-tint p-4">
+          <div className="flex items-center gap-1.5 text-[11px] uppercase text-neon-soft"><CheckCircle2 size={13} /> Osvobozeno (přes 3 roky)</div>
           <div className="mt-1 text-xl font-bold text-white">{fmt(s?.value_tax_free, "CZK")}</div>
           <div className="text-xs text-gray-500">{s?.n_tax_free ?? 0} nákupních pozic</div>
         </div>
@@ -110,7 +110,7 @@ export default function DanePage() {
         {loading ? (
           <div className="p-6 text-sm text-gray-500">Načítám…</div>
         ) : !tt?.lots.length ? (
-          <div className="p-6 text-sm text-gray-500">Žádné otevřené nákupy. Nahraj transakce v <a href="/investice" className="text-[#60ff82] underline">Investicích</a>.</div>
+          <div className="p-6 text-sm text-gray-500">Žádné otevřené nákupy. Nahraj transakce v <a href="/investice" className="text-neon underline">Investicích</a>.</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -137,7 +137,7 @@ export default function DanePage() {
                     <td className="px-4 py-2.5 text-gray-400">{dCZ(l.free_date)}</td>
                     <td className="px-4 py-2.5">
                       {l.tax_free ? (
-                        <span className="inline-flex items-center gap-1 rounded bg-[rgba(96,255,130,0.14)] px-2 py-0.5 text-[11px] text-[#8fffab]"><CheckCircle2 size={11} /> osvobozeno</span>
+                        <span className="inline-flex items-center gap-1 rounded bg-[rgba(96,255,130,0.14)] px-2 py-0.5 text-[11px] text-neon-soft"><CheckCircle2 size={11} /> osvobozeno</span>
                       ) : (
                         <span className="inline-flex items-center gap-1 rounded bg-raised px-2 py-0.5 text-[11px] text-gray-300"><Clock size={11} /> {remainLabel(l.days_remaining)}</span>
                       )}

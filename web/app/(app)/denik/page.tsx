@@ -298,7 +298,7 @@ function StrategyTabs({ items, total, active, onSelect, onNew }: {
             ) : <div className="mt-1 text-[11px] text-gray-500">zatím bez obchodů</div>}
           </button>
         ))}
-        <button onClick={onNew} className="shrink-0 w-44 rounded-xl border border-dashed border-line-2 p-3 text-left text-sm text-[#8fffab] hover:bg-panel-2">
+        <button onClick={onNew} className="shrink-0 w-44 rounded-xl border border-dashed border-line-2 p-3 text-left text-sm text-neon-soft hover:bg-panel-2">
           <Plus size={14} className="mb-1" /> Nový deník strategie
         </button>
       </div>
@@ -742,7 +742,7 @@ function EntryForm({ initial, draft, meta, tagData, defaultStrategyId, onClose, 
         <div className="flex justify-end gap-2 mt-5">
           <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-gray-300 border border-line hover:text-white transition-colors">Zrušit</button>
           <button onClick={submit} disabled={saving}
-            className="rounded-lg px-4 py-2 text-sm font-medium bg-[rgba(96,255,130,0.14)] text-[#8fffab] border border-[rgba(96,255,130,0.4)] hover:bg-[rgba(96,255,130,0.22)] transition-colors disabled:opacity-50">
+            className="rounded-lg px-4 py-2 text-sm font-medium bg-[rgba(96,255,130,0.14)] text-neon-soft border border-[rgba(96,255,130,0.4)] hover:bg-[rgba(96,255,130,0.22)] transition-colors disabled:opacity-50">
             {saving ? "Ukládám…" : initial ? "Uložit změny" : "Přidat obchod"}
           </button>
         </div>
@@ -963,7 +963,7 @@ function StrategyEditor({ data, initial, onClose, onSaved, onTagsChanged, onDele
           </div>
         ))}
 
-        <button type="button" onClick={addBlock} className="flex items-center gap-1 text-xs text-[#8fffab]"><Plus size={13} /> Přidat timeframe</button>
+        <button type="button" onClick={addBlock} className="flex items-center gap-1 text-xs text-neon-soft"><Plus size={13} /> Přidat timeframe</button>
 
         <form onSubmit={(e) => { e.preventDefault(); addObject(); }} className="flex gap-2">
           <input className={`${field} py-1.5`} value={newObj} maxLength={40} placeholder="Chybí objekt? Přidej vlastní (např. Breaker, MSS)" onChange={(e) => setNewObj(e.target.value)} />
@@ -976,7 +976,7 @@ function StrategyEditor({ data, initial, onClose, onSaved, onTagsChanged, onDele
           <span className="flex-1" />
           <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-gray-300 border border-line hover:text-white">Zrušit</button>
           <button onClick={save} disabled={saving}
-            className="rounded-lg px-4 py-2 text-sm font-medium bg-[rgba(96,255,130,0.14)] text-[#8fffab] border border-[rgba(96,255,130,0.4)] hover:bg-[rgba(96,255,130,0.22)] disabled:opacity-50">
+            className="rounded-lg px-4 py-2 text-sm font-medium bg-[rgba(96,255,130,0.14)] text-neon-soft border border-[rgba(96,255,130,0.4)] hover:bg-[rgba(96,255,130,0.22)] disabled:opacity-50">
             {saving ? "Ukládám…" : initial ? "Uložit strategii" : "Vytvořit deník"}
           </button>
         </div>
@@ -1372,7 +1372,7 @@ export default function DenikPage() {
               <Upload size={15} /> Import CSV
             </button>
             <button onClick={openNew}
-              className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium bg-[rgba(96,255,130,0.14)] text-[#8fffab] border border-[rgba(96,255,130,0.4)] hover:bg-[rgba(96,255,130,0.22)] transition-colors">
+              className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium bg-[rgba(96,255,130,0.14)] text-neon-soft border border-[rgba(96,255,130,0.4)] hover:bg-[rgba(96,255,130,0.22)] transition-colors">
               <Plus size={15} /> Přidat obchod
             </button>
           </div>
@@ -1384,7 +1384,7 @@ export default function DenikPage() {
           <p className="text-gray-300">Deník je dostupný po přihlášení.</p>
           <div className="flex justify-center gap-3 mt-4">
             <Link href="/prihlaseni" className="rounded-lg px-4 py-2 text-sm bg-raised text-white border border-line-2 hover:border-gray-500 transition-colors">Přihlásit se</Link>
-            <Link href="/registrace" className="rounded-lg px-4 py-2 text-sm text-[#8fffab] border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.10)] hover:bg-[rgba(96,255,130,0.18)] transition-colors">Registrovat</Link>
+            <Link href="/registrace" className="rounded-lg px-4 py-2 text-sm text-neon-soft border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.10)] hover:bg-[rgba(96,255,130,0.18)] transition-colors">Registrovat</Link>
           </div>
         </div>
       )}

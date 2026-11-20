@@ -24,10 +24,10 @@ export function CookieNotice() {
       className="fixed inset-x-3 bottom-3 z-[60] mx-auto flex max-w-xl flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-white/15 bg-[#0d1216]/95 px-4 py-3 text-xs leading-5 text-white/70 shadow-2xl backdrop-blur">
       <p className="min-w-[220px] flex-1">
         Používáme jen nezbytné úložiště prohlížeče (přihlášení, nastavení). <b className="text-white/90">Žádné sledování ani reklamy.</b>{" "}
-        <Link href="/cookies" className="text-[#60ff82] hover:underline">Více</Link>
+        <Link href="/cookies" className="text-neon hover:underline">Více</Link>
       </p>
       <button onClick={close}
-        className="rounded-md border border-[#60ff82]/40 bg-[#60ff82]/10 px-3 py-1.5 font-medium text-[#8fffab] hover:bg-[#60ff82]/20">
+        className="rounded-md border border-[#60ff82]/40 bg-[#60ff82]/10 px-3 py-1.5 font-medium text-neon-soft hover:bg-[#60ff82]/20">
         Rozumím
       </button>
     </div>

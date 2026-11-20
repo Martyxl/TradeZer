@@ -2,6 +2,7 @@ import { Plus_Jakarta_Sans } from "next/font/google";
 import { Sidebar, MobileNav, AppTopbar } from "@/components/Sidebar";
 import { Footer } from "@/components/Footer";
 import { HelpChat } from "@/components/HelpChat";
+import { THEME_BOOT_SCRIPT } from "@/lib/theme";
 
 const jakarta = Plus_Jakarta_Sans({ subsets: ["latin", "latin-ext"], display: "swap" });
 
@@ -11,6 +12,8 @@ const jakarta = Plus_Jakarta_Sans({ subsets: ["latin", "latin-ext"], display: "s
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className={`tz-glass flow-root ${jakarta.className}`}>
+      {/* Zvolený barevný motiv (ThemePicker) nastavit dřív, než se obsah vykreslí. */}
+      <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
       <MobileNav />
       <div className="flex gap-5 p-3 md:p-5">
         <Sidebar />

@@ -193,7 +193,7 @@ function Metric({ label, value, sub, accent }: {
   return (
     <div className="rounded-lg bg-sunken border border-line px-3 py-2">
       <div className="text-[10px] uppercase tracking-wider text-gray-500">{label}</div>
-      <div className="text-sm font-semibold" style={{ color: accent ?? "#e5e7eb" }}>{value}</div>
+      <div className="text-sm font-semibold" style={{ color: accent ?? "var(--tz-gray-200)" }}>{value}</div>
       <div className="text-[9px] text-gray-600">{sub}</div>
     </div>
   );

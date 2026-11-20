@@ -80,7 +80,7 @@ export function SupportButton({ variant = "sidebar" }: { variant?: "sidebar" | "
             </p>
 
             <div className="flex justify-center mb-4">
-              <div className="rounded-xl bg-white p-3">
+              <div className="rounded-xl bg-[#fff] p-3">
                 <QRCodeSVG value={QR_PAYMENT} size={160} level="M" />
               </div>
             </div>

@@ -319,13 +319,13 @@ function EarningsAlertSettings() {
             : "Chceš dostat e-mail, jakmile firma zveřejní důležité výsledky?"}
         </span>
         <button onClick={() => setDraft({ ...sub, enabled: true })}
-          className="ml-auto rounded-lg border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.12)] px-3 py-1 text-[12px] font-medium text-[#8fffab] hover:bg-[rgba(96,255,130,0.18)]">
+          className="ml-auto rounded-lg border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.12)] px-3 py-1 text-[12px] font-medium text-neon-soft hover:bg-[rgba(96,255,130,0.18)]">
           {sub.enabled ? "Upravit" : "Zapnout upozornění"}
         </button>
         {sub.enabled && (
           <button disabled={busy} onClick={() => save({ ...sub, enabled: false })} className="text-[12px] text-gray-500 hover:text-gray-300">Vypnout</button>
         )}
-        {msg && <span className={`w-full text-[11px] ${msg.ok ? "text-[#8fffab]" : "text-red-400"}`}>{msg.text}</span>}
+        {msg && <span className={`w-full text-[11px] ${msg.ok ? "text-neon-soft" : "text-red-400"}`}>{msg.text}</span>}
       </div>
     );
   }
@@ -380,7 +380,7 @@ function EarningsAlertSettings() {
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <button disabled={busy || !sub.email || (draft.scope === "custom" && draft.tickers.length === 0)} onClick={() => save({ ...draft, enabled: true })}
-          className="flex items-center gap-1.5 rounded-lg border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.12)] px-3 py-1.5 text-[12px] font-medium text-[#8fffab] hover:bg-[rgba(96,255,130,0.18)] disabled:opacity-50">
+          className="flex items-center gap-1.5 rounded-lg border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.12)] px-3 py-1.5 text-[12px] font-medium text-neon-soft hover:bg-[rgba(96,255,130,0.18)] disabled:opacity-50">
           {busy && <Loader2 size={12} className="animate-spin" />} Uložit a zapnout
         </button>
         {sub.enabled && (
@@ -393,7 +393,7 @@ function EarningsAlertSettings() {
         )}
         <span className="text-[11px] text-gray-500">na {sub.email ?? "—"} · odhlásit jde i odkazem v e-mailu</span>
       </div>
-      {msg && <p className={`text-[11px] ${msg.ok ? "text-[#8fffab]" : "text-red-400"}`}>{msg.text}</p>}
+      {msg && <p className={`text-[11px] ${msg.ok ? "text-neon-soft" : "text-red-400"}`}>{msg.text}</p>}
     </div>
   );
 }

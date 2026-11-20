@@ -22,12 +22,12 @@ export default function AccountPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[rgba(96,255,130,0.12)] text-[#8fffab]"><UserIcon size={20} /></div>
+        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[rgba(96,255,130,0.12)] text-neon-soft"><UserIcon size={20} /></div>
         <div>
           <h1 className="text-xl font-semibold text-white">{user.email || user.username}</h1>
           <div className="mt-1 flex items-center gap-2 text-xs">
             <span className="rounded bg-raised px-2 py-0.5 uppercase text-gray-300">Plán: {user.plan}</span>
-            {user.is_admin && <span className="inline-flex items-center gap-1 rounded bg-[rgba(96,255,130,0.14)] px-2 py-0.5 uppercase text-[#8fffab]"><ShieldCheck size={11} /> Admin</span>}
+            {user.is_admin && <span className="inline-flex items-center gap-1 rounded bg-[rgba(96,255,130,0.14)] px-2 py-0.5 uppercase text-neon-soft"><ShieldCheck size={11} /> Admin</span>}
           </div>
         </div>
       </div>
@@ -63,7 +63,7 @@ function SubscriptionCard({ plan, isAdmin }: { plan: string; isAdmin: boolean })
   return (
     <div className="max-w-md rounded-xl border border-line bg-panel-2 p-5">
       <h2 className="flex items-center gap-2 text-sm font-semibold text-white">
-        <CreditCard size={15} className="text-[#60ff82]" /> {FREE_ACCESS ? "Přístup" : "Předplatné"}
+        <CreditCard size={15} className="text-neon" /> {FREE_ACCESS ? "Přístup" : "Předplatné"}
       </h2>
       {FREE_ACCESS ? (
         <p className="mt-2 text-sm text-gray-400">
@@ -83,7 +83,7 @@ function SubscriptionCard({ plan, isAdmin }: { plan: string; isAdmin: boolean })
           </button>
         ) : !FREE_ACCESS && (
           <Link href="/predplatne"
-            className="inline-block rounded-lg border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.10)] px-4 py-2 text-sm font-medium text-[#8fffab] hover:bg-[rgba(96,255,130,0.18)]">
+            className="inline-block rounded-lg border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.10)] px-4 py-2 text-sm font-medium text-neon-soft hover:bg-[rgba(96,255,130,0.18)]">
             Vylepšit plán
           </Link>
         )}
@@ -128,7 +128,7 @@ function ChangePasswordCard({ onChange }: { onChange: (o: string, n: string) => 
           <input type="password" required minLength={6} value={newP} onChange={(e) => setNewP(e.target.value)} className="acc-input" autoComplete="new-password" />
         </label>
         {msg && <p className={`text-sm ${msg.ok ? "text-green-400" : "text-red-400"}`}>{msg.text}</p>}
-        <button type="submit" disabled={busy} className="mt-1 min-h-9 rounded-lg border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.10)] text-sm font-medium text-[#8fffab] hover:bg-[rgba(96,255,130,0.18)] disabled:opacity-50">{busy ? "Ukládám…" : "Změnit heslo"}</button>
+        <button type="submit" disabled={busy} className="mt-1 min-h-9 rounded-lg border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.10)] text-sm font-medium text-neon-soft hover:bg-[rgba(96,255,130,0.18)] disabled:opacity-50">{busy ? "Ukládám…" : "Změnit heslo"}</button>
       </form>
       <style>{`.acc-input{min-height:36px;padding:6px 10px;font-size:14px;color:#e5e7eb;background:#0f1117;border:1px solid #2a2d3a;border-radius:8px;outline:none}.acc-input:focus{border-color:#60ff82}`}</style>
     </div>
@@ -183,7 +183,7 @@ function PrivacyCard({ isAdmin, onDeleted }: { isAdmin: boolean; onDeleted: () =
       <h2 className="text-sm font-semibold text-white">Moje data a soukromí</h2>
       <p className="mt-2 text-xs leading-5 text-gray-400">
         Můžeš si stáhnout všechna svá data (účet, deník, investiční transakce) ve strojově čitelném formátu, nebo účet
-        i s daty trvale smazat. Více v <Link href="/ochrana-osobnich-udaju" className="text-[#8fffab] hover:underline">Zásadách ochrany osobních údajů</Link>.
+        i s daty trvale smazat. Více v <Link href="/ochrana-osobnich-udaju" className="text-neon-soft hover:underline">Zásadách ochrany osobních údajů</Link>.
       </p>
       {err && <p className="mt-3 text-sm text-red-400">{err}</p>}
       <div className="mt-4 flex flex-wrap gap-2">

@@ -128,7 +128,7 @@ export function HelpChat() {
               <div key={i} className={m.role === "user" ? "flex justify-end" : ""}>
                 <div className={
                   m.role === "user" ? "max-w-[85%] rounded-xl bg-raised px-3 py-2 text-white"
-                  : m.role === "assistant" ? "max-w-[95%] whitespace-pre-wrap rounded-xl bg-[#171b27] px-3 py-2 text-gray-200"
+                  : m.role === "assistant" ? "max-w-[95%] whitespace-pre-wrap rounded-xl bg-panel-2 px-3 py-2 text-gray-200"
                   : "text-xs text-yellow-400"}>
                   {m.role === "assistant" ? renderBold(m.text) : m.text}
                 </div>

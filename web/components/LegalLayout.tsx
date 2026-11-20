@@ -7,7 +7,7 @@ export function LegalLayout({ title, updated, children }: { title: string; updat
   return (
     <div className="min-h-screen bg-[#060a0c] text-white" style={{ fontFamily: "var(--font-inter), Inter, system-ui, sans-serif" }}>
       <nav className="mx-auto flex max-w-3xl items-center gap-4 px-5 py-4 sm:px-8">
-        <Link href="/" className="flex items-center gap-2 text-[15px] text-white/80 hover:text-[#60ff82]">
+        <Link href="/" className="flex items-center gap-2 text-[15px] text-white/80 hover:text-neon">
           <ArrowLeft size={16} /> tradezer
         </Link>
         <div className="ml-auto flex items-center gap-4 text-sm">
@@ -27,9 +27,9 @@ export function LegalLayout({ title, updated, children }: { title: string; updat
 export function LegalNav() {
   return (
     <div className="mt-14 flex flex-wrap gap-x-5 gap-y-2 border-t border-white/10 pt-6 text-sm text-white/55">
-      <Link href="/obchodni-podminky" className="hover:text-[#60ff82]">Obchodní podmínky</Link>
-      <Link href="/ochrana-osobnich-udaju" className="hover:text-[#60ff82]">Ochrana osobních údajů</Link>
-      <Link href="/cookies" className="hover:text-[#60ff82]">Cookies</Link>
+      <Link href="/obchodni-podminky" className="hover:text-neon">Obchodní podmínky</Link>
+      <Link href="/ochrana-osobnich-udaju" className="hover:text-neon">Ochrana osobních údajů</Link>
+      <Link href="/cookies" className="hover:text-neon">Cookies</Link>
     </div>
   );
 }
@@ -50,7 +50,7 @@ export function UL({ items }: { items: React.ReactNode[] }) {
 /** Kontaktní e-mail (nebo výrazná výzva k doplnění, dokud není vyplněn v lib/legal.ts). */
 export function ContactEmail() {
   return LEGAL.email
-    ? <a className="text-[#60ff82] hover:underline" href={`mailto:${LEGAL.email}`}>{LEGAL.email}</a>
+    ? <a className="text-neon hover:underline" href={`mailto:${LEGAL.email}`}>{LEGAL.email}</a>
     : <mark className="rounded bg-amber-500/20 px-1.5 text-amber-300">[doplnit kontaktní e-mail]</mark>;
 }
 

@@ -13,8 +13,9 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  // data-tz-theme/-mode na <html> nastavuje před hydratací skript motivu (lib/theme.ts).
   return (
-    <html lang="cs">
+    <html lang="cs" suppressHydrationWarning>
       <body className={`min-h-screen bg-sunken text-gray-100 antialiased ${inter.variable}`}>
         <AuthProvider>{children}</AuthProvider>
         <CookieNotice />

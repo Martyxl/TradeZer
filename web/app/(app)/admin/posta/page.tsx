@@ -102,7 +102,7 @@ export default function MailPage() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
         <Link href="/admin" className="text-gray-500 hover:text-white" aria-label="Zpět do adminu"><ArrowLeft size={18} /></Link>
-        <Mail size={20} className="text-[#60ff82]" />
+        <Mail size={20} className="text-neon" />
         <h1 className="text-2xl font-bold text-white">Pošta</h1>
         <span className="text-sm text-gray-500">info@tradezer.app</span>
         <div className="ml-auto flex gap-2">
@@ -214,7 +214,7 @@ export default function MailPage() {
               )}
               {showHtml && detail.html ? (
                 // sandbox="" = žádné skripty, formuláře ani přístup k Tradezeru; e-mail nemůže nic spustit
-                <iframe title="HTML zprávy" sandbox="" srcDoc={detail.html} className="h-[55vh] w-full rounded-lg bg-white" />
+                <iframe title="HTML zprávy" sandbox="" srcDoc={detail.html} className="h-[55vh] w-full rounded-lg bg-[#fff]" />
               ) : (
                 <pre className="max-h-[55vh] overflow-y-auto whitespace-pre-wrap break-words font-sans text-sm text-gray-200">
                   {detail.text || "(zpráva nemá textovou verzi — zobraz HTML)"}

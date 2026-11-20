@@ -171,7 +171,7 @@ export function GammaCard({ ticker }: { ticker: string }) {
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4 text-center">
             {[
-              { l: "Spot", v: d.spot, c: "#e5e7eb" },
+              { l: "Spot", v: d.spot, c: "var(--tz-gray-200)" },
               { l: "Flip", v: d.flip, c: "#a78bfa" },
               { l: "Call wall", v: d.call_wall, c: "#4ade80" },
               { l: "Put wall", v: d.put_wall, c: "#f87171" },

@@ -100,7 +100,7 @@ function LiveMove({ s, ticker }: { s: Scenario; ticker: string }) {
   return (
     <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 pl-11 text-[12px]">
       <span className="inline-flex items-center gap-1 text-gray-400">
-        <Activity size={12} className={live ? "animate-pulse text-[#60ff82]" : "text-gray-500"} />
+        <Activity size={12} className={live ? "animate-pulse text-neon" : "text-gray-500"} />
         {live ? "Trh teď" : "Trh po vydání"}{l.proxy ? ` (přes ETF ${l.proxy})` : ""}:
       </span>
       <span className="font-semibold" style={{ color: DIR_COLOR[now] }}>{pctTxt(l.last_pct)}</span>

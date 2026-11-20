@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard, Menu, X, History, BarChart3, Sunrise, Target, NotebookPen, Telescope, Landmark, BookOpen, User as UserIcon, LogOut, CreditCard, ShieldCheck, Wallet, Receipt, Waves, Bot, Lock, type LucideIcon } from "lucide-react";
 import { SupportButton } from "@/components/SupportButton";
+import { ThemePicker, ThemeSwatches } from "@/components/ThemePicker";
 import { useAuth } from "@/lib/auth";
 import { FREE_ACCESS, hasAccess, planRank, type Tier } from "@/lib/config";
 
@@ -80,7 +81,7 @@ function UserMenu() {
   if (!user) {
     return (
       <div className="flex flex-col gap-2">
-        <Link href="/registrace" className="rounded-full bg-white px-3 py-2 text-center text-sm font-semibold text-[#0a1a16] transition-colors hover:bg-[#dff3ea]">
+        <Link href="/registrace" className="rounded-full bg-white px-3 py-2 text-center text-sm font-semibold text-on-ink transition-colors hover:bg-white/85">
           Vytvořit účet
         </Link>
         <Link href="/prihlaseni" className="rounded-full border border-line-2 px-3 py-2 text-center text-sm text-gray-300 transition-colors hover:bg-panel hover:text-white">
@@ -104,7 +105,7 @@ function Brand() {
   return (
     <Link href="/" className="flex items-center gap-3 rounded-xl px-2 pb-3 pt-1.5">
       <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-line-2 bg-raised">
-        <span className="h-4 w-4 rounded-full bg-gradient-to-br from-[#6fe0b0] to-[#2f9a80]" />
+        <span className="h-4 w-4 rounded-full bg-gradient-to-br from-mint to-mint-2" />
       </span>
       <span>
         <span className="block font-extrabold leading-tight tracking-tight text-white">Tradezer</span>
@@ -137,7 +138,7 @@ function NavTree({ onNavigate }: { onNavigate?: () => void }) {
 
 export function Sidebar() {
   return (
-    <aside className="tz-pane sticky top-5 hidden h-[calc(100vh-2.5rem)] w-[248px] shrink-0 flex-col self-start overflow-hidden rounded-[26px] p-3.5 md:flex">
+    <aside className="tz-pane tz-side sticky top-5 hidden h-[calc(100vh-2.5rem)] w-[248px] shrink-0 flex-col self-start overflow-hidden rounded-[26px] p-3.5 md:flex">
       <Brand />
       <div className="-mx-1 flex-1 overflow-y-auto px-1 [scrollbar-width:none]">
         <NavTree />
@@ -180,18 +181,19 @@ export function AppTopbar() {
         <span className="font-bold text-white">{title}</span>
         {hello && <span className="ml-3 text-sm text-gray-500">{hello}</span>}
       </div>
+      <ThemePicker />
       {!loading && (user ? (
         <Link href="/ucet" className="flex items-center gap-2.5 rounded-full p-0.5 pl-3 hover:bg-panel" title="Účet">
           <span className="hidden text-right lg:block">
             <span className="block max-w-[220px] truncate text-[13px] font-semibold leading-tight text-white">{user.email || user.username}</span>
             <span className="block text-[11.5px] leading-tight text-gray-500">{user.is_admin ? "Admin" : FREE_ACCESS ? "Plný přístup" : user.plan}</span>
           </span>
-          <span className="grid h-10 w-10 place-items-center rounded-full border border-line-2 bg-[#2f9a80] text-[12.5px] font-extrabold text-white">
+          <span className="grid h-10 w-10 place-items-center rounded-full border border-line-2 bg-mint-2 text-[12.5px] font-extrabold text-[#fff]">
             {initials(user.email || user.username || "")}
           </span>
         </Link>
       ) : (
-        <Link href="/prihlaseni" className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#0a1a16] hover:bg-[#dff3ea]">Přihlásit</Link>
+        <Link href="/prihlaseni" className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-on-ink hover:bg-white/85">Přihlásit</Link>
       ))}
     </header>
   );
@@ -205,7 +207,7 @@ export function MobileNav() {
     <header className="sticky top-3 z-50 mx-3 mt-3 md:hidden">
       <div className="tz-pane tz-blur flex items-center gap-3 rounded-full py-1.5 pl-4 pr-1.5">
         <Link href="/" className="flex items-center gap-2">
-          <span className="h-5 w-5 rounded-full bg-gradient-to-br from-[#6fe0b0] to-[#2f9a80]" />
+          <span className="h-5 w-5 rounded-full bg-gradient-to-br from-mint to-mint-2" />
           <span className="font-extrabold tracking-tight text-white">Tradezer</span>
         </Link>
         <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-label={open ? "Zavřít menu" : "Otevřít menu"}
@@ -214,8 +216,9 @@ export function MobileNav() {
         </button>
       </div>
       {open && (
-        <div className="tz-pane mt-2 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-[22px] p-3" style={{ background: "rgba(12,32,26,0.94)" }}>
+        <div className="tz-pane mt-2 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-[22px] p-3" style={{ background: "var(--tz-drawer)" }}>
           <NavTree onNavigate={() => setOpen(false)} />
+          <div className="mt-3 border-t border-line pt-3"><ThemeSwatches /></div>
           <div className="mt-3 border-t border-line pt-3"><UserMenu /></div>
         </div>
       )}

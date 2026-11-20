@@ -78,7 +78,7 @@ export default function AdminPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
-        <ShieldCheck size={20} className="text-[#60ff82]" />
+        <ShieldCheck size={20} className="text-neon" />
         <h1 className="text-2xl font-bold text-white">Admin</h1>
         <Link href="/admin/posta"
           className="ml-auto flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-sm text-gray-300 hover:text-white">
@@ -89,7 +89,7 @@ export default function AdminPage() {
       {resetResult && (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-[rgba(96,255,130,0.35)] bg-[rgba(96,255,130,0.08)] px-4 py-3 text-sm">
           <span className="text-white">Nové dočasné heslo pro <strong>{resetResult.user}</strong>:</span>
-          <code className="rounded bg-black/40 px-2 py-0.5 font-mono text-[#8fffab]">{resetResult.temp}</code>
+          <code className="rounded bg-sunken px-2 py-0.5 font-mono text-neon-soft">{resetResult.temp}</code>
           <span className="text-xs text-gray-400">Předej ho uživateli — v Účtu si ho změní.</span>
           <button onClick={() => setResetResult(null)} className="ml-auto text-xs text-gray-500 hover:text-white">zavřít</button>
         </div>
@@ -137,7 +137,7 @@ export default function AdminPage() {
                 <tr key={u.id} className="border-b border-[#1e222e] hover:bg-panel">
                   <td className="px-4 py-2 text-gray-200">
                     {u.email || u.username || "—"}
-                    {u.is_admin && <span className="ml-2 rounded bg-[rgba(96,255,130,0.14)] px-1.5 py-0.5 text-[9px] font-semibold uppercase text-[#8fffab]">Admin</span>}
+                    {u.is_admin && <span className="ml-2 rounded bg-[rgba(96,255,130,0.14)] px-1.5 py-0.5 text-[9px] font-semibold uppercase text-neon-soft">Admin</span>}
                     {u.reset_requested && <span className="ml-2 rounded bg-yellow-900/50 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-yellow-300">Reset?</span>}
                   </td>
                   <td className="px-3 py-2">
@@ -192,7 +192,7 @@ function ActionBtn({ children, title, onClick, disabled, danger }: { children: R
 function StatCard({ icon: Icon, label, value, sub }: { icon: LucideIcon; label: string; value: string | number; sub?: string }) {
   return (
     <div className="rounded-xl border border-line bg-panel-2 p-4">
-      <div className="flex items-center gap-2 text-xs text-gray-500"><Icon size={14} className="text-[#60ff82]" /> {label}</div>
+      <div className="flex items-center gap-2 text-xs text-gray-500"><Icon size={14} className="text-neon" /> {label}</div>
       <div className="mt-2 text-2xl font-bold text-white">{value}</div>
       {sub && <div className="mt-0.5 text-[11px] text-gray-500">{sub}</div>}
     </div>

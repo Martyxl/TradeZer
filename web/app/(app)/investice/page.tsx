@@ -35,7 +35,7 @@ const fmt = (n: number | null | undefined, ccy = "") =>
   n === null || n === undefined ? "—" : `${n.toLocaleString("cs-CZ", { maximumFractionDigits: 2 })}${ccy ? " " + ccy : ""}`;
 const pct = (n: number | null | undefined) => (n === null || n === undefined ? "—" : `${n > 0 ? "+" : ""}${n.toFixed(2)} %`);
 const pnlColor = (n: number | null | undefined) =>
-  n === null || n === undefined ? "text-gray-400" : n > 0 ? "text-[#60ff82]" : n < 0 ? "text-[#ff5050]" : "text-gray-300";
+  n === null || n === undefined ? "text-gray-400" : n > 0 ? "text-neon" : n < 0 ? "text-[#ff5050]" : "text-gray-300";
 
 export default function InvesticePage() {
   const { user, loading: authLoading } = useAuth();
@@ -71,7 +71,7 @@ export default function InvesticePage() {
   if (!user)
     return (
       <div className="rounded-xl border border-line bg-panel-2 p-8 text-center text-gray-400">
-        Pro investorský deník se <a href="/prihlaseni" className="text-[#60ff82] underline">přihlas</a>.
+        Pro investorský deník se <a href="/prihlaseni" className="text-neon underline">přihlas</a>.
       </div>
     );
 
@@ -82,7 +82,7 @@ export default function InvesticePage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold text-white">
-            <Wallet size={20} className="text-[#60ff82]" /> Investiční portfolio
+            <Wallet size={20} className="text-neon" /> Investiční portfolio
           </h1>
           <p className="mt-1 text-sm text-gray-400">Nákupy, prodeje a dividendy — s živou hodnotou a výhledem.</p>
         </div>
@@ -93,7 +93,7 @@ export default function InvesticePage() {
           <button onClick={() => setShowImport(true)} className="flex items-center gap-1.5 rounded-lg border border-line bg-panel px-3 py-2 text-sm text-gray-200 hover:border-gray-500">
             <Upload size={14} /> Import CSV
           </button>
-          <button onClick={() => setShowAdd(true)} className="flex items-center gap-1.5 rounded-lg border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.12)] px-3 py-2 text-sm font-medium text-[#8fffab] hover:bg-[rgba(96,255,130,0.18)]">
+          <button onClick={() => setShowAdd(true)} className="flex items-center gap-1.5 rounded-lg border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.12)] px-3 py-2 text-sm font-medium text-neon-soft hover:bg-[rgba(96,255,130,0.18)]">
             <Plus size={14} /> Přidat transakci
           </button>
         </div>
@@ -235,7 +235,7 @@ function SignalSummary({ holdings }: { holdings: Holding[] }) {
         )}
         {greens.length > 0 && (
           <div>
-            <div className="mb-1.5 flex items-center gap-2 text-[11px] uppercase text-[#8fffab]"><span className="h-2 w-2 rounded-full bg-[#60ff82]" /> Prostor dokupovat</div>
+            <div className="mb-1.5 flex items-center gap-2 text-[11px] uppercase text-neon-soft"><span className="h-2 w-2 rounded-full bg-[#60ff82]" /> Prostor dokupovat</div>
             <ul className="space-y-1.5">
               {greens.map((h) => (
                 <li key={h.symbol} className="text-[13px] text-gray-300">
@@ -295,7 +295,7 @@ function PortfolioChart({ points, txs, holdings, days, setDays }: {
   return (
     <div className="rounded-xl border border-line bg-panel-2 p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="flex items-center gap-2 text-sm font-semibold text-white"><TrendingUp size={15} className="text-[#60ff82]" /> Růst portfolia</h2>
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-white"><TrendingUp size={15} className="text-neon" /> Růst portfolia</h2>
         <div className="flex gap-1 rounded-lg border border-line p-0.5">
           {ranges.map((r) => (
             <button key={r.d} onClick={() => setDays(r.d)}
@@ -313,7 +313,7 @@ function PortfolioChart({ points, txs, holdings, days, setDays }: {
           <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-gray-400">
             <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm" style={{ background: "#39465f" }} /> vložený kapitál</span>
             <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm" style={{ background: "rgba(96,255,130,0.35)" }} /> zisk</span>
-            <span className="text-gray-500">hodnota <b className="text-gray-200">{fmt(last!.value, "CZK")}</b> · vklad {fmt(last!.invested)} · zisk <b className={profit >= 0 ? "text-[#60ff82]" : "text-[#ff5050]"}>{profit >= 0 ? "+" : ""}{fmt(profit)}</b></span>
+            <span className="text-gray-500">hodnota <b className="text-gray-200">{fmt(last!.value, "CZK")}</b> · vklad {fmt(last!.invested)} · zisk <b className={profit >= 0 ? "text-neon" : "text-[#ff5050]"}>{profit >= 0 ? "+" : ""}{fmt(profit)}</b></span>
           </div>
 
           <div className="relative mt-3 h-56 w-full">
@@ -337,7 +337,7 @@ function PortfolioChart({ points, txs, holdings, days, setDays }: {
                       <div className="font-semibold text-white">{buy ? "Nákup" : "Prodej"} {m.symbol}</div>
                       <div className="text-gray-400">{fmt(m.quantity)} ks @ {fmt(m.price, m.currency)} · {m.executed_at?.slice(0, 10)}</div>
                       {free && <div className="text-amber-300/90">bez daně od: {free}</div>}
-                      {sig && <div className={sig.color === "red" ? "text-[#ff8080]" : sig.color === "green" ? "text-[#8fffab]" : "text-gray-400"}>semafor: {sig.action}</div>}
+                      {sig && <div className={sig.color === "red" ? "text-[#ff8080]" : sig.color === "green" ? "text-neon-soft" : "text-gray-400"}>semafor: {sig.action}</div>}
                     </div>
                   )}
                 </div>
@@ -404,7 +404,7 @@ function ProjectionCalculator({ startValue }: { startValue: number }) {
   return (
     <div className="rounded-xl border border-line bg-panel-2 p-5">
       <h2 className="flex items-center gap-2 text-sm font-semibold text-white">
-        <Calculator size={15} className="text-[#60ff82]" /> Výhled portfolia (složené úročení)
+        <Calculator size={15} className="text-neon" /> Výhled portfolia (složené úročení)
       </h2>
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <Field label="Počáteční (CZK)"><input type="number" className="inv-input" value={start} onChange={(e) => setStart(+e.target.value)} /></Field>
@@ -449,7 +449,7 @@ function ProjectionCalculator({ startValue }: { startValue: number }) {
               {active && (
                 <div className="absolute bottom-full left-1/2 z-20 mb-1 -translate-x-1/2 whitespace-nowrap rounded-lg border border-line bg-sunken px-2.5 py-1.5 text-[11px] shadow-lg">
                   <div className="font-semibold text-white">Rok {d.year}: {fmt(Math.round(d.central))} CZK</div>
-                  <div className="text-gray-400">vklady {fmt(Math.round(d.contributed))} + výnos <span className="text-[#8fffab]">{fmt(Math.round(d.central - d.contributed))}</span></div>
+                  <div className="text-gray-400">vklady {fmt(Math.round(d.contributed))} + výnos <span className="text-neon-soft">{fmt(Math.round(d.central - d.contributed))}</span></div>
                   <div className="text-amber-300/90">rozpětí {fmt(Math.round(d.pess))} – {fmt(Math.round(d.opt))}</div>
                 </div>
               )}
@@ -471,7 +471,7 @@ function ProjectionCalculator({ startValue }: { startValue: number }) {
         </div>
         <div>
           <div className="text-[11px] uppercase text-gray-500">Výnos (úroky)</div>
-          <div className="text-lg font-bold text-[#60ff82]">+{fmt(Math.round(last.central - last.contributed))} CZK</div>
+          <div className="text-lg font-bold text-neon">+{fmt(Math.round(last.central - last.contributed))} CZK</div>
         </div>
       </div>
       <p className="mt-3 text-[11px] text-gray-500">
@@ -585,7 +585,7 @@ function AddTxModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => 
         {err && <p className="sm:col-span-2 text-sm text-red-400">{err}</p>}
         <div className="sm:col-span-2 mt-1 flex justify-end gap-2">
           <button type="button" onClick={onClose} className="rounded-lg border border-line px-4 py-2 text-sm text-gray-300">Zrušit</button>
-          <button type="submit" disabled={busy} className="flex items-center gap-1.5 rounded-lg border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.12)] px-4 py-2 text-sm font-medium text-[#8fffab] disabled:opacity-50">
+          <button type="submit" disabled={busy} className="flex items-center gap-1.5 rounded-lg border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.12)] px-4 py-2 text-sm font-medium text-neon-soft disabled:opacity-50">
             {busy && <Loader2 size={14} className="animate-spin" />} Uložit
           </button>
         </div>
@@ -633,11 +633,11 @@ function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
         </Field>
         <Field label="Soubor CSV"><input type="file" accept=".csv,text/csv" onChange={onFile} className="text-sm text-gray-300 file:mr-3 file:rounded file:border-0 file:bg-raised file:px-3 file:py-1.5 file:text-gray-200" /></Field>
         {rows.length > 0 && <p className="text-sm text-gray-400">Načteno {rows.length} řádků{fileName ? ` ze souboru ${fileName}` : ""}. Sloupce se namapují automaticky podle hlaviček (ticker, typ, počet, cena, měna, datum, poplatek).</p>}
-        {result && <p className="text-sm text-[#8fffab]">{result}</p>}
+        {result && <p className="text-sm text-neon-soft">{result}</p>}
         <p className="text-[11px] text-gray-500">Přesné parsery pro XTB a eToro dolaďujeme podle reálných exportů. Zatím funguje obecné mapování sloupců — po dodání vzorků bude detekce 1:1.</p>
         <div className="flex justify-end gap-2">
           <button onClick={onClose} className="rounded-lg border border-line px-4 py-2 text-sm text-gray-300">Zavřít</button>
-          <button onClick={doImport} disabled={busy || !rows.length} className="flex items-center gap-1.5 rounded-lg border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.12)] px-4 py-2 text-sm font-medium text-[#8fffab] disabled:opacity-50">
+          <button onClick={doImport} disabled={busy || !rows.length} className="flex items-center gap-1.5 rounded-lg border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.12)] px-4 py-2 text-sm font-medium text-neon-soft disabled:opacity-50">
             {busy && <Loader2 size={14} className="animate-spin" />} Importovat
           </button>
         </div>

@@ -9,7 +9,7 @@ export function FreeOffer({ ctaHref = "/registrace", ctaLabel = "Vytvořit úče
 }) {
   return (
     <div className="grid gap-4 lg:grid-cols-[1.7fr_1fr]">
-      <div className="relative flex flex-col rounded-2xl border border-[#60ff82]/40 bg-[#0c1a11] p-6">
+      <div className="relative flex flex-col rounded-2xl border border-[#60ff82]/40 bg-neon-tint p-6">
         <span className="absolute -top-2.5 left-6 rounded-full bg-[#60ff82] px-2.5 py-0.5 text-[10px] font-bold uppercase text-[#06120a]">
           Vše odemčeno
         </span>
@@ -22,7 +22,7 @@ export function FreeOffer({ ctaHref = "/registrace", ctaLabel = "Vytvořit úče
         <ul className="mt-5 grid flex-1 gap-2 sm:grid-cols-2">
           {FREE_ALL_FEATURES.map((f) => (
             <li key={f} className="flex items-start gap-2 text-[13px] text-white/80">
-              <Check size={15} className="mt-0.5 shrink-0 text-[#60ff82]" /> {f}
+              <Check size={15} className="mt-0.5 shrink-0 text-neon" /> {f}
             </li>
           ))}
         </ul>

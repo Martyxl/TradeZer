@@ -99,11 +99,11 @@ function ValuationInner() {
           </span>
           <div className="ml-auto flex items-center gap-0.5 rounded-full border border-line bg-raised p-1">
             <button onClick={() => setView("map")}
-              className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${view === "map" ? "bg-[#0a0f0d] text-white" : "text-gray-400 hover:text-white"}`}>
+              className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${view === "map" ? "bg-pill text-on-pill" : "text-gray-400 hover:text-white"}`}>
               <LayoutGrid size={13} /> Mapa
             </button>
             <button onClick={() => setView("table")}
-              className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${view === "table" ? "bg-[#0a0f0d] text-white" : "text-gray-400 hover:text-white"}`}>
+              className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${view === "table" ? "bg-pill text-on-pill" : "text-gray-400 hover:text-white"}`}>
               <Table2 size={13} /> Tabulka
             </button>
           </div>
@@ -129,7 +129,7 @@ function ValuationInner() {
         ))}
         <button onClick={() => setPortfolio((v) => !v)}
           className={`ml-auto rounded-full px-3 py-1 text-xs border ${portfolio
-            ? "bg-[rgba(96,255,130,0.14)] text-[#8fffab] border-[rgba(96,255,130,0.4)]"
+            ? "bg-[rgba(96,255,130,0.14)] text-neon-soft border-[rgba(96,255,130,0.4)]"
             : "bg-panel-2 text-gray-400 border-line hover:text-white"}`}>
           {portfolio ? "✓ " : ""}Jen moje portfolio
         </button>
@@ -141,7 +141,7 @@ function ValuationInner() {
           placeholder="Přidat akcii k výpočtu — ticker nebo název (např. AAPL / Palantir)"
           className="min-w-[280px] flex-1 rounded-lg border border-line bg-sunken px-3 py-2 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-[#60ff82]" />
         <button type="submit" disabled={adding || !addQuery.trim()}
-          className="flex items-center gap-1.5 rounded-lg border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.12)] px-4 py-2 text-sm font-medium text-[#8fffab] hover:bg-[rgba(96,255,130,0.18)] disabled:opacity-50">
+          className="flex items-center gap-1.5 rounded-lg border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.12)] px-4 py-2 text-sm font-medium text-neon-soft hover:bg-[rgba(96,255,130,0.18)] disabled:opacity-50">
           {adding && <Loader2 size={14} className="animate-spin" />} Přidat
         </button>
         {addMsg && <span className="text-xs text-gray-400">{addMsg}</span>}

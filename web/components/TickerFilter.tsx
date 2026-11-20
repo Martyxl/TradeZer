@@ -31,7 +31,7 @@ export function TickerFilter({ tickers, selected, onChange }: TickerFilterProps)
             onClick={() => onChange(ticker.symbol)}
             className={cn(
               "flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors",
-              isActive ? "bg-[#0a0f0d] text-white" : "text-gray-400 hover:text-white"
+              isActive ? "bg-pill text-on-pill" : "text-gray-400 hover:text-white"
             )}
           >
             <span className={cn("h-1.5 w-1.5 rounded-full", ASSET_DOT[ticker.asset_class] ?? ASSET_DOT.forex)} />

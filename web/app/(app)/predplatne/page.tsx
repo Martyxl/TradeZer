@@ -27,7 +27,7 @@ function FreePage() {
   return (
     <div className="mx-auto max-w-5xl">
       <h1 className="mb-2 flex items-center gap-2 text-xl font-bold text-white">
-        <CreditCard size={20} className="text-[#60ff82]" /> Přístup
+        <CreditCard size={20} className="text-neon" /> Přístup
       </h1>
       <p className="mb-6 text-sm text-gray-400">
         Celý Tradezer je teď zdarma — bez předplatného a bez platební karty.
@@ -102,7 +102,7 @@ function PricingPage() {
     <div className="space-y-6">
       <div>
         <h1 className="flex items-center gap-2 text-2xl font-bold text-white">
-          <CreditCard size={20} className="text-[#60ff82]" /> Předplatné
+          <CreditCard size={20} className="text-neon" /> Předplatné
         </h1>
         <p className="mt-1 text-sm text-gray-400">
           Feed platí Tradezer — ty jen sbíráš náskok.{user ? ` Aktuální plán: ${plan.toUpperCase()}.` : ""}
@@ -110,7 +110,7 @@ function PricingPage() {
       </div>
 
       {banner === "success" && (
-        <div className="rounded-lg border border-[rgba(96,255,130,0.4)] bg-[#0c1a11] px-4 py-3 text-sm text-[#8fffab]">
+        <div className="rounded-lg border border-[rgba(96,255,130,0.4)] bg-neon-tint px-4 py-3 text-sm text-neon-soft">
           ✓ Platba proběhla. Předplatné se aktivuje během pár sekund — po obnovení stránky uvidíš nový plán.
         </div>
       )}
@@ -133,7 +133,7 @@ function PricingPage() {
         </button>
         <button onClick={() => setAnnual(true)}
           className={`rounded-md px-3 py-1.5 transition-colors ${annual ? "bg-raised text-white" : "text-gray-400 hover:text-white"}`}>
-          Ročně <span className="text-[#8fffab]">−{Math.round(ANNUAL_DISCOUNT * 100)} %</span>
+          Ročně <span className="text-neon-soft">−{Math.round(ANNUAL_DISCOUNT * 100)} %</span>
         </button>
       </div>
 
@@ -161,7 +161,7 @@ function PricingPage() {
       <p className="text-[11px] text-gray-500 max-w-2xl">
         Předplatné se automaticky obnovuje. Spotřebitel může do 14 dnů od uzavření smlouvy odstoupit; při okamžitém zahájení
         služby se hradí poměrná část ceny (viz{" "}
-        <Link href="/obchodni-podminky" className="text-[#60ff82] hover:underline">Obchodní podmínky</Link>). Tradezer není
+        <Link href="/obchodni-podminky" className="text-neon hover:underline">Obchodní podmínky</Link>). Tradezer není
         investiční poradenství.
       </p>
     </div>
@@ -175,7 +175,7 @@ function PlanCard({ plan, annual, current, loggedIn, buyable, busy, onBuy, onMan
   const free = plan.priceUsd === 0;
   const accent = plan.highlight;
   const price = free ? "$0" : annual ? `$${annualPerMonth(plan.priceUsd)}` : `$${plan.priceUsd}`;
-  const border = plan.soon ? "border-amber-500/40 bg-amber-500/[0.05]" : accent ? "border-[rgba(96,255,130,0.4)] bg-[#0c1a11]" : "border-line bg-panel-2";
+  const border = plan.soon ? "border-amber-500/40 bg-amber-500/[0.05]" : accent ? "border-[rgba(96,255,130,0.4)] bg-neon-tint" : "border-line bg-panel-2";
 
   return (
     <div className={`relative rounded-2xl border p-5 flex flex-col ${border}`}>
@@ -199,7 +199,7 @@ function PlanCard({ plan, annual, current, loggedIn, buyable, busy, onBuy, onMan
         <span className="text-3xl font-bold text-white">{price}</span>
         {!free && <span className="text-sm text-gray-500"> / měsíc</span>}
         {!free && annual && (
-          <div className="text-[11px] text-[#8fffab]">${annualTotal(plan.priceUsd)} ročně — ušetříš {Math.round(ANNUAL_DISCOUNT * 100)} %</div>
+          <div className="text-[11px] text-neon-soft">${annualTotal(plan.priceUsd)} ročně — ušetříš {Math.round(ANNUAL_DISCOUNT * 100)} %</div>
         )}
         {!free && !annual && <div className="text-[11px] text-gray-600">nebo ${annualTotal(plan.priceUsd)} ročně (−{Math.round(ANNUAL_DISCOUNT * 100)} %)</div>}
       </div>
@@ -207,7 +207,7 @@ function PlanCard({ plan, annual, current, loggedIn, buyable, busy, onBuy, onMan
       <ul className="mt-4 space-y-2 flex-1">
         {plan.features.map((f) => (
           <li key={f} className="flex items-start gap-2 text-[13px] text-gray-300">
-            <Check size={15} className="mt-0.5 shrink-0 text-[#60ff82]" /> {f}
+            <Check size={15} className="mt-0.5 shrink-0 text-neon" /> {f}
           </li>
         ))}
       </ul>
@@ -237,7 +237,7 @@ function PlanCard({ plan, annual, current, loggedIn, buyable, busy, onBuy, onMan
         ) : !loggedIn ? (
           <Link href="/registrace"
             className={`block w-full rounded-lg py-2.5 text-center text-sm font-medium ${
-              accent ? "border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.12)] text-[#8fffab]" : "border border-line bg-panel text-gray-200"
+              accent ? "border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.12)] text-neon-soft" : "border border-line bg-panel text-gray-200"
             } hover:opacity-90`}>
             Vyzkoušet
           </Link>
@@ -248,7 +248,7 @@ function PlanCard({ plan, annual, current, loggedIn, buyable, busy, onBuy, onMan
         ) : (
           <button onClick={onBuy} disabled={busy}
             className={`flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium ${
-              accent ? "border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.12)] text-[#8fffab]" : "border border-line bg-panel text-gray-200"
+              accent ? "border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.12)] text-neon-soft" : "border border-line bg-panel text-gray-200"
             } hover:opacity-90 disabled:opacity-60`}>
             {busy && <Loader2 size={14} className="animate-spin" />} Předplatit
           </button>
