@@ -17,9 +17,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="flex min-w-0 flex-1 flex-col gap-5">
           <AppTopbar />
           <main className="tz-pane min-w-0 rounded-[24px] px-4 py-5 md:rounded-[30px] md:px-7 md:py-7">
-            <div className="mx-auto max-w-6xl">{children}</div>
+            {children}
           </main>
-          <div className="mx-auto w-full max-w-6xl px-2 [&>footer]:mt-0 [&>footer]:border-0 [&>footer]:pt-0">
+          <div className="w-full px-2 [&>footer]:mt-0 [&>footer]:border-0 [&>footer]:pt-0">
             <Footer />
           </div>
         </div>

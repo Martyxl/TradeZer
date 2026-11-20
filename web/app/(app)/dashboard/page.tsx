@@ -161,6 +161,10 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* Na širokém displeji dva sloupce: vlevo analýza dne, vpravo proud zpráv.
+          Pod 1500 px šířky okna jeden sloupec přes celou plochu. */}
+      <div className="grid items-start gap-6 min-[1500px]:grid-cols-[minmax(0,1.75fr)_minmax(360px,1fr)]">
+      <div className="min-w-0 space-y-6">
       {/* Režim trhu (klid / napětí / panika) — skryje se bez dat */}
       <RegimeCard />
 
@@ -184,9 +188,10 @@ export default function DashboardPage() {
 
       {/* Denní přehled (zpětné vyhodnocení) — jen když už existuje */}
       {summary && <DailySummaryCard summary={summary} ticker={selectedTicker} />}
+      </div>
 
       {/* News feed */}
-      <div>
+      <div className="min-w-0">
         <h2 className="mb-3 text-[15px] font-bold text-white">
           Zprávy pro {selectedTicker}
           <span className="ml-2 font-medium text-gray-500">{news.length}</span>
@@ -209,6 +214,7 @@ export default function DashboardPage() {
             ))}
           </div>
         )}
+      </div>
       </div>
     </div>
   );
