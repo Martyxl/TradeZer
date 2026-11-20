@@ -97,13 +97,13 @@ function ValuationInner() {
           <span className="text-xs text-gray-500">
             fundamentální filtr pro delší horizont{asOf ? ` · k ${asOf}` : ""}
           </span>
-          <div className="ml-auto flex items-center gap-1 rounded-lg border border-line p-0.5">
+          <div className="ml-auto flex items-center gap-0.5 rounded-full border border-line bg-raised p-1">
             <button onClick={() => setView("map")}
-              className={`flex items-center gap-1 rounded px-2.5 py-1 text-xs ${view === "map" ? "bg-raised text-white" : "text-gray-400"}`}>
+              className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${view === "map" ? "bg-[#0a0f0d] text-white" : "text-gray-400 hover:text-white"}`}>
               <LayoutGrid size={13} /> Mapa
             </button>
             <button onClick={() => setView("table")}
-              className={`flex items-center gap-1 rounded px-2.5 py-1 text-xs ${view === "table" ? "bg-raised text-white" : "text-gray-400"}`}>
+              className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${view === "table" ? "bg-[#0a0f0d] text-white" : "text-gray-400 hover:text-white"}`}>
               <Table2 size={13} /> Tabulka
             </button>
           </div>
@@ -123,7 +123,7 @@ function ValuationInner() {
           <button key={g.key} onClick={() => setGroup(g.key)}
             className={`rounded-full px-3 py-1 text-xs border ${group === g.key ? "text-white" : "text-gray-400"}`}
             style={{ borderColor: group === g.key ? g.color_hex : "var(--tz-chart-grid)",
-                     background: group === g.key ? g.color_hex + "22" : "#151823" }}>
+                     background: group === g.key ? g.color_hex + "22" : "var(--tz-panel-2)" }}>
             {g.label_cs}
           </button>
         ))}
@@ -147,6 +147,10 @@ function ValuationInner() {
         {addMsg && <span className="text-xs text-gray-400">{addMsg}</span>}
       </form>
 
+      {/* Od 1400 px šířky okna dva sloupce: vlevo mapa / tabulka, vpravo vysvětlení zón
+          a výsledky hospodaření. Mapa tak nepřeroste do obří výšky (SVG roste s šířkou). */}
+      <div className="grid items-start gap-5 min-[1400px]:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+      <div className="min-w-0 space-y-3">
       {loading ? (
         <div className="flex h-[460px] flex-col items-center justify-center gap-3 rounded-xl border border-line bg-panel-2 text-gray-400">
           <Loader2 size={30} className="animate-spin text-blue-400" />
@@ -166,19 +170,24 @@ function ValuationInner() {
         <>
           <BubbleMap items={items} onSelect={setSelected} zones={zones} alerts={alerts} />
           <Legend />
-          {zones && <ZoneNote />}
         </>
       ) : (
         <ValuationTable items={items} onSelect={setSelected} alerts={alerts} />
       )}
+      </div>
 
-      {/* Výsledky hospodaření firem (SEC 8-K → vysvětlení ze Sparku) */}
-      <EarningsFeed reports={reports} onTicker={setSelected} />
+      <div className="min-w-0 space-y-5">
+        {view === "map" && zones && items.length > 0 && !loading && <ZoneNote />}
 
-      <p className="text-[11px] text-gray-500">
-        Skóre je heuristika nad veřejnými daty s nejistou kvalitou, ne ocenění firmy. Konsenzus analytiků bývá
-        systematicky optimistický. Slouží jako rozcestník k dalšímu zkoumání, ne jako rozhodovací mechanismus.
-      </p>
+        {/* Výsledky hospodaření firem (SEC 8-K → vysvětlení ze Sparku) */}
+        <EarningsFeed reports={reports} onTicker={setSelected} />
+
+        <p className="text-[11px] text-gray-500">
+          Skóre je heuristika nad veřejnými daty s nejistou kvalitou, ne ocenění firmy. Konsenzus analytiků bývá
+          systematicky optimistický. Slouží jako rozcestník k dalšímu zkoumání, ne jako rozhodovací mechanismus.
+        </p>
+      </div>
+      </div>
 
       {selected && <ValuationDetail ticker={selected} onClose={() => setSelected(null)} />}
     </div>

@@ -209,7 +209,7 @@ export function BubbleMap({ items, onSelect, zones, alerts = {} }: {
         })}
       </svg>
       {openCluster && (
-        <div className="mt-2 rounded-lg border border-line bg-[#10131c] p-3" data-testid="cluster-list">
+        <div className="mt-2 rounded-lg border border-line bg-sunken p-3" data-testid="cluster-list">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs text-gray-400">
               {openCluster.members.length} firem se překrývá — klikni na firmu pro detail
