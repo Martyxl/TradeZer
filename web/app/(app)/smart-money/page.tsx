@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Landmark, Info } from "lucide-react";
 import { PaywallGuard } from "@/components/PaywallGuard";
 import { authHeaders } from "@/lib/auth";
+import { FundsPanel } from "@/components/smartmoney/FundsPanel";
 
 interface Insider {
   date: string; person: string; role: string; ticker: string; issuer: string;
@@ -34,8 +35,48 @@ function fmtNum(v: number): string {
 export default function SmartMoneyPage() {
   return (
     <PaywallGuard tier="pro" name="Smart Money">
-      <SmartMoneyInner />
+      <SmartMoneyTabs />
     </PaywallGuard>
+  );
+}
+
+type Tab = "insiders" | "funds";
+
+function SmartMoneyTabs() {
+  const [tab, setTab] = useState<Tab>("insiders");
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("tab") === "fondy") setTab("funds");
+  }, []);
+  const pick = (t: Tab) => {
+    setTab(t);
+    const u = new URL(window.location.href);
+    if (t === "funds") u.searchParams.set("tab", "fondy"); else u.searchParams.delete("tab");
+    window.history.replaceState(null, "", u.toString());
+  };
+  const tabCls = (on: boolean) =>
+    `px-3 py-1.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+      on ? "border-emerald-400 text-white" : "border-transparent text-gray-400 hover:text-white"}`;
+  return (
+    <div className="space-y-6">
+      <div>
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-950/60 border border-emerald-900/50">
+            <Landmark size={16} className="text-emerald-400" />
+          </span>
+          <h1 className="text-2xl font-bold text-white">Smart Money</h1>
+        </div>
+        <p className="text-sm text-gray-400 mt-1">
+          {tab === "insiders"
+            ? "Insider obchody (SEC Form 4) — kdo z vedení firem nakupoval a prodával vlastní akcie"
+            : "Fondy (SEC 13F, 13D/13G) — co drží, kupují a prodávají hedge fondy a velcí investoři"}
+        </p>
+        <div className="mt-3 flex gap-1 border-b border-line">
+          <button onClick={() => pick("insiders")} className={tabCls(tab === "insiders")}>Insideři</button>
+          <button onClick={() => pick("funds")} className={tabCls(tab === "funds")}>Fondy</button>
+        </div>
+      </div>
+      {tab === "insiders" ? <SmartMoneyInner /> : <FundsPanel />}
+    </div>
   );
 }
 
@@ -68,18 +109,6 @@ function SmartMoneyInner() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <div className="flex items-center gap-2.5">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-950/60 border border-emerald-900/50">
-            <Landmark size={16} className="text-emerald-400" />
-          </span>
-          <h1 className="text-2xl font-bold text-white">Smart Money</h1>
-        </div>
-        <p className="text-sm text-gray-400 mt-1">
-          Insider obchody (SEC Form 4) — kdo z vedení firem nakupoval a prodával vlastní akcie
-        </p>
-      </div>
-
       <div className="flex items-start gap-2 rounded-lg border border-yellow-900/40 bg-yellow-950/20 px-3 py-2 text-[11px] text-yellow-300/90">
         <Info size={14} className="mt-0.5 shrink-0" />
         <span><b>Rozcestník, ne rozhodovadlo.</b> Veřejná regulatorní hlášení (SEC Form 4) —

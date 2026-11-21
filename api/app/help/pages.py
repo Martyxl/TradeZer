@@ -70,7 +70,11 @@ predikce — hlavní hodnota jsou „důkazy“ pod ním (momentum 5d/20d, relat
 vůči SMA20/50, blížící se výsledky hospodaření). Rozcestník pro další zkoumání, ne doporučení k nákupu.""",
     "/smart-money": """Smart Money — nákupy a prodeje insiderů (vedení, ředitelé, >10% vlastníci) z hlášení
 SEC Form 4: kdo, role, nákup (P) / prodej (S), hodnota obchodu. Nákupy mají obvykle větší vypovídací hodnotu než
-prodeje (insideři prodávají z mnoha důvodů).""",
+prodeje (insideři prodávají z mnoha důvodů). Záložka Fondy: co drží, kupují a prodávají vybrané fondy
+(Berkshire, Pershing Square, Appaloosa, Druckenmiller, aktivisté, tech fondy…) podle čtvrtletních výpisů SEC 13F —
+nové pozice, navýšení, snížení, prodeje a konsenzus (kolik fondů tutéž akcii kupuje). 13F vychází až do 45 dnů
+po konci čtvrtletí a neobsahuje shorty. Čerstvější jsou hlášení 13D/13G: fond překročil 5 % podílu ve firmě
+(13D = aktivní záměr), podává se do 10 dnů.""",
     "/dark-pool": """Dark Pool — objemy obchodované mimo burzy (ATS/„dark pools“) z veřejných dat FINRA,
 týdenně, s přibližně měsíčním zpožděním publikace; žebříček podle objemu v dolarech. Ukazuje, kde se obchoduje
 velký objem mimo burzu — neříká směr (nákup vs prodej).""",

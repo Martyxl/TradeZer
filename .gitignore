@@ -51,3 +51,7 @@ data/run_*_spark.bat
 
 # AI fond — lokální SQLite stav (autorita na Sparku)
 data/fund.db
+
+# Smart Money / Fondy (13F) — lokální výstup a cache skeneru
+web/public/smart_money_funds.json
+data/funds_cache.json
