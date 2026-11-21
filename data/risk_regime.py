@@ -261,6 +261,96 @@ def llm_geo(headlines: list[dict]) -> dict | None:
 
 
 # ── Sestavení + push + cache ─────────────────────────────────────────────────
+# ── 4. Sentiment trhu (strach ↔ chamtivost, 0–100) ─────────────────────────
+# Pět tržních složek, každá převedená na percentil vůči posledním 252 obchodním dnům
+# (0 = nejvíc strachu za rok, 100 = nejvíc chamtivosti); skóre = průměr. Zprávy ani
+# predikce do toho NEjdou (prediktor je historicky medvědí → zkreslil by to).
+SENT_SYMBOLS = {"spx": "^GSPC", "vix": "^VIX", "vix3m": "^VIX3M", "tlt": "TLT", "hyg": "HYG", "ief": "IEF"}
+SENT_PARTS = [
+    ("vix50", "VIX vs. 50denní průměr", "volatilita proti normálu"),
+    ("term", "Struktura VIX (VIX / VIX3M)", "nad 1 = panika teď, ne za 3 měsíce"),
+    ("mom", "S&P 500 vs. 125denní průměr", "momentum trhu"),
+    ("haven", "Akcie vs. dluhopisy (20 dní)", "útěk do bezpečí"),
+    ("junk", "Rizikové vs. státní dluhopisy (20 dní)", "chuť na riziko u kreditu"),
+]
+SENT_BANDS = [(20, "extreme_fear", "Extrémní strach"), (40, "fear", "Strach"), (60, "neutral", "Neutrál"),
+              (80, "greed", "Chamtivost"), (101, "extreme_greed", "Extrémní chamtivost")]
+# Historie 11/2011–11/2026 (Yahoo denní data, Nasdaq-100): co následovalo po dni v pásmu.
+# next_day_move = průměrný |pohyb| další den vůči běžnému dni; up = podíl dní nahoru;
+# fwd20 = průměrný výnos NDX za 20 obchodních dní, pos20 = podíl kladných.
+SENT_HISTORY = {
+    "extreme_fear": {"next_day_move": 1.8, "up": 58, "fwd20": 2.4, "pos20": 67, "p10_20": -6.5},
+    "fear": {"next_day_move": 1.1, "up": 56, "fwd20": 1.6, "pos20": 70},
+    "neutral": {"next_day_move": 0.9, "up": 56, "fwd20": 1.4, "pos20": 67},
+    "greed": {"next_day_move": 0.8, "up": 54, "fwd20": 1.2, "pos20": 65},
+    "extreme_greed": {"next_day_move": 0.6, "up": 58, "fwd20": 1.0, "pos20": 65},
+    "all": {"up": 56, "fwd20": 1.5, "pos20": 67},
+}
+
+
+def yahoo_daily(sym: str, rng: str = "2y") -> dict:
+    """{datum: close} — po datech, aby šly řady různých symbolů spolehlivě zarovnat."""
+    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{urllib.parse.quote(sym)}?range={rng}&interval=1d"
+    res = ((json.loads(_get(url)).get("chart") or {}).get("result") or [{}])[0]
+    ts = res.get("timestamp") or []
+    closes = (((res.get("indicators") or {}).get("quote") or [{}])[0]).get("close") or []
+    return {datetime.fromtimestamp(t, timezone.utc).date().isoformat(): c for t, c in zip(ts, closes) if c}
+
+
+def sentiment_from_series(s: dict[str, dict]) -> dict | None:
+    """Skóre 0–100 ze zarovnaných denních řad (klíče SENT_SYMBOLS). None = málo dat."""
+    days = sorted(set.intersection(*[set(v) for v in s.values()])) if s and all(s.values()) else []
+    if len(days) < 260:
+        return None
+    c = {k: [s[k][d] for d in days] for k in s}
+
+    def r20(a, i):
+        return a[i] / a[i - 20] - 1
+
+    raw: dict[str, list] = {k: [] for k, _, _ in SENT_PARTS}
+    for i in range(len(days)):
+        if i < 125:
+            for k in raw:
+                raw[k].append(None)
+            continue
+        raw["vix50"].append(-(c["vix"][i] / (sum(c["vix"][i - 50:i]) / 50) - 1))
+        raw["term"].append(-(c["vix"][i] / c["vix3m"][i]))
+        raw["mom"].append(c["spx"][i] / (sum(c["spx"][i - 125:i]) / 125) - 1)
+        raw["haven"].append(r20(c["spx"], i) - r20(c["tlt"], i))
+        raw["junk"].append(r20(c["hyg"], i) - r20(c["ief"], i))
+    last = len(days) - 1
+
+    def pct(series):
+        w = [x for x in series[max(0, last - 252):last + 1] if x is not None]
+        return round(100 * sum(1 for x in w if x <= series[last]) / len(w)) if len(w) >= 120 else None
+
+    parts = []
+    for key, label, hint in SENT_PARTS:
+        v = pct(raw[key])
+        if v is not None:
+            parts.append({"key": key, "label": label, "hint": hint, "value": v})
+    if len(parts) < 4:
+        return None
+    score = round(sum(p["value"] for p in parts) / len(parts))
+    band = next(b for b in SENT_BANDS if score < b[0])
+    vix, vix3m = c["vix"][last], c["vix3m"][last]
+    return {"score": score, "band": band[1], "label": band[2], "parts": parts, "as_of_date": days[-1],
+            "vix": round(vix, 2), "vix_term": round(vix / vix3m, 3), "backwardation": vix > vix3m,
+            "history": SENT_HISTORY[band[1]], "history_all": SENT_HISTORY["all"]}
+
+
+def compute_sentiment() -> dict | None:
+    series = {}
+    for key, sym in SENT_SYMBOLS.items():
+        try:
+            series[key] = yahoo_daily(sym)
+        except Exception as e:  # noqa: BLE001
+            print(f"  sentiment {sym}: {e}")
+            return None
+        time.sleep(0.2)
+    return sentiment_from_series(series)
+
+
 def compute_regime(use_llm: bool = True, prev_geo: dict | None = None) -> dict:
     series = {}
     for key, sym in SYMBOLS.items():
@@ -277,7 +367,12 @@ def compute_regime(use_llm: bool = True, prev_geo: dict | None = None) -> dict:
         geo = fresh or prev_geo
     sev = geo.get("severity") if geo else None
     out = classify(ind, sev)
-    out.update(indicators=ind, geo=geo, as_of=datetime.now(timezone.utc).isoformat(timespec="seconds"))
+    try:
+        sent = compute_sentiment()
+    except Exception as e:  # noqa: BLE001
+        print(f"  sentiment: {e}")
+        sent = None
+    out.update(indicators=ind, geo=geo, sentiment=sent, as_of=datetime.now(timezone.utc).isoformat(timespec="seconds"))
     return out
 
 

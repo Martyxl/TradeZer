@@ -81,3 +81,36 @@ def test_parse_geo_rejects_truncated_response():
     cut = '{"severity": 2, "summary": "Útok.", "headlines": [{"i": 16, "severity": 2, "why": "x"}, {"i": 6, "sev'
     assert _parse_geo(cut) is None
     assert _parse_geo('{"i": 16, "severity": 2, "why": "x"}') is None  # chybí summary
+
+
+def _series(n=400, crash=False):
+    """Syntetické zarovnané denní řady; crash = posledních 15 dní výprodej + skok VIX."""
+    from datetime import date, timedelta
+    d0 = date(2025, 1, 1)
+    days = [(d0 + timedelta(days=i)).isoformat() for i in range(n)]
+    out = {k: {} for k in ("spx", "vix", "vix3m", "tlt", "hyg", "ief")}
+    for i, d in enumerate(days):
+        hit = crash and i >= n - 15
+        k = i - (n - 15)
+        out["spx"][d] = 100 + i * 0.05 - (k * 1.2 if hit else 0)
+        out["vix"][d] = 15 + (i % 7) * 0.3 + (k * 1.5 if hit else 0)
+        out["vix3m"][d] = 17 + (i % 5) * 0.2 + (k * 0.6 if hit else 0)
+        out["tlt"][d] = 90 + (i % 11) * 0.1 + (k * 0.3 if hit else 0)
+        out["hyg"][d] = 75 + i * 0.01 - (k * 0.4 if hit else 0)
+        out["ief"][d] = 95 + (i % 9) * 0.05
+    return out
+
+
+def test_sentiment_extreme_fear_after_selloff():
+    from risk_regime import sentiment_from_series
+    s = sentiment_from_series(_series(crash=True))
+    assert s["band"] == "extreme_fear" and s["score"] < 20 and s["backwardation"] is True
+    assert {p["key"] for p in s["parts"]} == {"vix50", "term", "mom", "haven", "junk"}
+    assert s["history"]["next_day_move"] > 1
+
+
+def test_sentiment_needs_enough_history():
+    from risk_regime import sentiment_from_series
+    assert sentiment_from_series(_series(n=200)) is None
+    calm = sentiment_from_series(_series())
+    assert calm is not None and calm["band"] != "extreme_fear" and calm["backwardation"] is False

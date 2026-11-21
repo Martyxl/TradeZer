@@ -13,6 +13,7 @@ import { RegimeCard } from "@/components/RegimeCard";
 import { OutlookCard } from "@/components/OutlookCard";
 import { GapCard } from "@/components/GapCard";
 import { DayLiveCard } from "@/components/DayLiveCard";
+import { SentimentCard } from "@/components/SentimentGauge";
 import { api, type Ticker, type NewsItem, type DailySummary } from "@/lib/api";
 import { invalidateDashboard } from "@/lib/dashboardData";
 
@@ -105,9 +106,6 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Market hours timeline */}
-      <MarketHoursBar />
-
       {/* Header row */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <TickerFilter
@@ -165,6 +163,12 @@ export default function DashboardPage() {
           Pod 1500 px šířky okna jeden sloupec přes celou plochu. */}
       <div className="grid items-start gap-6 min-[1500px]:grid-cols-[minmax(0,1.75fr)_minmax(360px,1fr)]">
       <div className="min-w-0 space-y-6">
+      {/* Užší okno (jeden sloupec): sessions + sentiment nahoře vedle sebe */}
+      <div className="grid gap-6 md:grid-cols-2 min-[1500px]:hidden">
+        <MarketHoursBar compact />
+        <SentimentCard />
+      </div>
+
       {/* Režim trhu (klid / napětí / panika) — skryje se bez dat */}
       <RegimeCard />
 
@@ -190,8 +194,13 @@ export default function DashboardPage() {
       {summary && <DailySummaryCard summary={summary} ticker={selectedTicker} />}
       </div>
 
-      {/* News feed */}
-      <div className="min-w-0">
+      {/* Pravý sloupec: sessions (kompaktně) + sentiment, pod nimi zprávy */}
+      <div className="min-w-0 space-y-6">
+        <div className="hidden space-y-6 min-[1500px]:block">
+          <MarketHoursBar compact />
+          <SentimentCard />
+        </div>
+        <div>
         <h2 className="mb-3 text-[15px] font-bold text-white">
           Zprávy pro {selectedTicker}
           <span className="ml-2 font-medium text-gray-500">{news.length}</span>
@@ -214,6 +223,7 @@ export default function DashboardPage() {
             ))}
           </div>
         )}
+        </div>
       </div>
       </div>
     </div>

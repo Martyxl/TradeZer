@@ -116,7 +116,7 @@ function Clock({ h, m, s, color, size = 60 }: { h: number; m: number; s: number;
 }
 
 // ─── Session Bar ──────────────────────────────────────────────────────
-function SessionBar({ market, now }: { market: Market; now: Date }) {
+function SessionBar({ market, now, compact = false }: { market: Market; now: Date; compact?: boolean }) {
   const open  = marketToDisplay(market.tz, market.openLocal, now);
   const close = marketToDisplay(market.tz, market.closeLocal, now);
   const wraps = close < open;
@@ -135,10 +135,10 @@ function SessionBar({ market, now }: { market: Market; now: Date }) {
   });
 
   return (
-    <div className="relative h-6">
+    <div className={`relative ${compact ? "h-4" : "h-6"}`}>
       {!wraps ? (
         <div style={barStyle(open, close)} className="flex items-center overflow-hidden">
-          <span className="px-2 text-[11px] font-medium truncate" style={{ color: market.color }}>
+          <span className={`truncate font-medium ${compact ? "px-1 text-[9px]" : "px-2 text-[11px]"}`} style={{ color: market.color }}>
             {market.name}
           </span>
         </div>
@@ -146,7 +146,7 @@ function SessionBar({ market, now }: { market: Market; now: Date }) {
         <>
           <div style={barStyle(0, close)} />
           <div style={{ ...barStyle(open, 24), borderRadius: 4 }} className="flex items-center overflow-hidden">
-            <span className="px-2 text-[11px] font-medium truncate" style={{ color: market.color }}>
+            <span className={`truncate font-medium ${compact ? "px-1 text-[9px]" : "px-2 text-[11px]"}`} style={{ color: market.color }}>
               {market.name}
             </span>
           </div>
@@ -157,7 +157,8 @@ function SessionBar({ market, now }: { market: Market; now: Date }) {
 }
 
 // ─── Main Component ───────────────────────────────────────────────────
-export function MarketHoursBar() {
+/** compact = úzká verze do pravého sloupce dashboardu (menší hodiny, nižší pruhy). */
+export function MarketHoursBar({ compact = false }: { compact?: boolean }) {
   const [now, setNow] = useState<Date | null>(null);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
 
@@ -175,7 +176,7 @@ export function MarketHoursBar() {
   }, []);
 
   if (!now) {
-    return <div className="h-44 rounded-2xl bg-panel border border-line animate-pulse" />;
+    return <div className={`${compact ? "h-32" : "h-44"} rounded-2xl bg-panel border border-line animate-pulse`} />;
   }
 
   const local = getTimeParts(LOCAL_TZ, now);
@@ -192,7 +193,7 @@ export function MarketHoursBar() {
       : localDecimal >= open && localDecimal <= close;
   };
 
-  const axisHours = Array.from({ length: 13 }, (_, i) => i * 2);
+  const axisHours = compact ? Array.from({ length: 7 }, (_, i) => i * 4) : Array.from({ length: 13 }, (_, i) => i * 2);
 
   // Convert an event's published_at to Prague decimal hours
   const eventToDecimal = (iso: string): number => {
@@ -205,7 +206,7 @@ export function MarketHoursBar() {
   return (
     <div className="rounded-2xl border border-line bg-panel overflow-hidden">
       {/* ── Clocks row ── */}
-      <div className="flex items-center justify-around gap-2 px-4 py-3 border-b border-line">
+      <div className={`flex items-center justify-around border-b border-line ${compact ? "gap-1 px-2 py-2" : "gap-2 px-4 py-3"}`}>
         {CLOCKS.map((c) => {
           const t = getTimeParts(c.tz, now);
           const market = c.name !== "Praha" ? MARKETS.find(m => m.name === c.name || m.tz === c.tz) : undefined;
@@ -213,7 +214,7 @@ export function MarketHoursBar() {
           return (
             <div key={c.name} className="flex flex-col items-center gap-1">
               <div className="relative">
-                <Clock h={t.h} m={t.m} s={t.s} color={c.color} size={60} />
+                <Clock h={t.h} m={t.m} s={t.s} color={c.color} size={compact ? 34 : 60} />
                 {c.name !== "Praha" && (
                   <div
                     className={`absolute bottom-0.5 right-0.5 w-2 h-2 rounded-full border border-[color:var(--tz-panel-2)] ${
@@ -223,8 +224,8 @@ export function MarketHoursBar() {
                 )}
               </div>
               <div className="text-center leading-tight">
-                <div className="text-[10px] text-gray-500">{c.name}</div>
-                <div className="text-[13px] font-mono font-bold tabular-nums" style={{ color: c.color }}>
+                <div className={`${compact ? "text-[9px]" : "text-[10px]"} text-gray-500`}>{c.name}</div>
+                <div className={`${compact ? "text-[11px]" : "text-[13px]"} font-mono font-bold tabular-nums`} style={{ color: c.color }}>
                   {t.label}
                 </div>
               </div>
@@ -234,7 +235,7 @@ export function MarketHoursBar() {
       </div>
 
       {/* ── Timeline ── */}
-      <div className="px-4 pb-3 pt-4">
+      <div className={compact ? "px-3 pb-2 pt-3" : "px-4 pb-3 pt-4"}>
         <div className="relative pt-5">
           {/* "Now" line + label */}
           <div
@@ -242,7 +243,7 @@ export function MarketHoursBar() {
             style={{ left: nowPct, backgroundColor: "#f97316" }}
           >
             <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full pb-0.5">
-              <span className="text-[11px] font-mono font-bold text-orange-400 bg-panel border border-orange-800/60 rounded px-1 py-0.5 whitespace-nowrap">
+              <span className={`${compact ? "text-[9px]" : "text-[11px]"} font-mono font-bold text-orange-400 bg-panel border border-orange-800/60 rounded px-1 py-0.5 whitespace-nowrap`}>
                 {local.label}
               </span>
             </div>
@@ -262,9 +263,9 @@ export function MarketHoursBar() {
           ))}
 
           {/* Session bars */}
-          <div className="space-y-1.5 mb-3 relative">
+          <div className={`relative ${compact ? "mb-2 space-y-1" : "mb-3 space-y-1.5"}`}>
             {MARKETS.map((m) => (
-              <SessionBar key={m.name} market={m} now={now} />
+              <SessionBar key={m.name} market={m} now={now} compact={compact} />
             ))}
           </div>
 
@@ -302,7 +303,7 @@ export function MarketHoursBar() {
         </div>
 
         {/* Legend */}
-        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 pt-2 border-t border-line/40">
+        <div className={`flex flex-wrap border-t border-line/40 ${compact ? "mt-1.5 gap-x-3 gap-y-0.5 pt-1.5" : "mt-2 gap-x-4 gap-y-1 pt-2"}`}>
           {MARKETS.map((m) => {
             const open = isOpen(m);
             return (
