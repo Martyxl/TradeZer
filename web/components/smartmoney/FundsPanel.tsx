@@ -33,10 +33,10 @@ export interface FundsData {
 }
 
 const ACTION: Record<string, { label: string; cls: string }> = {
-  new: { label: "nová", cls: "bg-emerald-900/60 text-emerald-200" },
+  new: { label: "nová", cls: "bg-emerald-950/60 text-emerald-300 font-semibold ring-1 ring-inset ring-emerald-500/60" },
   added: { label: "navýšil", cls: "bg-emerald-950/60 text-emerald-300" },
   reduced: { label: "snížil", cls: "bg-red-950/50 text-red-300" },
-  sold: { label: "prodal vše", cls: "bg-red-900/50 text-red-200" },
+  sold: { label: "prodal vše", cls: "bg-red-950/50 text-red-300 font-semibold ring-1 ring-inset ring-red-500/60" },
 };
 
 export function fmtUsd(v: number): string {
@@ -162,7 +162,9 @@ function TickerLookup({ data }: { data: FundsData }) {
 
 function StakesTable({ rows }: { rows: Stake[] }) {
   const [only, setOnly] = useState<"all" | "13d">("all");
-  const shown = rows.filter((s) => only === "all" || s.activist).slice(0, 40);
+  const [more, setMore] = useState(false);
+  const filtered = rows.filter((s) => only === "all" || s.activist);
+  const shown = filtered.slice(0, more ? 60 : 15);
   return (
     <div className="rounded-xl border border-line bg-panel-2 overflow-hidden">
       <div className="flex flex-wrap items-center gap-2 px-3 py-2.5 border-b border-line">
@@ -199,13 +201,23 @@ function StakesTable({ rows }: { rows: Stake[] }) {
                     {s.activist ? "13D aktivní" : "13G pasivní"}{s.amendment ? " · dodatek" : ""}
                   </a>
                 </td>
-                <td className="px-3 py-2 text-right font-mono text-gray-200">{s.percent != null ? `${s.percent} %` : "—"}</td>
+                <td className="px-3 py-2 text-right font-mono">
+                  {s.percent == null ? <span className="text-gray-500">—</span>
+                    : s.percent < 5
+                      ? <span className="text-red-300" title="Podíl klesl pod hranici 5 % — fond prodával">{s.percent} % ↓</span>
+                      : <span className="text-gray-200">{s.percent} %</span>}
+                </td>
               </tr>
             ))}
             {shown.length === 0 && <tr><td colSpan={5} className="px-3 py-6 text-center text-xs text-gray-500">Za poslední 4 měsíce nic.</td></tr>}
           </tbody>
         </table>
       </div>
+      {filtered.length > 15 && (
+        <button onClick={() => setMore(!more)} className="w-full border-t border-line py-2 text-[11px] text-gray-400 hover:text-white">
+          {more ? "Méně" : `Dalších ${Math.min(60, filtered.length) - 15}`}
+        </button>
+      )}
     </div>
   );
 }
@@ -244,7 +256,7 @@ function FundCard({ f }: { f: Fund }) {
               <div className="text-[10px] uppercase tracking-wide text-gray-500">{ACTION[a].label}</div>
               <div className={`truncate ${a === "new" || a === "added" ? "text-emerald-300" : "text-red-300"}`}>
                 {f.changes[a].length === 0 ? <span className="text-gray-600">—</span> :
-                  f.changes[a].slice(0, n).map((p) => p.ticker ?? p.name.slice(0, 10)).join(", ")}
+                  Array.from(new Set(f.changes[a].map((p) => p.ticker ?? p.name.slice(0, 10)))).slice(0, n).join(", ")}
               </div>
             </div>
           ))}
