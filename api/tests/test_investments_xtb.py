@@ -152,3 +152,20 @@ async def test_sell_full_and_partial_lot():
         # cizí uživatel nemůže prodat můj nákup
         h2 = await auth_headers(c, "o@t.cz")
         assert (await c.post(f"/api/investments/{a['id']}/sell", json={"price": 1}, headers=h2)).status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_portfolio_shows_brokers_per_position():
+    async with _client() as c:
+        h = await auth_headers(c, "b@t.cz")
+        for broker, q in (("xtb", 3), ("etoro", 1.5), ("xtb", 1)):
+            await c.post("/api/investments", json={"tx_type": "buy", "symbol": "COIN", "quantity": q, "price": 100,
+                                                   "broker": broker}, headers=h)
+        await c.post("/api/investments", json={"tx_type": "buy", "symbol": "AAPL", "quantity": 2, "price": 100,
+                                               "broker": "etoro"}, headers=h)
+        await c.post("/api/investments", json={"tx_type": "sell", "symbol": "AAPL", "quantity": 2, "price": 120,
+                                               "broker": "etoro"}, headers=h)
+        pf = (await c.get("/api/investments/portfolio", headers=h)).json()
+        coin = next(x for x in pf["holdings"] if x["symbol"] == "COIN")
+        assert coin["brokers"] == [{"broker": "xtb", "quantity": 4}, {"broker": "etoro", "quantity": 1.5}]
+        assert all(x["symbol"] != "AAPL" for x in pf["holdings"])

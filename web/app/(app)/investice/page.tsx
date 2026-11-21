@@ -16,6 +16,7 @@ interface Holding {
   invested: number; currency: string; price: number | null; value: number | null;
   unrealized: number | null; unrealized_pct: number | null; price_as_of: string | null;
   weight_pct: number | null; high_52w: number | null; low_52w: number | null; signal: Signal;
+  brokers?: { broker: string; quantity: number }[];
 }
 interface Portfolio {
   base: string; holdings: Holding[];
@@ -32,6 +33,8 @@ interface Tx {
   lot_id?: number | null; remaining?: number; status?: "open" | "partial" | "closed";
   lot_price?: number | null; lot_date?: string | null; realized?: number; realized_pct?: number | null;
 }
+
+const BROKER_LABEL: Record<string, string> = { xtb: "XTB", etoro: "eToro", trading212: "T212", portu: "Portu", manual: "ručně" };
 
 const fmt = (n: number | null | undefined, ccy = "") =>
   n === null || n === undefined ? "—" : `${n.toLocaleString("cs-CZ", { maximumFractionDigits: 2 })}${ccy ? " " + ccy : ""}`;
@@ -142,7 +145,15 @@ export default function InvesticePage() {
                 {pf.holdings.map((h) => (
                   <tr key={h.symbol} className="border-t border-line">
                     <td className="px-4 py-2.5">
-                      <div className="font-medium text-white">{h.symbol}</div>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="font-medium text-white">{h.symbol}</span>
+                        {(h.brokers ?? []).map((b) => (
+                          <span key={b.broker} title={`${fmt(b.quantity)} ks u ${BROKER_LABEL[b.broker] ?? b.broker}`}
+                            className="rounded border border-line px-1 py-px text-[9px] font-semibold uppercase tracking-wide text-gray-400">
+                            {BROKER_LABEL[b.broker] ?? b.broker}{(h.brokers ?? []).length > 1 ? ` ${fmt(b.quantity)}` : ""}
+                          </span>
+                        ))}
+                      </div>
                       {h.name && <div className="text-[11px] text-gray-500 truncate max-w-[180px]">{h.name}</div>}
                     </td>
                     <td className="px-4 py-2.5 text-right text-gray-300">{fmt(h.quantity)}</td>

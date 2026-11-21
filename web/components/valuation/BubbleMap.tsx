@@ -181,11 +181,6 @@ export function BubbleMap({ items, onSelect, zones, alerts = {} }: {
                 {alerts[it.ticker] && (
                   <SvgAlert x={cx - r * 0.72} y={cy - r * 0.72} title={alertTitle(alerts[it.ticker])} />
                 )}
-                {hover === it.ticker && (
-                  <text x={cx} y={cy - r - 5} fill="#e5e7eb" fontSize="10" textAnchor="middle">
-                    {it.name?.slice(0, 22)} · comp {it.composite_score?.toFixed(0) ?? "—"}{it.zone ? ` · ${zoneText(it)}` : ""}
-                  </text>
-                )}
               </g>
             );
           }
@@ -207,6 +202,24 @@ export function BubbleMap({ items, onSelect, zones, alerts = {} }: {
             </g>
           );
         })}
+
+        {/* Popisek při najetí — až nad všemi bublinami a vždy uvnitř grafu (u okraje se zarovná dovnitř). */}
+        {(() => {
+          const m = hover ? plotted.find((i) => i.ticker === hover) : null;
+          if (!m) return null;
+          const cx = xPos(m.pctile_pe_fwd!), cy = yPos(m.eps_growth_ntm!), r = radius(m.market_cap, maxMc);
+          const label = `${m.name?.slice(0, 22) ?? m.ticker} · comp ${m.composite_score?.toFixed(0) ?? "—"}${m.zone ? ` · ${zoneText(m)}` : ""}`;
+          const w = label.length * 5.6 + 12, h = 16;
+          const x = Math.min(Math.max(cx - w / 2, 4), W - w - 4);
+          const above = cy - r - 6 - h >= 2;
+          const y = above ? cy - r - 6 - h : Math.min(cy + r + 6, H - h - 2);
+          return (
+            <g pointerEvents="none">
+              <rect x={x} y={y} width={w} height={h} rx={4} fill="#0b0e16" fillOpacity={0.88} stroke="#334155" />
+              <text x={x + w / 2} y={y + 11.5} fill="#e5e7eb" fontSize="10" textAnchor="middle">{label}</text>
+            </g>
+          );
+        })()}
       </svg>
       {openCluster && (
         <div className="mt-2 rounded-lg border border-line bg-sunken p-3" data-testid="cluster-list">

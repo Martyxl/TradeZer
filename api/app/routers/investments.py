@@ -425,7 +425,9 @@ async def portfolio(base: str = Query(DEFAULT_BASE), user: User = Depends(curren
             continue
         if t.tx_type not in ("buy", "sell") or not t.symbol:
             continue
-        h = H.setdefault(t.symbol, {"qty": 0.0, "cost": 0.0, "currency": ccy, "name": t.name})
+        h = H.setdefault(t.symbol, {"qty": 0.0, "cost": 0.0, "currency": ccy, "name": t.name, "by_broker": {}})
+        bk = t.broker or "manual"
+        h["by_broker"][bk] = h["by_broker"].get(bk, 0.0) + ((t.quantity or 0) if t.tx_type == "buy" else -(t.quantity or 0))
         if t.name and not h["name"]:
             h["name"] = t.name
         q = t.quantity or 0
@@ -463,6 +465,8 @@ async def portfolio(base: str = Query(DEFAULT_BASE), user: User = Depends(curren
             "unrealized_pct": round(unreal_pct, 2) if unreal_pct is not None else None,
             "price_as_of": q.as_of.isoformat() if (q and q.as_of) else None,
             "high_52w": q.high_52w if q else None, "low_52w": q.low_52w if q else None,
+            "brokers": [{"broker": b, "quantity": round(q, 6)} for b, q in sorted(h["by_broker"].items(), key=lambda x: -x[1])
+                        if q > 1e-9],
             "_bv": None, "_raw_qty": h["qty"],
         })
         tc = totals_ccy.setdefault(ccy, {"invested": 0.0, "value": 0.0, "has_value": True})

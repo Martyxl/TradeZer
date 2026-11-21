@@ -44,3 +44,21 @@ describe("BubbleMap rozhodovací zóny", () => {
     expect(screen.getByText("levné a rostoucí")).toBeTruthy();
   });
 });
+
+
+describe("BubbleMap popisek při najetí", () => {
+  it("u bubliny na okraji zůstane celý uvnitř grafu", () => {
+    const edge = { ...item("EDGE", 100, 200, 5e12), name: "Velmi dlouhý název firmy Corporation" };
+    const { container } = render(<BubbleMap onSelect={() => {}} items={[edge, item("MID", 50, 10)]} />);
+    const bubble = [...container.querySelectorAll("g")].find((g) => g.textContent?.startsWith("EDGE"))!;
+    fireEvent.mouseEnter(bubble);
+    const rect = container.querySelector("rect[rx='4']")!;
+    const [x, y, w, h] = ["x", "y", "width", "height"].map((a) => parseFloat(rect.getAttribute(a)!));
+    const [, , W, H] = container.querySelector("svg")!.getAttribute("viewBox")!.split(" ").map(Number);
+    expect(x).toBeGreaterThanOrEqual(0);
+    expect(y).toBeGreaterThanOrEqual(0);
+    expect(x + w).toBeLessThanOrEqual(W);
+    expect(y + h).toBeLessThanOrEqual(H);
+    expect(screen.getByText(/Velmi dlouhý název/)).toBeTruthy();
+  });
+});
