@@ -275,9 +275,10 @@ SENT_PARTS = [
 ]
 SENT_BANDS = [(20, "extreme_fear", "Extrémní strach"), (40, "fear", "Strach"), (60, "neutral", "Neutrál"),
               (80, "greed", "Chamtivost"), (101, "extreme_greed", "Extrémní chamtivost")]
-# Historie 11/2011–11/2026 (Yahoo denní data, Nasdaq-100): co následovalo po dni v pásmu.
-# next_day_move = průměrný |pohyb| další den vůči běžnému dni; up = podíl dní nahoru;
-# fwd20 = průměrný výnos NDX za 20 obchodních dní, pos20 = podíl kladných.
+# Co historicky následovalo po dni v pásmu (Nasdaq-100): next_day_move = průměrný |pohyb|
+# další den vůči běžnému dni; up = podíl dní nahoru; fwd20 = průměrný výnos za 20 obchodních
+# dní, pos20 = podíl kladných, p10_20 = 10. percentil (jen extrémní strach). Přepočítává se
+# jednou týdně z celé historie Yahoo (load_history); tohle je záloha z 11/2026.
 SENT_HISTORY = {
     "extreme_fear": {"next_day_move": 1.8, "up": 58, "fwd20": 2.4, "pos20": 67, "p10_20": -6.5},
     "fear": {"next_day_move": 1.1, "up": 56, "fwd20": 1.6, "pos20": 70},
@@ -285,30 +286,34 @@ SENT_HISTORY = {
     "greed": {"next_day_move": 0.8, "up": 54, "fwd20": 1.2, "pos20": 65},
     "extreme_greed": {"next_day_move": 0.6, "up": 58, "fwd20": 1.0, "pos20": 65},
     "all": {"up": 56, "fwd20": 1.5, "pos20": 67},
+    "period": "2011-11 – 2026-11",
 }
+HIST_CACHE = os.environ.get("SENT_HISTORY_CACHE", os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                                                "sentiment_history.json"))
+HIST_EVERY_S = 7 * 86400
 
 
 def yahoo_daily(sym: str, rng: str = "2y") -> dict:
     """{datum: close} — po datech, aby šly řady různých symbolů spolehlivě zarovnat."""
     url = f"https://query1.finance.yahoo.com/v8/finance/chart/{urllib.parse.quote(sym)}?range={rng}&interval=1d"
-    res = ((json.loads(_get(url)).get("chart") or {}).get("result") or [{}])[0]
+    res = ((json.loads(_get(url, timeout=60)).get("chart") or {}).get("result") or [{}])[0]
     ts = res.get("timestamp") or []
     closes = (((res.get("indicators") or {}).get("quote") or [{}])[0]).get("close") or []
     return {datetime.fromtimestamp(t, timezone.utc).date().isoformat(): c for t, c in zip(ts, closes) if c}
 
 
-def sentiment_from_series(s: dict[str, dict]) -> dict | None:
-    """Skóre 0–100 ze zarovnaných denních řad (klíče SENT_SYMBOLS). None = málo dat."""
+def _align(s: dict[str, dict]) -> tuple[list[str], dict[str, list]]:
     days = sorted(set.intersection(*[set(v) for v in s.values()])) if s and all(s.values()) else []
-    if len(days) < 260:
-        return None
-    c = {k: [s[k][d] for d in days] for k in s}
+    return days, {k: [s[k][d] for d in days] for k in s}
 
+
+def _raw_parts(c: dict[str, list], n: int) -> dict[str, list]:
+    """Surové hodnoty složek pro každý den (vyšší = víc chamtivosti); prvních 125 dní None."""
     def r20(a, i):
         return a[i] / a[i - 20] - 1
 
     raw: dict[str, list] = {k: [] for k, _, _ in SENT_PARTS}
-    for i in range(len(days)):
+    for i in range(n):
         if i < 125:
             for k in raw:
                 raw[k].append(None)
@@ -318,25 +323,116 @@ def sentiment_from_series(s: dict[str, dict]) -> dict | None:
         raw["mom"].append(c["spx"][i] / (sum(c["spx"][i - 125:i]) / 125) - 1)
         raw["haven"].append(r20(c["spx"], i) - r20(c["tlt"], i))
         raw["junk"].append(r20(c["hyg"], i) - r20(c["ief"], i))
-    last = len(days) - 1
+    return raw
 
-    def pct(series):
-        w = [x for x in series[max(0, last - 252):last + 1] if x is not None]
-        return round(100 * sum(1 for x in w if x <= series[last]) / len(w)) if len(w) >= 120 else None
 
+def _score_at(raw: dict[str, list], i: int) -> tuple[int | None, list]:
+    """Skóre dne i = průměr percentilů složek vůči předchozím 252 dnům (jen minulost)."""
     parts = []
     for key, label, hint in SENT_PARTS:
-        v = pct(raw[key])
-        if v is not None:
-            parts.append({"key": key, "label": label, "hint": hint, "value": v})
+        series = raw[key]
+        if series[i] is None:
+            continue
+        w = [x for x in series[max(0, i - 252):i + 1] if x is not None]
+        if len(w) >= 120:
+            parts.append({"key": key, "label": label, "hint": hint,
+                          "value": round(100 * sum(1 for x in w if x <= series[i]) / len(w))})
     if len(parts) < 4:
+        return None, parts
+    return round(sum(p["value"] for p in parts) / len(parts)), parts
+
+
+def _band(score: int) -> tuple:
+    return next(b for b in SENT_BANDS if score < b[0])
+
+
+def sentiment_from_series(s: dict[str, dict], history: dict | None = None) -> dict | None:
+    """Skóre 0–100 ze zarovnaných denních řad (klíče SENT_SYMBOLS). None = málo dat."""
+    days, c = _align(s)
+    if len(days) < 260:
         return None
-    score = round(sum(p["value"] for p in parts) / len(parts))
-    band = next(b for b in SENT_BANDS if score < b[0])
+    raw = _raw_parts(c, len(days))
+    last = len(days) - 1
+    score, parts = _score_at(raw, last)
+    if score is None:
+        return None
+    band = _band(score)
+    hist = history or SENT_HISTORY
     vix, vix3m = c["vix"][last], c["vix3m"][last]
     return {"score": score, "band": band[1], "label": band[2], "parts": parts, "as_of_date": days[-1],
             "vix": round(vix, 2), "vix_term": round(vix / vix3m, 3), "backwardation": vix > vix3m,
-            "history": SENT_HISTORY[band[1]], "history_all": SENT_HISTORY["all"]}
+            "history": hist[band[1]], "history_all": hist["all"], "history_period": hist.get("period")}
+
+
+def history_from_series(s: dict[str, dict], ndx: dict) -> dict | None:
+    """Statistiky pásem z celé historie: co dělal Nasdaq-100 den / 20 dní po dni v pásmu."""
+    s = {k: {d: v for d, v in ser.items() if d in ndx} for k, ser in s.items()}
+    days, c = _align(s)
+    n = len(days)
+    if n < 1000:
+        return None
+    px = [ndx[d] for d in days]
+    raw = _raw_parts(c, n)
+    scores = [None] * n
+    for i in range(125, n):
+        scores[i] = _score_at(raw, i)[0]
+
+    def fwd(i, k):
+        return px[i + k] / px[i] - 1 if i + k < n else None
+
+    valid = [i for i in range(n) if scores[i] is not None]
+    ones = [abs(fwd(i, 1)) for i in valid if fwd(i, 1) is not None]
+    base_abs = sum(ones) / max(1, len(ones))
+
+    def stats(idx: list[int], with_p10: bool = False) -> dict:
+        one = [fwd(i, 1) for i in idx if fwd(i, 1) is not None]
+        twenty = sorted(fwd(i, 20) for i in idx if fwd(i, 20) is not None)
+        out = {"n": len(idx),
+               "next_day_move": round(sum(map(abs, one)) / len(one) / base_abs, 1) if one else None,
+               "up": round(100 * sum(x > 0 for x in one) / len(one)) if one else None,
+               "fwd20": round(100 * sum(twenty) / len(twenty), 1) if twenty else None,
+               "pos20": round(100 * sum(x > 0 for x in twenty) / len(twenty)) if twenty else None}
+        if with_p10 and len(twenty) >= 30:
+            out["p10_20"] = round(100 * twenty[len(twenty) // 10], 1)
+        return out
+
+    hist: dict = {"all": stats(valid)}
+    for lo, (hi, key, _label) in zip([0, 20, 40, 60, 80], SENT_BANDS):
+        idx = [i for i in valid if lo <= scores[i] < hi]
+        if len(idx) < 30:
+            return None   # málo dat pro pásmo → nechat zálohu
+        hist[key] = stats(idx, with_p10=key == "extreme_fear")
+    hist["period"] = f"{days[valid[0]][:7]} – {days[-1][:7]}"
+    return hist
+
+
+def load_history() -> dict:
+    """Statistiky pásem: z cache, a jednou týdně přepočet z celé historie (Yahoo ~15 let)."""
+    cached = None
+    try:
+        with open(HIST_CACHE, encoding="utf-8") as f:
+            cached = json.load(f)
+        if time.time() - cached.get("computed_at", 0) < HIST_EVERY_S:
+            return cached["history"]
+    except (OSError, ValueError, KeyError):
+        pass
+    try:
+        series = {}
+        for key, sym in SENT_SYMBOLS.items():
+            series[key] = yahoo_daily(sym, "15y")
+            time.sleep(0.3)
+        hist = history_from_series(series, yahoo_daily("^NDX", "15y"))
+    except Exception as e:  # noqa: BLE001
+        print(f"  sentiment history: {e}")
+        hist = None
+    if hist:
+        tmp = HIST_CACHE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump({"computed_at": time.time(), "history": hist}, f, ensure_ascii=False)
+        os.replace(tmp, HIST_CACHE)
+        print(f"  sentiment history přepočítána ({hist['period']})")
+        return hist
+    return (cached or {}).get("history") or SENT_HISTORY
 
 
 def compute_sentiment() -> dict | None:
@@ -348,7 +444,7 @@ def compute_sentiment() -> dict | None:
             print(f"  sentiment {sym}: {e}")
             return None
         time.sleep(0.2)
-    return sentiment_from_series(series)
+    return sentiment_from_series(series, load_history())
 
 
 def compute_regime(use_llm: bool = True, prev_geo: dict | None = None) -> dict:

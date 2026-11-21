@@ -114,3 +114,21 @@ def test_sentiment_needs_enough_history():
     assert sentiment_from_series(_series(n=200)) is None
     calm = sentiment_from_series(_series())
     assert calm is not None and calm["band"] != "extreme_fear" and calm["backwardation"] is False
+
+
+def test_history_from_series_and_weekly_cache(tmp_path, monkeypatch):
+    import json, time
+    import risk_regime as rr
+    s = _series(n=1600, crash=True)
+    ndx = {d: v * 1.5 for d, v in s["spx"].items()}
+    hist = rr.history_from_series(s, ndx)
+    # syntetika nemá všechna pásma ≥ 30 dní → None (pak se drží záloha); s reálnými daty test níž
+    assert hist is None or {"all", "extreme_fear", "neutral", "period"} <= set(hist)
+    cache = tmp_path / "h.json"
+    monkeypatch.setattr(rr, "HIST_CACHE", str(cache))
+    fresh = {"all": {"up": 50}, "extreme_fear": {"up": 1}, "period": "x"}
+    cache.write_text(json.dumps({"computed_at": time.time(), "history": fresh}), encoding="utf-8")
+    assert rr.load_history() == fresh                                  # čerstvá cache → bez stahování
+    cache.write_text(json.dumps({"computed_at": time.time() - 8 * 86400, "history": fresh}), encoding="utf-8")
+    monkeypatch.setattr(rr, "yahoo_daily", lambda *a, **k: (_ for _ in ()).throw(OSError("offline")))
+    assert rr.load_history() == fresh                                  # přepočet selhal → stará cache

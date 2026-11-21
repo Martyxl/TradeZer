@@ -8,6 +8,7 @@ interface Hist { next_day_move?: number; up: number; fwd20: number; pos20: numbe
 export interface Sentiment {
   score: number; band: string; label: string; parts: Part[]; as_of_date: string;
   vix: number; vix_term: number; backwardation: boolean; history: Hist; history_all: Hist;
+  history_period?: string;
 }
 
 // Pásma 0–20 / 20–40 / 40–60 / 60–80 / 80–100 (stejně jako backend).
@@ -117,7 +118,7 @@ export function SentimentCard({ regime }: { regime?: Regime | null }) {
 
       <p className="mt-3 text-[10px] leading-snug text-gray-600">
         Každá složka = kde je dnešní hodnota v rozpětí posledního roku (0 = nejvíc strachu). Dopady: historie
-        Nasdaq-100 11/2011–11/2026. Není to investiční doporučení.
+        Nasdaq-100 {s.history_period ?? "2011-11 – 2026-11"}, přepočet jednou týdně. Není to investiční doporučení.
       </p>
     </div>
   );
