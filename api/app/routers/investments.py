@@ -24,7 +24,8 @@ from app.routers.auth import current_user
 log = structlog.get_logger(__name__)
 router = APIRouter(prefix="/api/investments", tags=["investments"])
 
-TX_TYPES = ("buy", "sell", "dividend", "fee", "deposit", "withdrawal")
+TX_TYPES = ("buy", "sell", "dividend", "fee", "deposit", "withdrawal", "interest", "tax")
+EPS = 1e-6
 DEFAULT_BASE = "CZK"
 
 
@@ -61,7 +62,7 @@ def _out(t: InvestmentTx) -> dict:
         "name": t.name, "quantity": t.quantity, "price": t.price, "currency": t.currency,
         "fee": t.fee, "amount": t.amount,
         "executed_at": t.executed_at.isoformat() if t.executed_at else None,
-        "notes": t.notes, "source": t.source,
+        "notes": t.notes, "source": t.source, "lot_id": t.lot_id, "external_id": t.external_id,
     }
 
 
@@ -99,7 +100,32 @@ async def list_tx(user: User = Depends(current_user),
         select(InvestmentTx).where(InvestmentTx.user_id == user.id)
         .order_by(InvestmentTx.executed_at.desc().nullslast(), InvestmentTx.id.desc())
     )).scalars().all()
-    return {"transactions": [_out(t) for t in rows]}
+    return {"transactions": _with_lots(rows)}
+
+
+def _with_lots(rows: list[InvestmentTx]) -> list[dict]:
+    """Ke každému nákupu kolik z něj zbývá (prodeje propojené přes lot_id), k prodeji nákupní
+    cenu lotu a realizovaný zisk v měně nástroje."""
+    by_id = {t.id: t for t in rows}
+    sold: dict[int, float] = {}
+    for t in rows:
+        if t.tx_type == "sell" and t.lot_id:
+            sold[t.lot_id] = sold.get(t.lot_id, 0) + (t.quantity or 0)
+    out = []
+    for t in rows:
+        d = _out(t)
+        if t.tx_type == "buy" and t.symbol:
+            rem = max(0.0, (t.quantity or 0) - sold.get(t.id, 0))
+            d["remaining"] = round(rem, 6)
+            d["status"] = "closed" if rem <= EPS else ("partial" if sold.get(t.id) else "open")
+        elif t.tx_type == "sell" and t.lot_id in by_id:
+            lot = by_id[t.lot_id]
+            d["lot_price"], d["lot_date"] = lot.price, lot.executed_at.isoformat() if lot.executed_at else None
+            if lot.price is not None and t.price is not None and t.quantity:
+                d["realized"] = round((t.price - lot.price) * t.quantity - (t.fee or 0), 2)
+                d["realized_pct"] = round((t.price / lot.price - 1) * 100, 2) if lot.price else None
+        out.append(d)
+    return out
 
 
 @router.post("")
@@ -154,6 +180,127 @@ async def import_tx(payload: dict, user: User = Depends(current_user),
             errors.append(f"řádek {i + 1}: {e}")
     await session.commit()
     return {"created": created, "skipped": skipped, "errors": errors[:20]}
+
+
+@router.post("/import/xtb")
+async def import_xtb(payload: dict, user: User = Depends(current_user),
+                     session: AsyncSession = Depends(get_session)):
+    """Výpis z XTB (xlsx, base64 v content_b64). dry_run=true jen ukáže, co by se stalo.
+    replace_legacy=true smaže dřívější XTB řádky bez ID operace (starý import), aby se nezdvojily.
+    Dedup podle ID operace XTB — opakovaný import novějšího výpisu přidá jen nové operace."""
+    import base64
+    from app.services.xtb_import import parse_xtb, holdings_check
+    raw = payload.get("content_b64") or ""
+    if not raw or len(raw) > 8_000_000:
+        raise HTTPException(status_code=400, detail="Chybí soubor, nebo je příliš velký.")
+    try:
+        parsed = parse_xtb(base64.b64decode(raw), payload.get("account_currency"))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    rows = parsed["rows"]
+    mine = (await session.execute(select(InvestmentTx).where(InvestmentTx.user_id == user.id))).scalars().all()
+    known = {t.external_id for t in mine if t.broker == "xtb" and t.external_id}
+    legacy = [t for t in mine if t.broker == "xtb" and not t.external_id]
+    new = [r for r in rows if r["external_id"] not in known]
+    summary = {
+        "account": parsed["account"], "currency": parsed["currency"], "total": len(rows), "new": len(new),
+        "already": len(rows) - len(new), "by_type": {}, "skipped": parsed["skipped"],
+        "legacy": len(legacy), "check": holdings_check(rows, parsed["open_positions"]),
+        "open_positions": len(parsed["open_positions"]),
+    }
+    for r in new:
+        summary["by_type"][r["tx_type"]] = summary["by_type"].get(r["tx_type"], 0) + 1
+    if payload.get("dry_run"):
+        return summary
+
+    if payload.get("replace_legacy") and legacy:
+        for t in legacy:
+            await session.delete(t)
+    source = (payload.get("source") or "xtb")[:60]
+    added: list[InvestmentTx] = []
+    for r in new:
+        t = InvestmentTx(user_id=user.id, broker="xtb", tx_type=r["tx_type"], symbol=r.get("symbol"),
+                         name=(r.get("name") or None) and str(r["name"])[:120], quantity=r.get("quantity"),
+                         price=r.get("price"), currency=r.get("currency") or parsed["currency"],
+                         amount=r.get("amount"), executed_at=r.get("executed_at"), notes=r.get("notes"),
+                         source=source, external_id=r["external_id"], position_ref=r.get("position_ref"))
+        t.dedup_hash = _hash(user.id, _out(t) | {"amount": t.amount})
+        session.add(t)
+        added.append(t)
+    await session.flush()
+    _link_lots([t for t in mine if t not in legacy] + added)
+    await session.commit()
+    summary["created"] = len(added)
+    summary["replaced_legacy"] = len(legacy) if payload.get("replace_legacy") else 0
+    return summary
+
+
+def _link_lots(txs: list[InvestmentTx]) -> None:
+    """Prodeje bez lotu přiřadí k nákupu stejné pozice u brokera (FIFO, nejstarší nákup s volnými kusy)."""
+    buys: dict[tuple, list[InvestmentTx]] = {}
+    sold: dict[int, float] = {}
+    for t in sorted(txs, key=lambda x: (x.executed_at or datetime.min, x.id or 0)):
+        if t.tx_type == "buy" and t.position_ref:
+            buys.setdefault((t.broker, t.position_ref), []).append(t)
+        if t.tx_type == "sell" and t.lot_id:
+            sold[t.lot_id] = sold.get(t.lot_id, 0) + (t.quantity or 0)
+    for t in sorted(txs, key=lambda x: (x.executed_at or datetime.min, x.id or 0)):
+        if t.tx_type != "sell" or t.lot_id or not t.position_ref:
+            continue
+        lots = buys.get((t.broker, t.position_ref)) or []
+        lot = next((b for b in lots if (b.quantity or 0) - sold.get(b.id, 0) >= (t.quantity or 0) - EPS), None) \
+            or next((b for b in lots if (b.quantity or 0) - sold.get(b.id, 0) > EPS), None)
+        if lot:
+            t.lot_id = lot.id
+            sold[lot.id] = sold.get(lot.id, 0) + (t.quantity or 0)
+
+
+@router.post("/{tx_id}/sell")
+async def sell_lot(tx_id: int, payload: dict, user: User = Depends(current_user),
+                   session: AsyncSession = Depends(get_session)):
+    """Prodej z konkrétního nákupu. Celý zbytek → nový řádek prodeje. Část → původní nákup se
+    zmenší o prodanou část, prodaná část se oddělí do vlastního (uzavřeného) nákupu a k ní nový
+    řádek prodeje — počty kusů v portfoliu i průměrná cena zůstanou správně."""
+    lot = await _owned(tx_id, user, session)
+    if lot.tx_type != "buy" or not lot.symbol:
+        raise HTTPException(status_code=400, detail="Prodat jde jen nákup akcie/ETF.")
+    already = float(await session.scalar(select(func.coalesce(func.sum(InvestmentTx.quantity), 0)).where(
+        InvestmentTx.user_id == user.id, InvestmentTx.lot_id == lot.id, InvestmentTx.tx_type == "sell")) or 0)
+    remaining = (lot.quantity or 0) - already
+    if remaining <= EPS:
+        raise HTTPException(status_code=400, detail="Tahle pozice je už celá prodaná.")
+    qty = _num(payload.get("quantity"))
+    qty = remaining if qty is None else qty
+    price = _num(payload.get("price"))
+    if qty <= 0 or qty > remaining + EPS:
+        raise HTTPException(status_code=400, detail=f"Počet kusů musí být mezi 0 a {round(remaining, 6)}.")
+    if not price or price <= 0:
+        raise HTTPException(status_code=400, detail="Zadej prodejní cenu za kus.")
+    when = _parse_dt(payload.get("executed_at")) or datetime.utcnow()
+    target = lot
+    partial = qty < remaining - EPS
+    if partial:
+        lot.quantity = round((lot.quantity or 0) - qty, 8)
+        lot.dedup_hash = _hash(user.id, _out(lot) | {"amount": lot.amount})
+        target = InvestmentTx(user_id=user.id, broker=lot.broker, tx_type="buy", symbol=lot.symbol, name=lot.name,
+                              quantity=qty, price=lot.price, currency=lot.currency, executed_at=lot.executed_at,
+                              position_ref=lot.position_ref, source=lot.source,
+                              notes=f"Prodaná část nákupu #{lot.id}",
+                              fee=round(lot.fee * qty / (lot.quantity + qty), 4) if lot.fee else None)
+        if lot.fee:
+            lot.fee = round(lot.fee - target.fee, 4)
+        target.dedup_hash = _hash(user.id, _out(target) | {"amount": None, "notes": target.notes, "id": "split"})
+        session.add(target)
+        await session.flush()
+    sell = InvestmentTx(user_id=user.id, broker=lot.broker, tx_type="sell", symbol=lot.symbol, name=lot.name,
+                        quantity=qty, price=price, currency=lot.currency, fee=_num(payload.get("fee")),
+                        executed_at=when, notes=(str(payload.get("notes") or "").strip() or None),
+                        lot_id=target.id, position_ref=lot.position_ref, source="manual-sell")
+    sell.dedup_hash = _hash(user.id, _out(sell) | {"amount": None})
+    session.add(sell)
+    await session.commit()
+    return {"status": "partial" if partial else "closed", "sell_id": sell.id, "lot_id": lot.id,
+            "split_id": target.id if partial else None, "remaining": round(remaining - qty, 6)}
 
 
 async def _owned(tx_id: int, user: User, session: AsyncSession) -> InvestmentTx:

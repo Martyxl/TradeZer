@@ -29,6 +29,8 @@ interface Tx {
   id: number; broker: string; tx_type: string; symbol: string | null; name: string | null;
   quantity: number | null; price: number | null; currency: string; fee: number | null;
   amount: number | null; executed_at: string | null; notes: string | null;
+  lot_id?: number | null; remaining?: number; status?: "open" | "partial" | "closed";
+  lot_price?: number | null; lot_date?: string | null; realized?: number; realized_pct?: number | null;
 }
 
 const fmt = (n: number | null | undefined, ccy = "") =>
@@ -91,7 +93,7 @@ export default function InvesticePage() {
             <RefreshCw size={14} /> Obnovit
           </button>
           <button onClick={() => setShowImport(true)} className="flex items-center gap-1.5 rounded-lg border border-line bg-panel px-3 py-2 text-sm text-gray-200 hover:border-gray-500">
-            <Upload size={14} /> Import CSV
+            <Upload size={14} /> Import
           </button>
           <button onClick={() => setShowAdd(true)} className="flex items-center gap-1.5 rounded-lg border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.12)] px-3 py-2 text-sm font-medium text-neon-soft hover:bg-[rgba(96,255,130,0.18)]">
             <Plus size={14} /> Přidat transakci
@@ -490,6 +492,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 // ── Transakce ───────────────────────────────────────────────────────────────
 function TxTable({ txs, onDeleted }: { txs: Tx[]; onDeleted: () => void }) {
   const [busy, setBusy] = useState<number | null>(null);
+  const [selling, setSelling] = useState<Tx | null>(null);
   const del = async (id: number) => {
     if (!confirm("Smazat transakci?")) return;
     setBusy(id);
@@ -498,7 +501,7 @@ function TxTable({ txs, onDeleted }: { txs: Tx[]; onDeleted: () => void }) {
       onDeleted();
     } finally { setBusy(null); }
   };
-  const TYPE_LABEL: Record<string, string> = { buy: "Nákup", sell: "Prodej", dividend: "Dividenda", fee: "Poplatek", deposit: "Vklad", withdrawal: "Výběr" };
+  const TYPE_LABEL: Record<string, string> = { buy: "Nákup", sell: "Prodej", dividend: "Dividenda", fee: "Poplatek", deposit: "Vklad", withdrawal: "Výběr", interest: "Úrok", tax: "Daň" };
 
   return (
     <div className="rounded-xl border border-line bg-panel-2 overflow-hidden">
@@ -515,6 +518,7 @@ function TxTable({ txs, onDeleted }: { txs: Tx[]; onDeleted: () => void }) {
                 <th className="px-4 py-2 font-medium">Ticker</th>
                 <th className="px-4 py-2 font-medium text-right">Počet</th>
                 <th className="px-4 py-2 font-medium text-right">Cena</th>
+                <th className="px-4 py-2 font-medium">Stav / výsledek</th>
                 <th className="px-4 py-2 font-medium">Broker</th>
                 <th className="px-4 py-2"></th>
               </tr>
@@ -527,8 +531,15 @@ function TxTable({ txs, onDeleted }: { txs: Tx[]; onDeleted: () => void }) {
                   <td className="px-4 py-2.5 text-white">{t.symbol ?? "—"}</td>
                   <td className="px-4 py-2.5 text-right text-gray-300">{fmt(t.quantity)}</td>
                   <td className="px-4 py-2.5 text-right text-gray-300">{t.price === null ? fmt(t.amount, t.currency) : fmt(t.price, t.currency)}</td>
+                  <td className="px-4 py-2.5 text-[12px]"><LotInfo t={t} /></td>
                   <td className="px-4 py-2.5 text-gray-500 uppercase text-[11px]">{t.broker}</td>
-                  <td className="px-4 py-2.5 text-right">
+                  <td className="whitespace-nowrap px-4 py-2.5 text-right">
+                    {t.tx_type === "buy" && (t.remaining ?? 0) > 0 && (
+                      <button onClick={() => setSelling(t)}
+                        className="mr-3 rounded-md border border-line px-2 py-0.5 text-[11px] text-gray-300 hover:border-gray-500 hover:text-white">
+                        Prodat
+                      </button>
+                    )}
                     <button onClick={() => del(t.id)} disabled={busy === t.id} className="text-gray-500 hover:text-red-400">
                       {busy === t.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                     </button>
@@ -539,7 +550,85 @@ function TxTable({ txs, onDeleted }: { txs: Tx[]; onDeleted: () => void }) {
           </table>
         </div>
       )}
+      {selling && <SellModal lot={selling} onClose={() => setSelling(null)} onSaved={() => { setSelling(null); onDeleted(); }} />}
     </div>
+  );
+}
+
+/** Stav nákupu (otevřený / částečně prodaný / uzavřený) nebo výsledek prodeje. */
+function LotInfo({ t }: { t: Tx }) {
+  if (t.tx_type === "buy" && t.status) {
+    if (t.status === "closed") return <span className="text-gray-500">uzavřeno</span>;
+    if (t.status === "partial") return <span className="text-amber-300">zbývá {fmt(t.remaining)} ks</span>;
+    return <span className="text-gray-400">otevřeno</span>;
+  }
+  if (t.tx_type === "sell" && t.lot_price != null) {
+    return (
+      <span className="text-gray-400">
+        nákup {fmt(t.lot_price, t.currency)}
+        {t.realized != null && (
+          <> · <span className={pnlColor(t.realized)}>{t.realized > 0 ? "+" : ""}{fmt(t.realized, t.currency)}
+            {t.realized_pct != null && ` (${pct(t.realized_pct)})`}</span></>
+        )}
+      </span>
+    );
+  }
+  return t.notes ? <span className="text-gray-500">{t.notes}</span> : null;
+}
+
+function SellModal({ lot, onClose, onSaved }: { lot: Tx; onClose: () => void; onSaved: () => void }) {
+  const remaining = lot.remaining ?? lot.quantity ?? 0;
+  const [f, setF] = useState({ quantity: String(remaining), price: "", executed_at: new Date().toISOString().slice(0, 10), fee: "" });
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const set = (k: string, v: string) => setF((s) => ({ ...s, [k]: v }));
+  const q = parseFloat(f.quantity.replace(",", "."));
+  const pr = parseFloat(f.price.replace(",", "."));
+  const partial = q > 0 && q < remaining - 1e-9;
+  const pnl = q > 0 && pr > 0 && lot.price ? (pr - lot.price) * q : null;
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErr(null); setBusy(true);
+    try {
+      const res = await fetch(`/api/investments/${lot.id}/sell`, {
+        method: "POST", headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ quantity: f.quantity, price: f.price, executed_at: f.executed_at, fee: f.fee }),
+      });
+      if (res.ok) onSaved();
+      else { const d = await res.json().catch(() => ({})); setErr(d.detail || "Prodej se nepodařilo uložit"); }
+    } catch { setErr("Chyba připojení"); } finally { setBusy(false); }
+  };
+
+  return (
+    <Modal title={`Prodat ${lot.symbol}`} onClose={onClose}>
+      <p className="mb-3 text-sm text-gray-400">
+        Nákup {lot.executed_at?.slice(0, 10)} · {fmt(lot.price, lot.currency)} za kus · k prodeji {fmt(remaining)} ks
+      </p>
+      <form onSubmit={submit} className="grid gap-3 sm:grid-cols-2">
+        <Field label="Počet kusů">
+          <input type="number" step="any" min="0" max={remaining} className="inv-input" value={f.quantity} onChange={(e) => set("quantity", e.target.value)} required />
+        </Field>
+        <Field label={`Prodejní cena za kus (${lot.currency})`}>
+          <input type="number" step="any" min="0" className="inv-input" value={f.price} onChange={(e) => set("price", e.target.value)} required autoFocus />
+        </Field>
+        <Field label="Datum"><input type="date" className="inv-input" value={f.executed_at} onChange={(e) => set("executed_at", e.target.value)} /></Field>
+        <Field label="Poplatek (volitelné)"><input type="number" step="any" className="inv-input" value={f.fee} onChange={(e) => set("fee", e.target.value)} /></Field>
+        <div className="sm:col-span-2 rounded-lg border border-line bg-panel px-3 py-2 text-[12px] text-gray-400">
+          {partial
+            ? <>Částečný prodej: prodaná část ({fmt(q)} ks) se z nákupu oddělí a přibude řádek prodeje. V nákupu zbude <b className="text-gray-200">{fmt(remaining - q)} ks</b>.</>
+            : <>Prodej celé pozice: přibude řádek prodeje, nákup se označí jako uzavřený.</>}
+          {pnl != null && <> Výsledek: <span className={pnlColor(pnl)}>{pnl > 0 ? "+" : ""}{fmt(pnl, lot.currency)}</span>.</>}
+        </div>
+        {err && <p className="sm:col-span-2 text-sm text-red-400">{err}</p>}
+        <div className="sm:col-span-2 mt-1 flex justify-end gap-2">
+          <button type="button" onClick={onClose} className="rounded-lg border border-line px-4 py-2 text-sm text-gray-300">Zrušit</button>
+          <button type="submit" disabled={busy} className="flex items-center gap-1.5 rounded-lg border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.12)] px-4 py-2 text-sm font-medium text-neon-soft disabled:opacity-50">
+            {busy && <Loader2 size={14} className="animate-spin" />} Uložit prodej
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -594,51 +683,118 @@ function AddTxModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => 
   );
 }
 
-// ── CSV import (generické mapování; broker-specifické parsery doplníme ze vzorků) ──
+// ── Import: XTB výpis (xlsx, parser na backendu s kontrolou proti otevřeným pozicím) nebo obecné CSV ──
+interface XtbSummary {
+  account: string | null; currency: string; total: number; new: number; already: number;
+  by_type: Record<string, number>; skipped: Record<string, number>; legacy: number;
+  check: { symbol: string; z_transakci: number; xtb_otevreno: number }[]; open_positions: number;
+  created?: number; replaced_legacy?: number;
+}
+const TYPE_CS: Record<string, string> = { buy: "nákupy", sell: "prodeje", dividend: "dividendy a daně z nich", deposit: "vklady", withdrawal: "výběry", interest: "úroky", tax: "daně z úroků" };
+
 function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
-  const [broker, setBroker] = useState("manual");
+  const [broker, setBroker] = useState("xtb");
   const [rows, setRows] = useState<Record<string, string>[]>([]);
+  const [b64, setB64] = useState<string | null>(null);
   const [fileName, setFileName] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string | null>(null);
+  const [preview, setPreview] = useState<XtbSummary | null>(null);
+  const [replaceLegacy, setReplaceLegacy] = useState(true);
+  const xtb = broker === "xtb";
+
+  const xtbCall = async (data: string, dry: boolean) => {
+    const res = await fetch("/api/investments/import/xtb", {
+      method: "POST", headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ content_b64: data, dry_run: dry, replace_legacy: replaceLegacy, source: fileName }),
+    });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(d.detail || "Import selhal");
+    return d as XtbSummary;
+  };
 
   const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setFileName(file.name);
-    const text = await file.text();
-    setRows(parseCSV(text));
+    setFileName(file.name); setResult(null); setPreview(null); setRows([]); setB64(null);
+    if (xtb) {
+      const buf = new Uint8Array(await file.arrayBuffer());
+      let bin = "";
+      for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000));
+      const data = btoa(bin);
+      setB64(data); setBusy(true);
+      try { setPreview(await xtbCall(data, true)); }
+      catch (err) { setResult((err as Error).message); }
+      finally { setBusy(false); }
+    } else {
+      setRows(parseCSV(await file.text()));
+    }
   };
 
   const doImport = async () => {
     setBusy(true); setResult(null);
     try {
-      const mapped = rows.map((r) => mapRow(r, broker));
-      const res = await fetch("/api/investments/import", { method: "POST", headers: { "Content-Type": "application/json", ...authHeaders() }, body: JSON.stringify({ rows: mapped, broker, source: fileName }) });
-      const d = await res.json();
-      setResult(`Přidáno ${d.created}, přeskočeno ${d.skipped}${d.errors?.length ? `, chyby: ${d.errors.length}` : ""}`);
-      if (d.created > 0) setTimeout(onDone, 1200);
-    } catch { setResult("Import selhal."); } finally { setBusy(false); }
+      if (xtb && b64) {
+        const d = await xtbCall(b64, false);
+        setResult(`Přidáno ${d.created} transakcí${d.replaced_legacy ? `, nahrazeno ${d.replaced_legacy} ze staršího importu` : ""}.`);
+        setTimeout(onDone, 1200);
+      } else {
+        const mapped = rows.map((r) => mapRow(r, broker));
+        const res = await fetch("/api/investments/import", { method: "POST", headers: { "Content-Type": "application/json", ...authHeaders() }, body: JSON.stringify({ rows: mapped, broker, source: fileName }) });
+        const d = await res.json();
+        setResult(`Přidáno ${d.created}, přeskočeno ${d.skipped}${d.errors?.length ? `, chyby: ${d.errors.length}` : ""}`);
+        if (d.created > 0) setTimeout(onDone, 1200);
+      }
+    } catch (err) { setResult((err as Error).message || "Import selhal."); } finally { setBusy(false); }
   };
 
+  const ready = xtb ? !!preview && preview.new + (replaceLegacy ? preview.legacy : 0) > 0 : rows.length > 0;
   return (
-    <Modal title="Import transakcí z CSV" onClose={onClose}>
+    <Modal title="Import transakcí" onClose={onClose}>
       <div className="space-y-4">
         <Field label="Broker">
-          <select className="inv-input" value={broker} onChange={(e) => setBroker(e.target.value)}>
-            <option value="xtb">XTB</option><option value="etoro">eToro</option>
-            <option value="trading212">Trading212</option><option value="portu">Portu</option>
+          <select className="inv-input" value={broker} onChange={(e) => { setBroker(e.target.value); setPreview(null); setRows([]); setB64(null); setResult(null); }}>
+            <option value="xtb">XTB (výpis .xlsx)</option><option value="etoro">eToro (CSV)</option>
+            <option value="trading212">Trading212 (CSV)</option><option value="portu">Portu (CSV)</option>
             <option value="manual">Obecné CSV</option>
           </select>
         </Field>
-        <Field label="Soubor CSV"><input type="file" accept=".csv,text/csv" onChange={onFile} className="text-sm text-gray-300 file:mr-3 file:rounded file:border-0 file:bg-raised file:px-3 file:py-1.5 file:text-gray-200" /></Field>
-        {rows.length > 0 && <p className="text-sm text-gray-400">Načteno {rows.length} řádků{fileName ? ` ze souboru ${fileName}` : ""}. Sloupce se namapují automaticky podle hlaviček (ticker, typ, počet, cena, měna, datum, poplatek).</p>}
+        <Field label={xtb ? "Výpis z XTB (.xlsx)" : "Soubor CSV"}>
+          <input type="file" accept={xtb ? ".xlsx" : ".csv,text/csv"} onChange={onFile} className="text-sm text-gray-300 file:mr-3 file:rounded file:border-0 file:bg-raised file:px-3 file:py-1.5 file:text-gray-200" />
+        </Field>
+        {xtb && !preview && !busy && (
+          <p className="text-[11px] text-gray-500">V XTB: Historie účtu → zvolit celé období → Export do Excelu. Nahrát můžeš opakovaně, už importované operace se přeskočí.</p>
+        )}
+        {busy && !preview && <p className="flex items-center gap-2 text-sm text-gray-400"><Loader2 size={14} className="animate-spin" /> Čtu výpis…</p>}
+        {preview && (
+          <div className="space-y-2 rounded-lg border border-line bg-panel p-3 text-[13px] text-gray-300">
+            <div>
+              Účet {preview.account} ({preview.currency}): <b className="text-white">{preview.new} nových</b> transakcí
+              {preview.already > 0 && <span className="text-gray-500"> · {preview.already} už v Tradezeru je</span>}
+            </div>
+            {Object.keys(preview.by_type).length > 0 && (
+              <div className="text-gray-400">{Object.entries(preview.by_type).map(([k, v]) => `${v} ${TYPE_CS[k] ?? k}`).join(" · ")}</div>
+            )}
+            {Object.keys(preview.skipped).length > 0 && (
+              <div className="text-[12px] text-gray-500">Přeskočeno: {Object.entries(preview.skipped).map(([k, v]) => `${v}× ${k}`).join(", ")} (CFD patří do Deníku).</div>
+            )}
+            {preview.check.length === 0
+              ? <div className="text-[12px] text-neon-soft">✓ Počty kusů sedí se všemi {preview.open_positions} otevřenými pozicemi v XTB.</div>
+              : <div className="text-[12px] text-amber-300">Pozor, nesedí: {preview.check.map((c) => `${c.symbol} (${c.z_transakci} vs. XTB ${c.xtb_otevreno})`).join(", ")}</div>}
+            {preview.legacy > 0 && (
+              <label className="flex items-start gap-2 text-[12px] text-gray-300">
+                <input type="checkbox" className="mt-0.5" checked={replaceLegacy} onChange={(e) => setReplaceLegacy(e.target.checked)} />
+                Nahradit {preview.legacy} XTB transakcí ze staršího importu (jinak se pozice zdvojí)
+              </label>
+            )}
+          </div>
+        )}
+        {!xtb && rows.length > 0 && <p className="text-sm text-gray-400">Načteno {rows.length} řádků{fileName ? ` ze souboru ${fileName}` : ""}. Sloupce se namapují automaticky podle hlaviček.</p>}
         {result && <p className="text-sm text-neon-soft">{result}</p>}
-        <p className="text-[11px] text-gray-500">Přesné parsery pro XTB a eToro dolaďujeme podle reálných exportů. Zatím funguje obecné mapování sloupců — po dodání vzorků bude detekce 1:1.</p>
         <div className="flex justify-end gap-2">
           <button onClick={onClose} className="rounded-lg border border-line px-4 py-2 text-sm text-gray-300">Zavřít</button>
-          <button onClick={doImport} disabled={busy || !rows.length} className="flex items-center gap-1.5 rounded-lg border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.12)] px-4 py-2 text-sm font-medium text-neon-soft disabled:opacity-50">
-            {busy && <Loader2 size={14} className="animate-spin" />} Importovat
+          <button onClick={doImport} disabled={busy || !ready} className="flex items-center gap-1.5 rounded-lg border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.12)] px-4 py-2 text-sm font-medium text-neon-soft disabled:opacity-50">
+            {busy && preview && <Loader2 size={14} className="animate-spin" />} Importovat
           </button>
         </div>
       </div>

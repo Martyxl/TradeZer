@@ -76,6 +76,7 @@ týdenně, s přibližně měsíčním zpožděním publikace; žebříček podl
 velký objem mimo burzu — neříká směr (nákup vs prodej).""",
     "/legenda": """Legenda — vysvětlivky všech pojmů, zkratek a vzorců v aplikaci (78 pojmů, filtr podle modulu).""",
     "/predplatne": """Přístup — celý Tradezer je teď zdarma pro registrované (bez předplatného a bez karty). Funkce Elite (živá data, analytici) připravujeme — chybí licence dat, zatím nejdou koupit.""",
+    "/admin": """Administrace — přehled uživatelů a provozu, jen pro správce Tradezeru.""",
     "/ucet": """Účet — nastavení účtu, export a smazání osobních údajů (GDPR), přístup (vše zdarma).""",
 }
 

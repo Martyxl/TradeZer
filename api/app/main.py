@@ -54,6 +54,11 @@ import hashlib
 # Postgres migrace (idempotentní ALTER … IF NOT EXISTS). PŘIDÁVEJ SEM NOVÉ — otisk schématu
 # (`_schema_fingerprint`) se změní a příští start funkce je jednorázově provede.
 _PG_MIGRATIONS: list[tuple[str, str]] = [
+    ('investment_tx broker ids + lot',
+     'ALTER TABLE investment_tx ADD COLUMN IF NOT EXISTS external_id VARCHAR(40); '
+     'ALTER TABLE investment_tx ADD COLUMN IF NOT EXISTS position_ref VARCHAR(40); '
+     'ALTER TABLE investment_tx ADD COLUMN IF NOT EXISTS lot_id INTEGER REFERENCES investment_tx(id) ON DELETE SET NULL; '
+     'CREATE INDEX IF NOT EXISTS ix_investment_tx_external_id ON investment_tx (external_id)'),
     ('price_series column',
      'ALTER TABLE market_reactions ADD COLUMN IF NOT EXISTS price_series JSONB'),
     ('daily_bias NY-path columns',

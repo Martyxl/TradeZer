@@ -32,6 +32,10 @@ class InvestmentTx(Base):
     notes: Mapped[str | None] = mapped_column(Text)
     source: Mapped[str | None] = mapped_column(String(60))  # import batch / název souboru
     dedup_hash: Mapped[str | None] = mapped_column(String(64), index=True)  # proti duplicitám při importu
+    external_id: Mapped[str | None] = mapped_column(String(40), index=True)   # ID operace u brokera (XTB)
+    position_ref: Mapped[str | None] = mapped_column(String(40))              # ID pozice u brokera
+    # Prodej: který nákup (lot) uzavírá — pro realizovaný zisk a stav pozice v tabulce.
+    lot_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("investment_tx.id", ondelete="SET NULL"))
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime | None] = mapped_column(DateTime, onupdate=func.now())
 
