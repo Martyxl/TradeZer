@@ -126,12 +126,12 @@ function OrbSparkline({ points, color }: { points: number[]; color: string }) {
         </linearGradient>
       </defs>
       {[0, 50, 100].map((g) => (
-        <line key={g} x1={pL} y1={Y(g)} x2={W - pR} y2={Y(g)} stroke="#232735" strokeWidth="1" />
+        <line key={g} x1={pL} y1={Y(g)} x2={W - pR} y2={Y(g)} stroke="var(--tz-chart-grid)" strokeWidth="1" />
       ))}
       <path d={area} fill={`url(#${uid})`} />
       <path d={tr} stroke="#64748b" strokeWidth="1.2" strokeDasharray="4 4" fill="none" />
       <path d={line} stroke={color} strokeWidth="2" fill="none" strokeLinejoin="round" strokeLinecap="round" />
-      <circle cx={lx} cy={ly} r="3" fill={color} stroke="#151823" strokeWidth="1.4" />
+      <circle cx={lx} cy={ly} r="3" fill={color} stroke="var(--tz-dialog)" strokeWidth="1.4" />
     </svg>
   );
 }

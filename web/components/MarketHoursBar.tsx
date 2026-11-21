@@ -95,7 +95,7 @@ function Clock({ h, m, s, color, size = 60 }: { h: number; m: number; s: number;
 
   return (
     <svg width={size} height={size} className="drop-shadow-lg">
-      <circle cx={cx} cy={cy} r={r} fill="rgba(10,12,22,0.92)" stroke={color} strokeWidth={1.5} />
+      <circle cx={cx} cy={cy} r={r} fill="var(--tz-clock)" stroke={color} strokeWidth={1.5} />
       <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth={4} opacity={0.08} />
       {Array.from({ length: 12 }, (_, i) => {
         const deg = (i / 12) * 360;
@@ -107,8 +107,8 @@ function Clock({ h, m, s, color, size = 60 }: { h: number; m: number; s: number;
             stroke={color} strokeWidth={big ? 1.5 : 0.8} opacity={big ? 0.8 : 0.4} />
         );
       })}
-      <line x1={cx} y1={cy} x2={hEnd.x} y2={hEnd.y} stroke="white" strokeWidth={2.5} strokeLinecap="round" />
-      <line x1={cx} y1={cy} x2={mEnd.x} y2={mEnd.y} stroke="white" strokeWidth={1.5} strokeLinecap="round" />
+      <line x1={cx} y1={cy} x2={hEnd.x} y2={hEnd.y} stroke="rgb(var(--tz-ink))" strokeWidth={2.5} strokeLinecap="round" />
+      <line x1={cx} y1={cy} x2={mEnd.x} y2={mEnd.y} stroke="rgb(var(--tz-ink))" strokeWidth={1.5} strokeLinecap="round" />
       <line x1={cx} y1={cy} x2={sEnd.x} y2={sEnd.y} stroke={color} strokeWidth={1} strokeLinecap="round" />
       <circle cx={cx} cy={cy} r={2.5} fill={color} />
     </svg>
@@ -216,7 +216,7 @@ export function MarketHoursBar() {
                 <Clock h={t.h} m={t.m} s={t.s} color={c.color} size={60} />
                 {c.name !== "Praha" && (
                   <div
-                    className={`absolute bottom-0.5 right-0.5 w-2 h-2 rounded-full border border-[#1a1d27] ${
+                    className={`absolute bottom-0.5 right-0.5 w-2 h-2 rounded-full border border-[color:var(--tz-panel-2)] ${
                       marketOpen ? "bg-green-500" : "bg-gray-600"
                     }`}
                   />

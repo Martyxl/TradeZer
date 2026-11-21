@@ -414,7 +414,7 @@ function JournalCalendar({ entries, selected, onSelect }: {
                       onClick={() => onSelect(isSel ? null : k)}
                       title={a ? `${a.n} obchodů · ${a.wins}W / ${a.decided - a.wins}L` : undefined}
                       className={`h-[72px] rounded-lg border p-1.5 text-left flex flex-col transition-colors ${items ? "hover:brightness-125 cursor-pointer" : "cursor-default"} ${isSel ? "ring-2 ring-blue-500" : ""}`}
-                      style={a ? dayStyle(val!.v) : { background: "#12141c", borderColor: "#1f2230" }}>
+                      style={a ? dayStyle(val!.v) : { background: "var(--tz-sunken)", borderColor: "var(--tz-line)" }}>
                       <span className={`text-[10px] ${k === todayKey ? "text-blue-300 font-bold" : "text-gray-500"}`}>{d}</span>
                       {a && (
                         <>

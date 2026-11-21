@@ -53,6 +53,7 @@
   --tz-r-2xl: 1rem;
   --tz-chart-grid: #2a2d3a;
   --tz-tooltip: #1a1d27;
+  --tz-clock: rgba(10, 12, 22, 0.92);
 }
 
 /* ── Motivy přihlášené aplikace ───────────────────────────────────────────────
@@ -164,34 +165,37 @@ html[data-tz-theme="grafit"] .tz-glass {
     #17191b;
 }
 
-/* ── Světlé motivy: inkoust je tmavý, plochy bílé ── */
+/* ── Světlé motivy: plochy bílé, inkoust tmavě šedozelený (ne černý) ──
+   Kontrast je záměrně tlumený: nejtmavší barva je #2c3632, zvýrazněné plochy (aktivní
+   segment, hlavní tlačítko) jsou středně tmavé, ne černé. */
 html[data-tz-mode="light"] .tz-glass {
   --tz-panel: #ffffff;
-  --tz-panel-2: #f5f7f6;
-  --tz-sunken: #eef2f0;
-  --tz-raised: #e3e9e6;
-  --tz-line: rgba(16, 24, 20, 0.09);
-  --tz-line-2: rgba(16, 24, 20, 0.17);
+  --tz-panel-2: #f6f8f7;
+  --tz-sunken: #f0f3f1;
+  --tz-raised: #e6ebe8;
+  --tz-line: rgba(30, 45, 38, 0.08);
+  --tz-line-2: rgba(30, 45, 38, 0.15);
   --tz-dialog: #ffffff;
   --tz-drawer: #fbfcfb;
-  --tz-ink: 17 24 20;
+  --tz-clock: #ffffff;
+  --tz-ink: 44 54 50;
   --tz-on-ink: #ffffff;
-  --tz-pill: #111814;
+  --tz-pill: #3d4a44;
   --tz-on-pill: #ffffff;
-  --tz-neon: #0d8a4c;
-  --tz-neon-soft: #11703f;
-  --tz-neon-tint: #e8f6ed;
-  --tz-gray-100: #111814;
-  --tz-gray-200: #1d2722;
-  --tz-gray-300: #34413b;
-  --tz-gray-400: #56635d;
-  --tz-gray-500: #6f7c76;
-  --tz-gray-600: #8d9993;
-  --tz-gray-700: #b9c3be;
-  --tz-gray-800: #e4e9e6;
-  --tz-chart-grid: rgba(16, 24, 20, 0.1);
+  --tz-neon: #138a52;
+  --tz-neon-soft: #1a7a4a;
+  --tz-neon-tint: #ebf7ef;
+  --tz-gray-100: #2c3632;
+  --tz-gray-200: #34403b;
+  --tz-gray-300: #46524d;
+  --tz-gray-400: #63706a;
+  --tz-gray-500: #7d8984;
+  --tz-gray-600: #9aa5a0;
+  --tz-gray-700: #c3ccc8;
+  --tz-gray-800: #e8ecea;
+  --tz-chart-grid: rgba(30, 45, 38, 0.09);
   --tz-tooltip: #ffffff;
-  --tz-fg: #111814;
+  --tz-fg: #2c3632;
   --tz-pane-bg: rgba(255, 255, 255, 0.55);
   --tz-pane-line: rgba(16, 24, 20, 0.07);
   --tz-pane-shadow: 0 20px 50px -30px rgba(20, 30, 25, 0.25);
@@ -218,11 +222,11 @@ html[data-tz-theme="den"] .tz-glass {
 html[data-tz-theme="limetka"] .tz-glass {
   --tz-mint: #c6ec2e;
   --tz-mint-2: #8fb000;
-  --tz-pill: #15170f;
-  --tz-on-pill: #d4f54c;
+  --tz-pill: #3f4433;
+  --tz-on-pill: #e4f78f;
   --tz-nav-bg: #d4f54c;
   --tz-nav-line: transparent;
-  --tz-nav-ink: #15170f;
+  --tz-nav-ink: #2a2e1e;
   --tz-select: rgba(198, 236, 46, 0.4);
   --tz-backdrop:
     radial-gradient(900px 700px at 100% 0%, rgba(212, 245, 76, 0.22), transparent 60%),
@@ -235,14 +239,14 @@ html[data-tz-theme="limetka"] .tz-glass .tz-side {
   --tz-raised: rgba(255, 255, 255, 0.12);
   --tz-line: rgba(255, 255, 255, 0.12);
   --tz-line-2: rgba(255, 255, 255, 0.22);
-  --tz-on-ink: #15170f;
-  --tz-gray-200: #ecefe4;
+  --tz-on-ink: #2a2e1e;
+  --tz-gray-200: #e9ece1;
   --tz-gray-300: #d2d6c8;
-  --tz-gray-400: #a9ae9f;
-  --tz-gray-500: #8b9081;
-  background: #15170f;
-  border-color: #15170f;
-  color: #ecefe4;
+  --tz-gray-400: #b2b7a8;
+  --tz-gray-500: #959a8b;
+  background: #3a3e30;
+  border-color: #3a3e30;
+  color: #e9ece1;
 }
 
 /* Ve světlých motivech převést světlé odstíny textu (navržené pro tmavé pozadí) na tmavé. */
