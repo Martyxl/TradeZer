@@ -5,7 +5,7 @@ import { useState } from "react";
 import { ExternalLink, Info, Loader2, Plus, Sparkles } from "lucide-react";
 import { BROKERS, ANY_AFFILIATE } from "@/lib/affiliates";
 import { AddTxModal } from "@/components/investments/TxModals";
-import { dateCs, fmtCzk, guessCurrency, saveProfile } from "./data";
+import { companyHref, dateCs, fmtCzk, guessCurrency, saveProfile } from "./data";
 import type { Action, ActionKind, AllocRow, ClassKey, Market, PlanKey, Profile } from "./types";
 
 // Barvy tříd aktiv (sloupce rozložení, tečky).
@@ -113,7 +113,12 @@ export function ActionList({ actions, onChanged, limit }: { actions: Action[]; o
             <div className="min-w-0 flex-1 sm:min-w-[260px]">
               <div className="font-semibold text-white">{a.title}</div>
               {a.name && a.symbol && <div className="text-[11.5px] text-gray-500">{a.name}</div>}
-              <p className="mt-0.5 text-[13.5px] leading-relaxed text-gray-300">{a.text}</p>
+              <p className="mt-0.5 text-[13.5px] leading-relaxed text-gray-300">
+                {a.text}
+                {a.cls === "stocks" && a.symbol && (
+                  <> <Link href={companyHref(a.symbol)} className="whitespace-nowrap text-neon-soft hover:underline">Proč tahle firma? →</Link></>
+                )}
+              </p>
               {a.kind === "buy" && a.units != null && a.units > 0 && (
                 <p className="mt-0.5 text-[12px] text-gray-500">
                   ≈ {a.units.toLocaleString("cs-CZ", { maximumFractionDigits: 2 })} ks za aktuální cenu

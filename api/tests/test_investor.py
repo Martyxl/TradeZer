@@ -291,3 +291,74 @@ def test_small_portfolio_defers_stocks_and_big_buy_splits():
     acts = P.build_actions(positions=[], alloc=alloc, targets=P.plan_targets("aggressive"),
                            contribution={"world": 55_000, "stocks": 45_000}, lots=[], ideas=ideas, prices_czk={})
     assert [a["symbol"] for a in acts if a["kind"] == "buy" and a["cls"] == "stocks"] == ["AAA", "BBB"]
+
+
+# ── jednoduchý Radar ────────────────────────────────────────────────────────
+from app.services import company_explain as X  # noqa: E402
+
+
+def test_company_reasons_are_plain_czech():
+    assert "levnější než obvykle" in X.reason("pctile_pe_fwd", 20)
+    assert "80 %" in X.reason("pctile_pe_fwd", 20)
+    assert X.reason("net_debt_to_ebitda", -0.4) == "Má víc hotovosti než dluhů."
+    assert "Skupuje vlastní akcie" in X.reason("share_count_change", -2.5)
+    assert "klesnout" in X.reason("eps_growth_ntm", -12)
+    assert X.reason("roic", None) is None
+    v = X.explain(scores={"valuation": 75, "growth": 65, "quality": 30, "revision": None, "trend": 50},
+                  metrics={"pctile_pe_fwd": 20, "eps_growth_ntm": 18, "fcf_margin": 25},
+                  drivers={"positive": [{"name": "P/E fwd vs. historie", "value": 20, "contribution": 6}],
+                           "negative": [{"name": "zadlužení", "value": 3.5, "contribution": -2}]},
+                  verdict="LEVNÁ", horizon="SPÍŠE ANO", bubble=False, confidence=0.9, growth_basis="ntm")
+    assert v["bucket"] == "cheap" and v["zone"] == "buy" and v["reliable"]
+    assert [p["level"] for p in v["pillars"]] == ["good", "good", "weak", "none", "ok"]
+    assert v["pros"][0].startswith("Vůči ziskům") and "vysoký" in v["cons"][0]
+
+
+def test_company_advice_respects_plan_and_weight():
+    a = X.advice(bucket_="cheap", zone_="buy", reliable=True, held_weight=None, stocks_target=45, plan_label="Agresivní")
+    assert a["kind"] == "buy"
+    assert X.advice(bucket_="cheap", zone_="buy", reliable=True, held_weight=12, stocks_target=45, plan_label="x")["kind"] == "hold"
+    a = X.advice(bucket_="cheap", zone_="buy", reliable=True, held_weight=None, stocks_target=0, plan_label="Opatrný")
+    assert "Opatrný" in a["text"] and a["kind"] == "hold"
+    assert X.advice(bucket_="expensive", zone_="avoid", reliable=True, held_weight=None, stocks_target=30, plan_label="x")["kind"] == "wait"
+    assert X.advice(bucket_="expensive", zone_="avoid", reliable=True, held_weight=15, stocks_target=30, plan_label="x")["kind"] == "trim"
+
+
+@pytest.mark.asyncio
+async def test_radar_endpoints():
+    from datetime import date
+    from sqlalchemy import update
+    from app.config import settings
+    from app.db.session import session_context
+    from app.models import User
+    from app.valuation.models import ValInstrument, ValMetricsDaily, ValOverviewSnapshot, ValScoreDaily
+    async with _client() as c:
+        h = await auth_headers(c, "radar@example.com")
+        old_free = settings.free_access
+        settings.free_access = False
+        try:
+            assert (await c.get("/api/investor/radar", headers=h)).status_code == 403    # tarif jako plný Radar
+            async with session_context() as s:
+                await s.execute(update(User).where(User.email == "radar@example.com").values(plan="trader"))
+                s.add(ValInstrument(ticker="ACME", name="Acme Corp", gics_sector="Technology"))
+                s.add(ValScoreDaily(ticker="ACME", as_of_date=date(2026, 11, 20), valuation_score=72, growth_score=60,
+                                    quality_score=55, revision_score=50, trend_score=45, composite_score=60,
+                                    valuation_verdict="LEVNÁ", horizon_verdict="SPÍŠE ANO", confidence=0.9,
+                                    drivers={"positive": [{"name": "růst EPS (NTM)", "value": 15, "contribution": 4}], "negative": []},
+                                    model_version=settings.val_model_version))
+                s.add(ValMetricsDaily(ticker="ACME", as_of_date=date(2026, 11, 20), model_version=settings.val_model_version,
+                                      metrics={"pctile_pe_fwd": 25, "eps_growth_ntm": 15}))
+                s.add(ValOverviewSnapshot(name="latest", as_of_date=date(2026, 11, 20), payload={"items": [
+                    {"ticker": "ACME", "name": "Acme Corp", "valuation_verdict": "LEVNÁ", "pctile_pe_fwd": 25,
+                     "eps_growth_ntm": 15, "confidence": 0.9, "growth_basis": "ntm", "market_cap": 1e9}]}))
+                await s.commit()
+            d = (await c.get("/api/investor/radar", headers=h)).json()
+            assert d["items"][0]["bucket"] == "cheap" and d["items"][0]["held"] is False
+            r = await c.get("/api/investor/radar/acme", headers=h)
+            assert r.status_code == 200, r.text
+            d = r.json()
+            assert d["name"] == "Acme Corp" and d["verdict_label"] == "Levná" and len(d["pillars"]) == 5
+            assert d["pros"] and d["advice"]["kind"] == "buy"         # výchozí typ Vyvážený má 15 % akcií
+            assert (await c.get("/api/investor/radar/NOPE", headers=h)).status_code == 404
+        finally:
+            settings.free_access = old_free

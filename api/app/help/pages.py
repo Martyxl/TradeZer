@@ -9,13 +9,13 @@ zprávy a kalendář a odhaduje jejich dopad na trhy; k tomu nabízí screenery 
 Sledované trhy: NQ (Nasdaq 100 futures), ES (S&P 500), YM (Dow Jones), XAUUSD (zlato), EURUSD, GBPUSD, USDJPY.
 Menu má skupiny Trading (Deník, Historie, ORB Radar, Statistiky) a Investice (Investice, Daně, TRADEZER investuje,
 Valuation Radar, Discovery, Smart Money, Dark Pool). Některé moduly jsou v placených plánech (Trader, Pro).
-Přepínač v horní liště mění režim: Pokročilý = celé menu výše; Začátečník = jen 4 stránky pod /investor
-(Přehled, Moje portfolio, Nápady, Tradezer investuje) se signály podle vlastního investičního plánu.
+Přepínač v horní liště mění režim: Pokročilý = celé menu výše; Začátečník = jen 5 stránek pod /investor
+(Přehled, Moje portfolio, Nápady, Radar firem, Tradezer investuje) se signály podle vlastního investičního plánu.
 Vše je edukativní analýza z veřejných dat — NENÍ to investiční doporučení."""
 
 PAGES: dict[str, str] = {
     "/investor": """Režim Začátečník (přepínač Začátečník / Pokročilý v horní liště; volba se pamatuje na účtu).
-Čtyři stránky místo celé aplikace:
+Pět stránek místo celé aplikace:
 - Přehled (/investor): režim trhu a nálada investorů (0–100, strach ↔ chamtivost) jednou větou, co to znamená, a seznam
   „Co teď udělat“: Koupit (rozdělení měsíčního vkladu do částí portfolia, které jsou pod cílem plánu — rebalancování
   vkladem bez prodeje), Zvážit prodej části (jednotlivá akcie s červeným semaforem nebo nad 20 % portfolia — návrh
@@ -33,6 +33,11 @@ PAGES: dict[str, str] = {
   IS3N (rozvíjející se trhy), 4GLD (fyzické zlato), EUNA (globální dluhopisy v EUR), XEON (peněžní trh); vše akumulační
   UCITS ETF na Xetře. Dále levné kvalitní firmy (nákupní zóna Valuation Radaru se spolehlivými daty) a předražené.
   Odkazy na brokery XTB a eToro (mohou být partnerské). Kupovat skutečné ETF/akcie, ne CFD.
+- Radar firem (/investor/radar, tarif Trader jako Valuation Radar): firmy z Valuation Radaru rozdělené na Levné /
+  Férová cena / Drahé / Moje firmy, hledání. Klik na firmu (/investor/radar/TICKER) = zjednodušená karta: verdikt
+  jednou větou, 5 otázek se semaforem (Cena — je levná?, Růst, Kvalita, Analytici, Trend) s vysvětlením z metrik,
+  „Co mluví pro / proti“ (hnací faktory skóre lidsky), datum dalších výsledků a „Co to znamená pro tebe“ podle
+  verdiktu, váhy v portfoliu a investičního typu. Odkazy na firmu vedou sem z Nápadů, Moje portfolio i Přehledu.
 - Tradezer investuje (/investor/fond): zjednodušený pohled na ukázkový AI fond — výnos vs. S&P 500, co drží, poslední tahy.
 Pravidla jsou transparentní a vychází z plánu, který si uživatel zvolí — NENÍ to investiční doporučení.""",
     "/dashboard": """Dashboard — hlavní přehled pro zvolený instrument (přepínač tickerů nahoře).

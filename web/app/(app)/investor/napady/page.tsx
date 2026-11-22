@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ShieldCheck, TrendingDown, TrendingUp } from "lucide-react";
 import { useAuth } from "@/lib/auth";
-import { useIdeas, fmtCzk, dateCs } from "@/components/investor/data";
+import { useIdeas, fmtCzk, dateCs, companyHref } from "@/components/investor/data";
 import { BrokerButtons, BrokerNote, Card, CLASS_COLOR, Disclaimer, LoginNeeded } from "@/components/investor/ui";
 import type { Idea } from "@/components/investor/types";
 
@@ -22,7 +22,7 @@ function IdeaRow({ it }: { it: Idea }) {
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2">
-          <Link href={`/valuation?ticker=${encodeURIComponent(it.ticker)}`} className="font-semibold text-white hover:underline">{it.ticker}</Link>
+          <Link href={companyHref(it.ticker)} className="font-semibold text-white hover:underline">{it.ticker}</Link>
           <span className="truncate text-[12px] text-gray-500">{it.name}</span>
         </div>
         {it.text && <p className="text-[13px] text-gray-300">{it.text}</p>}
@@ -95,7 +95,7 @@ export default function InvestorIdeas() {
             : <p className="text-sm text-gray-500">Žádná sledovaná firma teď není výrazně předražená.</p>}
         </Card>
       </div>
-      {data.as_of && <p className="-mt-2 text-[11.5px] text-gray-500">Valuace k {dateCs(data.as_of)} · podrobnosti a mapa v <Link href="/valuation" className="underline hover:text-gray-300">Valuation Radaru</Link>.</p>}
+      {data.as_of && <p className="-mt-2 text-[11.5px] text-gray-500">Valuace k {dateCs(data.as_of)} · všechny firmy v <Link href="/investor/radar" className="underline hover:text-gray-300">Radaru firem</Link>.</p>}
 
       <Card>
         <h2 className="text-[15px] font-bold text-white">Kde nakoupit</h2>

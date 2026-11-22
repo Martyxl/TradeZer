@@ -15,10 +15,11 @@ const KEY = "tz_mode";
 /** Odpovídající stránka v druhém režimu (přepínač tě nechá „na stejném místě"). */
 const TO_SIMPLE: [string, string][] = [
   ["/investice", "/investor/portfolio"], ["/dane", "/investor/portfolio"],
-  ["/valuation", "/investor/napady"], ["/fond", "/investor/fond"],
+  ["/valuation", "/investor/radar"], ["/fond", "/investor/fond"],
 ];
 const TO_PRO: [string, string][] = [
-  ["/investor/portfolio", "/investice"], ["/investor/napady", "/valuation"], ["/investor/fond", "/fond"],
+  ["/investor/portfolio", "/investice"], ["/investor/napady", "/valuation"], ["/investor/radar", "/valuation"],
+  ["/investor/fond", "/fond"],
   ["/investor", "/dashboard"],
 ];
 // Stránky, které jsou v obou režimech stejné (při přepnutí se z nich neodchází).

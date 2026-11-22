@@ -12,7 +12,8 @@ describe("přepínač Začátečník / Pokročilý", () => {
   it("převede stránku na odpovídající v druhém režimu", () => {
     expect(counterpartPath("/investice", "simple")).toBe("/investor/portfolio");
     expect(counterpartPath("/dane", "simple")).toBe("/investor/portfolio");
-    expect(counterpartPath("/valuation", "simple")).toBe("/investor/napady");
+    expect(counterpartPath("/valuation", "simple")).toBe("/investor/radar");
+    expect(counterpartPath("/investor/radar/AAPL", "pro")).toBe("/valuation");
     expect(counterpartPath("/fond", "simple")).toBe("/investor/fond");
     expect(counterpartPath("/denik", "simple")).toBe("/investor");          // trading začátečník nemá
     expect(counterpartPath("/investor/napady", "pro")).toBe("/valuation");
@@ -27,9 +28,9 @@ describe("přepínač Začátečník / Pokročilý", () => {
     expect(counterpartPath("/investor/fond", "simple")).toBe("/investor/fond");
   });
 
-  it("menu Začátečníka má 4 stránky a pokročilé menu se nezměnilo", () => {
+  it("menu Začátečníka má 5 stránek a pokročilé menu se nezměnilo", () => {
     expect(SIMPLE_GROUPS.flatMap((g) => g.items.map((i) => i.label))).toEqual(
-      ["Přehled", "Moje portfolio", "Nápady", "Tradezer investuje"]);
+      ["Přehled", "Moje portfolio", "Nápady", "Radar firem", "Tradezer investuje"]);
     expect(NAV_GROUPS.map((g) => g.key)).toEqual(["home", "trading", "invest"]);
     expect(NAV_GROUPS.flatMap((g) => g.items).some((i) => i.href.startsWith("/investor"))).toBe(false);
   });

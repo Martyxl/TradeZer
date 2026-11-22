@@ -263,3 +263,96 @@ async def plan(user: User = Depends(current_user), session: AsyncSession = Depen
         "positions": simple_positions,
         "market": P.market_block(regime),
     }
+
+
+# ── Jednoduchý Radar: seznam firem a zjednodušená karta firmy ────────────────
+# Stejná data a stejný tarif jako Valuation Radar (Trader) — jen jinak podané.
+from app.routers.auth import require_plan  # noqa: E402
+from app.services import company_explain as X  # noqa: E402
+
+
+async def _overview_rows(session: AsyncSession) -> tuple[list[dict], object]:
+    from app.valuation.models import ValOverviewSnapshot
+    snap = await session.get(ValOverviewSnapshot, "latest")
+    return ((snap.payload or {}).get("items", []), snap.as_of_date) if snap else ([], None)
+
+
+async def _held_weights(user: User, session: AsyncSession) -> dict[str, float | None]:
+    pf = await portfolio(base=BASE, user=user, session=session)
+    return {P.base_symbol(h["symbol"]): h.get("weight_pct") for h in pf["holdings"]}
+
+
+@router.get("/radar")
+async def radar(user: User = Depends(require_plan("trader")), session: AsyncSession = Depends(get_session)):
+    rows, as_of = await _overview_rows(session)
+    held = await _held_weights(user, session)
+    items = []
+    for r in rows:
+        t = (r.get("ticker") or "").upper()
+        if not t:
+            continue
+        rel, _ = P.zone_reliability(r.get("eps_growth_ntm"), r.get("growth_basis"), r.get("confidence"))
+        items.append({
+            "ticker": t, "name": r.get("name"), "verdict": r.get("valuation_verdict"),
+            "verdict_label": X.VERDICT_CS.get((r.get("valuation_verdict") or "").upper()),
+            "bucket": X.bucket(r.get("valuation_verdict"), bool(r.get("bubble_flag"))),
+            "zone": P.zone(r.get("pctile_pe_fwd"), r.get("eps_growth_ntm")),
+            "reliable": bool(rel) and (r.get("confidence") or 0) >= 0.5,
+            "text": P._idea_text(r), "held": t in held, "market_cap": r.get("market_cap"),
+            "score": r.get("composite_score"),
+        })
+    items.sort(key=lambda i: -(i["market_cap"] or 0))
+    return {"as_of": as_of.isoformat() if as_of else None, "items": items}
+
+
+@router.get("/radar/{ticker}")
+async def radar_company(ticker: str, user: User = Depends(require_plan("trader")),
+                        session: AsyncSession = Depends(get_session)):
+    from datetime import date as _date
+    from app.config import settings
+    from app.valuation.models import ValEarningsUpcoming, ValInstrument, ValMetricsDaily, ValScoreDaily
+    t = ticker.strip().upper()[:12]
+    version = settings.val_model_version
+    inst = await session.scalar(select(ValInstrument).where(ValInstrument.ticker == t))
+    score = await session.scalar(select(ValScoreDaily).where(
+        ValScoreDaily.ticker == t, ValScoreDaily.model_version == version)
+        .order_by(ValScoreDaily.as_of_date.desc()).limit(1))
+    if inst is None and score is None:
+        raise HTTPException(404, f"Firmu {t} Radar nesleduje")
+    metrics = {}
+    if score:
+        m = await session.scalar(select(ValMetricsDaily).where(
+            ValMetricsDaily.ticker == t, ValMetricsDaily.as_of_date == score.as_of_date,
+            ValMetricsDaily.model_version == version))
+        metrics = (m.metrics if m else {}) or {}
+    rows, _ = await _overview_rows(session)
+    row = next((r for r in rows if (r.get("ticker") or "").upper() == t), {})
+    nxt = await session.scalar(select(ValEarningsUpcoming).where(
+        ValEarningsUpcoming.ticker == t, ValEarningsUpcoming.report_date >= _date.today())
+        .order_by(ValEarningsUpcoming.report_date.asc()).limit(1))
+
+    s = score
+    view = X.explain(
+        scores={"valuation": s and s.valuation_score, "growth": s and s.growth_score, "quality": s and s.quality_score,
+                "revision": s and s.revision_score, "trend": s and s.trend_score, "composite": s and s.composite_score},
+        metrics=metrics, drivers=(s.drivers if s and s.drivers else {}),
+        verdict=s.valuation_verdict if s else None, horizon=s.horizon_verdict if s else None,
+        bubble=bool(s and s.bubble_flag), confidence=s.confidence if s else None,
+        growth_basis=row.get("growth_basis"))
+
+    held = await _held_weights(user, session)
+    prof = await session.get(InvestorProfile, user.id)
+    plan_key = prof.plan if prof else P.DEFAULT_PLAN
+    targets = P.plan_targets(plan_key, prof.targets if prof else None)
+    plan_label = "Vlastní" if plan_key == "custom" else P.PLANS.get(plan_key, P.PLANS[P.DEFAULT_PLAN])["label"]
+    return {
+        "ticker": t, "name": inst.name if inst else row.get("name"),
+        "sector": inst.gics_sector if inst else None, "industry": inst.gics_industry if inst else None,
+        "as_of": s.as_of_date.isoformat() if s else None,
+        "held": t in held, "weight": held.get(t),
+        "next_earnings": nxt.report_date.isoformat() if nxt else None,
+        **view,
+        "advice": X.advice(bucket_=view["bucket"], zone_=view["zone"], reliable=view["reliable"],
+                           held_weight=(held.get(t) or 0.0) if t in held else None,
+                           stocks_target=targets.get("stocks", 0), plan_label=plan_label),
+    }

@@ -2,22 +2,24 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { authHeaders, useAuth } from "@/lib/auth";
-import type { Ideas, Plan, Profile } from "./types";
+import type { Company, Ideas, Plan, Profile, Radar } from "./types";
 
 /** Načte JSON z přihlášeného API; `reload()` po změně (nový nákup, jiný plán). */
-function useAuthed<T>(url: string): { data: T | null; error: boolean; loading: boolean; reload: () => Promise<void> } {
+function useAuthed<T>(url: string): { data: T | null; error: boolean; status: number | null; loading: boolean; reload: () => Promise<void> } {
   const { user } = useAuth();
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState(false);
+  const [status, setStatus] = useState<number | null>(null);   // HTTP kód chyby (403 = vyšší tarif, 404 = nenalezeno)
   const [loading, setLoading] = useState(true);
   const reload = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     try {
       const r = await fetch(url, { headers: authHeaders(), cache: "no-store" });
-      if (!r.ok) throw new Error(String(r.status));
+      if (!r.ok) { setStatus(r.status); throw new Error(String(r.status)); }
       setData(await r.json());
       setError(false);
+      setStatus(null);
     } catch {
       setError(true);
     } finally {
@@ -25,11 +27,16 @@ function useAuthed<T>(url: string): { data: T | null; error: boolean; loading: b
     }
   }, [url, user]);
   useEffect(() => { reload(); }, [reload]);
-  return { data, error, loading, reload };
+  return { data, error, status, loading, reload };
 }
 
 export const usePlan = () => useAuthed<Plan>("/api/investor/plan");
 export const useIdeas = () => useAuthed<Ideas>("/api/investor/ideas");
+export const useRadar = () => useAuthed<Radar>("/api/investor/radar");
+export const useCompany = (ticker: string) => useAuthed<Company>(`/api/investor/radar/${encodeURIComponent(ticker)}`);
+
+/** Odkaz na zjednodušenou kartu firmy (ticker bez burzovního suffixu, např. AAPL.US → AAPL). */
+export const companyHref = (symbol: string) => `/investor/radar/${encodeURIComponent(symbol.toUpperCase().split(".")[0])}`;
 
 export async function saveProfile(patch: Partial<Pick<Profile, "plan" | "monthly_czk" | "reserve_czk">> & { targets?: Record<string, number> }): Promise<Profile> {
   const r = await fetch("/api/investor/profile", {

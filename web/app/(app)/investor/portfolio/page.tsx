@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Plus, Upload, Settings2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { AddTxModal, ImportModal } from "@/components/investments/TxModals";
-import { usePlan, fmtCzk, fmtPct, dateCs } from "@/components/investor/data";
+import { usePlan, fmtCzk, fmtPct, dateCs, companyHref } from "@/components/investor/data";
 import { AllocationBars, Card, CLASS_COLOR, Disclaimer, KindPill, LoginNeeded, PlanEditor, Stat } from "@/components/investor/ui";
 import type { SimplePosition } from "@/components/investor/types";
 
@@ -137,7 +137,9 @@ export default function InvestorPortfolio() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-baseline gap-2">
-                    <span className="font-semibold text-white">{x.symbol.split(".")[0]}</span>
+                    {x.cls === "stocks"
+                      ? <Link href={companyHref(x.symbol)} className="font-semibold text-white hover:underline" title="Proč — zjednodušená karta firmy">{x.symbol.split(".")[0]}</Link>
+                      : <span className="font-semibold text-white">{x.symbol.split(".")[0]}</span>}
                     <span className="truncate text-[12px] text-gray-500">{x.name}</span>
                   </div>
                   <div className="flex flex-wrap items-center gap-x-2 text-[12px] text-gray-500">

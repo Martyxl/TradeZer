@@ -65,3 +65,20 @@ export interface Idea {
 }
 
 export interface Ideas { base: Instrument[]; cheap: Idea[]; expensive: Idea[]; as_of: string | null }
+
+export type Bucket = "cheap" | "fair" | "expensive" | "unknown";
+export interface RadarItem {
+  ticker: string; name: string | null; verdict: string | null; verdict_label: string | null; bucket: Bucket;
+  zone: string | null; reliable: boolean; text: string; held: boolean; market_cap: number | null; score: number | null;
+}
+export interface Radar { as_of: string | null; items: RadarItem[] }
+
+export interface Pillar { key: string; label: string; question: string; score: number | null; level: "good" | "ok" | "weak" | "none"; text: string }
+export interface Company {
+  ticker: string; name: string | null; sector: string | null; industry: string | null; as_of: string | null;
+  held: boolean; weight: number | null; next_earnings: string | null;
+  verdict: string | null; verdict_label: string | null; bucket: Bucket; headline: string; overall: string | null;
+  zone: string | null; reliable: boolean; reliability_note: string | null;
+  pillars: Pillar[]; pros: string[]; cons: string[];
+  advice: { kind: "buy" | "hold" | "wait" | "trim"; text: string };
+}
