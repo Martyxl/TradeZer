@@ -21,9 +21,13 @@ PAGES: dict[str, str] = {
   vkladem bez prodeje), Zvážit prodej části (jednotlivá akcie s červeným semaforem nebo nad 20 % portfolia — návrh
   vrátit váhu k 10 %), Počkej (důvod ubrat je, ale do 90 dnů bude nákup osvobozen od daně), Nad plánem, Daně
   (blížící se osvobození), Držet.
-- Moje portfolio (/investor/portfolio): plán Opatrný (40 % akciové fondy, 35 % dluhopisy, 15 % zlato, 10 % rezerva),
-  Vyvážený (60/15/10, 15 % vlastní akcie), Odvážný (65 % fondy, 5 % zlato, 30 % vlastní akcie) nebo Vlastní;
-  měsíční vklad a rezerva mimo brokera. Rozložení vs. cíl, pozice se štítkem a datem, odkdy jsou bez daně (3 roky).
+- Moje portfolio (/investor/portfolio): investiční typ Opatrný (40 % akciové fondy, 35 % dluhopisy, 15 % zlato,
+  10 % rezerva), Vyvážený (60/15/10, 15 % vlastní akcie), Dynamický (65 % fondy, 5 % zlato, 30 % vlastní akcie),
+  Agresivní (55 % fondy, 45 % vlastní akcie) nebo Vlastní; dotazník 4 otázek typ doporučí (krátký horizont nebo
+  prodej při propadu → opatrnější typ). Volné peníze k investování (jednorázově; nákupy zapsané po zadání se od nich
+  samy odečítají), měsíční vklad a rezerva mimo brokera. Nákupy = vklad + volné peníze; malé položky pod 500 Kč se
+  slučují, u portfolia pod 50 000 Kč jde díl vlastních akcií do širokého fondu, větší nákup akcií se dělí mezi až
+  3 firmy. Rozložení vs. cíl, pozice se štítkem a datem, odkdy jsou bez daně (3 roky).
   Zápis nákupu a import výpisu z XTB; data jsou stejná jako v Investicích.
 - Nápady (/investor/napady): bezpečný základ — VWCE (FTSE All-World), SXR8 (S&P 500), EUNL (MSCI World),
   IS3N (rozvíjející se trhy), 4GLD (fyzické zlato), EUNA (globální dluhopisy v EUR), XEON (peněžní trh); vše akumulační

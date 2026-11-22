@@ -57,7 +57,8 @@ export default function InvestorPortfolio() {
   const t = data.totals;
   const p = data.profile;
   const planLabel = p.plan === "custom" ? "Vlastní" : p.plans[p.plan as "careful"]?.label;
-  const showEditor = editing || !p.saved;
+  const showEditor = editing || !p.plan_set;
+  const now = data.invest_now;
   const upPct = t.invested ? (t.unrealized / t.invested) * 100 : null;
 
   return (
@@ -75,25 +76,37 @@ export default function InvestorPortfolio() {
       <Card>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h2 className="text-[15px] font-bold text-white">Můj plán: {planLabel}</h2>
-            <p className="text-[12.5px] text-gray-500">Měsíčně {fmtCzk(p.monthly_czk)}{p.reserve_czk ? ` · rezerva ${fmtCzk(p.reserve_czk)}` : ""}</p>
+            <h2 className="text-[15px] font-bold text-white">Můj investiční typ: {planLabel}</h2>
+            <p className="text-[12.5px] text-gray-500">
+              Měsíčně {fmtCzk(p.monthly_czk)}
+              {now.capital > 0 ? ` · volné peníze ${fmtCzk(now.capital)}` : ""}
+              {p.reserve_czk ? ` · rezerva ${fmtCzk(p.reserve_czk)}` : ""}
+            </p>
           </div>
-          {p.saved && (
-            <button onClick={() => setEditing((e) => !e)} className="flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-[12.5px] text-gray-300 hover:text-white">
-              <Settings2 size={13} /> {editing ? "Zavřít" : "Změnit plán"}
+          {p.plan_set && (
+            <button onClick={() => setEditing((e) => !e)} className="flex items-center gap-1.5 rounded-full border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.08)] px-3 py-1.5 text-[12.5px] font-semibold text-neon-soft hover:bg-[rgba(96,255,130,0.14)]">
+              <Settings2 size={13} /> {editing ? "Zavřít" : "Změnit typ a částky"}
             </button>
           )}
         </div>
         {showEditor && (
           <div className="mb-5 border-b border-line pb-5">
-            {!p.saved && <p className="mb-3 text-[13px] text-gray-300">Vyber, jak chceš investovat. Podle plánu se počítá, co máš každý měsíc koupit.</p>}
-            <PlanEditor key={`${p.plan}-${p.monthly_czk}-${p.reserve_czk}`} profile={p} onSaved={() => { setEditing(false); reload(); }} />
+            {!p.plan_set && (
+              <p className="mb-3 text-[13px] text-gray-300">
+                Zatím máš jen výchozí typ <b className="text-white">{planLabel}</b>. Vyber ten, který odpovídá tobě, a zadej,
+                kolik můžeš investovat — podle toho se spočítá, co přesně koupit.
+              </p>
+            )}
+            <PlanEditor key={`${p.plan}-${p.monthly_czk}-${p.reserve_czk}-${p.capital_left}`} profile={p} onSaved={() => { setEditing(false); reload(); }} />
           </div>
         )}
         <AllocationBars rows={data.allocation.classes} />
         {data.contribution.length > 0 && (
           <div className="mt-4 rounded-xl border border-line bg-sunken p-3">
-            <div className="text-[12.5px] font-semibold text-white">Tento měsíc rozděl vklad {fmtCzk(p.monthly_czk)} takto</div>
+            <div className="text-[12.5px] font-semibold text-white">
+              Teď rozděl {fmtCzk(now.total)} takto
+              {now.capital > 0 && <span className="font-normal text-gray-500"> (měsíční vklad {fmtCzk(now.monthly)} + volné peníze {fmtCzk(now.capital)})</span>}
+            </div>
             <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-gray-300">
               {data.contribution.map((c) => (
                 <span key={c.cls} className="flex items-center gap-1.5">

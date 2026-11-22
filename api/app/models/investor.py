@@ -19,4 +19,10 @@ class InvestorProfile(Base):
     targets: Mapped[dict | None] = mapped_column(JSON)            # jen u plan=custom: {třída: %}
     monthly_czk: Mapped[float] = mapped_column(Float, default=5000, nullable=False)
     reserve_czk: Mapped[float] = mapped_column(Float, default=0, nullable=False)  # hotovost / spořicí účet mimo brokera
+    # Volné peníze k investování (jednorázově). Nákupy zapsané po jejich zadání (transakce s id vyšším
+    # než `capital_after_tx`) se od nich odečítají — podle id, ne času, ať nevadí rozdíl hodin app vs. DB.
+    capital_czk: Mapped[float] = mapped_column(Float, default=0, nullable=False)
+    capital_set_at: Mapped[datetime | None] = mapped_column(DateTime)
+    capital_after_tx: Mapped[int | None] = mapped_column(Integer)
+    plan_set_at: Mapped[datetime | None] = mapped_column(DateTime)  # None = plán je zatím jen výchozí (nevybral ho)
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())

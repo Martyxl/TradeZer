@@ -1,7 +1,7 @@
 // Tvary dat z /api/investor/* (api/app/routers/investor.py).
 
 export type ClassKey = "world" | "bonds" | "gold" | "cash" | "stocks";
-export type PlanKey = "careful" | "balanced" | "bold" | "custom";
+export type PlanKey = "careful" | "balanced" | "bold" | "aggressive" | "custom";
 
 export interface Profile {
   mode: "simple" | "pro" | null;
@@ -10,7 +10,11 @@ export interface Profile {
   custom_targets: Record<ClassKey, number> | null;
   monthly_czk: number;
   reserve_czk: number;
+  capital_czk: number;        // zadané volné peníze k investování
+  capital_left: number;       // kolik z nich zbývá po nákupech zapsaných od zadání
+  capital_set_at: string | null;
   saved: boolean;
+  plan_set: boolean;          // false = plán je jen výchozí, uživatel ho ještě nevybral
   plans: Record<Exclude<PlanKey, "custom">, { label: string; targets: Record<ClassKey, number>; for: string }>;
   classes: Record<ClassKey, string>;
 }
@@ -42,6 +46,7 @@ export interface Plan {
             tax_free: number; tax_pending: number; reserve: number };
   allocation: { total: number; classes: AllocRow[]; unpriced: string[] };
   contribution: { cls: ClassKey; label: string; amount: number }[];
+  invest_now: { total: number; monthly: number; capital: number; hint: string | null };
   actions: Action[];
   positions: SimplePosition[];
   market: Market;

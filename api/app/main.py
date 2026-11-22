@@ -107,6 +107,10 @@ _PG_MIGRATIONS: list[tuple[str, str]] = [
      'ALTER TABLE val_earnings_alert_subs ADD COLUMN IF NOT EXISTS pre_alerts BOOLEAN NOT NULL DEFAULT TRUE'),
     ('journal_entries SL/TP/outcome',
      'ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS stop_price DOUBLE PRECISION, ADD COLUMN IF NOT EXISTS target_price DOUBLE PRECISION, ADD COLUMN IF NOT EXISTS outcome VARCHAR(10)'),
+    ('investor_profiles capital + plan_set_at',
+     'ALTER TABLE investor_profiles ADD COLUMN IF NOT EXISTS capital_czk DOUBLE PRECISION NOT NULL DEFAULT 0, '
+     'ADD COLUMN IF NOT EXISTS capital_set_at TIMESTAMP, ADD COLUMN IF NOT EXISTS capital_after_tx INTEGER, '
+     'ADD COLUMN IF NOT EXISTS plan_set_at TIMESTAMP'),
     ('daily_bias v2 (stín)',
      'ALTER TABLE daily_bias ADD COLUMN IF NOT EXISTS v2_direction VARCHAR(10), ADD COLUMN IF NOT EXISTS v2_score DOUBLE PRECISION, ADD COLUMN IF NOT EXISTS v2_n_news INTEGER, ADD COLUMN IF NOT EXISTS v2_cats VARCHAR(200)'),
 ]

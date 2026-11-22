@@ -231,3 +231,63 @@ async def test_ideas_endpoint_universe():
         # ETF ze základu se stahují i bez držení
         syms = (await c.get("/api/investments/symbols", headers=TOKEN)).json()["symbols"]
         assert {"VWCE.DE", "4GLD.DE", "EUNA.DE"} <= set(syms)
+
+
+# ── volné peníze, investiční typ, minimální nákup ───────────────────────────
+def test_aggressive_plan_and_min_order():
+    t = P.plan_targets("aggressive")
+    assert sum(t.values()) == 100 and t["stocks"] == 45 and t["bonds"] == 0
+    # malý vklad se nerozdrobí na položky pod 500 Kč
+    alloc = P.allocation([], P.plan_targets("careful"))
+    out = P.split_contribution(alloc, P.plan_targets("careful"), 1500)
+    assert sum(out.values()) == 1500 and all(v >= P.MIN_ORDER_CZK for v in out.values())
+
+
+def test_capital_hint():
+    assert P.capital_hint(5_000, 5_000, "calm") is None
+    assert "najednou" in P.capital_hint(200_000, 5_000, "calm")
+    assert "nervózní" in P.capital_hint(200_000, 5_000, "panic")
+
+
+@pytest.mark.asyncio
+async def test_capital_spent_by_new_buys():
+    async with _client() as c:
+        h = await auth_headers(c, "kapital@example.com")
+        await c.post("/api/investments/quotes/ingest", json={"quotes": [
+            {"symbol": "VWCE.DE", "price": 100, "currency": "EUR"}, {"symbol": "EURCZK", "price": 25}]}, headers=TOKEN)
+        # starý nákup z importu (před zadáním částky) se od volných peněz neodečítá
+        old = (datetime.utcnow() - timedelta(days=400)).date().isoformat()
+        await c.post("/api/investments", json={"tx_type": "buy", "symbol": "VWCE.DE", "quantity": 10, "price": 100,
+                                               "currency": "EUR", "executed_at": old}, headers=h)
+        d = (await c.put("/api/investor/profile", json={"capital_czk": 100_000, "monthly_czk": 5000}, headers=h)).json()
+        assert d["capital_czk"] == 100_000 and d["capital_left"] == 100_000 and d["plan_set"] is False
+        plan = (await c.get("/api/investor/plan", headers=h)).json()
+        assert plan["invest_now"]["total"] == 105_000 and plan["invest_now"]["hint"]
+        assert sum(x["amount"] for x in plan["contribution"]) == 105_000
+        # nový nákup 20 ks × 100 EUR × 25 = 50 000 Kč → zbývá 50 000
+        today = datetime.utcnow().date().isoformat()
+        await c.post("/api/investments", json={"tx_type": "buy", "symbol": "VWCE.DE", "quantity": 20, "price": 100,
+                                               "currency": "EUR", "executed_at": today}, headers=h)
+        d = (await c.get("/api/investor/profile", headers=h)).json()
+        assert d["capital_left"] == pytest.approx(50_000)
+        plan = (await c.get("/api/investor/plan", headers=h)).json()
+        assert plan["invest_now"]["capital"] == pytest.approx(50_000)
+        # volba typu se pamatuje
+        d = (await c.put("/api/investor/profile", json={"plan": "aggressive"}, headers=h)).json()
+        assert d["plan_set"] is True and d["targets"]["stocks"] == 45 and d["capital_left"] == pytest.approx(50_000)
+
+
+def test_small_portfolio_defers_stocks_and_big_buy_splits():
+    c, deferred = P.fit_to_size({"world": 3000, "stocks": 2000}, total_after=20_000)
+    assert deferred and c == {"world": 5000}
+    c, deferred = P.fit_to_size({"world": 3000, "stocks": 2000}, total_after=500_000)
+    assert not deferred and c["stocks"] == 2000
+    ideas = [{"ticker": t, "name": t} for t in ("AAA", "BBB", "CCC", "DDD")]
+    held = [_pos("AAA.US", "stocks", 1000, 1, "amber")]          # držená (ne zelená) se z Nápadů nenabízí
+    picks = P.stock_picks(held, ideas, 210_000)
+    assert [p[0] for p in picks] == ["BBB", "CCC", "DDD"] and sum(p[2] for p in picks) == 210_000
+    assert len(P.stock_picks([], ideas, 8_000)) == 1
+    alloc = P.allocation([], P.plan_targets("aggressive"))
+    acts = P.build_actions(positions=[], alloc=alloc, targets=P.plan_targets("aggressive"),
+                           contribution={"world": 55_000, "stocks": 45_000}, lots=[], ideas=ideas, prices_czk={})
+    assert [a["symbol"] for a in acts if a["kind"] == "buy" and a["cls"] == "stocks"] == ["AAA", "BBB"]

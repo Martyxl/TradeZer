@@ -27,8 +27,10 @@ PLANS: dict[str, dict] = {
                 "for": "Chceš klidný spánek a menší výkyvy. Vhodné, pokud budeš peníze potřebovat do 3–5 let."},
     "balanced": {"label": "Vyvážený", "targets": {"world": 60, "bonds": 15, "gold": 10, "cash": 0, "stocks": 15},
                  "for": "Investuješ na 5–10 let a propad o třetinu přečkáš bez prodeje."},
-    "bold": {"label": "Odvážný", "targets": {"world": 65, "bonds": 0, "gold": 5, "cash": 0, "stocks": 30},
+    "bold": {"label": "Dynamický", "targets": {"world": 65, "bonds": 0, "gold": 5, "cash": 0, "stocks": 30},
              "for": "Horizont přes 10 let, velké výkyvy tě nerozhodí a chceš vybírat i jednotlivé firmy."},
+    "aggressive": {"label": "Agresivní", "targets": {"world": 55, "bonds": 0, "gold": 0, "cash": 0, "stocks": 45},
+                   "for": "Jde ti o maximální růst. Propad o polovinu přečkáš a firmy si aktivně vybíráš. Bez dluhopisů a zlata."},
 }
 DEFAULT_PLAN = "balanced"
 
@@ -160,9 +162,14 @@ def allocation(positions: list[dict], targets: dict[str, float], reserve: float 
     return {"total": round(total, 2), "classes": rows, "unpriced": unpriced}
 
 
-def split_contribution(alloc: dict, targets: dict[str, float], monthly: float, step: float = 100) -> dict[str, float]:
-    """Rozdělí měsíční vklad tak, aby dorovnával podváhové třídy (rebalancování vkladem, bez prodeje).
-    Nejdřív se zaplní mezery k cíli po vkladu; co zbude, jde podle cílových vah. Zaokrouhleno na `step`."""
+MIN_ORDER_CZK = 500  # menší nákup nedává smysl (víc položek, víc práce) → přičte se k největšímu
+
+
+def split_contribution(alloc: dict, targets: dict[str, float], monthly: float, step: float = 100,
+                       min_order: float = MIN_ORDER_CZK) -> dict[str, float]:
+    """Rozdělí částku k investování (měsíční vklad + volné peníze) tak, aby dorovnávala podváhové třídy
+    (rebalancování vkladem, bez prodeje). Nejdřív se zaplní mezery k cíli; co zbude, jde podle cílových vah.
+    Zaokrouhleno na `step`; položky pod `min_order` se přičtou k největší (malý vklad = méně nákupů)."""
     if monthly <= 0:
         return {}
     cur = {r["cls"]: r["value"] for r in alloc["classes"]}
@@ -182,7 +189,24 @@ def split_contribution(alloc: dict, targets: dict[str, float], monthly: float, s
     if out and diff:
         k = max(out, key=lambda c: raw[c])
         out[k] += diff
+    small = [c for c, v in out.items() if 0 < v < min_order]
+    big = [c for c, v in out.items() if v >= min_order]
+    if small and big:
+        k = max(big, key=lambda c: out[c])
+        for c in small:
+            out[k] += out.pop(c)
     return {c: v for c, v in out.items() if v >= step}
+
+
+def capital_hint(capital_left: float, monthly: float, regime_state: str | None) -> str | None:
+    """Rada k větší jednorázové částce: najednou, nebo rozložit do několika nákupů."""
+    if capital_left < max(20_000, 3 * (monthly or 0)):
+        return None
+    if regime_state in ("tension", "panic"):
+        return (f"Volných {_fmt_czk(capital_left)} je hodně najednou a trh je teď nervózní. Klidně je rozlož "
+                "do 3 nákupů s odstupem pár týdnů — když trh mezitím spadne, koupíš levněji.")
+    return (f"Volných {_fmt_czk(capital_left)} můžeš investovat najednou (historicky to častěji vycházelo líp), "
+            "nebo je rozložit do 3–6 měsíčních nákupů, pokud tě znervózňuje, že koupíš těsně před propadem.")
 
 
 # ── Texty k režimu trhu a sentimentu ────────────────────────────────────────
@@ -238,8 +262,41 @@ def _date_cs(iso: str) -> str:
     return f"{int(d)}. {int(m)}. {y}"
 
 
+SMALL_PORTFOLIO_CZK = 50_000  # menší portfolio: část pro vlastní akcie jde do širokého fondu
+STOCK_PICK_CZK = 25_000       # větší nákup akcií se rozdělí mezi víc firem (max 3)
+
+
+def fit_to_size(contribution: dict[str, float], total_after: float) -> tuple[dict[str, float], bool]:
+    """U malého portfolia nedávají jednotlivé firmy smysl (jedna by měla desítky %) → jejich díl dostane
+    akciový fond. Vrací (upravené rozdělení, zda se akcie odložily)."""
+    if total_after >= SMALL_PORTFOLIO_CZK or not contribution.get("stocks"):
+        return contribution, False
+    out = dict(contribution)
+    out["world"] = out.get("world", 0) + out.pop("stocks")
+    return {c: out[c] for c in CLASS_ORDER if out.get(c)}, True
+
+
+def stock_picks(positions: list[dict], ideas: list[dict], amt: float, step: float = 100) -> list[tuple]:
+    """Komu dát peníze na vlastní akcie: nejdřív držené se zeleným semaforem (pod 10 % portfolia),
+    pak levné kvalitní firmy z Nápadů, které ještě nedrží. Větší částka → až 3 firmy.
+    Výstup: [(symbol, název, částka, proč)]."""
+    green = sorted((p for p in positions if p["cls"] == "stocks" and (p.get("signal") or {}).get("color") == "green"
+                    and (p.get("weight") or 0) < 10), key=lambda p: p.get("weight") or 0)
+    held = {base_symbol(p["symbol"]) for p in positions}
+    cands = [(p["symbol"], p.get("name"), "Máš ji v portfoliu a vychází levně (zelený semafor).") for p in green]
+    cands += [(i["ticker"], i.get("name"), "Levná kvalitní firma z Nápadů — klidně ji vyměň za jinou odtud.")
+              for i in ideas if base_symbol(i["ticker"]) not in held]
+    if not cands:
+        return []
+    n = max(1, min(3, len(cands), math.ceil(amt / STOCK_PICK_CZK)))
+    part = math.floor(amt / n / step) * step
+    parts = [part] * (n - 1) + [amt - part * (n - 1)]
+    return [(s, nm, a, why) for (s, nm, why), a in zip(cands[:n], parts)]
+
+
 def build_actions(*, positions: list[dict], alloc: dict, targets: dict[str, float], contribution: dict[str, float],
-                  lots: list[dict], ideas: list[dict], prices_czk: dict[str, float]) -> list[dict]:
+                  lots: list[dict], ideas: list[dict], prices_czk: dict[str, float],
+                  stocks_deferred: bool = False) -> list[dict]:
     """positions: [{symbol, name, cls, value_base, weight, signal{color,reasons,trim_qty,action}, unrealized_pct}]
     lots: z daňového testu ({symbol, days_remaining, free_date, tax_free}); ideas: levné firmy z Nápadů.
     Výstup seřazený podle důležitosti: buy → trim/wait → rebalance → tax → hold."""
@@ -259,23 +316,28 @@ def build_actions(*, positions: list[dict], alloc: dict, targets: dict[str, floa
         why = f"{CLASSES[c]} tvoří {row['pct']:.0f} % portfolia, cíl je {row['target']:.0f} %." if alloc["total"] else \
             f"Začátek plánu — {CLASSES[c].lower()} má mít {row['target']:.0f} %."
         if c == "stocks":
-            # dokup držené akcie se zeleným semaforem, jinak první levná firma z Nápadů
-            green = sorted((p for p in positions if p["cls"] == "stocks" and p["signal"]["color"] == "green"
-                            and (p.get("weight") or 0) < 10), key=lambda p: p.get("weight") or 0)
-            if green:
-                sym, name = green[0]["symbol"], green[0].get("name")
-                extra = "Máš ji v portfoliu a vychází levně (zelený semafor)."
-            elif ideas:
-                sym, name = ideas[0]["ticker"], ideas[0].get("name")
-                extra = "Nemusíš ji, vyber si klidně jinou z Nápadů. Jedna firma max 10 % portfolia."
-            else:
-                sym, name, extra = None, None, "Vyber firmu v Nápadech (sekce Levné kvalitní firmy)."
+            picks = stock_picks(positions, ideas, amt)
+            if not picks:
+                actions.append({"kind": "buy", "symbol": None, "name": None, "cls": c, "amount": amt, "units": None,
+                                "title": f"Koupit vlastní akcie za {_fmt_czk(amt)}",
+                                "text": f"{why} Vyber firmu v Nápadech (sekce Levné kvalitní firmy). Jedna firma max 10 % portfolia."})
+                continue
+            split = "" if len(picks) == 1 else f" Částku {_fmt_czk(amt)} jsme rozdělili mezi {len(picks)} firmy, ať nevsadíš vše na jednu."
+            for sym, name, part, extra in picks:
+                units = round(part / prices_czk[sym], 2) if prices_czk.get(sym) else None
+                actions.append({"kind": "buy", "symbol": sym, "name": name, "cls": c, "amount": part, "units": units,
+                                "title": f"Koupit {base_symbol(sym)} za {_fmt_czk(part)}",
+                                "text": " ".join(x for x in (why, extra, split.strip()) if x)})
+            continue
         else:
             own = sorted((p for p in positions if p["cls"] == c and p.get("value_base")), key=lambda p: -p["value_base"])
             inst = DEFAULT_INSTRUMENT.get(c)
             sym = own[0]["symbol"] if own else (inst["symbol"] if inst else None)
             name = own[0].get("name") if own else (inst["name"] if inst else None)
             extra = "Pokračuj ve fondu, který už máš." if own else ("Hotovost můžeš nechat i na spořicím účtu." if c == "cash" else "")
+            if c == "world" and stocks_deferred:
+                extra = (extra + " Obsahuje i část pro vlastní akcie — jednotlivé firmy přidej, až portfolio přeroste "
+                          f"{_fmt_czk(SMALL_PORTFOLIO_CZK)}. Do té doby je široký fond bezpečnější.").strip()
         units = None
         if sym and prices_czk.get(sym):
             units = round(amt / prices_czk[sym], 2)

@@ -9,14 +9,15 @@ Nepřidává žádná nová data — skládá existující (portfolio, daňový 
 Smart Money fondy, Tradezer fond) do jednoduchých pravidel. Pokročilý režim se nemění.
 """
 import json
+from datetime import datetime
 
 import structlog
 from fastapi import APIRouter, Body, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
-from app.models import InvestmentQuote, InvestmentSymbolMeta, InvestorProfile, User
+from app.models import InvestmentQuote, InvestmentSymbolMeta, InvestmentTx, InvestorProfile, User
 from app.routers.auth import current_user
 from app.routers.investments import _to_base, portfolio, tax_timetest
 from app.routers.regime import get_regime
@@ -30,8 +31,9 @@ MODES = {"simple", "pro"}
 MAX_CZK = 100_000_000
 
 
-def _profile_out(p: InvestorProfile | None) -> dict:
+def _profile_out(p: InvestorProfile | None, capital_left: float | None = None) -> dict:
     plan = p.plan if p else P.DEFAULT_PLAN
+    capital = (p.capital_czk or 0) if p else 0
     return {
         "mode": p.mode if p else None,
         "plan": plan,
@@ -39,15 +41,41 @@ def _profile_out(p: InvestorProfile | None) -> dict:
         "custom_targets": p.targets if p and p.plan == "custom" else None,
         "monthly_czk": p.monthly_czk if p else 5000,
         "reserve_czk": p.reserve_czk if p else 0,
+        # volné peníze: zadaná částka a kolik z ní zbývá po nákupech zapsaných od jejího zadání
+        "capital_czk": capital,
+        "capital_left": round(capital if capital_left is None else capital_left, 2),
+        "capital_set_at": p.capital_set_at.isoformat() if p and p.capital_set_at else None,
         "saved": p is not None,
+        "plan_set": bool(p and p.plan_set_at),
         "plans": {k: {"label": v["label"], "targets": v["targets"], "for": v["for"]} for k, v in P.PLANS.items()},
         "classes": P.CLASSES,
     }
 
 
+async def _capital_left(session: AsyncSession, p: InvestorProfile | None, fx: dict) -> float:
+    """Volné peníze − nákupy (+ výnosy z prodejů) zapsané od zadání částky. Starší transakce z importu
+    výpisu (datum obchodu před zadáním) se nepočítají. Bez kurzu se transakce přeskočí."""
+    if not p or not p.capital_czk or not p.capital_set_at:
+        return (p.capital_czk or 0) if p else 0
+    since = p.capital_set_at
+    txs = (await session.execute(select(InvestmentTx).where(
+        InvestmentTx.user_id == p.user_id, InvestmentTx.tx_type.in_(("buy", "sell")),
+        InvestmentTx.id > (p.capital_after_tx or 0)))).scalars().all()
+    spent = 0.0
+    for t in txs:
+        if t.executed_at and t.executed_at.date() < since.date():
+            continue
+        gross = (t.quantity or 0) * (t.price or 0)
+        v = _to_base(gross + (t.fee or 0) if t.tx_type == "buy" else -(gross - (t.fee or 0)), t.currency or "USD", BASE, fx)
+        spent += v or 0
+    return max(0.0, p.capital_czk - spent)
+
+
 @router.get("/profile")
 async def get_profile(user: User = Depends(current_user), session: AsyncSession = Depends(get_session)):
-    return _profile_out(await session.get(InvestorProfile, user.id))
+    p = await session.get(InvestorProfile, user.id)
+    _, fx = await _fx_and_quotes(session)
+    return _profile_out(p, await _capital_left(session, p, fx))
 
 
 def _money(v, field: str) -> float:
@@ -74,7 +102,7 @@ async def put_profile(payload: dict = Body(...), user: User = Depends(current_us
     if "plan" in payload:
         plan = payload["plan"]
         if plan not in (*P.PLANS, "custom"):
-            raise HTTPException(422, "plan: careful | balanced | bold | custom")
+            raise HTTPException(422, "plan: " + " | ".join((*P.PLANS, "custom")))
         if plan == "custom":
             try:
                 p.targets = P.validate_custom(payload.get("targets") or {})
@@ -83,12 +111,19 @@ async def put_profile(payload: dict = Body(...), user: User = Depends(current_us
         else:
             p.targets = None
         p.plan = plan
+        p.plan_set_at = datetime.utcnow()
     if "monthly_czk" in payload:
         p.monthly_czk = _money(payload["monthly_czk"], "monthly_czk")
     if "reserve_czk" in payload:
         p.reserve_czk = _money(payload["reserve_czk"], "reserve_czk")
+    if "capital_czk" in payload:  # nová částka = nový začátek odečítání nákupů
+        p.capital_czk = _money(payload["capital_czk"], "capital_czk")
+        p.capital_set_at = datetime.utcnow()
+        p.capital_after_tx = await session.scalar(
+            select(func.max(InvestmentTx.id)).where(InvestmentTx.user_id == user.id)) or 0
     await session.commit()
-    return _profile_out(p)
+    _, fx = await _fx_and_quotes(session)
+    return _profile_out(p, await _capital_left(session, p, fx))
 
 
 async def _fx_and_quotes(session: AsyncSession) -> tuple[dict, dict]:
@@ -175,18 +210,21 @@ async def plan(user: User = Depends(current_user), session: AsyncSession = Depen
             "weight": w, "unrealized_pct": h.get("unrealized_pct"), "signal": h["signal"],
         })
     alloc = P.allocation(positions, targets, reserve)
-    contribution = P.split_contribution(alloc, targets, monthly)
+    capital_left = await _capital_left(session, prof, fx)
+    invest_now = monthly + capital_left  # tento měsíc: pravidelný vklad + zbývající volné peníze
+    contribution = P.split_contribution(alloc, targets, invest_now)
+    contribution, stocks_deferred = P.fit_to_size(contribution, alloc["total"] + invest_now)
     idea = await _ideas(session, set(syms))
     prices = {}
     for c in contribution:
         cand = [p["symbol"] for p in positions if p["cls"] == c] or ([P.DEFAULT_INSTRUMENT[c]["symbol"]] if c in P.DEFAULT_INSTRUMENT else [])
-        cand += [i["ticker"] for i in idea["cheap"][:1]] if c == "stocks" else []
+        cand += [i["ticker"] for i in idea["cheap"][:4]] if c == "stocks" else []
         for s in cand:
             pc = _price_czk(s, quotes, fx)
             if pc:
                 prices[s] = pc
     actions = P.build_actions(positions=positions, alloc=alloc, targets=targets, contribution=contribution,
-                              lots=tt["lots"], ideas=idea["cheap"], prices_czk=prices)
+                              lots=tt["lots"], ideas=idea["cheap"], prices_czk=prices, stocks_deferred=stocks_deferred)
     for a in actions:  # předvyplnění „Zapsat nákup": aktuální cena v měně titulu
         q = quotes.get(a.get("symbol") or "") if a["kind"] == "buy" else None
         if q:
@@ -214,7 +252,9 @@ async def plan(user: User = Depends(current_user), session: AsyncSession = Depen
 
     regime = await get_regime(session=session)
     return {
-        "profile": _profile_out(prof),
+        "profile": _profile_out(prof, capital_left),
+        "invest_now": {"total": round(invest_now, 2), "monthly": monthly, "capital": round(capital_left, 2),
+                       "hint": P.capital_hint(capital_left, monthly, (regime or {}).get("state"))},
         "totals": {**pf["base_totals"], "tax_free": tt["summary"]["value_tax_free"],
                    "tax_pending": tt["summary"]["value_pending"], "reserve": reserve},
         "allocation": alloc,

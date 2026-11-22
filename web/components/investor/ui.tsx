@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { ExternalLink, Info, Loader2, Plus } from "lucide-react";
+import { ExternalLink, Info, Loader2, Plus, Sparkles } from "lucide-react";
 import { BROKERS, ANY_AFFILIATE } from "@/lib/affiliates";
 import { AddTxModal } from "@/components/investments/TxModals";
-import { fmtCzk, guessCurrency, saveProfile } from "./data";
+import { dateCs, fmtCzk, guessCurrency, saveProfile } from "./data";
 import type { Action, ActionKind, AllocRow, ClassKey, Market, PlanKey, Profile } from "./types";
 
 // Barvy tříd aktiv (sloupce rozložení, tečky).
@@ -115,7 +115,10 @@ export function ActionList({ actions, onChanged, limit }: { actions: Action[]; o
               {a.name && a.symbol && <div className="text-[11.5px] text-gray-500">{a.name}</div>}
               <p className="mt-0.5 text-[13.5px] leading-relaxed text-gray-300">{a.text}</p>
               {a.kind === "buy" && a.units != null && a.units > 0 && (
-                <p className="mt-0.5 text-[12px] text-gray-500">≈ {a.units.toLocaleString("cs-CZ", { maximumFractionDigits: 2 })} ks za aktuální cenu</p>
+                <p className="mt-0.5 text-[12px] text-gray-500">
+                  ≈ {a.units.toLocaleString("cs-CZ", { maximumFractionDigits: 2 })} ks za aktuální cenu
+                  {a.units < 1 && " — stačí zlomek kusu, XTB i eToro ho umožní koupit"}
+                </p>
               )}
             </div>
             {a.kind === "buy" && a.symbol && (
@@ -171,13 +174,68 @@ export function AllocationBars({ rows }: { rows: AllocRow[] }) {
   );
 }
 
-// ── Výběr plánu, měsíční vklad, rezerva ─────────────────────────────────────
+// ── Dotazník „Jaký jsem investor" → doporučený typ ─────────────────────────
+const QUIZ: { q: string; a: string[] }[] = [
+  { q: "Kdy budeš peníze potřebovat?", a: ["Do 3 let", "Za 3–7 let", "Za 7–15 let", "Za víc než 15 let"] },
+  { q: "Portfolio za rok spadne o 30 %. Co uděláš?", a: ["Prodám, ať neztratím víc", "Znervózním, ale počkám", "Nic, držím dál", "Přikoupím — je to sleva"] },
+  { q: "Jaké máš zkušenosti s investováním?", a: ["Žádné", "Spořicí účet, fondy přes banku", "Pár let ETF nebo akcie", "Aktivně vybírám jednotlivé firmy"] },
+  { q: "Co je pro tebe nejdůležitější?", a: ["Nepřijít o peníze", "Porazit inflaci", "Slušný růst", "Co nejvyšší výnos, i za cenu velkých výkyvů"] },
+];
+/** Součet bodů 0–12 → typ. Krajní odpověď u otázek 1–2 typ omezí (krátký horizont / panika ≠ agresivní). */
+export function quizPlan(answers: number[]): Exclude<PlanKey, "custom"> {
+  const sum = answers.reduce((s, v) => s + v, 0);
+  let plan: Exclude<PlanKey, "custom"> = sum <= 3 ? "careful" : sum <= 6 ? "balanced" : sum <= 9 ? "bold" : "aggressive";
+  const cap = Math.min(answers[0] ?? 3, answers[1] ?? 3);
+  if (cap === 0) plan = "careful";
+  else if (cap === 1 && (plan === "bold" || plan === "aggressive")) plan = "balanced";
+  return plan;
+}
+
+function Quiz({ profile, onPick }: { profile: Profile; onPick: (p: PlanKey) => void }) {
+  const [ans, setAns] = useState<(number | null)[]>(QUIZ.map(() => null));
+  const done = ans.every((a) => a != null);
+  const result = done ? quizPlan(ans as number[]) : null;
+  return (
+    <div className="rounded-xl border border-line bg-sunken p-3.5">
+      <div className="space-y-3">
+        {QUIZ.map((item, qi) => (
+          <fieldset key={qi}>
+            <legend className="text-[13px] font-semibold text-white">{qi + 1}. {item.q}</legend>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {item.a.map((label, ai) => (
+                <button key={ai} type="button" aria-pressed={ans[qi] === ai}
+                  onClick={() => setAns((s) => s.map((v, i) => (i === qi ? ai : v)))}
+                  className={`rounded-full border px-3 py-1 text-[12.5px] transition-colors ${ans[qi] === ai ? "border-[rgba(96,255,130,0.55)] bg-neon-tint text-white" : "border-line text-gray-300 hover:text-white"}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+        ))}
+      </div>
+      {result && (
+        <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-line pt-3">
+          <span className="text-[13.5px] text-gray-200">Vychází ti typ <b className="text-white">{profile.plans[result].label}</b>.</span>
+          <button type="button" onClick={() => onPick(result)}
+            className="rounded-full border border-[rgba(96,255,130,0.4)] bg-[rgba(96,255,130,0.12)] px-3 py-1 text-[12.5px] font-semibold text-neon-soft hover:bg-[rgba(96,255,130,0.18)]">
+            Použít
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Výběr typu investora, měsíční vklad, volné peníze, rezerva ──────────────
 const CLASS_KEYS: ClassKey[] = ["world", "bonds", "gold", "cash", "stocks"];
 
 export function PlanEditor({ profile, onSaved }: { profile: Profile; onSaved: () => void }) {
   const [plan, setPlan] = useState<PlanKey>(profile.plan);
   const [monthly, setMonthly] = useState(String(profile.monthly_czk));
   const [reserve, setReserve] = useState(String(profile.reserve_czk));
+  const capitalInit = String(Math.round(profile.capital_left));
+  const [capital, setCapital] = useState(capitalInit);
+  const [quiz, setQuiz] = useState(false);
   const [custom, setCustom] = useState<Record<ClassKey, string>>(() =>
     Object.fromEntries(CLASS_KEYS.map((c) => [c, String(profile.targets[c] ?? 0)])) as Record<ClassKey, string>);
   const [busy, setBusy] = useState(false);
@@ -187,11 +245,13 @@ export function PlanEditor({ profile, onSaved }: { profile: Profile; onSaved: ()
   async function save() {
     setBusy(true); setMsg(null);
     try {
-      const m = Number(monthly), r = Number(reserve);
-      if (!Number.isFinite(m) || m < 0 || !Number.isFinite(r) || r < 0) throw new Error("Vklad i rezerva musí být kladná čísla.");
+      const m = Number(monthly), r = Number(reserve), cap = Number(capital || 0);
+      if (![m, r, cap].every((v) => Number.isFinite(v) && v >= 0)) throw new Error("Částky musí být kladná čísla.");
       if (plan === "custom" && Math.abs(customSum - 100) > 0.5) throw new Error(`Součet vlastního plánu musí být 100 % (teď ${customSum} %).`);
       await saveProfile({
         plan, monthly_czk: m, reserve_czk: r,
+        // volné peníze posílat jen při změně — jinak by se vynulovalo odečítání už zapsaných nákupů
+        ...(capital !== capitalInit ? { capital_czk: cap } : {}),
         ...(plan === "custom" ? { targets: Object.fromEntries(CLASS_KEYS.map((c) => [c, Number(custom[c]) || 0])) } : {}),
       });
       setMsg("Uloženo — plán je přepočítaný.");
@@ -206,11 +266,19 @@ export function PlanEditor({ profile, onSaved }: { profile: Profile; onSaved: ()
   const options: [PlanKey, string, string][] = [
     ...(Object.entries(profile.plans) as [Exclude<PlanKey, "custom">, Profile["plans"]["careful"]][]).map(
       ([k, v]) => [k, v.label, v.for] as [PlanKey, string, string]),
-    ["custom", "Vlastní", "Nastav si váhy sám."],
+    ["custom", "Vlastní", "Nastav si váhy podle sebe."],
   ];
   return (
     <div className="space-y-4">
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="text-[13px] font-semibold text-white">Jaký jsi investor?</div>
+        <button type="button" onClick={() => setQuiz((q) => !q)}
+          className="flex items-center gap-1.5 rounded-full border border-line px-3 py-1 text-[12.5px] text-gray-300 hover:text-white">
+          <Sparkles size={12} /> {quiz ? "Skrýt dotazník" : "Nevím — zjistit 4 otázkami"}
+        </button>
+      </div>
+      {quiz && <Quiz profile={profile} onPick={(p) => { setPlan(p); setQuiz(false); }} />}
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
         {options.map(([k, label, desc]) => {
           const t = k === "custom" ? null : profile.plans[k as Exclude<PlanKey, "custom">].targets;
           return (
@@ -219,9 +287,14 @@ export function PlanEditor({ profile, onSaved }: { profile: Profile; onSaved: ()
               <div className="font-semibold text-white">{label}</div>
               <div className="mt-0.5 text-[12px] leading-snug text-gray-400">{desc}</div>
               {t && (
-                <div className="mt-2 flex h-1.5 overflow-hidden rounded-full">
-                  {CLASS_KEYS.filter((c) => t[c] > 0).map((c) => <span key={c} style={{ width: `${t[c]}%`, background: CLASS_COLOR[c] }} />)}
-                </div>
+                <>
+                  <div className="mt-2 flex h-1.5 overflow-hidden rounded-full">
+                    {CLASS_KEYS.filter((c) => t[c] > 0).map((c) => <span key={c} style={{ width: `${t[c]}%`, background: CLASS_COLOR[c] }} />)}
+                  </div>
+                  <div className="mt-1 text-[11px] leading-snug text-gray-500">
+                    {CLASS_KEYS.filter((c) => t[c] > 0).map((c) => `${profile.classes[c].replace(" (ETF)", "")} ${t[c]} %`).join(" · ")}
+                  </div>
+                </>
               )}
             </button>
           );
@@ -239,7 +312,16 @@ export function PlanEditor({ profile, onSaved }: { profile: Profile; onSaved: ()
           <div className={`col-span-2 text-[12px] sm:col-span-5 ${Math.abs(customSum - 100) > 0.5 ? "text-amber-300" : "text-gray-500"}`}>Součet {customSum} % (musí být 100 %)</div>
         </div>
       )}
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <label className="flex flex-col gap-1 text-[12px] text-gray-400">
+          Volné peníze k investování teď (Kč)
+          <input type="number" min={0} step={1000} className="inv-input" value={capital} onChange={(e) => setCapital(e.target.value)} />
+          <span className="text-[11px] leading-snug text-gray-500">
+            Jednorázová částka. Nákupy, které zapíšeš, se od ní samy odečtou.
+            {profile.capital_czk > 0 && Math.round(profile.capital_left) !== Math.round(profile.capital_czk) &&
+              ` Zbývá z ${fmtCzk(profile.capital_czk)} zadaných ${dateCs(profile.capital_set_at)}.`}
+          </span>
+        </label>
         <label className="flex flex-col gap-1 text-[12px] text-gray-400">
           Kolik měsíčně investuješ (Kč)
           <input type="number" min={0} step={500} className="inv-input" value={monthly} onChange={(e) => setMonthly(e.target.value)} />

@@ -34,14 +34,25 @@ export default function InvestorHome() {
           <div>
             <h1 className="text-lg font-bold text-white">Co teď udělat</h1>
             <p className="text-[12.5px] text-gray-500">
-              Plán <b className="text-gray-300">{data.profile.plan === "custom" ? "Vlastní" : data.profile.plans[data.profile.plan as "careful"]?.label}</b>
-              {" "}· měsíční vklad {fmtCzk(data.profile.monthly_czk)}
+              Typ <b className="text-gray-300">{data.profile.plan === "custom" ? "Vlastní" : data.profile.plans[data.profile.plan as "careful"]?.label}</b>
+              {" "}· k investování teď <b className="text-gray-300">{fmtCzk(data.invest_now.total)}</b>
+              {data.invest_now.capital > 0 && ` (vklad ${fmtCzk(data.invest_now.monthly)} + volné ${fmtCzk(data.invest_now.capital)})`}
+              {" "}· <Link href="/investor/portfolio" className="underline hover:text-gray-300">změnit</Link>
             </p>
           </div>
           <button onClick={reload} disabled={loading} className="flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-[12.5px] text-gray-300 hover:text-white disabled:opacity-50">
             <RefreshCw size={13} className={loading ? "animate-spin" : ""} /> Obnovit
           </button>
         </div>
+        {!data.profile.plan_set && !empty && (
+          <div className="mb-4 rounded-xl border border-[rgba(96,255,130,0.3)] bg-neon-tint p-3 text-[13px] text-gray-300">
+            Nákupy teď počítáme podle výchozího typu. Vyber si svůj (opatrný až agresivní) a zadej volné peníze —{" "}
+            <Link href="/investor/portfolio" className="inline-flex items-center gap-1 font-semibold text-neon-soft hover:underline">nastavit <ArrowRight size={13} /></Link>
+          </div>
+        )}
+        {data.invest_now.hint && (
+          <p className="mb-4 rounded-xl border border-line bg-sunken p-3 text-[13px] text-gray-300">{data.invest_now.hint}</p>
+        )}
         {empty && (
           <div className="mb-4 rounded-xl border border-line bg-sunken p-3 text-[13px] text-gray-300">
             Zatím tu nemáš žádné pozice. Začni třemi kroky: <b className="text-white">1)</b> zvol si plán,{" "}
