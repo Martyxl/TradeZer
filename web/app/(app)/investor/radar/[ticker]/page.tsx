@@ -4,9 +4,15 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ArrowLeft, CalendarDays, ThumbsDown, ThumbsUp } from "lucide-react";
 import { useAuth } from "@/lib/auth";
-import { useCompany, dateCs } from "@/components/investor/data";
+import { useCompany, useRadar, dateCs } from "@/components/investor/data";
 import { BrokerButtons, Card, Disclaimer, KindPill, LoginNeeded } from "@/components/investor/ui";
-import { BucketPill, PillarCard, PlanNeeded } from "@/components/investor/radar";
+import { BucketPill, PillarCard, PlanNeeded, ZoneMap, ZoneMapLegend } from "@/components/investor/radar";
+
+const ZONE_TEXT: Record<string, { t: string; c: string }> = {
+  buy: { t: "je v zelené zóně — levná vzhledem k tomu, jak rychle jí roste zisk. Tady se hledají nákupy.", c: "text-emerald-300" },
+  hold: { t: "je v šedém pásmu — cena zhruba odpovídá růstu. Držet a sledovat, nákup nespěchá.", c: "text-gray-300" },
+  avoid: { t: "je v červené zóně — drahá vzhledem k růstu zisku. Teď spíš nekupovat.", c: "text-red-300" },
+};
 
 const ADVICE_LABEL = { buy: "Kandidát na nákup", hold: "Držet / nespěchat", wait: "Teď nekupovat", trim: "Zvážit prodej části" } as const;
 
@@ -16,6 +22,8 @@ export default function InvestorCompany() {
   const ticker = decodeURIComponent(params.ticker || "").toUpperCase();
   const { user, loading: authLoading } = useAuth();
   const { data: d, error, status } = useCompany(ticker);
+  const { data: radar } = useRadar();
+  const onMap = radar?.items.find((i) => i.ticker === ticker);
 
   const back = (
     <Link href="/investor/radar" className="inline-flex items-center gap-1 text-[13px] text-gray-400 hover:text-white">
@@ -63,6 +71,22 @@ export default function InvestorCompany() {
         <p className="mt-1.5 text-[13.5px] leading-relaxed text-gray-300">{d.advice.text}</p>
         {kind === "buy" && <div className="mt-3 flex flex-wrap gap-1.5"><BrokerButtons size="sm" /></div>}
       </Card>
+
+      {radar && (
+        <Card>
+          <h2 className="text-[15px] font-bold text-white">Kde je na mapě</h2>
+          {onMap?.pctile_pe_fwd != null && onMap.eps_growth_ntm != null && d.zone ? (
+            <p className="mb-2 mt-0.5 text-[13.5px]">
+              <b className="text-white">{d.ticker}</b> <span className={ZONE_TEXT[d.zone]?.c}>{ZONE_TEXT[d.zone]?.t}</span>
+              {!d.reliable && <span className="text-amber-300"> Data jsou neúplná, poloha je orientační.</span>}
+            </p>
+          ) : (
+            <p className="mb-2 mt-0.5 text-[13px] text-gray-400">Pro {d.ticker} chybí data k umístění na mapu — ostatní firmy pro srovnání:</p>
+          )}
+          <ZoneMap radar={radar} focus={ticker} />
+          <ZoneMapLegend held={radar.items.some((i) => i.held)} />
+        </Card>
+      )}
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {d.pillars.map((p) => <PillarCard key={p.key} p={p} />)}

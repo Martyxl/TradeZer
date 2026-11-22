@@ -6,7 +6,7 @@ import { ChevronRight, Search } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useRadar, dateCs, companyHref } from "@/components/investor/data";
 import { Card, Disclaimer, LoginNeeded } from "@/components/investor/ui";
-import { BucketPill, PlanNeeded } from "@/components/investor/radar";
+import { BucketPill, PlanNeeded, ZoneMap, ZoneMapLegend } from "@/components/investor/radar";
 import type { Bucket, RadarItem } from "@/components/investor/types";
 
 type Tab = Bucket | "mine" | "all";
@@ -49,6 +49,12 @@ export default function InvestorRadar() {
           Jak drahé jsou velké firmy vůči tomu, kolik vydělávají a jak rychle rostou. Klikni na firmu a uvidíš proč.
         </p>
       </div>
+
+      <Card>
+        <h2 className="mb-2 text-[15px] font-bold text-white">Mapa: kde je která firma</h2>
+        <ZoneMap radar={data} />
+        <ZoneMapLegend held={counts.mine > 0} />
+      </Card>
 
       <Card className="p-0 md:p-0">
         <div className="flex flex-col gap-3 border-b border-line px-4 py-3 md:px-5">

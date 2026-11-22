@@ -70,8 +70,9 @@ export type Bucket = "cheap" | "fair" | "expensive" | "unknown";
 export interface RadarItem {
   ticker: string; name: string | null; verdict: string | null; verdict_label: string | null; bucket: Bucket;
   zone: string | null; reliable: boolean; text: string; held: boolean; market_cap: number | null; score: number | null;
+  pctile_pe_fwd: number | null; eps_growth_ntm: number | null; bubble_flag: boolean; confidence: number | null;
 }
-export interface Radar { as_of: string | null; items: RadarItem[] }
+export interface Radar { as_of: string | null; items: RadarItem[]; zones: { buy: [number, number][]; sell: [number, number][] } | null }
 
 export interface Pillar { key: string; label: string; question: string; score: number | null; level: "good" | "ok" | "weak" | "none"; text: string }
 export interface Company {

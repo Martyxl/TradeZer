@@ -300,9 +300,13 @@ async def radar(user: User = Depends(require_plan("trader")), session: AsyncSess
             "reliable": bool(rel) and (r.get("confidence") or 0) >= 0.5,
             "text": P._idea_text(r), "held": t in held, "market_cap": r.get("market_cap"),
             "score": r.get("composite_score"),
+            # pro mapu zón (stejné osy jako Valuation Radar)
+            "pctile_pe_fwd": r.get("pctile_pe_fwd"), "eps_growth_ntm": r.get("eps_growth_ntm"),
+            "bubble_flag": bool(r.get("bubble_flag")), "confidence": r.get("confidence"),
         })
     items.sort(key=lambda i: -(i["market_cap"] or 0))
-    return {"as_of": as_of.isoformat() if as_of else None, "items": items}
+    from app.valuation.zones import zone_curves
+    return {"as_of": as_of.isoformat() if as_of else None, "items": items, "zones": zone_curves()}
 
 
 @router.get("/radar/{ticker}")

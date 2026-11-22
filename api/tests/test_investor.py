@@ -354,6 +354,7 @@ async def test_radar_endpoints():
                 await s.commit()
             d = (await c.get("/api/investor/radar", headers=h)).json()
             assert d["items"][0]["bucket"] == "cheap" and d["items"][0]["held"] is False
+            assert d["items"][0]["pctile_pe_fwd"] == 25 and d["zones"]["buy"]          # data pro mapu zón
             r = await c.get("/api/investor/radar/acme", headers=h)
             assert r.status_code == 200, r.text
             d = r.json()

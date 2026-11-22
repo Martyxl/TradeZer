@@ -93,18 +93,34 @@ function SvgAlert({ x, y, title }: { x: number; y: number; title: string }) {
   );
 }
 
-export function BubbleMap({ items, onSelect, zones, alerts = {} }: {
+// Popisky zón pro režim Začátečník (simple).
+export const ZONE_LABEL_SIMPLE: Record<string, string> = {
+  buy: "levná vzhledem k růstu", hold: "férová cena", avoid: "drahá vzhledem k růstu",
+};
+
+/** focus = zvýrazněná firma (ostatní ztlumené, nikdy se neschová do shluku); marked = firmy s kroužkem
+ *  (např. ty, které uživatel drží); simple = srozumitelné popisky pro režim Začátečník. Bez nich beze změny. */
+export function BubbleMap({ items, onSelect, zones, alerts = {}, focus = null, marked, simple = false }: {
   items: OverviewItem[]; onSelect: (t: string) => void; zones?: ZoneCurves | null; alerts?: Record<string, EarningsReport>;
+  focus?: string | null; marked?: Set<string>; simple?: boolean;
 }) {
   const [hover, setHover] = useState<string | null>(null);
   const plotted = items.filter((i) => i.pctile_pe_fwd != null && i.eps_growth_ntm != null);
   const maxMc = Math.max(...plotted.map((i) => i.market_cap ?? 0), 1);
   const [open, setOpen] = useState<string | null>(null);
+  const focused = focus ? plotted.find((i) => i.ticker === focus) ?? null : null;
   const clusters = cluster(
     plotted
+      .filter((it) => it !== focused)
       .map((it) => ({ it, cx: xPos(it.pctile_pe_fwd!), cy: yPos(it.eps_growth_ntm!), r: radius(it.market_cap, maxMc) }))
       .sort((a, b) => b.r - a.r),
   ).sort((a, b) => b.r - a.r);
+  const dimAll = focused ? 0.45 : 1;
+  const T = simple
+    ? { buy: "ZDE HLEDEJ NÁKUPY", tr: "drahé, ale rostou", bl: "levné, ale nerostou", sell: "ZDE NEKUPUJ",
+        x: "← levnější než obvykle · · · dražší než obvykle →", y: "jak rychle roste zisk →" }
+    : { buy: "nákupní zóna (k prověření)", tr: "drahé a rostoucí", bl: "levné a zpomalující", sell: "spíše nepřikupovat / zvážit prodej",
+        x: "P/E fwd percentil vůči vlastní historii (0 = levné → 100 = drahé)", y: "očekávaný růst EPS (NTM, %)" };
   const clKey = (c: Cluster) => c.members.map((m) => m.it.ticker).sort().join(",");
   const openCluster = clusters.find((c) => clKey(c) === open);
 
@@ -131,27 +147,23 @@ export function BubbleMap({ items, onSelect, zones, alerts = {} }: {
         {/* kvadranty */}
         <line x1={x50} y1={PAD.t} x2={x50} y2={PAD.t + PLOT_H} stroke="var(--tz-chart-grid)" strokeDasharray="4 4" />
         <line x1={PAD.l} y1={y0} x2={PAD.l + PLOT_W} y2={y0} stroke="var(--tz-chart-grid)" strokeDasharray="4 4" />
-        {buyArea && <polygon points={buyArea} fill="#4ade80" fillOpacity={0.07} />}
-        {sellArea && <polygon points={sellArea} fill="#f87171" fillOpacity={0.06} />}
+        {buyArea && <polygon points={buyArea} fill="#4ade80" fillOpacity={simple ? 0.12 : 0.07} />}
+        {sellArea && <polygon points={sellArea} fill="#f87171" fillOpacity={simple ? 0.1 : 0.06} />}
         {buy.length > 1 && <polyline points={pts(buy)} fill="none" stroke="#4ade80" strokeOpacity={0.7} strokeWidth={1.5} strokeDasharray="6 4" />}
         {sell.length > 1 && <polyline points={pts(sell)} fill="none" stroke="#f87171" strokeOpacity={0.7} strokeWidth={1.5} strokeDasharray="6 4" />}
         {buy.length > 1
-          ? <text x={PAD.l + 6} y={PAD.t + 14} fill="#4ade80" fillOpacity={0.8} fontSize="10">nákupní zóna (k prověření)</text>
+          ? <text x={PAD.l + 6} y={PAD.t + 14} fill="#4ade80" fillOpacity={0.9} fontSize={simple ? 11 : 10} fontWeight={simple ? 700 : undefined}>{T.buy}</text>
           : <text x={PAD.l + 6} y={PAD.t + 14} fill="#4b5563" fontSize="10">levné a rostoucí</text>}
-        <text x={PAD.l + PLOT_W - 6} y={PAD.t + 14} fill="#4b5563" fontSize="10" textAnchor="end">drahé a rostoucí</text>
-        <text x={PAD.l + 6} y={PAD.t + PLOT_H - 6} fill="#4b5563" fontSize="10">levné a zpomalující</text>
+        <text x={PAD.l + PLOT_W - 6} y={PAD.t + 14} fill="#4b5563" fontSize="10" textAnchor="end">{T.tr}</text>
+        <text x={PAD.l + 6} y={PAD.t + PLOT_H - 6} fill="#4b5563" fontSize="10">{T.bl}</text>
         {sell.length > 1
-          ? <text x={PAD.l + PLOT_W - 6} y={PAD.t + PLOT_H - 6} fill="#f87171" fillOpacity={0.8} fontSize="10" textAnchor="end">spíše nepřikupovat / zvážit prodej</text>
+          ? <text x={PAD.l + PLOT_W - 6} y={PAD.t + PLOT_H - 6} fill="#f87171" fillOpacity={0.9} fontSize={simple ? 11 : 10} fontWeight={simple ? 700 : undefined} textAnchor="end">{T.sell}</text>
           : <text x={PAD.l + PLOT_W - 6} y={PAD.t + PLOT_H - 6} fill="#4b5563" fontSize="10" textAnchor="end">drahé a zpomalující</text>}
 
         {/* osy popisky */}
-        <text x={PAD.l + PLOT_W / 2} y={H - 10} fill="#9ca3af" fontSize="11" textAnchor="middle">
-          P/E fwd percentil vůči vlastní historii (0 = levné → 100 = drahé)
-        </text>
+        <text x={PAD.l + PLOT_W / 2} y={H - 10} fill="#9ca3af" fontSize="11" textAnchor="middle">{T.x}</text>
         <text x={14} y={PAD.t + PLOT_H / 2} fill="#9ca3af" fontSize="11" textAnchor="middle"
-              transform={`rotate(-90 14 ${PAD.t + PLOT_H / 2})`}>
-          očekávaný růst EPS (NTM, %)
-        </text>
+              transform={`rotate(-90 14 ${PAD.t + PLOT_H / 2})`}>{T.y}</text>
         {/* Y ticks */}
         {[-20, 0, 20, 40, 60].map((g) => (
           <text key={g} x={PAD.l - 8} y={yPos(g) + 3} fill="#4b5563" fontSize="9" textAnchor="end">{g}%</text>
@@ -167,10 +179,13 @@ export function BubbleMap({ items, onSelect, zones, alerts = {} }: {
               <g key={it.ticker} style={{ cursor: "pointer" }}
                  onClick={() => onSelect(it.ticker)}
                  onMouseEnter={() => setHover(it.ticker)} onMouseLeave={() => setHover(null)}>
-                <circle cx={cx} cy={cy} r={r} fill={color} fillOpacity={dim ? 0.25 : 0.55}
+                <circle cx={cx} cy={cy} r={r} fill={color} fillOpacity={(dim ? 0.25 : 0.55) * dimAll}
                         stroke={it.bubble_flag ? "#ef4444" : color}
                         strokeWidth={it.bubble_flag ? 2.5 : 1}
                         strokeDasharray={it.bubble_flag ? "3 2" : undefined} />
+                {marked?.has(it.ticker) && (
+                  <circle cx={cx} cy={cy} r={r + 3.5} fill="none" stroke="#60b4ff" strokeOpacity={0.95} strokeWidth={2} />
+                )}
                 <text x={cx} y={cy + 3} fill="#e5e7eb" fontSize="10" textAnchor="middle" fontWeight="600"
                       stroke="#0b0e16" strokeWidth={2.5} paintOrder="stroke">
                   {it.ticker}
@@ -189,7 +204,7 @@ export function BubbleMap({ items, onSelect, zones, alerts = {} }: {
           return (
             <g key={k} style={{ cursor: "pointer" }} data-testid="bubble-cluster"
                onClick={() => setOpen(sel ? null : k)}>
-              <circle cx={c.cx} cy={c.cy} r={Math.max(c.r, 14)} fill="#64748b" fillOpacity={0.35}
+              <circle cx={c.cx} cy={c.cy} r={Math.max(c.r, 14)} fill="#64748b" fillOpacity={0.35 * dimAll}
                       stroke={sel ? "#e5e7eb" : "#94a3b8"} strokeWidth={sel ? 2 : 1.5} strokeDasharray="4 3" />
               <text x={c.cx} y={c.cy + 4} fill="#e5e7eb" fontSize="12" textAnchor="middle" fontWeight="700"
                     stroke="#0b0e16" strokeWidth={2.5} paintOrder="stroke">
@@ -203,12 +218,31 @@ export function BubbleMap({ items, onSelect, zones, alerts = {} }: {
           );
         })}
 
+        {/* Zvýrazněná firma — nad ostatními, s pulzujícím kroužkem a popiskem. */}
+        {focused && (() => {
+          const cx = xPos(focused.pctile_pe_fwd!), cy = yPos(focused.eps_growth_ntm!), r = Math.max(radius(focused.market_cap, maxMc), 12);
+          const color = VERDICT_COLOR[focused.valuation_verdict ?? ""] ?? "#64748b";
+          return (
+            <g style={{ cursor: "pointer" }} onClick={() => onSelect(focused.ticker)} data-testid="bubble-focus">
+              <circle cx={cx} cy={cy} r={r + 9} fill="none" stroke={color} strokeOpacity={0.5} strokeWidth={2}>
+                <animate attributeName="r" values={`${r + 5};${r + 12};${r + 5}`} dur="2.4s" repeatCount="indefinite" />
+                <animate attributeName="stroke-opacity" values="0.7;0.1;0.7" dur="2.4s" repeatCount="indefinite" />
+              </circle>
+              <circle cx={cx} cy={cy} r={r} fill={color} fillOpacity={0.9} stroke="#ffffff" strokeWidth={2.5} />
+              <text x={cx} y={cy + 4} fill="#fff" fontSize="12" textAnchor="middle" fontWeight="800"
+                    stroke="#0b0e16" strokeWidth={3} paintOrder="stroke">{focused.ticker}</text>
+            </g>
+          );
+        })()}
+
         {/* Popisek při najetí — až nad všemi bublinami a vždy uvnitř grafu (u okraje se zarovná dovnitř). */}
         {(() => {
           const m = hover ? plotted.find((i) => i.ticker === hover) : null;
           if (!m) return null;
           const cx = xPos(m.pctile_pe_fwd!), cy = yPos(m.eps_growth_ntm!), r = radius(m.market_cap, maxMc);
-          const label = `${m.name?.slice(0, 22) ?? m.ticker} · comp ${m.composite_score?.toFixed(0) ?? "—"}${m.zone ? ` · ${zoneText(m)}` : ""}`;
+          const label = simple
+            ? `${m.name?.slice(0, 24) ?? m.ticker}${m.zone ? ` · ${ZONE_LABEL_SIMPLE[m.zone]}${m.zone_reliable === false ? " (?)" : ""}` : ""}`
+            : `${m.name?.slice(0, 22) ?? m.ticker} · comp ${m.composite_score?.toFixed(0) ?? "—"}${m.zone ? ` · ${zoneText(m)}` : ""}`;
           const w = label.length * 5.6 + 12, h = 16;
           const x = Math.min(Math.max(cx - w / 2, 4), W - w - 4);
           const above = cy - r - 6 - h >= 2;
