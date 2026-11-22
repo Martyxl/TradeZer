@@ -21,18 +21,10 @@ export default function InvestorPortfolio() {
 
   if (authLoading) return <div className="h-40 animate-pulse rounded-2xl bg-panel" />;
   if (!user) return <LoginNeeded what="Ulož si svoje portfolio a plán — uvidíš, co dokoupit, co je nad plánem a kdy můžeš prodat bez daně." />;
-  if (error) return <Card><p className="text-sm text-amber-300">Portfolio se nepodařilo načíst. Zkus to za chvíli znovu.</p></Card>;
-  if (!data) return <div className="space-y-4"><div className="h-24 animate-pulse rounded-2xl bg-panel" /><div className="h-72 animate-pulse rounded-2xl bg-panel" /></div>;
 
-  const t = data.totals;
-  const p = data.profile;
-  const planLabel = p.plan === "custom" ? "Vlastní" : p.plans[p.plan as "careful"]?.label;
-  const showEditor = editing || !p.saved;
-  const upPct = t.invested ? (t.unrealized / t.invested) * 100 : null;
-
-  return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+  // Hlavička s tlačítky je vždy vidět — i když se plán nenačte, jde zapsat nákup nebo importovat výpis.
+  const header = (
+    <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-white">Moje portfolio</h1>
         <div className="flex flex-wrap gap-2">
           <button onClick={() => setImporting(true)} className="flex items-center gap-1.5 rounded-full border border-line px-3.5 py-2 text-sm text-gray-200 hover:text-white">
@@ -43,6 +35,34 @@ export default function InvestorPortfolio() {
           </button>
         </div>
       </div>
+  );
+  const modals = (
+    <>
+      {adding && <AddTxModal title="Zapsat nákup" onClose={() => setAdding(false)} onSaved={() => { setAdding(false); reload(); }} initial={{ tx_type: "buy", currency: "EUR" }} />}
+      {importing && <ImportModal onClose={() => setImporting(false)} onDone={() => { setImporting(false); reload(); }} />}
+    </>
+  );
+  if (error || !data) {
+    return (
+      <div className="space-y-5">
+        {header}
+        {error
+          ? <Card><p className="text-sm text-amber-300">Portfolio se nepodařilo načíst. Zkus to za chvíli znovu (nákup můžeš zapsat i tak).</p></Card>
+          : <div className="space-y-4"><div className="h-24 animate-pulse rounded-2xl bg-panel" /><div className="h-72 animate-pulse rounded-2xl bg-panel" /></div>}
+        {modals}
+      </div>
+    );
+  }
+
+  const t = data.totals;
+  const p = data.profile;
+  const planLabel = p.plan === "custom" ? "Vlastní" : p.plans[p.plan as "careful"]?.label;
+  const showEditor = editing || !p.saved;
+  const upPct = t.invested ? (t.unrealized / t.invested) * 100 : null;
+
+  return (
+    <div className="space-y-5">
+      {header}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Stat label="Hodnota" value={fmtCzk(t.value)} sub={!t.complete ? "u některých pozic chybí cena" : undefined} />
@@ -132,8 +152,7 @@ export default function InvestorPortfolio() {
 
       <Disclaimer>Daňový test: v ČR je zisk z prodeje cenných papírů držených déle než 3 roky osvobozen od daně (počítáno po jednotlivých nákupech, nejstarší se prodávají první). Orientační výpočet, nejde o daňové poradenství.</Disclaimer>
 
-      {adding && <AddTxModal title="Zapsat nákup" onClose={() => setAdding(false)} onSaved={() => { setAdding(false); reload(); }} initial={{ tx_type: "buy", currency: "EUR" }} />}
-      {importing && <ImportModal onClose={() => setImporting(false)} onDone={() => { setImporting(false); reload(); }} />}
+      {modals}
     </div>
   );
 }

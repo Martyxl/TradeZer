@@ -52,7 +52,8 @@ const isActive = (it: NavItem, pathname: string) => (it.exact ? pathname === it.
 
 /** Přepínač Začátečník / Pokročilý (horní lišta, mobilní menu). */
 export function ModeSwitch({ compact = false }: { compact?: boolean }) {
-  const { mode, setMode, ready } = useMode();
+  const { mode, setMode, ready, available } = useMode();
+  if (!available) return null;
   const opts: { m: Mode; label: string; hint: string }[] = [
     { m: "simple", label: "Začátečník", hint: "Jen signály a tvoje portfolio" },
     { m: "pro", label: "Pokročilý", hint: "Celá aplikace pro informované" },

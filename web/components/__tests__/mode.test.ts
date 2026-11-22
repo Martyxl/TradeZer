@@ -34,3 +34,15 @@ describe("přepínač Začátečník / Pokročilý", () => {
     expect(NAV_GROUPS.flatMap((g) => g.items).some((i) => i.href.startsWith("/investor"))).toBe(false);
   });
 });
+
+import { BEGINNER_MODE, beginnerModeAvailable } from "@/lib/config";
+
+describe("dostupnost režimu Začátečník", () => {
+  it("řídí ji BEGINNER_MODE (teď jen admin)", () => {
+    if (BEGINNER_MODE === "admin") {
+      expect(beginnerModeAvailable({ is_admin: true })).toBe(true);
+      expect(beginnerModeAvailable({ is_admin: false })).toBe(false);
+      expect(beginnerModeAvailable(null)).toBe(false);
+    }
+  });
+});

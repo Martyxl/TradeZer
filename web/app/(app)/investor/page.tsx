@@ -13,7 +13,12 @@ export default function InvestorHome() {
 
   if (authLoading) return <div className="h-40 animate-pulse rounded-2xl bg-panel" />;
   if (!user) return <LoginNeeded what="Přehled ti řekne, co teď udělat se svým portfoliem — podle plánu, který si zvolíš. Stačí účet zdarma." />;
-  if (error) return <Card><p className="text-sm text-amber-300">Přehled se nepodařilo načíst. Zkus to za chvíli znovu.</p></Card>;
+  if (error) return (
+    <Card>
+      <p className="text-sm text-amber-300">Přehled se nepodařilo načíst. Zkus to za chvíli znovu.</p>
+      <Link href="/investor/portfolio" className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-neon-soft hover:underline">Moje portfolio — zapsat nákup / import <ArrowRight size={13} /></Link>
+    </Card>
+  );
   if (!data) return <div className="space-y-4"><div className="h-32 animate-pulse rounded-2xl bg-panel" /><div className="h-64 animate-pulse rounded-2xl bg-panel" /></div>;
 
   const t = data.totals;

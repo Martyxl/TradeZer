@@ -7,6 +7,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { authHeaders, useAuth } from "@/lib/auth";
+import { beginnerModeAvailable } from "@/lib/config";
 
 export type Mode = "simple" | "pro";
 const KEY = "tz_mode";
@@ -51,6 +52,8 @@ interface ModeState {
   unset: boolean;
   /** false do chvíle, než se přečte uložená volba (zabrání probliknutí menu). */
   ready: boolean;
+  /** Smí uživatel režim Začátečník používat (config.BEGINNER_MODE)? Jinak vždy „pro" a bez přepínače. */
+  available: boolean;
   setMode: (m: Mode, opts?: { navigate?: boolean }) => void;
 }
 
@@ -71,6 +74,7 @@ export function ModeProvider({ children }: { children: React.ReactNode }) {
   const [unset, setUnset] = useState(false);
   const [ready, setReady] = useState(false);
   const synced = useRef<number | null>(null);
+  const available = !loading && beginnerModeAvailable(user);
 
   // 1) lokální volba hned po mountu
   useEffect(() => {
@@ -82,7 +86,7 @@ export function ModeProvider({ children }: { children: React.ReactNode }) {
 
   // 2) přihlášený: účet má přednost; když účet volbu nemá a lokálně ano, nahraj ji na účet
   useEffect(() => {
-    if (loading || !user || synced.current === user.id) return;
+    if (loading || !user || !available || synced.current === user.id) return;
     synced.current = user.id;
     fetch("/api/investor/profile", { headers: authHeaders(), cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
@@ -98,12 +102,12 @@ export function ModeProvider({ children }: { children: React.ReactNode }) {
         }
       })
       .catch(() => {});
-  }, [user, loading]);
+  }, [user, loading, available]);
 
   // 3) Začátečník nemá Dashboard — přihlášení/odkazy na /dashboard vedou na jeho Přehled
   useEffect(() => {
-    if (ready && mode === "simple" && pathname === "/dashboard") router.replace("/investor");
-  }, [ready, mode, pathname, router]);
+    if (ready && available && mode === "simple" && pathname === "/dashboard") router.replace("/investor");
+  }, [ready, available, mode, pathname, router]);
 
   const setMode = useCallback((m: Mode, opts?: { navigate?: boolean }) => {
     setModeState(m);
@@ -116,11 +120,16 @@ export function ModeProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user, router]);
 
-  return <Ctx.Provider value={{ mode, unset, ready, setMode }}>{children}</Ctx.Provider>;
+  // Bez přístupu k režimu Začátečník se aplikace chová přesně jako dřív (menu Pokročilý, žádná volba).
+  // Během načítání přihlášení `ready` drží false, ať menu nepřeblikne.
+  const value: ModeState = available
+    ? { mode, unset, ready, available, setMode }
+    : { mode: "pro", unset: false, ready: ready && !loading, available: false, setMode: () => {} };
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
 export function useMode(): ModeState {
   const c = useContext(Ctx);
   // Mimo provider (testy, stránky bez app layoutu) se chová jako dnešní aplikace.
-  return c ?? { mode: "pro", unset: false, ready: true, setMode: () => {} };
+  return c ?? { mode: "pro", unset: false, ready: true, available: false, setMode: () => {} };
 }
