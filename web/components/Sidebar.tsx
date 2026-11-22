@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Menu, X, History, BarChart3, Sunrise, Target, NotebookPen, Telescope, Landmark, BookOpen, User as UserIcon, LogOut, CreditCard, ShieldCheck, Wallet, Receipt, Waves, Bot, Lock, type LucideIcon } from "lucide-react";
+import { LayoutDashboard, Menu, X, History, BarChart3, Sunrise, Target, NotebookPen, Telescope, Landmark, BookOpen, User as UserIcon, LogOut, CreditCard, ShieldCheck, Wallet, Receipt, Waves, Bot, Lock, Compass, Lightbulb, type LucideIcon } from "lucide-react";
 import { SupportButton } from "@/components/SupportButton";
 import { ThemePicker, ThemeSwatches } from "@/components/ThemePicker";
 import { useAuth } from "@/lib/auth";
 import { FREE_ACCESS, hasAccess, planRank, type Tier } from "@/lib/config";
+import { useMode, type Mode } from "@/lib/mode";
 
-interface NavItem { href: string; label: string; icon: LucideIcon; tier: Tier }
+interface NavItem { href: string; label: string; icon: LucideIcon; tier: Tier; exact?: boolean }
 interface NavGroup { key: string; title: string | null; accent: string; items: NavItem[] }
 
 // Menu: Dashboard (univerzální) · Trading · Investice. Uvnitř bloku se položky řadí podle
@@ -36,6 +37,44 @@ const GROUPS: NavGroup[] = [
   ] },
 ];
 const LEGEND: NavItem = { href: "/legenda", label: "Legenda", icon: BookOpen, tier: "free" };
+
+// Režim Začátečník: jen 4 stránky (signály + vlastní portfolio). Pokročilé menu výše se nemění.
+export const SIMPLE_GROUPS: NavGroup[] = [
+  { key: "investor", title: "Investor", accent: "#60ff82", items: [
+    { href: "/investor", label: "Přehled", icon: Compass, tier: "free", exact: true },
+    { href: "/investor/portfolio", label: "Moje portfolio", icon: Wallet, tier: "free" },
+    { href: "/investor/napady", label: "Nápady", icon: Lightbulb, tier: "free" },
+    { href: "/investor/fond", label: "Tradezer investuje", icon: Bot, tier: "free" },
+  ] },
+];
+
+const isActive = (it: NavItem, pathname: string) => (it.exact ? pathname === it.href : pathname.startsWith(it.href));
+
+/** Přepínač Začátečník / Pokročilý (horní lišta, mobilní menu). */
+export function ModeSwitch({ compact = false }: { compact?: boolean }) {
+  const { mode, setMode, ready } = useMode();
+  const opts: { m: Mode; label: string; hint: string }[] = [
+    { m: "simple", label: "Začátečník", hint: "Jen signály a tvoje portfolio" },
+    { m: "pro", label: "Pokročilý", hint: "Celá aplikace pro informované" },
+  ];
+  return (
+    <div role="radiogroup" aria-label="Režim aplikace"
+      className={`flex shrink-0 items-center gap-0.5 rounded-full border border-line bg-raised p-1 ${compact ? "w-full" : ""} ${ready ? "" : "opacity-0"}`}>
+      {opts.map((o) => {
+        // dokud není volba načtená, není aktivní nic (jinak by z výchozího „pro" přeblikla barva)
+        const on = ready && mode === o.m;
+        return (
+          <button key={o.m} type="button" role="radio" aria-checked={on} title={o.hint}
+            onClick={() => mode !== o.m && setMode(o.m)}
+            className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${compact ? "flex-1" : ""} ${
+              on ? "bg-pill text-on-pill" : "text-gray-400 hover:text-white"}`}>
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 function sortByTier(items: NavItem[]): NavItem[] {
   return items.map((it, i) => ({ it, i }))
@@ -118,14 +157,17 @@ function Brand() {
 function NavTree({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const { user } = useAuth();
+  const { mode, ready } = useMode();
+  if (!ready) return <div className="h-40" aria-hidden />;
+  const groups = mode === "simple" ? SIMPLE_GROUPS : NAV_GROUPS;
   return (
     <nav aria-label="Hlavní menu" className="flex flex-col gap-0.5">
-      {NAV_GROUPS.map((g) => (
+      {groups.map((g) => (
         <div key={g.key} className="flex flex-col gap-0.5">
           {g.title && <div className="px-3 pb-1 pt-3.5 text-[11.5px] font-semibold text-gray-500">{g.title}</div>}
           {g.items.map((it) => (
             <NavLink key={it.href} item={it} onNavigate={onNavigate}
-              active={pathname.startsWith(it.href)} locked={!hasAccess(user, it.tier)} />
+              active={isActive(it, pathname)} locked={!hasAccess(user, it.tier)} />
           ))}
         </div>
       ))}
@@ -160,8 +202,10 @@ const EXTRA_TITLES = [
 /** Název aktuální stránky podle menu (pro horní lištu). */
 function usePageTitle(): string {
   const pathname = usePathname();
-  const all = [...NAV_GROUPS.flatMap((g) => g.items), LEGEND, ...EXTRA_TITLES];
-  return all.find((i) => pathname.startsWith(i.href))?.label ?? "Tradezer";
+  const all = [...NAV_GROUPS.flatMap((g) => g.items), ...SIMPLE_GROUPS.flatMap((g) => g.items), LEGEND, ...EXTRA_TITLES];
+  // nejdelší shoda (/investor/portfolio má přednost před /investor)
+  return all.filter((i) => pathname === i.href || pathname.startsWith(i.href + "/"))
+    .sort((a, b) => b.href.length - a.href.length)[0]?.label ?? "Tradezer";
 }
 
 function greeting(d: Date) {
@@ -181,6 +225,7 @@ export function AppTopbar() {
         <span className="font-bold text-white">{title}</span>
         {hello && <span className="ml-3 text-sm text-gray-500">{hello}</span>}
       </div>
+      <ModeSwitch />
       <ThemePicker />
       {!loading && (user ? (
         <Link href="/ucet" className="flex items-center gap-2.5 rounded-full p-0.5 pl-3 hover:bg-panel" title="Účet">
@@ -217,6 +262,7 @@ export function MobileNav() {
       </div>
       {open && (
         <div className="tz-pane mt-2 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-[22px] p-3" style={{ background: "var(--tz-drawer)" }}>
+          <div className="mb-2"><ModeSwitch compact /></div>
           <NavTree onNavigate={() => setOpen(false)} />
           <div className="mt-3 border-t border-line pt-3"><ThemeSwatches /></div>
           <div className="mt-3 border-t border-line pt-3"><UserMenu /></div>

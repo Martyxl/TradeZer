@@ -670,8 +670,10 @@ async def held_symbols(session: AsyncSession = Depends(get_session)):
         .where(InvestmentTx.symbol.isnot(None),
                InvestmentTx.tx_type.in_(("buy", "sell"))).distinct()
     )).all()
-    syms = sorted({r.symbol for r in rows if r.symbol})
-    ccys = sorted({r.currency for r in rows if r.currency})
+    # + bezpečný základ jednoduchého režimu (ETF v Nápadech), ať mají ceny i bez držení
+    from app.services.investor_plan import UNIVERSE
+    syms = sorted({r.symbol for r in rows if r.symbol} | {u["symbol"] for u in UNIVERSE})
+    ccys = sorted({r.currency for r in rows if r.currency} | {u["currency"] for u in UNIVERSE})
     return {"symbols": syms, "currencies": ccys}
 
 

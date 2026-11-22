@@ -25,6 +25,7 @@ from app.models.outlook import DailyOutlook, OutlookEval, OutlookLive
 from app.models.user import User
 from app.models.journal import JournalEntry, JournalAnalysisJob, JournalTag, JournalStrategy
 from app.models.investment import InvestmentTx, InvestmentQuote, InvestmentPriceDaily, InvestmentSymbolMeta
+from app.models.investor import InvestorProfile
 # Registrace valuation tabulek do Base.metadata (create_all je najde)
 from app.valuation import models as _valuation_models  # noqa: F401
 
@@ -55,6 +56,7 @@ __all__ = [
     "InvestmentQuote",
     "InvestmentPriceDaily",
     "InvestmentSymbolMeta",
+    "InvestorProfile",
     "Ticker",
     "NewsSource",
     "NewsItem",
