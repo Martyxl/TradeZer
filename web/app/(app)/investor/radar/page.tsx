@@ -50,7 +50,9 @@ export default function InvestorRadar() {
         </p>
       </div>
 
-      <Card>
+      {/* Dva sloupce na širokém displeji: mapa vlevo (drží se při posouvání), seznam vpravo. */}
+      <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+      <Card className="xl:sticky xl:top-5">
         <h2 className="mb-2 text-[15px] font-bold text-white">Mapa: kde je která firma</h2>
         <ZoneMap radar={data} />
         <ZoneMapLegend held={counts.mine > 0} />
@@ -106,6 +108,7 @@ export default function InvestorRadar() {
           </div>
         )}
       </Card>
+      </div>
 
       <p className="text-[11.5px] leading-relaxed text-gray-500">
         <b className="text-gray-400">Levná</b> = cena je nízko vůči ziskům a jejich růstu, <b className="text-gray-400">Drahá</b> = trh už

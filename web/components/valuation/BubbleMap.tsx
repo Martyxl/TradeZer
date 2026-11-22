@@ -143,7 +143,7 @@ export function BubbleMap({ items, onSelect, zones, alerts = {}, focus = null, m
 
   return (
     <div className="rounded-xl border border-line bg-panel-2 p-2 overflow-x-auto">
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full min-w-[560px]" role="img" aria-label="Bublinová mapa valuace">
+      <svg viewBox={`0 0 ${W} ${H}`} className={`w-full ${simple ? "min-w-[440px]" : "min-w-[560px]"}`} role="img" aria-label="Bublinová mapa valuace">
         {/* kvadranty */}
         <line x1={x50} y1={PAD.t} x2={x50} y2={PAD.t + PLOT_H} stroke="var(--tz-chart-grid)" strokeDasharray="4 4" />
         <line x1={PAD.l} y1={y0} x2={PAD.l + PLOT_W} y2={y0} stroke="var(--tz-chart-grid)" strokeDasharray="4 4" />
