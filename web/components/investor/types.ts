@@ -1,0 +1,62 @@
+// Tvary dat z /api/investor/* (api/app/routers/investor.py).
+
+export type ClassKey = "world" | "bonds" | "gold" | "cash" | "stocks";
+export type PlanKey = "careful" | "balanced" | "bold" | "custom";
+
+export interface Profile {
+  mode: "simple" | "pro" | null;
+  plan: PlanKey;
+  targets: Record<ClassKey, number>;
+  custom_targets: Record<ClassKey, number> | null;
+  monthly_czk: number;
+  reserve_czk: number;
+  saved: boolean;
+  plans: Record<Exclude<PlanKey, "custom">, { label: string; targets: Record<ClassKey, number>; for: string }>;
+  classes: Record<ClassKey, string>;
+}
+
+export interface AllocRow { cls: ClassKey; label: string; value: number; pct: number; target: number; diff: number }
+
+export type ActionKind = "buy" | "trim" | "wait" | "rebalance" | "tax" | "hold";
+export interface Action {
+  kind: ActionKind; title: string; text: string;
+  symbol?: string | null; name?: string | null; cls?: ClassKey;
+  amount?: number; units?: number | null; qty?: number | null; count?: number;
+  price?: number; currency?: string | null;
+}
+
+export interface SimplePosition {
+  symbol: string; name: string | null; cls: ClassKey; class_label: string;
+  value: number | null; weight: number | null; unrealized_pct: number | null;
+  tag: "buy" | "trim" | "wait" | "hold"; tax_free_from: string | null; tax_free_all: boolean; tax_free_part?: boolean;
+}
+
+export interface Market {
+  regime: { state: string; label: string; tip: string; as_of?: string } | null;
+  sentiment: { score: number | null; label: string; tip: string; as_of?: string } | null;
+}
+
+export interface Plan {
+  profile: Profile;
+  totals: { invested: number; value: number; unrealized: number; complete: boolean;
+            tax_free: number; tax_pending: number; reserve: number };
+  allocation: { total: number; classes: AllocRow[]; unpriced: string[] };
+  contribution: { cls: ClassKey; label: string; amount: number }[];
+  actions: Action[];
+  positions: SimplePosition[];
+  market: Market;
+}
+
+export interface Instrument {
+  symbol: string; short: string; cls: ClassKey; class_label: string; name: string; what: string; role: string;
+  ter: number; currency: string; held: boolean; default?: boolean;
+  price: number | null; price_currency: string; price_czk: number | null;
+  high_52w: number | null; low_52w: number | null;
+}
+
+export interface Idea {
+  ticker: string; name: string | null; verdict: string | null; kind: "cheap" | "expensive";
+  text: string; tags: string[]; score: number | null; market_cap: number | null;
+}
+
+export interface Ideas { base: Instrument[]; cheap: Idea[]; expensive: Idea[]; as_of: string | null }

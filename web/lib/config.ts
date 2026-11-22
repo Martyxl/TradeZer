@@ -18,6 +18,14 @@ export function hasAccess(user: { plan?: string | null; is_admin?: boolean } | n
 
 export type Tier = "free" | "trader" | "pro" | "elite";
 
+// Režim Začátečník (přepínač Začátečník/Pokročilý, stránky /investor): "admin" = vidí jen admin
+// (testování na vlastních datech před spuštěním), "all" = všichni, "off" = nikdo.
+export const BEGINNER_MODE: "off" | "admin" | "all" = "admin";
+
+export function beginnerModeAvailable(user: { is_admin?: boolean } | null | undefined): boolean {
+  return BEGINNER_MODE === "all" || (BEGINNER_MODE === "admin" && !!user?.is_admin);
+}
+
 export const PLAN_RANK: Record<string, number> = { free: 0, trader: 1, pro: 2, elite: 3 };
 
 export function planRank(plan: string | null | undefined): number {

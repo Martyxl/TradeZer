@@ -3,6 +3,8 @@ import { Sidebar, MobileNav, AppTopbar } from "@/components/Sidebar";
 import { Footer } from "@/components/Footer";
 import { HelpChat } from "@/components/HelpChat";
 import { THEME_BOOT_SCRIPT } from "@/lib/theme";
+import { ModeProvider } from "@/lib/mode";
+import { ModeOnboarding } from "@/components/investor/ModeOnboarding";
 
 const jakarta = Plus_Jakarta_Sans({ subsets: ["latin", "latin-ext"], display: "swap" });
 
@@ -11,6 +13,7 @@ const jakarta = Plus_Jakarta_Sans({ subsets: ["latin", "latin-ext"], display: "s
 // Landing na `/` a auth stránky ho nemají.
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
+    <ModeProvider>
     <div className={`tz-glass flow-root ${jakarta.className}`}>
       {/* Zvolený barevný motiv (ThemePicker) nastavit dřív, než se obsah vykreslí. */}
       <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
@@ -20,6 +23,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="flex min-w-0 flex-1 flex-col gap-5">
           <AppTopbar />
           <main className="tz-pane min-w-0 rounded-[24px] px-4 py-5 md:rounded-[30px] md:px-7 md:py-7">
+            <ModeOnboarding />
             {children}
           </main>
           <div className="w-full px-2 [&>footer]:mt-0 [&>footer]:border-0 [&>footer]:pt-0">
@@ -29,5 +33,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </div>
       <HelpChat />
     </div>
+    </ModeProvider>
   );
 }

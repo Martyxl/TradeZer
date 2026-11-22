@@ -36,6 +36,7 @@ from app.routers import (
     ea_router,
     help_router,
     mail_router,
+    investor_router,
 )
 
 structlog.configure(
@@ -286,6 +287,7 @@ app.include_router(marketstats_router)
 app.include_router(ea_router)
 app.include_router(help_router)
 app.include_router(mail_router)
+app.include_router(investor_router)
 
 
 @app.get("/")
