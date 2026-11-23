@@ -4,10 +4,13 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Bot } from "lucide-react";
 import { Card, Disclaimer, KindPill, Stat } from "@/components/investor/ui";
-import { fmtCzk, fmtPct } from "@/components/investor/data";
+import { fmtCzk, fmtPct, companyHref } from "@/components/investor/data";
 
-interface Pos { symbol: string; name: string | null; weight_pct: number | null; value_czk: number | null }
-interface Trade { ts: string; action: string; symbol: string; name: string | null; reason: string }
+interface Pos {
+  symbol: string; name: string | null; weight_pct: number | null; value_czk: number | null;
+  avg_cost: number; currency: string; last_price: number | null; opened_at: string | null;
+}
+interface Trade { ts: string; action: string; symbol: string; name: string | null; price: number; currency: string; reason: string }
 interface Snap { date: string; equity: number; benchmark?: number | null }
 interface FundData {
   state: { start_capital: number; cash: number; equity: number; pnl_pct: number } | null;
@@ -18,6 +21,25 @@ const PALETTE = ["#60b4ff", "#2dd4bf", "#a78bfa", "#f97316", "#fbbf24", "#f472b6
 const ACT: Record<string, { kind: "buy" | "trim" | "rebalance"; label: string }> = {
   buy: { kind: "buy", label: "Koupil" }, trim: { kind: "rebalance", label: "Prodal část" }, sell: { kind: "trim", label: "Prodal" },
 };
+
+/** Od kolika % nad nákupní cenou fondu varujeme, že dohánět se nevyplácí. */
+const CHASE_PCT = 10;
+
+const price = (n: number, cur: string) => `${n.toLocaleString("cs-CZ", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${cur}`;
+/** Datum v pražském čase — čas obchodu chodí z API v UTC bez zóny, samotné datum (opened_at) beze změny. */
+const day = (iso: string) => (iso.length > 10
+  ? new Date(/[zZ]|[+-]\d\d:\d\d$/.test(iso) ? iso : iso + "Z").toLocaleDateString("cs-CZ", { timeZone: "Europe/Prague" })
+  : new Date(iso + "T00:00:00").toLocaleDateString("cs-CZ"));
+const change = (now: number | null | undefined, buy: number) => (now != null && buy > 0 ? (now / buy - 1) * 100 : null);
+
+/** Kde je cena teď vůči nákupu fondu — jednou větou, ať začátečník nedohání rozjetou akcii. */
+function PriceVsFund({ pct }: { pct: number | null }) {
+  if (pct == null) return null;
+  const p = `${pct > 0 ? "+" : ""}${pct.toLocaleString("cs-CZ", { maximumFractionDigits: 1 })} %`;
+  if (pct >= CHASE_PCT) return <span className="text-amber-300">{p} od nákupu fondu — cena už utekla, nedoháněj ji</span>;
+  if (pct >= 0) return <span className="text-gray-300">{p} od nákupu fondu — pořád blízko jeho ceně</span>;
+  return <span className="text-emerald-300">{p} — teď levněji, než nakoupil fond</span>;
+}
 
 /** První věta zdůvodnění — začátečníkovi stačí „proč" v jedné větě. */
 const firstSentence = (s: string) => (s.match(/^.*?[.!?](\s|$)/)?.[0] ?? s).trim();
@@ -40,6 +62,9 @@ export default function InvestorFund() {
   const bench = last?.benchmark ? (last.benchmark / s.start_capital - 1) * 100 : null;
   const cashPct = s.equity ? (s.cash / s.equity) * 100 : 0;
   const pos = [...d.positions].sort((a, b) => (b.weight_pct ?? 0) - (a.weight_pct ?? 0));
+  const buys: Record<string, number> = {};
+  for (const t of d.trades) if (t.action === "buy") buys[t.symbol] = (buys[t.symbol] ?? 0) + 1;
+  const lastPrice: Record<string, number | null> = Object.fromEntries(d.positions.map((p) => [p.symbol, p.last_price]));
   const beats = bench != null ? s.pnl_pct >= bench : null;
 
   return (
@@ -63,15 +88,37 @@ export default function InvestorFund() {
         <div className="mt-2 flex h-3.5 overflow-hidden rounded-full bg-raised">
           {pos.map((p, i) => <span key={p.symbol} title={`${p.symbol} ${p.weight_pct ?? 0} %`} style={{ width: `${p.weight_pct ?? 0}%`, background: PALETTE[i % PALETTE.length] }} />)}
         </div>
-        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[12.5px] text-gray-300">
-          {pos.map((p, i) => (
-            <span key={p.symbol} className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full" style={{ background: PALETTE[i % PALETTE.length] }} />
-              <b className="text-white">{p.symbol}</b> {(p.weight_pct ?? 0).toLocaleString("cs-CZ", { maximumFractionDigits: 1 })} %
-            </span>
-          ))}
-          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-raised ring-1 ring-line-2" /> hotovost {cashPct.toLocaleString("cs-CZ", { maximumFractionDigits: 0 })} %</span>
-        </div>
+        <ul className="mt-3 divide-y divide-line">
+          {pos.map((p, i) => {
+            const pct = change(p.last_price, p.avg_cost);
+            return (
+              <li key={p.symbol} className="flex items-start gap-3 py-2.5">
+                <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: PALETTE[i % PALETTE.length] }} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline gap-2">
+                    <Link href={companyHref(p.symbol)} className="font-semibold text-white hover:underline">{p.symbol}</Link>
+                    <span className="truncate text-[12px] text-gray-500">{p.name}</span>
+                    <span className="ml-auto shrink-0 text-[12.5px] text-gray-300">{(p.weight_pct ?? 0).toLocaleString("cs-CZ", { maximumFractionDigits: 1 })} %</span>
+                  </div>
+                  <p className="text-[13px] text-gray-300">
+                    {(buys[p.symbol] ?? 0) > 1
+                      ? <>Nakupoval{p.opened_at ? ` od ${day(p.opened_at)}` : ""} ({buys[p.symbol]}×), průměrně za <b className="text-white">{price(p.avg_cost, p.currency)}</b></>
+                      : <>Koupil{p.opened_at ? ` ${day(p.opened_at)}` : ""} za <b className="text-white">{price(p.avg_cost, p.currency)}</b></>}
+                    {p.last_price != null && <> · teď <b className="text-white">{price(p.last_price, p.currency)}</b></>}
+                  </p>
+                  <p className="text-[12.5px]"><PriceVsFund pct={pct} /></p>
+                </div>
+              </li>
+            );
+          })}
+          <li className="flex items-center gap-3 py-2.5 text-[12.5px] text-gray-400">
+            <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-raised ring-1 ring-line-2" /> Hotovost {cashPct.toLocaleString("cs-CZ", { maximumFractionDigits: 0 })} %
+          </li>
+        </ul>
+        <p className="mt-2 text-[11.5px] leading-relaxed text-gray-500">
+          Cena při více nákupech je průměrná. Když akcie od nákupu fondu vyrostla o víc než {CHASE_PCT} %, výhoda signálu je
+          z velké části pryč — nekupuj ji jen proto, že ji fond má, a počkej na lepší cenu nebo na její hodnocení v Radaru firem.
+        </p>
       </Card>
 
       <Card>
@@ -87,8 +134,15 @@ export default function InvestorFund() {
                     <div className="flex items-baseline gap-2">
                       <span className="font-semibold text-white">{t.symbol}</span>
                       <span className="truncate text-[12px] text-gray-500">{t.name}</span>
-                      <span className="ml-auto shrink-0 text-[11.5px] text-gray-600">{new Date(t.ts.slice(0, 10) + "T00:00:00").toLocaleDateString("cs-CZ")}</span>
+                      <span className="ml-auto shrink-0 text-[11.5px] text-gray-500">{day(t.ts)}</span>
                     </div>
+                    <p className="text-[12.5px] text-gray-400">
+                      za <b className="text-gray-200">{price(t.price, t.currency)}</b>
+                      {t.action === "buy" && (() => {
+                        const pct = change(lastPrice[t.symbol], t.price);
+                        return pct == null ? null : <> · <PriceVsFund pct={pct} /></>;
+                      })()}
+                    </p>
                     <p className="text-[13px] text-gray-300">{firstSentence(t.reason)}</p>
                   </div>
                 </li>
@@ -96,7 +150,7 @@ export default function InvestorFund() {
             })}
           </ul>
         )}
-        <p className="mt-3 text-[11.5px] text-gray-500">Podrobné zdůvodnění, ceny a vývoj hodnoty v grafu najdeš na <Link href="/fond" className="underline hover:text-gray-300">plné stránce fondu</Link>.</p>
+        <p className="mt-3 text-[11.5px] text-gray-500">Celé zdůvodnění, počty kusů a vývoj hodnoty v grafu najdeš na <Link href="/fond" className="underline hover:text-gray-300">plné stránce fondu</Link>.</p>
       </Card>
 
       <Disclaimer>Ukázkový fond s virtuálními penězi (paper-trading). Není investiční doporučení; minulá výkonnost nezaručuje budoucí.</Disclaimer>
