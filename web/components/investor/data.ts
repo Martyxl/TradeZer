@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { authHeaders, useAuth } from "@/lib/auth";
-import type { Company, Ideas, Plan, Profile, Radar } from "./types";
+import type { Company, Ideas, Plan, Profile, Radar, Seasonality } from "./types";
 
 /** Načte JSON z přihlášeného API; `reload()` po změně (nový nákup, jiný plán). */
 function useAuthed<T>(url: string): { data: T | null; error: boolean; status: number | null; loading: boolean; reload: () => Promise<void> } {
@@ -12,7 +12,7 @@ function useAuthed<T>(url: string): { data: T | null; error: boolean; status: nu
   const [status, setStatus] = useState<number | null>(null);   // HTTP kód chyby (403 = vyšší tarif, 404 = nenalezeno)
   const [loading, setLoading] = useState(true);
   const reload = useCallback(async () => {
-    if (!user) return;
+    if (!user || !url) return;
     setLoading(true);
     try {
       const r = await fetch(url, { headers: authHeaders(), cache: "no-store" });
@@ -33,6 +33,9 @@ function useAuthed<T>(url: string): { data: T | null; error: boolean; status: nu
 export const usePlan = () => useAuthed<Plan>("/api/investor/plan");
 export const useIdeas = () => useAuthed<Ideas>("/api/investor/ideas");
 export const useRadar = () => useAuthed<Radar>("/api/investor/radar");
+/** Sezónnost symbolů z Přehledu; prázdný seznam = nic nenačítat. */
+export const useSeasonality = (symbols: string[]) =>
+  useAuthed<Seasonality>(symbols.length ? `/api/investor/seasonality?symbols=${encodeURIComponent(symbols.join(","))}` : "");
 export const useCompany = (ticker: string) => useAuthed<Company>(`/api/investor/radar/${encodeURIComponent(ticker)}`);
 
 /** Odkaz na zjednodušenou kartu firmy (ticker bez burzovního suffixu, např. AAPL.US → AAPL). */

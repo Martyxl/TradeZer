@@ -5,8 +5,10 @@ import { ArrowRight, RefreshCw } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { usePlan, fmtCzk, fmtPct } from "@/components/investor/data";
 import { ActionList, Card, Disclaimer, LoginNeeded, MarketCards, Stat } from "@/components/investor/ui";
+import { RadarPanel } from "@/components/investor/radar";
+import { SeasonalitySection, type SeasonAsset } from "@/components/investor/seasonal";
 
-// Režim Začátečník — Přehled: režim trhu + nálada a jeden seznam „Co teď udělat".
+// Režim Začátečník — Přehled: režim trhu + nálada, „Co teď udělat", sezónnost těch aktiv a Radar firem.
 export default function InvestorHome() {
   const { user, loading: authLoading } = useAuth();
   const { data, error, loading, reload } = usePlan();
@@ -24,6 +26,8 @@ export default function InvestorHome() {
   const t = data.totals;
   const empty = data.positions.length === 0;
   const upPct = t.invested ? (t.unrealized / t.invested) * 100 : null;
+  const seasonAssets: SeasonAsset[] = data.actions.filter((a) => a.symbol)
+    .map((a) => ({ symbol: a.symbol as string, label: (a.symbol as string).split(".")[0], name: a.name }));
 
   return (
     <div className="space-y-5">
@@ -72,6 +76,10 @@ export default function InvestorHome() {
           <Stat label="Bez daně už teď" value={fmtCzk(t.tax_free)} sub="drženo přes 3 roky" />
         </div>
       )}
+
+      <SeasonalitySection assets={seasonAssets} />
+
+      <RadarPanel />
 
       <Disclaimer />
     </div>

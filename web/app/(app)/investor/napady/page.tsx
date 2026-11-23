@@ -95,7 +95,7 @@ export default function InvestorIdeas() {
             : <p className="text-sm text-gray-500">Žádná sledovaná firma teď není výrazně předražená.</p>}
         </Card>
       </div>
-      {data.as_of && <p className="-mt-2 text-[11.5px] text-gray-500">Valuace k {dateCs(data.as_of)} · všechny firmy v <Link href="/investor/radar" className="underline hover:text-gray-300">Radaru firem</Link>.</p>}
+      {data.as_of && <p className="-mt-2 text-[11.5px] text-gray-500">Valuace k {dateCs(data.as_of)} · všechny firmy v <Link href="/investor#radar" className="underline hover:text-gray-300">Radaru firem na Přehledu</Link>.</p>}
 
       <Card>
         <h2 className="text-[15px] font-bold text-white">Kde nakoupit</h2>

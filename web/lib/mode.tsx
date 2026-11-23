@@ -15,7 +15,7 @@ const KEY = "tz_mode";
 /** Odpovídající stránka v druhém režimu (přepínač tě nechá „na stejném místě"). */
 const TO_SIMPLE: [string, string][] = [
   ["/investice", "/investor/portfolio"], ["/dane", "/investor/portfolio"],
-  ["/valuation", "/investor/radar"], ["/fond", "/investor/fond"],
+  ["/valuation", "/investor#radar"], ["/fond", "/investor/fond"],
 ];
 const TO_PRO: [string, string][] = [
   ["/investor/portfolio", "/investice"], ["/investor/napady", "/valuation"], ["/investor/radar", "/valuation"],

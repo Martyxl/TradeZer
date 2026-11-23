@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo } from "react";
-import { Lock } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ChevronRight, Lock, Search } from "lucide-react";
 import { BubbleMap, type OverviewItem } from "@/components/valuation/BubbleMap";
-import { companyHref } from "./data";
+import { companyHref, dateCs, useRadar } from "./data";
 import { Card } from "./ui";
-import type { Bucket, Pillar, Radar } from "./types";
+import type { Bucket, Pillar, Radar, RadarItem } from "./types";
 
 // Barvy skupin — třídy, které světlý motiv přemapuje (globals.css).
 const BUCKET: Record<Bucket, { label: string; cls: string }> = {
@@ -97,5 +97,120 @@ export function ZoneMapLegend({ held = true }: { held?: boolean }) {
         <span>klikni na bublinu pro detail</span>
       </p>
     </div>
+  );
+}
+
+type Tab = Bucket | "mine" | "all";
+const TABS: [Tab, string][] = [["cheap", "Levné"], ["fair", "Férová cena"], ["expensive", "Drahé"], ["mine", "Moje firmy"], ["all", "Vše"]];
+const PAGE = 40;
+
+/** Radar firem na Přehledu: mapa zón vlevo (drží se při posouvání), seznam firem vpravo. */
+export function RadarPanel() {
+  const { data, error, status } = useRadar();
+  const [tab, setTab] = useState<Tab>("cheap");
+  const [q, setQ] = useState("");
+  const [shown, setShown] = useState(PAGE);
+  const ready = data != null || status != null;
+
+  // Odkaz /investor#radar: sekce se vykreslí až po načtení dat, takže prohlížeč na ni sám neodskočí.
+  useEffect(() => {
+    if (ready && window.location.hash === "#radar") {
+      const t = setTimeout(() => document.getElementById("radar")?.scrollIntoView({ block: "start" }), 400);
+      return () => clearTimeout(t);
+    }
+  }, [ready]);
+
+  const counts = useMemo(() => {
+    const c: Record<Tab, number> = { cheap: 0, fair: 0, expensive: 0, unknown: 0, mine: 0, all: 0 };
+    for (const i of data?.items ?? []) { c[i.bucket]++; c.all++; if (i.held) c.mine++; }
+    return c;
+  }, [data]);
+
+  const list = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    return (data?.items ?? []).filter((i: RadarItem) => {
+      if (needle) return i.ticker.toLowerCase().includes(needle) || (i.name ?? "").toLowerCase().includes(needle);
+      return tab === "all" ? true : tab === "mine" ? i.held : i.bucket === tab;
+    });
+  }, [data, tab, q]);
+
+  const head = (
+    <div>
+      <h2 className="text-lg font-bold text-white">Radar firem</h2>
+      <p className="text-[12.5px] text-gray-500">Jak drahé jsou velké firmy vůči tomu, kolik vydělávají a jak rychle rostou. Klikni na firmu a uvidíš proč.</p>
+    </div>
+  );
+  const wrap = (body: React.ReactNode) => <section id="radar" className="scroll-mt-5 space-y-3">{head}{body}</section>;
+
+  if (status === 403) return wrap(<PlanNeeded />);
+  if (error) return wrap(<Card><p className="text-sm text-amber-300">Radar se nepodařilo načíst. Zkus to za chvíli znovu.</p></Card>);
+  if (!data) return wrap(<div className="h-96 animate-pulse rounded-2xl bg-panel" />);
+
+  return wrap(
+    <>
+      <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+        <Card className="xl:sticky xl:top-5">
+          <h3 className="mb-2 text-[15px] font-bold text-white">Mapa: kde je která firma</h3>
+          <ZoneMap radar={data} />
+          <ZoneMapLegend held={counts.mine > 0} />
+        </Card>
+
+        <Card className="p-0 md:p-0">
+          <div className="flex flex-col gap-3 border-b border-line px-4 py-3 md:px-5">
+            <label className="relative block">
+              <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+              <input value={q} onChange={(e) => { setQ(e.target.value); setShown(PAGE); }} placeholder="Hledat firmu (např. Apple, MSFT)"
+                className="inv-input w-full pl-8" aria-label="Hledat firmu" />
+            </label>
+            {!q && (
+              <div className="flex flex-wrap gap-1.5" role="tablist">
+                {TABS.map(([k, label]) => (
+                  <button key={k} role="tab" aria-selected={tab === k} onClick={() => { setTab(k); setShown(PAGE); }}
+                    className={`rounded-full border px-3 py-1 text-[12.5px] transition-colors ${tab === k ? "border-[rgba(96,255,130,0.55)] bg-neon-tint text-white" : "border-line text-gray-300 hover:text-white"}`}>
+                    {label} <span className="text-gray-500">{counts[k]}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          {list.length === 0 ? (
+            <p className="px-4 py-6 text-sm text-gray-500 md:px-5">
+              {q ? "Žádná sledovaná firma neodpovídá hledání." : tab === "mine" ? "Žádnou z tvých akcií Radar nesleduje (fondy nehodnotí)." : "V této skupině teď nic není."}
+            </p>
+          ) : (
+            <ul className="max-h-[640px] divide-y divide-line overflow-y-auto">
+              {list.slice(0, shown).map((i) => (
+                <li key={i.ticker}>
+                  <Link href={companyHref(i.ticker)} className="flex items-center gap-3 px-4 py-3 hover:bg-raised/40 md:px-5">
+                    <div className="w-[92px] shrink-0"><BucketPill bucket={i.bucket} label={i.verdict_label} /></div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-baseline gap-2">
+                        <span className="font-semibold text-white">{i.ticker}</span>
+                        <span className="truncate text-[12px] text-gray-500">{i.name}</span>
+                        {i.held && <span className="shrink-0 rounded-full bg-emerald-950/60 px-2 py-px text-[11px] text-emerald-300">máš</span>}
+                      </div>
+                      {i.text && <p className="truncate text-[12.5px] text-gray-400">{i.text}{!i.reliable && " · data neúplná"}</p>}
+                    </div>
+                    <ChevronRight size={16} className="shrink-0 text-gray-600" />
+                  </Link>
+                </li>
+              ))}
+              {list.length > shown && (
+                <li className="px-4 py-3 text-center md:px-5">
+                  <button onClick={() => setShown((s) => s + PAGE)} className="text-[13px] font-semibold text-neon-soft hover:underline">
+                    Zobrazit další ({list.length - shown})
+                  </button>
+                </li>
+              )}
+            </ul>
+          )}
+        </Card>
+      </div>
+      <p className="text-[11.5px] leading-relaxed text-gray-500">
+        <b className="text-gray-400">Levná</b> = cena je nízko vůči ziskům a jejich růstu, <b className="text-gray-400">Drahá</b> = trh už
+        započítal hodně dobrých zpráv. Hodnotí se jen jednotlivé firmy, ne fondy.
+        {data.as_of && ` Data k ${dateCs(data.as_of)}.`} Všechna čísla najdeš v režimu Pokročilý (Valuation Radar). Nejde o investiční doporučení.
+      </p>
+    </>
   );
 }

@@ -9,18 +9,20 @@ zprávy a kalendář a odhaduje jejich dopad na trhy; k tomu nabízí screenery 
 Sledované trhy: NQ (Nasdaq 100 futures), ES (S&P 500), YM (Dow Jones), XAUUSD (zlato), EURUSD, GBPUSD, USDJPY.
 Menu má skupiny Trading (Deník, Historie, ORB Radar, Statistiky) a Investice (Investice, Daně, TRADEZER investuje,
 Valuation Radar, Discovery, Smart Money, Dark Pool). Některé moduly jsou v placených plánech (Trader, Pro).
-Přepínač v horní liště mění režim: Pokročilý = celé menu výše; Začátečník = jen 5 stránek pod /investor
-(Přehled, Moje portfolio, Nápady, Radar firem, Tradezer investuje) se signály podle vlastního investičního plánu.
+Přepínač v horní liště mění režim: Pokročilý = celé menu výše; Začátečník = jen 4 stránky pod /investor
+(Přehled s Radarem firem, Moje portfolio, Nápady, Tradezer investuje) se signály podle vlastního investičního plánu.
 Vše je edukativní analýza z veřejných dat — NENÍ to investiční doporučení."""
 
 PAGES: dict[str, str] = {
     "/investor": """Režim Začátečník (přepínač Začátečník / Pokročilý v horní liště; volba se pamatuje na účtu).
-Pět stránek místo celé aplikace:
+Čtyři stránky místo celé aplikace:
 - Přehled (/investor): režim trhu a nálada investorů (0–100, strach ↔ chamtivost) jednou větou, co to znamená, a seznam
   „Co teď udělat“: Koupit (rozdělení měsíčního vkladu do částí portfolia, které jsou pod cílem plánu — rebalancování
   vkladem bez prodeje), Zvážit prodej části (jednotlivá akcie s červeným semaforem nebo nad 20 % portfolia — návrh
   vrátit váhu k 10 %), Počkej (důvod ubrat je, ale do 90 dnů bude nákup osvobozen od daně), Nad plánem, Daně
-  (blížící se osvobození), Držet.
+  (blížící se osvobození), Držet. Pod tím Sezónnost: pro každé aktivum ze seznamu graf posledních 3 let (každý rok
+  jedna čára = % od začátku ledna, svislá čára = dnešek) a kolik se v minulých letech změnilo od dnešního data do
+  konce roku — jen historie, ne předpověď. Úplně dole Radar firem (viz níže).
 - Moje portfolio (/investor/portfolio): investiční typ Opatrný (40 % akciové fondy, 35 % dluhopisy, 15 % zlato,
   10 % rezerva), Vyvážený (60/15/10, 15 % vlastní akcie), Dynamický (65 % fondy, 5 % zlato, 30 % vlastní akcie),
   Agresivní (55 % fondy, 45 % vlastní akcie) nebo Vlastní; dotazník 4 otázek typ doporučí (krátký horizont nebo
@@ -33,7 +35,7 @@ Pět stránek místo celé aplikace:
   IS3N (rozvíjející se trhy), 4GLD (fyzické zlato), EUNA (globální dluhopisy v EUR), XEON (peněžní trh); vše akumulační
   UCITS ETF na Xetře. Dále levné kvalitní firmy (nákupní zóna Valuation Radaru se spolehlivými daty) a předražené.
   Odkazy na brokery XTB a eToro (mohou být partnerské). Kupovat skutečné ETF/akcie, ne CFD.
-- Radar firem (/investor/radar, tarif Trader jako Valuation Radar): firmy z Valuation Radaru rozdělené na Levné /
+- Radar firem (sekce na Přehledu /investor#radar, tarif Trader jako Valuation Radar; mapa zón + seznam): firmy z Valuation Radaru rozdělené na Levné /
   Férová cena / Drahé / Moje firmy, hledání. Klik na firmu (/investor/radar/TICKER) = zjednodušená karta: verdikt
   jednou větou, 5 otázek se semaforem (Cena — je levná?, Růst, Kvalita, Analytici, Trend) s vysvětlením z metrik,
   „Co mluví pro / proti“ (hnací faktory skóre lidsky), datum dalších výsledků a „Co to znamená pro tebe“ podle

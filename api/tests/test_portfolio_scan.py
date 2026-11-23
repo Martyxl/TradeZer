@@ -7,9 +7,11 @@ import portfolio_quotes_scan as ps  # noqa: E402
 
 
 def test_history_plan():
-    assert ps.history_plan({}, "AAPL", "2026-10-08") == ("2y", True)                       # nový symbol → 2 roky
-    assert ps.history_plan({"AAPL": "2026-10-07"}, "AAPL", "2026-10-08") == ("1mo", True)  # nový den → měsíc
-    assert ps.history_plan({"AAPL": "2026-10-08"}, "AAPL", "2026-10-08") == ("5d", False)  # dnes už hotovo
+    deep = {"_deep": ["AAPL"]}
+    assert ps.history_plan({}, "AAPL", "2026-10-08") == ("3y", True)                                # nový symbol → 3 roky
+    assert ps.history_plan({"AAPL": "2026-10-07"}, "AAPL", "2026-10-08") == ("3y", True)            # bez hluboké historie → jednou 3 roky
+    assert ps.history_plan({"AAPL": "2026-10-07", **deep}, "AAPL", "2026-10-08") == ("1mo", True)   # nový den → měsíc
+    assert ps.history_plan({"AAPL": "2026-10-08", **deep}, "AAPL", "2026-10-08") == ("5d", False)   # dnes už hotovo
 
 
 def test_run_once_pushes_history_only_when_needed(tmp_path, monkeypatch):
@@ -28,9 +30,9 @@ def test_run_once_pushes_history_only_when_needed(tmp_path, monkeypatch):
     monkeypatch.setattr(ps, "push_history", lambda b, t, s, bars: hist_pushed.append(s) or True)
     monkeypatch.setattr(ps, "push", lambda b, t, q: quote_pushes.append(len(q)))
 
-    ps.run_once("http://x", "t")                         # 1. běh: vše nové → 2y historie (2 akcie + USDCZK)
+    ps.run_once("http://x", "t")                         # 1. běh: vše nové → 3y historie (2 akcie + USDCZK)
     assert sorted(hist_pushed) == ["AAPL", "MSFT", "USDCZK"]
-    assert all(r == "2y" for _, r in fetched)
+    assert all(r == "3y" for _, r in fetched)
     hist_pushed.clear(); fetched.clear()
 
     ps.run_once("http://x", "t")                         # 2. běh stejný den (další hodina) → jen ceny

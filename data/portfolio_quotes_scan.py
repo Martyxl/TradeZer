@@ -64,7 +64,7 @@ def _yahoo_sym(symbol: str) -> str:
 def _fetch(symbol: str, rng: str = "2y") -> tuple[dict | None, list[dict]]:
     """Jedním Yahoo dotazem vrátí (quote, historii denních close) za období `rng`.
     quote = aktuální cena + měna + 52T z meta; history = [{date, close}] pro křivku."""
-    data = _get_json(f"https://query1.finance.yahoo.com/v8/finance/chart/{_yahoo_sym(symbol)}?range={rng}&interval=1d")
+    data = _get_json(f"https://query1.finance.yahoo.com/v8/finance/chart/{_yahoo_sym(symbol)}?range={_YH_RANGE.get(rng, rng)}&interval=1d")
     try:
         res = data["chart"]["result"][0]
         meta = res["meta"]
@@ -92,7 +92,9 @@ _TD_MIC = {".DE": "XETR", ".NV": "XAMS", ".NL": "XAMS", ".UK": "XLON", ".LN": "X
            ".SW": "XSWX", ".FR": "XPAR", ".PA": "XPAR", ".IT": "XMIL", ".ES": "XMAD", ".PL": "XWAR",
            ".CZ": "XPRA", ".PR": "XPRA"}
 _TD_ALIAS = {"KWBE": "KWBE:XETR"}
-_TD_RANGE = {"2y": 520, "1mo": 25}
+_TD_RANGE = {"3y": 800, "2y": 520, "1mo": 25}
+# Yahoo nezná range=3y → bere 5y (víc dat nevadí, upsert je idempotentní).
+_YH_RANGE = {"3y": "5y"}
 
 
 def _td_sym(symbol: str) -> str:
@@ -250,6 +252,7 @@ def push_history(base: str, token: str, symbol: str, bars: list[dict]) -> bool:
 # Historie se NEposílá každou hodinu (dřív 2 roky × ~22 symbolů × 24×/den = tisíce zbytečných
 # volání, která žrala limity Vercelu i čas Neonu). Plán: nový symbol → 2y jednou; jinak jednou
 # denně poslední měsíc; ostatní hodiny jen živá cena (range=5d, bez historie).
+# Sezónnost v Přehledu potřebuje 3 celé roky → každý symbol JEDNOU dotáhne 3y (seznam „_deep“ ve stavu).
 HIST_STATE = os.environ.get("PORTFOLIO_HIST_STATE",
                             os.path.join(os.path.dirname(os.path.abspath(__file__)), "portfolio_hist_state.json"))
 
@@ -270,11 +273,14 @@ def _save_state(st: dict) -> None:
         print(f"  stav historie nezapsán: {e}")
 
 
+DEEP_RANGE, DEEP_KEY = "3y", "_deep"
+
+
 def history_plan(state: dict, symbol: str, today: str) -> tuple[str, bool]:
     """(Yahoo range, poslat historii?) pro symbol."""
     last = state.get(symbol)
-    if last is None:
-        return "2y", True
+    if last is None or symbol not in state.get(DEEP_KEY, []):
+        return DEEP_RANGE, True
     if last != today:
         return "1mo", True
     return "5d", False
@@ -297,6 +303,8 @@ def run_once(base: str, token: str) -> None:
             q, bars = _fetch(yh, rng)
         if want_hist and push_history(base, token, sym, bars):
             state[sym] = today
+            if rng == DEEP_RANGE:
+                state.setdefault(DEEP_KEY, []).append(sym)
             pushed += 1
         print(f"  {sym} = {q['price'] if q else None} ({rng}, historie {'poslána' if want_hist else 'přeskočena'})")
         return q

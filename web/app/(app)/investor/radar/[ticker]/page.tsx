@@ -26,7 +26,7 @@ export default function InvestorCompany() {
   const onMap = radar?.items.find((i) => i.ticker === ticker);
 
   const back = (
-    <Link href="/investor/radar" className="inline-flex items-center gap-1 text-[13px] text-gray-400 hover:text-white">
+    <Link href="/investor#radar" className="inline-flex items-center gap-1 text-[13px] text-gray-400 hover:text-white">
       <ArrowLeft size={14} /> Radar firem
     </Link>
   );

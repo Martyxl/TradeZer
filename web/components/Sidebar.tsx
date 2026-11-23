@@ -44,7 +44,6 @@ export const SIMPLE_GROUPS: NavGroup[] = [
     { href: "/investor", label: "Přehled", icon: Compass, tier: "free", exact: true },
     { href: "/investor/portfolio", label: "Moje portfolio", icon: Wallet, tier: "free" },
     { href: "/investor/napady", label: "Nápady", icon: Lightbulb, tier: "free" },
-    { href: "/investor/radar", label: "Radar firem", icon: Target, tier: "trader" },
     { href: "/investor/fond", label: "Tradezer investuje", icon: Bot, tier: "free" },
   ] },
 ];

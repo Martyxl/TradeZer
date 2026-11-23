@@ -363,3 +363,30 @@ async def test_radar_endpoints():
             assert (await c.get("/api/investor/radar/NOPE", headers=h)).status_code == 404
         finally:
             settings.free_access = old_free
+
+
+@pytest.mark.asyncio
+async def test_seasonality_endpoint():
+    from datetime import date
+    from app.db.session import session_context
+    from app.models import InvestmentPriceDaily
+    from app.valuation.models import ValPriceDaily
+    y = date.today().year
+    async with _client() as c:
+        h = await auth_headers(c, "season@example.com")
+        assert (await c.get("/api/investor/seasonality?symbols=VWCE.DE")).status_code == 401
+        async with session_context() as s:
+            s.add_all([InvestmentPriceDaily(symbol="VWCE.DE", date=f"{y - 1}-12-30", close=100.0),
+                       InvestmentPriceDaily(symbol="VWCE.DE", date=f"{y}-01-05", close=105.0)])
+            # akcie: v cenách portfolia nic, ve Valuation Radaru 3 roky zpět
+            s.add_all([ValPriceDaily(ticker="ACMS", date=date(yy, mm, dd), close=cl, adj_close=cl)
+                       for yy in (y - 3, y - 2, y - 1) for mm, dd, cl in ((12, 30, 10.0),)]
+                      + [ValPriceDaily(ticker="ACMS", date=date(yy, 3, 2), close=12.0, adj_close=12.0) for yy in (y - 2, y - 1, y)])
+            await s.commit()
+        d = (await c.get("/api/investor/seasonality?symbols=VWCE.DE,acms.us,ACMS.US", headers=h)).json()
+        assert d["years"] == [y - 2, y - 1, y]
+        items = {i["symbol"]: i for i in d["items"]}
+        assert list(items) == ["VWCE.DE", "ACMS.US"]                                # dedup + velká písmena
+        assert items["VWCE.DE"]["years"] == {str(y): [[0, 0.0], [4, 5.0]]}
+        assert sorted(items["ACMS.US"]["years"]) == [str(y - 2), str(y - 1), str(y)]  # fallback na Valuation ceny
+        assert items["ACMS.US"]["years"][str(y)][-1][1] == 20.0

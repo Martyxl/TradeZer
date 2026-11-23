@@ -360,3 +360,53 @@ async def radar_company(ticker: str, user: User = Depends(require_plan("trader")
                            held_weight=(held.get(t) or 0.0) if t in held else None,
                            stocks_target=targets.get("stocks", 0), plan_label=plan_label),
     }
+
+
+# ── Sezónnost (Přehled) ─────────────────────────────────────────────────────
+from datetime import date as _date  # noqa: E402
+
+from fastapi import Query  # noqa: E402
+
+from app.models import InvestmentPriceDaily  # noqa: E402
+from app.services import seasonality as S  # noqa: E402
+
+MAX_SEASON_SYMBOLS = 12
+
+
+@router.get("/seasonality")
+async def seasonality(symbols: str = Query(..., max_length=600), user: User = Depends(current_user),
+                      session: AsyncSession = Depends(get_session)):
+    """Sezónnost posledních 3 let pro symboly z Přehledu. Zdroj: denní ceny portfolia
+    (InvestmentPriceDaily, ETF + držené tituly); když tam jsou kratší, denní ceny Valuation Radaru."""
+    from app.valuation.models import ValPriceDaily
+    syms = list(dict.fromkeys(s.strip().upper()[:40] for s in symbols.split(",") if s.strip()))[:MAX_SEASON_SYMBOLS]
+    years = S.season_years(_date.today())
+    since = f"{years[0] - 1}-{S.PREV_FROM_DAY}"
+    bars: dict[str, list[tuple[str, float]]] = {s: [] for s in syms}
+    for r in (await session.execute(
+        select(InvestmentPriceDaily.symbol, InvestmentPriceDaily.date, InvestmentPriceDaily.close)
+        .where(InvestmentPriceDaily.symbol.in_(syms), InvestmentPriceDaily.date >= since)
+        .order_by(InvestmentPriceDaily.date.asc())
+    )).all():
+        bars[r.symbol].append((r.date, r.close))
+    curves = {s: S.year_curves(bars[s], years) for s in syms}
+    # Akcie z Valuation Radaru mají historii roky zpět — použij, pokud dá víc let.
+    short = {P.base_symbol(s): s for s in syms if len(curves[s]) < len(years)}
+    if short:
+        val: dict[str, list[tuple[str, float]]] = {t: [] for t in short}
+        for r in (await session.execute(
+            select(ValPriceDaily.ticker, ValPriceDaily.date, ValPriceDaily.close, ValPriceDaily.adj_close)
+            .where(ValPriceDaily.ticker.in_(list(short)), ValPriceDaily.date >= _date.fromisoformat(since))
+            .order_by(ValPriceDaily.date.asc())
+        )).all():
+            c = r.adj_close or r.close
+            if c:
+                val[r.ticker].append((r.date.isoformat(), c))
+        for t, s in short.items():
+            alt = S.year_curves(val[t], years)
+            if len(alt) > len(curves[s]):
+                curves[s] = alt
+    return {
+        "years": years,
+        "items": [{"symbol": s, "years": curves[s]} for s in syms],
+    }

@@ -83,3 +83,9 @@ export interface Company {
   pillars: Pillar[]; pros: string[]; cons: string[];
   advice: { kind: "buy" | "hold" | "wait" | "trim"; text: string };
 }
+
+/** Sezónnost: pro každý rok body [den v roce, % od začátku roku]. */
+export interface Seasonality {
+  years: number[];
+  items: { symbol: string; years: Record<string, [number, number][]> }[];
+}
