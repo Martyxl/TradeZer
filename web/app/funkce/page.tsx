@@ -9,6 +9,7 @@ import {
 import { MODULES, PLANS, COMPARISON, comparisonTotal, ANNUAL_DISCOUNT, annualPerMonth, annualTotal, type TierId } from "@/lib/plans";
 import { FREE_ACCESS } from "@/lib/config";
 import { FreeOffer } from "@/components/FreeOffer";
+import { FOOTER_DISCLAIMER } from "@/lib/disclaimer";
 
 const ICONS: Record<string, LucideIcon> = {
   LayoutDashboard, Activity, NotebookPen, Sunrise, History, BarChart3, Target, Telescope, Landmark, BookOpen,
@@ -204,6 +205,7 @@ export default function FunkcePage() {
       <footer className="border-t border-white/10">
         <div className="mx-auto max-w-6xl px-5 py-8 text-[13px] text-white/50 sm:px-8">
           tradezer.app — AI, se kterou se nehádáš.
+          <p className="mt-2 text-[12px] leading-relaxed"><b>Disclaimer:</b> {FOOTER_DISCLAIMER}</p>
         </div>
       </footer>
     </div>

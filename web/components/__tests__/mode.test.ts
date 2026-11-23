@@ -39,7 +39,12 @@ describe("přepínač Začátečník / Pokročilý", () => {
 import { BEGINNER_MODE, beginnerModeAvailable } from "@/lib/config";
 
 describe("dostupnost režimu Začátečník", () => {
-  it("řídí ji BEGINNER_MODE (teď jen admin)", () => {
+  it("řídí ji BEGINNER_MODE (teď všichni)", () => {
+    if (BEGINNER_MODE === "all") {
+      expect(beginnerModeAvailable({ is_admin: true })).toBe(true);
+      expect(beginnerModeAvailable({ is_admin: false })).toBe(true);
+      expect(beginnerModeAvailable(null)).toBe(true);
+    }
     if (BEGINNER_MODE === "admin") {
       expect(beginnerModeAvailable({ is_admin: true })).toBe(true);
       expect(beginnerModeAvailable({ is_admin: false })).toBe(false);

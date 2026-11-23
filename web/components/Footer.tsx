@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Eye } from "lucide-react";
 import { SupportButton } from "@/components/SupportButton";
 import { LegalLinks } from "@/components/LegalLinks";
+import { FOOTER_DISCLAIMER } from "@/lib/disclaimer";
 
 export function Footer() {
   const [visits, setVisits] = useState<number | null>(null);
@@ -36,6 +37,9 @@ export function Footer() {
           )}
         </div>
       </div>
+      <p className="mt-3 text-[11.5px] leading-relaxed text-gray-500">
+        <b className="text-gray-400">Disclaimer:</b> {FOOTER_DISCLAIMER}
+      </p>
     </footer>
   );
 }

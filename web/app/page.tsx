@@ -6,6 +6,7 @@ import Link from "next/link";
 import { PLANS, ANNUAL_DISCOUNT, annualTotal, comparisonTotal } from "@/lib/plans";
 import { FREE_ACCESS } from "@/lib/config";
 import { FreeOffer } from "@/components/FreeOffer";
+import { FOOTER_DISCLAIMER } from "@/lib/disclaimer";
 
 // ── Tradezer brand — Neon Candles (viz handoff/BRAND.md) ────────────────────
 const C = {
@@ -370,7 +371,7 @@ export default function Landing() {
           <span>Martin Špatenka, IČO 88916219</span>
         </div>
         <div style={{ marginTop: 6, fontSize: 12 }}>
-          Tradezer není investiční poradenství ani doporučení ke koupi či prodeji investičních nástrojů.
+          <b>Disclaimer:</b> {FOOTER_DISCLAIMER}
         </div>
       </footer>
 

@@ -20,7 +20,7 @@ export type Tier = "free" | "trader" | "pro" | "elite";
 
 // Režim Začátečník (přepínač Začátečník/Pokročilý, stránky /investor): "admin" = vidí jen admin
 // (testování na vlastních datech před spuštěním), "all" = všichni, "off" = nikdo.
-export const BEGINNER_MODE: "off" | "admin" | "all" = "admin";
+export const BEGINNER_MODE: "off" | "admin" | "all" = "all";
 
 export function beginnerModeAvailable(user: { is_admin?: boolean } | null | undefined): boolean {
   return BEGINNER_MODE === "all" || (BEGINNER_MODE === "admin" && !!user?.is_admin);
