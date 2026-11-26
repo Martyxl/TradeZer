@@ -58,16 +58,25 @@ function SeasonChart({ years, curves }: { years: number[]; curves: Record<string
 }
 
 function SeasonCard({ asset, years, curves }: { asset: SeasonAsset; years: number[]; curves: Record<string, Pts> }) {
-  const has = years.filter((y) => curves[String(y)]?.length);
-  const today = dayOfYear();
-  const ahead = years.slice(0, -1).map((y) => [y, curves[String(y)] ? restOfYear(curves[String(y)], today) : null] as const)
-    .filter(([, v]) => v != null) as [number, number][];
   return (
     <div className="rounded-xl border border-line bg-sunken p-3.5">
       <div className="flex items-baseline gap-2">
         <span className="font-semibold text-white">{asset.label}</span>
         {asset.name && <span className="truncate text-[11.5px] text-gray-500">{asset.name}</span>}
       </div>
+      <SeasonBody years={years} curves={curves} />
+    </div>
+  );
+}
+
+/** Graf + legenda let + „od dnešního data do konce roku". */
+function SeasonBody({ years, curves }: { years: number[]; curves: Record<string, Pts> }) {
+  const has = years.filter((y) => curves[String(y)]?.length);
+  const today = dayOfYear();
+  const ahead = years.slice(0, -1).map((y) => [y, curves[String(y)] ? restOfYear(curves[String(y)], today) : null] as const)
+    .filter(([, v]) => v != null) as [number, number][];
+  return (
+    <>
       {has.length === 0 ? (
         <p className="mt-2 text-[12.5px] text-gray-500">Historii cen tohoto titulu zatím nemáme.</p>
       ) : (
@@ -92,6 +101,24 @@ function SeasonCard({ asset, years, curves }: { asset: SeasonAsset; years: numbe
           )}
         </>
       )}
+    </>
+  );
+}
+
+/** Sezónnost jednoho titulu (Pokročilý: Dashboard, detail firmy ve Valuation Radaru). Bez dat se skryje. */
+export function SeasonPanel({ symbol, label, className = "" }: { symbol: string; label: string; className?: string }) {
+  const { data, error } = useSeasonality([symbol]);
+  const curves = (data?.items[0]?.years ?? {}) as Record<string, Pts>;
+  if (error || (data && Object.keys(curves).length === 0)) return null;
+  return (
+    <div className={className}>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+        <h3 className="text-sm font-semibold text-white">Sezónnost · {label}</h3>
+        <span className="text-[11px] text-gray-500">poslední 3 roky · % od začátku ledna · svislá čára = dnes</span>
+      </div>
+      <div className="max-w-2xl">
+        {!data ? <div className="mt-2 h-40 animate-pulse rounded-lg bg-raised" /> : <SeasonBody years={data.years} curves={curves} />}
+      </div>
     </div>
   );
 }

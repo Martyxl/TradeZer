@@ -14,6 +14,7 @@ import { OutlookCard } from "@/components/OutlookCard";
 import { GapCard } from "@/components/GapCard";
 import { DayLiveCard } from "@/components/DayLiveCard";
 import { SentimentCard } from "@/components/SentimentGauge";
+import { SeasonPanel } from "@/components/investor/seasonal";
 import { api, type Ticker, type NewsItem, type DailySummary } from "@/lib/api";
 import { invalidateDashboard } from "@/lib/dashboardData";
 
@@ -183,6 +184,10 @@ export default function DashboardPage() {
 
       {/* Dnešní den vůči historii (rozsah, extrémy, trend, sessions, makro) — Trader+, NQ/YM/GOLD */}
       <DayLiveCard ticker={selectedTicker} />
+
+      {/* Sezónnost posledních 3 let (denní close z Yahoo, push ze Sparku) — skryje se bez dat / bez přihlášení */}
+      <SeasonPanel key={selectedTicker} symbol={`MKT:${selectedTicker}`} label={selectedTicker}
+        className="rounded-2xl border border-line bg-panel-2 p-4 md:p-5" />
 
       {/* Gamma exposure (GEX) — režim + levely z options OI (skryje se bez dat) */}
       <GammaCard ticker={selectedTicker} />

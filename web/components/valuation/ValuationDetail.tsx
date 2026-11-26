@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { TickerEarnings } from "@/components/valuation/EarningsReports";
 import { AnalystPanel } from "@/components/valuation/AnalystPanel";
+import { SeasonPanel } from "@/components/investor/seasonal";
 import { X, Loader2 } from "lucide-react";
 import { VERDICT_COLOR } from "./BubbleMap";
 import { authHeaders } from "@/lib/auth";
@@ -142,6 +143,8 @@ export function ValuationDetail({ ticker, onClose }: { ticker: string; onClose: 
                 {!(d.drivers.negative?.length) && <div className="text-[11px] text-gray-600">—</div>}
               </div>
             </div>
+
+            <SeasonPanel symbol={ticker} label={ticker} className="mb-3 rounded-xl border border-line bg-panel-2 p-4" />
 
             <TickerEarnings ticker={ticker} />
             <AnalystPanel ticker={ticker} />
