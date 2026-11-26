@@ -185,10 +185,6 @@ export default function DashboardPage() {
       {/* Dnešní den vůči historii (rozsah, extrémy, trend, sessions, makro) — Trader+, NQ/YM/GOLD */}
       <DayLiveCard ticker={selectedTicker} />
 
-      {/* Sezónnost posledních 3 let (denní close z Yahoo, push ze Sparku) — skryje se bez dat / bez přihlášení */}
-      <SeasonPanel key={selectedTicker} symbol={`MKT:${selectedTicker}`} label={selectedTicker}
-        className="rounded-2xl border border-line bg-panel-2 p-4 md:p-5" />
-
       {/* Gamma exposure (GEX) — režim + levely z options OI (skryje se bez dat) */}
       <GammaCard ticker={selectedTicker} />
 
@@ -205,6 +201,9 @@ export default function DashboardPage() {
           <MarketHoursBar compact />
           <SentimentCard />
         </div>
+        {/* Sezónnost posledních 3 let (denní close z Yahoo, push ze Sparku) — skryje se bez dat / bez přihlášení */}
+        <SeasonPanel key={selectedTicker} symbol={`MKT:${selectedTicker}`} label={selectedTicker}
+          className="rounded-2xl border border-line bg-panel-2 p-4 md:p-5" />
         <div>
         <h2 className="mb-3 text-[15px] font-bold text-white">
           Zprávy pro {selectedTicker}
