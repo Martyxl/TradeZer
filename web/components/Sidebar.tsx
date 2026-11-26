@@ -143,7 +143,7 @@ function UserMenu() {
 
 function Brand() {
   return (
-    <Link href="/" className="flex items-center gap-3 rounded-xl px-2 pb-3 pt-1.5">
+    <div className="flex items-center gap-3 rounded-xl px-2 pb-3 pt-1.5">
       <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-line-2 bg-raised">
         <span className="h-4 w-4 rounded-full bg-gradient-to-br from-mint to-mint-2" />
       </span>
@@ -151,7 +151,7 @@ function Brand() {
         <span className="block font-extrabold leading-tight tracking-tight text-white">Tradezer</span>
         <span className="block text-[11.5px] leading-tight text-gray-500">Dopad zpráv na trh</span>
       </span>
-    </Link>
+    </div>
   );
 }
 
@@ -209,22 +209,14 @@ function usePageTitle(): string {
     .sort((a, b) => b.href.length - a.href.length)[0]?.label ?? "Tradezer";
 }
 
-function greeting(d: Date) {
-  const h = d.getHours();
-  return h < 5 ? "Dobrou noc" : h < 10 ? "Dobré ráno" : h < 18 ? "Dobrý den" : "Dobrý večer";
-}
-
-/** Horní pilulková lišta: název stránky, pozdrav podle denní doby, odkaz na účet. */
+/** Horní pilulková lišta: název stránky, přepínač režimu, motiv, odkaz na účet. */
 export function AppTopbar() {
   const { user, loading } = useAuth();
   const title = usePageTitle();
-  const [hello, setHello] = useState<string | null>(null);
-  useEffect(() => setHello(greeting(new Date())), []);
   return (
     <header className="tz-pane hidden min-h-[54px] items-center gap-3 rounded-full py-1.5 pl-6 pr-1.5 md:flex">
       <div className="min-w-0 flex-1 truncate">
         <span className="font-bold text-white">{title}</span>
-        {hello && <span className="ml-3 text-sm text-gray-500">{hello}</span>}
       </div>
       <ModeSwitch />
       <ThemePicker />
@@ -252,10 +244,10 @@ export function MobileNav() {
   return (
     <header className="sticky top-3 z-50 mx-3 mt-3 md:hidden">
       <div className="tz-pane tz-blur flex items-center gap-3 rounded-full py-1.5 pl-4 pr-1.5">
-        <Link href="/" className="flex items-center gap-2">
+        <div className="flex items-center gap-2">
           <span className="h-5 w-5 rounded-full bg-gradient-to-br from-mint to-mint-2" />
           <span className="font-extrabold tracking-tight text-white">Tradezer</span>
-        </Link>
+        </div>
         <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-label={open ? "Zavřít menu" : "Otevřít menu"}
           className="ml-auto grid h-9 w-9 place-items-center rounded-full border border-line bg-raised text-white">
           {open ? <X size={17} /> : <Menu size={17} />}
