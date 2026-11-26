@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 import { dashFetch } from "@/lib/dashboardData";
+import { calendarCovers, dayStatus, localDate, upcomingSpecialDays, type DayStatus, type MarketName } from "@/lib/marketCalendar";
 
 const LOCAL_TZ = "Europe/Prague";
 
@@ -13,7 +14,7 @@ const HIGH_IMPACT_CATS = new Set([
 ]);
 
 interface Market {
-  name: string;
+  name: MarketName;
   tz: string;
   openLocal: number;   // open hour in the market's OWN timezone
   closeLocal: number;  // close hour in the market's OWN timezone
@@ -76,6 +77,48 @@ function marketToDisplay(marketTz: string, marketHour: number, now: Date): numbe
   return (marketHour - marketOffset + displayOffset + 48) % 24;
 }
 
+/** Pražská hodina (0–24, dnešní pražský den) → okamžik. */
+function instantAt(now: Date, nowDecimal: number, h: number): Date {
+  return new Date(now.getTime() + (h - nowDecimal) * 3_600_000);
+}
+
+/** Stav burzy v daném okamžiku podle jejího místního data (svátek / víkend / zkrácený den). */
+function statusAt(m: Market, at: Date): DayStatus {
+  return dayStatus(m.name, localDate(m.tz, at));
+}
+
+interface Segment { from: number; to: number; status: DayStatus; label: boolean }
+
+/** Úseky session v dnešním pražském dni; každý úsek nese stav svého obchodního dne. */
+function sessionSegments(m: Market, now: Date, nowDecimal: number): Segment[] {
+  const open = marketToDisplay(m.tz, m.openLocal, now);
+  const close = marketToDisplay(m.tz, m.closeLocal, now);
+  const endOf = (start: number, st: DayStatus) => start + ((st.earlyClose ?? m.closeLocal) - m.openLocal);
+  if (close >= open) {
+    const st = statusAt(m, instantAt(now, nowDecimal, open + 0.01));
+    return [{ from: open, to: Math.min(endOf(open, st), 24), status: st, label: true }];
+  }
+  // Session přes pražskou půlnoc (Sydney, Tokio): ranní kus patří obchodnímu dni, který začal včera.
+  const stA = statusAt(m, instantAt(now, nowDecimal, close - 0.01));
+  const stB = statusAt(m, instantAt(now, nowDecimal, open + 0.01));
+  return [
+    { from: 0, to: Math.max(0, endOf(open - 24, stA)), status: stA, label: false },
+    { from: open, to: Math.min(endOf(open, stB), 24), status: stB, label: true },
+  ];
+}
+
+const WD = ["ne", "po", "út", "st", "čt", "pá", "so"];
+const dayLabel = (date: string) => {
+  const d = new Date(`${date}T12:00:00Z`);
+  return `${WD[d.getUTCDay()]} ${d.getUTCDate()}. ${d.getUTCMonth() + 1}.`;
+};
+
+/** Hodina zavření v místním čase burzy → pražský čas „HH:MM" pro daný den. */
+const pragueTime = (m: Market, date: string, hour: number) => {
+  const h = marketToDisplay(m.tz, hour, new Date(`${date}T12:00:00Z`));
+  return `${String(Math.floor(h)).padStart(2, "0")}:${String(Math.round((h % 1) * 60)).padStart(2, "0")}`;
+};
+
 // ─── Analog Clock SVG ────────────────────────────────────────────────
 function Clock({ h, m, s, color, size = 60 }: { h: number; m: number; s: number; color: string; size?: number }) {
   const cx = size / 2, cy = size / 2, r = size / 2 - 2.5;
@@ -116,42 +159,42 @@ function Clock({ h, m, s, color, size = 60 }: { h: number; m: number; s: number;
 }
 
 // ─── Session Bar ──────────────────────────────────────────────────────
-function SessionBar({ market, now, compact = false }: { market: Market; now: Date; compact?: boolean }) {
-  const open  = marketToDisplay(market.tz, market.openLocal, now);
-  const close = marketToDisplay(market.tz, market.closeLocal, now);
-  const wraps = close < open;
-
+function SessionBar({ market, now, nowDecimal, compact = false }: { market: Market; now: Date; nowDecimal: number; compact?: boolean }) {
   const pct = (h: number) => `${(h / 24) * 100}%`;
   const wid = (a: number, b: number) => `${((b - a) / 24) * 100}%`;
 
-  const barStyle = (from: number, to: number): CSSProperties => ({
+  const barStyle = (from: number, to: number, closed: boolean): CSSProperties => ({
     position: "absolute",
     left: pct(from),
     width: wid(from, to),
     height: "100%",
-    backgroundColor: market.color + "22",
-    border: `1px solid ${market.color}44`,
     borderRadius: 4,
+    ...(closed
+      ? { background: "repeating-linear-gradient(135deg, rgba(148,163,184,0.10) 0 4px, transparent 4px 8px)", border: "1px dashed rgba(148,163,184,0.35)" }
+      : { backgroundColor: market.color + "22", border: `1px solid ${market.color}44` }),
   });
 
   return (
     <div className={`relative ${compact ? "h-4" : "h-6"}`}>
-      {!wraps ? (
-        <div style={barStyle(open, close)} className="flex items-center overflow-hidden">
-          <span className={`truncate font-medium ${compact ? "px-1 text-[9px]" : "px-2 text-[11px]"}`} style={{ color: market.color }}>
-            {market.name}
-          </span>
-        </div>
-      ) : (
-        <>
-          <div style={barStyle(0, close)} />
-          <div style={{ ...barStyle(open, 24), borderRadius: 4 }} className="flex items-center overflow-hidden">
-            <span className={`truncate font-medium ${compact ? "px-1 text-[9px]" : "px-2 text-[11px]"}`} style={{ color: market.color }}>
-              {market.name}
-            </span>
+      {sessionSegments(market, now, nowDecimal).filter((s) => s.to > s.from).map((s) => {
+        const closed = s.status.closed;
+        const title = closed
+          ? `${market.name}: zavřeno (${s.status.reason})`
+          : s.status.earlyClose != null ? `${market.name}: zkrácený den (${s.status.earlyReason})` : market.name;
+        const suffix = closed
+          ? ` · zavřeno${s.status.reason !== "víkend" ? ` (${s.status.reason})` : ""}`
+          : s.status.earlyClose != null ? " · zkráceně" : "";
+        return (
+          <div key={s.from} style={barStyle(s.from, s.to, closed)} className="flex items-center overflow-hidden" title={title}>
+            {s.label && (
+              <span className={`truncate font-medium ${compact ? "px-1 text-[9px]" : "px-2 text-[11px]"}`}
+                style={{ color: closed ? "rgb(148,163,184)" : market.color }}>
+                {market.name}{suffix}
+              </span>
+            )}
           </div>
-        </>
-      )}
+        );
+      })}
     </div>
   );
 }
@@ -184,14 +227,16 @@ export function MarketHoursBar({ compact = false }: { compact?: boolean }) {
   const localOffset = getUTCOffset(LOCAL_TZ, now);
   const nowPct = `${(localDecimal / 24) * 100}%`;
 
+  // Otevřeno = obchodní den burzy (ne víkend / svátek) a místní čas burzy v rámci session (i zkrácené).
   const isOpen = (m: Market) => {
-    const open  = marketToDisplay(m.tz, m.openLocal, now);
-    const close = marketToDisplay(m.tz, m.closeLocal, now);
-    const wraps = close < open;
-    return wraps
-      ? localDecimal >= open || localDecimal <= close
-      : localDecimal >= open && localDecimal <= close;
+    const st = statusAt(m, now);
+    if (st.closed) return false;
+    const t = getTimeParts(m.tz, now);
+    const dec = t.h + t.m / 60;
+    return dec >= m.openLocal && dec < (st.earlyClose ?? m.closeLocal);
   };
+  const todayPrague = localDate(LOCAL_TZ, now);
+  const special = upcomingSpecialDays(todayPrague, 14);
 
   const axisHours = compact ? Array.from({ length: 7 }, (_, i) => i * 4) : Array.from({ length: 13 }, (_, i) => i * 2);
 
@@ -262,10 +307,10 @@ export function MarketHoursBar({ compact = false }: { compact?: boolean }) {
             />
           ))}
 
-          {/* Session bars */}
+          {/* Session bars (svátek / víkend = šrafovaně, zkrácený den = kratší pruh) */}
           <div className={`relative ${compact ? "mb-2 space-y-1" : "mb-3 space-y-1.5"}`}>
             {MARKETS.map((m) => (
-              <SessionBar key={m.name} market={m} now={now} compact={compact} />
+              <SessionBar key={m.name} market={m} now={now} nowDecimal={localDecimal} compact={compact} />
             ))}
           </div>
 
@@ -306,12 +351,16 @@ export function MarketHoursBar({ compact = false }: { compact?: boolean }) {
         <div className={`flex flex-wrap border-t border-line/40 ${compact ? "mt-1.5 gap-x-3 gap-y-0.5 pt-1.5" : "mt-2 gap-x-4 gap-y-1 pt-2"}`}>
           {MARKETS.map((m) => {
             const open = isOpen(m);
+            const st = statusAt(m, now);
+            const holiday = st.closed && st.reason !== "víkend" ? st.reason : null;
             return (
               <div key={m.name} className="flex items-center gap-1.5 text-[10px]">
                 <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: m.color + "88", border: `1px solid ${m.color}` }} />
                 <span className={open ? "text-gray-300" : "text-gray-600"}>{m.name}</span>
-                <span className={`font-medium ${open ? "text-green-500" : "text-gray-600"}`}>
+                <span className={`font-medium ${open ? "text-green-500" : holiday ? "text-amber-500" : "text-gray-600"}`}>
                   {open ? "OPEN" : "CLOSED"}
+                  {holiday && ` · ${holiday}`}
+                  {!st.closed && st.earlyClose != null && ` · do ${pragueTime(m, localDate(m.tz, now), st.earlyClose)}`}
                 </span>
               </div>
             );
@@ -330,6 +379,36 @@ export function MarketHoursBar({ compact = false }: { compact?: boolean }) {
                 <span>střední dopad</span>
               </div>
             </div>
+          )}
+        </div>
+
+        {/* Kalendář: svátky a zkrácené dny burz na 14 dní dopředu (časy v Praze) */}
+        <div className={`border-t border-line/40 ${compact ? "mt-1.5 pt-1.5" : "mt-2 pt-2"}`}>
+          <div className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Svátky burz · 14 dní</div>
+          {special.length === 0 ? (
+            <div className="text-[10.5px] text-gray-600">
+              {calendarCovers(todayPrague) ? "Žádné svátky ani zkrácené dny — jen víkendy." : "Kalendář svátků je potřeba doplnit na další rok."}
+            </div>
+          ) : (
+            <ul className="space-y-0.5">
+              {special.slice(0, compact ? 5 : 8).map((d) => {
+                const m = MARKETS.find((x) => x.name === d.market)!;
+                const today = d.date === localDate(m.tz, now);
+                return (
+                  <li key={d.market + d.date} className="flex items-baseline gap-1.5 text-[10.5px]">
+                    <span className={`w-12 shrink-0 tabular-nums ${today ? "font-semibold text-amber-400" : "text-gray-500"}`}>
+                      {today ? "dnes" : dayLabel(d.date)}
+                    </span>
+                    <span className="h-1.5 w-1.5 shrink-0 self-center rounded-full" style={{ backgroundColor: m.color }} />
+                    <span className="shrink-0 text-gray-300">{d.market}</span>
+                    <span className={`shrink-0 ${d.closed ? "text-amber-500" : "text-gray-400"}`}>
+                      {d.closed ? "zavřeno" : `zkráceně do ${pragueTime(m, d.date, d.earlyClose!)}`}
+                    </span>
+                    <span className="truncate text-gray-600">{d.label}</span>
+                  </li>
+                );
+              })}
+            </ul>
           )}
         </div>
       </div>
